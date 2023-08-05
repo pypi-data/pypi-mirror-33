@@ -1,0 +1,55 @@
+cricket\_rankings
+=================
+
+|License: MIT|
+
+This is a simple python package to display cricket rankings of both men
+and women, teams and players across all the formats.
+
+If you love the package, please :star2: the repo.
+
+Basic Setup
+-----------
+
+You should be able to install using ``easy_install`` or ``pip`` in the
+usual ways:
+
+.. code:: sh
+
+    $ easy_install cricket-rankings
+    $ pip install cricket-rankings
+
+Or just clone this repository and run:
+
+.. code:: sh
+
+    $ python3 setup.py install
+
+Usage
+-----
+
+.. code:: python
+
+    # import the package
+    import cricket_rankings as cr
+
+    # run the rankings function and follow the prompts coming up
+    cr.rankings()
+
+Issues
+------
+
+You can report the bugs at the `issue
+tracker <https://github.com/umangahuja1/cricket_rankings/issues>`__
+
+License
+-------
+
+Built with ♥ by Umang
+Ahuja([@umangahuja1](https://github.com/umangahuja1)) under `MIT
+License <https://github.com/umangahuja1/cricket_rankings/blob/master/LICENSE>`__
+
+.. |License: MIT| image:: https://img.shields.io/badge/License-MIT-blue.svg
+   :target: https://github.com/umangahuja1/cricket_rankings/blob/master/LICENSE
+
+
