@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+
+# http://www.drdobbs.com/testing/unit-testing-with-python/240165163
+
+import inspect
+import logging
+import optparse
+import os
+import shutil
+import sys
+import tempfile
+import unittest
+
+localmodule = os.path.realpath(
+    os.path.join(os.path.dirname(inspect.getfile(inspect.currentframe())), '..'))
+print('localmodule: ' + localmodule)
+if localmodule not in sys.path:
+    sys.path.insert(0, localmodule)
+
+import fdroidserver.common
+import fdroidserver.lint
+import fdroidserver.metadata
+
+
+class LintTest(unittest.TestCase):
+    '''fdroidserver/lint.py'''
+
+    def setUp(self):
+        logging.basicConfig(level=logging.INFO)
+        self.basedir = os.path.join(localmodule, 'tests')
+        self.tmpdir = os.path.abspath(os.path.join(self.basedir, '..', '.testfiles'))
+        if not os.path.exists(self.tmpdir):
+            os.makedirs(self.tmpdir)
+        os.chdir(self.basedir)
+
+    def test_check_for_unsupported_metadata_files(self):
+        config = dict()
+        fdroidserver.common.fill_config_defaults(config)
+        config['accepted_formats'] = ('txt', 'yml')
+        fdroidserver.common.config = config
+        fdroidserver.lint.config = config
+        self.assertTrue(fdroidserver.lint.check_for_unsupported_metadata_files())
+
+        tmptestsdir = tempfile.mkdtemp(prefix=inspect.currentframe().f_code.co_name,
+                                       dir=self.tmpdir)
+        self.assertFalse(fdroidserver.lint.check_for_unsupported_metadata_files(tmptestsdir + '/'))
+        shutil.copytree(os.path.join(localmodule, 'tests', 'metadata'),
+                        os.path.join(tmptestsdir, 'metadata'),
+                        ignore=shutil.ignore_patterns('apk', 'dump', '*.json'))
+        self.assertFalse(fdroidserver.lint.check_for_unsupported_metadata_files(tmptestsdir + '/'))
+        shutil.copy(os.path.join(localmodule, 'tests', 'metadata', 'org.adaway.json'),
+                    os.path.join(tmptestsdir, 'metadata'))
+        self.assertTrue(fdroidserver.lint.check_for_unsupported_metadata_files(tmptestsdir + '/'))
+
+    def test_forbidden_html_tags(self):
+        config = dict()
+        fdroidserver.common.fill_config_defaults(config)
+        fdroidserver.common.config = config
+        fdroidserver.lint.config = config
+
+        app = {
+            'Name': 'Bad App',
+            'Summary': 'We pwn you',
+            'Description': 'This way: <style><img src="</style><img src=x onerror=alert(1)//">',
+        }
+
+        anywarns = False
+        for warn in fdroidserver.lint.check_regexes(app):
+            anywarns = True
+            logging.debug(warn)
+        self.assertTrue(anywarns)
+
+    def test_check_vercode_operation(self):
+        config = dict()
+        fdroidserver.common.fill_config_defaults(config)
+        fdroidserver.common.config = config
+        fdroidserver.lint.config = config
+
+        app = fdroidserver.metadata.App()
+        app.Name = 'Bad App'
+        app.Summary = 'We pwn you'
+        app.Description = 'These are some back'
+
+        good_fields = [
+            '6%c',
+            '%c - 1',
+            '%c + 10',
+            '%c*10',
+            '%c*10 + 3',
+            '%c*10 + 8',
+            '%c + 2 ',
+            '%c + 3',
+            '%c + 7',
+        ]
+        bad_fields = [
+            'open("/etc/passwd")',
+            '%C + 1',
+            '%%c * 123',
+            '123 + %%',
+            '%c % 7',
+        ]
+
+        anywarns = False
+        for good in good_fields:
+            app.VercodeOperation = good
+            for warn in fdroidserver.lint.check_vercode_operation(app):
+                anywarns = True
+                logging.debug(warn)
+            self.assertFalse(anywarns)
+
+        for bad in bad_fields:
+            anywarns = False
+            app.VercodeOperation = bad
+            for warn in fdroidserver.lint.check_vercode_operation(app):
+                anywarns = True
+                logging.debug(warn)
+            self.assertTrue(anywarns)
+
+
+if __name__ == "__main__":
+    parser = optparse.OptionParser()
+    parser.add_option("-v", "--verbose", action="store_true", default=False,
+                      help="Spew out even more information than normal")
+    (fdroidserver.lint.options, args) = parser.parse_args(['--verbose'])
+    fdroidserver.common.options = fdroidserver.lint.options
+
+    newSuite = unittest.TestSuite()
+    newSuite.addTest(unittest.makeSuite(LintTest))
+    unittest.main(failfast=False)
