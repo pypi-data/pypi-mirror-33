@@ -1,0 +1,56 @@
+# Copyright 2017 StreamSets Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""The StreamSets Test Environments is a project that enables developers to spin (start/stop)
+test environments for StreamSets products.
+"""
+
+import logging
+
+import colorlog
+
+__title__ = 'STE'
+__version__ = '0.0.1'
+__author__ = 'StreamSets'
+__copyright__ = 'Copyright 2018 StreamSets'
+
+formatter = colorlog.ColoredFormatter(
+    (
+        '%(asctime)s '
+        '[%(log_color)s%(levelname)s%(reset)s] '
+        '[%(cyan)s%(name)s%(reset)s] '
+        '%(message_log_color)s%(message)s'
+    ),
+    reset=True,
+    log_colors={
+        'DEBUG': 'cyan',
+        'INFO': 'green',
+        'WARNING': 'bold_yellow',
+        'ERROR': 'bold_red',
+        'CRITICAL': 'bold_red,bg_white',
+    },
+    secondary_log_colors={
+        'message': {
+            'DEBUG': 'cyan',
+            'INFO': 'green',
+            'WARNING': 'bold_yellow',
+            'ERROR': 'bold_red',
+            'CRITICAL': 'bold_red,bg_white',
+        },
+    },
+    style='%'
+)
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+logging.getLogger(__name__).addHandler(handler)
