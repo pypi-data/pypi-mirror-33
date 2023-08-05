@@ -1,0 +1,160 @@
+#!python
+"""LICENSE
+Copyright 2017 Hermann Krumrey <hermann@krumreyh.com>
+
+This file is part of ci-scripts.
+
+ci-scripts is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+ci-scripts is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with ci-scripts.  If not, see <http://www.gnu.org/licenses/>.
+LICENSE"""
+
+import os
+import sys
+import argparse
+from typing import Tuple, List
+
+
+def parse_args() -> Tuple[str, str or None, bool]:
+    """
+    Parses the arguments of the script.
+    :return: A tuple consisting of the changelog path
+             and the destination file path
+    """
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--changelog", nargs='?', default="CHANGELOG",
+                        help="The path to the Changelog file")
+    parser.add_argument("-o", "--out", nargs='?', default=None,
+                        help="The destination file")
+    parser.add_argument("--notitle", action="store_true",
+                        help="Outputs the changelog without a title")
+
+    args = parser.parse_args()
+
+    source = args.changelog
+    dest = args.out
+
+    if not os.path.isfile(source):
+        print("Changelog File not found")
+        sys.exit(1)
+
+    return source, dest, args.notitle
+
+
+def read(source_file: str, notitle: bool) -> str:
+    """
+    Reads the latest entry in the changelog file
+    :param source_file: The path of the changelog file
+    :param notitle: Indicates if a title should be included or not
+    :return: The latest entry, formatted
+    """
+
+    with open(source_file, 'r') as f:
+        source = f.read().split("\n")
+
+    version_name = None
+    version_description = []
+
+    for line in source:
+
+        if line == "":
+            continue
+
+        if not line.startswith(" ") and not line.startswith("\t"):
+
+            if version_name is None:
+                version_name = format_version_name(line)
+            else:
+                break
+
+        else:
+            version_description.append(format_version_description(line))
+
+    return format_changelog_entry(version_name, version_description, notitle)
+
+
+def format_changelog_entry(version_name: str, version_description: List[str],
+                           notitle: bool) -> str:
+    """
+    Formats the changelog entry
+    :param version_name: The version of the changelog entry
+    :param version_description: The description of the changelog entry
+    :param notitle: Indicates if the title should be included or not
+    :return: The formatted changelog entry
+    """
+    formatted = ""
+    if not notitle:
+        formatted = "# Changelog Version ```" + version_name + "```:\n\n"
+
+    for description in version_description:
+        formatted += "* " + description + "\n"
+
+    return formatted.strip()
+
+
+def format_version_name(version_name: str) -> str:
+    """
+    Formats the version name of the changelog entry
+    :param version_name: The version of the changelog entry
+    :return: The formatted version name
+    """
+
+    if version_name.lower().startswith("v ") or \
+            version_name.lower().startswith("version "):
+        version_name = version_name.split(" ", 1)[1]
+
+    if version_name.endswith(":"):
+        version_name = version_name.rsplit(":", 1)[0]
+
+    return version_name
+
+
+def format_version_description(version_description: str) -> str:
+    """
+    Formats the version description of a changelog entry
+    :param version_description: The raw changelog description
+    :return: The formatted changelog description
+    """
+
+    while version_description.startswith(" "):
+        version_description = version_description.split(" ", 1)[1]
+    while version_description.startswith("\t"):
+        version_description = version_description.split("\t", 1)[1]
+
+    if version_description.startswith("- "):
+        version_description = version_description.split("- ", 1)[1]
+    elif version_description.startswith("-"):
+        version_description = version_description.split("-", 1)[1]
+
+    return version_description
+
+
+def main():
+    """
+    Retrieves the latest entry of a changelog file and either prints it or
+    writes it to a file
+    :return: None
+    """
+
+    source, destination, notitle = parse_args()  # type: str or bool
+    content = read(source, notitle)
+
+    if destination is None:
+        print(content)
+    else:
+        with open(destination, "w") as f:
+            f.write(content)
+
+
+if __name__ == "__main__":
+    main()
