@@ -1,0 +1,54 @@
+fpq package
+===========
+
+Submodules
+----------
+
+fpq\.fp module
+--------------
+
+.. automodule:: fpq.fp
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+fpq\.numba\_wrapper module
+--------------------------
+
+.. automodule:: fpq.numba_wrapper
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+fpq\.quaternion module
+----------------------
+
+.. automodule:: fpq.quaternion
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+fpq\.utils module
+-----------------
+
+.. automodule:: fpq.utils
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+fpq\.vector module
+------------------
+
+.. automodule:: fpq.vector
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: fpq
+    :members:
+    :undoc-members:
+    :show-inheritance:
