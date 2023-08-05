@@ -1,0 +1,74 @@
+language: python
+matrix:
+  include:
+    - env:
+        - PYTHON=3.6
+        - CODE_TEST=1
+        - COVERAGE=1
+        - DOC_TEST=0
+        - STYLE_TEST=0
+    - env:
+        - PYTHON=3.5
+        - CODE_TEST=1
+        - COVERAGE=0
+        - DOC_TEST=0
+        - STYLE_TEST=0
+    - env:
+        - PYTHON=3.6
+        - CODE_TEST=0
+        - COVERAGE=0
+        - DOC_TEST=1
+        - STYLE_TEST=0
+    - env:
+        - PYTHON=3.6
+        - CODE_TEST=0
+        - COVERAGE=0
+        - DOC_TEST=0
+        - STYLE_TEST=1
+install:
+    # install conda
+    - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+    - bash miniconda.sh -b -p $HOME/miniconda
+    - export PATH="$HOME/miniconda/bin:$PATH"
+    - conda config --set always_yes yes --set changeps1 no
+    - conda update -q conda
+    - conda info -a
+    # install Python
+    - conda create -q -n test-environment python=$PYTHON
+    - source activate test-environment
+    # install needed packages
+    - conda install -q scipy
+    - conda install -q scikit-sparse -c conda-forge
+    - if [ "${CODE_TEST}" == "1" ]; then
+          conda install -q nose;
+          conda install -q pytest;
+          if [ "${COVERAGE}" == "1" ]; then
+              conda install -q pytest-cov;
+              conda install -q codecov -c conda-forge;
+          fi
+      fi
+    - if [ "${STYLE_TEST}" == "1" ]; then
+          conda install -q pycodestyle;
+      fi
+    - if [ "${DOC_TEST}" == "1" ]; then
+          conda install -q sphinx;
+      fi
+    - conda list
+    # install this package
+    - python3 setup.py install
+script:
+    - if [ "${CODE_TEST}" == "1" ]; then
+          if [ "${COVERAGE}" == "1" ]; then
+              pytest -W error --cov=matrix;
+              codecov;
+          else
+              pytest -W error;
+          fi
+      fi
+    - if [ "${DOC_TEST}" == "1" ]; then
+          sphinx-build -nW -b html -d doc/build/doctrees doc/source doc/build/html;
+      fi
+    - if [ "${STYLE_TEST}" == "1" ]; then
+          pycodestyle;
+      fi
+
