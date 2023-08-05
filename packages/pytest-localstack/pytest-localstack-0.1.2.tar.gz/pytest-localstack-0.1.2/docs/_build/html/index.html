@@ -1,0 +1,210 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pytest-localstack &#8212; pytest-localstack 0.1.1-dev documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Usage" href="using.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="pytest-localstack">
+<h1>pytest-localstack<a class="headerlink" href="#pytest-localstack" title="Permalink to this headline">¶</a></h1>
+<a class="reference external image-reference" href="https://pypi.org/project/pytest-localstack/"><img alt="PyPI" src="https://img.shields.io/pypi/v/pytest-localstack.svg" /></a>
+<a class="reference external image-reference" href="https://travis-ci.org/mintel/pytest-localstack"><img alt="Travis-CI" src="https://img.shields.io/travis/mintel/pytest-localstack/master.svg" /></a>
+<a class="reference external image-reference" href="https://codecov.io/gh/mintel/pytest-localstack"><img alt="Codecov" src="https://img.shields.io/codecov/c/github/mintel/pytest-localstack.svg" /></a>
+<a class="reference external image-reference" href="https://github.com/mintel/pytest-localstack/blob/master/LICENSE"><img alt="https://img.shields.io/github/license/mintel/pytest-localstack.svg" src="https://img.shields.io/github/license/mintel/pytest-localstack.svg" /></a>
+<a class="reference external image-reference" href="https://github.com/mintel/pytest-localstack/issues"><img alt="https://img.shields.io/github/issues/mintel/pytest-localstack.svg" src="https://img.shields.io/github/issues/mintel/pytest-localstack.svg" /></a>
+<a class="reference external image-reference" href="https://github.com/mintel/pytest-localstack/network"><img alt="https://img.shields.io/github/forks/mintel/pytest-localstack.svg" src="https://img.shields.io/github/forks/mintel/pytest-localstack.svg" /></a>
+<a class="reference external image-reference" href="https://github.com/mintel/pytest-localstack/stargazers"><img alt="https://img.shields.io/github/stars/mintel/pytest-localstack.svg" src="https://img.shields.io/github/stars/mintel/pytest-localstack.svg" /></a>
+<p>pytest-localstack is a plugin for <a class="reference external" href="http://docs.pytest.org/">pytest</a> to create <a class="reference external" href="https://aws.amazon.com/">AWS</a> integration tests
+via a <a class="reference external" href="https://github.com/localstack/localstack">Localstack</a> Docker container.</p>
+<p><a class="reference external" href="https://pytest-localstack.readthedocs.io/">Read The Docs</a></p>
+<p><strong>Requires:</strong></p>
+<ul class="simple">
+<li>pytest &gt;= 3.3.0</li>
+<li>Docker</li>
+</ul>
+<div class="section" id="features">
+<h2>Features<a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>Create <a class="reference external" href="https://docs.pytest.org/en/stable/fixture.html">pytest fixtures</a> that start and stop a Localstack container.</li>
+<li>Temporarily patch botocore to redirect botocore/boto3 API calls to Localstack container.</li>
+<li>Plugin system to easily extend supports to other AWS client libraries such as <a class="reference external" href="https://github.com/aio-libs/aiobotocore">aiobotocore</a>.</li>
+</ul>
+</div>
+<div class="section" id="example">
+<h2>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">boto3</span>
+<span class="kn">import</span> <span class="nn">pytest_localstack</span>
+
+<span class="n">localstack</span> <span class="o">=</span> <span class="n">pytest_localstack</span><span class="o">.</span><span class="n">patch_fixture</span><span class="p">(</span>
+    <span class="n">services</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;s3&quot;</span><span class="p">],</span>  <span class="c1"># Limit to the AWS services you need.</span>
+    <span class="n">scope</span><span class="o">=</span><span class="s1">&#39;module&#39;</span><span class="p">,</span>  <span class="c1"># Use the same Localstack container for all tests in this module.</span>
+    <span class="n">autouse</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>  <span class="c1"># Automatically use this fixture in tests.</span>
+<span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">test_s3_bucket_creation</span><span class="p">():</span>
+    <span class="n">s3</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s1">&#39;s3&#39;</span><span class="p">)</span>  <span class="c1"># Botocore/boto3 will be patched to use Localstack</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">s3</span><span class="o">.</span><span class="n">buckets</span><span class="o">.</span><span class="n">all</span><span class="p">()))</span> <span class="o">==</span> <span class="mi">0</span>
+    <span class="n">bucket</span> <span class="o">=</span> <span class="n">s3</span><span class="o">.</span><span class="n">Bucket</span><span class="p">(</span><span class="s1">&#39;foobar&#39;</span><span class="p">)</span>
+    <span class="n">bucket</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">s3</span><span class="o">.</span><span class="n">buckets</span><span class="o">.</span><span class="n">all</span><span class="p">()))</span> <span class="o">==</span> <span class="mi">1</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>Install with pipenv:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ pipenv install pytest-localstack
+</pre></div>
+</div>
+<p>(You have <a class="reference external" href="https://pipenv.readthedocs.io">pipenv</a>, right?)</p>
+</div>
+<div class="section" id="todo">
+<h2>TODO<a class="headerlink" href="#todo" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>More detailed docs.</li>
+<li>Break Docker container running out of LocalstackSession.</li>
+<li>Make botocore patching more comprehensible.</li>
+<li>Add common test resource fixture factories i.e. S3 buckets, SQS queues, SNS topics, etc.</li>
+<li>Test this works for non-localhost Docker containers.</li>
+<li>Add other client libraries such as <a class="reference external" href="https://github.com/aio-libs/aiobotocore">aiobotocore</a>.</li>
+</ul>
+</div>
+</div>
+<div class="section" id="table-of-contents">
+<h1>Table of Contents<a class="headerlink" href="#table-of-contents" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="using.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals/index.html">Internals</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="internals/session.html">LocalstackSession</a></li>
+<li class="toctree-l2"><a class="reference internal" href="internals/hooks.html">Plugins/Hooks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="internals/contrib/index.html">Contrib</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="change-log">
+<h1>Change Log<a class="headerlink" href="#change-log" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="id1">
+<h2>0.1.1 (2018-04-23)<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>Fixed bug where patched botocore clients wouldn’t populated the <cite>_exceptions</cite> attribute.</li>
+</ul>
+</div>
+<div class="section" id="id2">
+<h2>0.1.0 (2018-03-13)<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>Initial release</li>
+</ul>
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></li>
+<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
+<li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
+</ul>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">pytest-localstack</a></h1>
+
+
+
+<p class="blurb">AWS integration tests via Localstack Docker container.</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=mintel&repo=pytest-localstack&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="using.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals/index.html">Internals</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="using.html" title="next chapter">Usage</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Mintel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+    <a href="https://github.com/mintel/pytest-localstack" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

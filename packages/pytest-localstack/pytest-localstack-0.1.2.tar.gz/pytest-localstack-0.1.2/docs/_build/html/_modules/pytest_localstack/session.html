@@ -1,0 +1,458 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pytest_localstack.session &#8212; pytest-localstack 0.1.1-dev documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pytest_localstack.session</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Run and interact with a Localstack container.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">import</span> <span class="nn">six</span>
+
+<span class="kn">from</span> <span class="nn">pytest_localstack</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">constants</span><span class="p">,</span>
+    <span class="n">container</span><span class="p">,</span>
+    <span class="n">exceptions</span><span class="p">,</span>
+    <span class="n">plugin</span><span class="p">,</span>
+    <span class="n">service_checks</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="LocalstackSession"><a class="viewcode-back" href="../../internals/session.html#pytest_localstack.session.LocalstackSession">[docs]</a><span class="k">class</span> <span class="nc">LocalstackSession</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Run a localstack Docker container.</span>
+
+<span class="sd">    This class can start and stop a Localstack container, as well as capture</span>
+<span class="sd">    its logs. It also implments a plugin system to add factories</span>
+<span class="sd">    for the various AWS client libraries (botocore, boto3, etc).</span>
+
+<span class="sd">    Can be used as a context manager:</span>
+
+<span class="sd">        &gt;&gt;&gt; import docker</span>
+<span class="sd">        &gt;&gt;&gt; client = docker.from_env()</span>
+<span class="sd">        &gt;&gt;&gt; with LocalstackSession(client) as session:</span>
+<span class="sd">        ...     s3 = session.boto3.resource(&#39;s3&#39;)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        docker_client: A docker-py Client object that will be used</span>
+<span class="sd">            to talk to Docker.</span>
+<span class="sd">        services (list|dict, optional): One of</span>
+
+<span class="sd">            - A list of AWS service names to start in the</span>
+<span class="sd">              Localstack container.</span>
+<span class="sd">            - A dict of service names to the port they should run on.</span>
+
+<span class="sd">            Defaults to all services. Setting this</span>
+<span class="sd">            can reduce container startup time and therefore test time.</span>
+<span class="sd">        region_name (str, optional): Region name to assume.</span>
+<span class="sd">            Each Localstack container acts like a single AWS region.</span>
+<span class="sd">            Defaults to &#39;us-east-1&#39;.</span>
+<span class="sd">        kinesis_error_probability (float, optional): Decimal value between</span>
+<span class="sd">            0.0 (default) and 1.0 to randomly inject</span>
+<span class="sd">            ProvisionedThroughputExceededException errors</span>
+<span class="sd">            into Kinesis API responses.</span>
+<span class="sd">        dynamodb_error_probability (float, optional):  Decimal value</span>
+<span class="sd">            between 0.0 (default) and 1.0 to randomly inject</span>
+<span class="sd">            ProvisionedThroughputExceededException errors into</span>
+<span class="sd">            DynamoDB API responses.</span>
+<span class="sd">        container_log_level (int, optional): The logging level to use</span>
+<span class="sd">            for Localstack container logs. Defaults to :attr:`logging.DEBUG`.</span>
+<span class="sd">        localstack_verison (str, optional): The version of the Localstack</span>
+<span class="sd">            image to use. Defaults to `latest`.</span>
+<span class="sd">        auto_remove (bool, optional): If True, delete the Localstack</span>
+<span class="sd">            container when it stops.</span>
+<span class="sd">        container_name (str, optional): The name for the Localstack</span>
+<span class="sd">            container. Defaults to a randomly generated id.</span>
+<span class="sd">        use_ssl (bool, optional): If True use SSL to connect to Localstack.</span>
+<span class="sd">            Default is False.</span>
+<span class="sd">        **kwargs: Additional kwargs will be stored in a `kwargs` attribute</span>
+<span class="sd">            in case test resource factories want to access them.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">image_name</span> <span class="o">=</span> <span class="s1">&#39;localstack/localstack&#39;</span>
+    <span class="n">factories</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">docker_client</span><span class="p">,</span>
+                 <span class="n">services</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">region_name</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">DEFAULT_AWS_REGION</span><span class="p">,</span>
+                 <span class="n">kinesis_error_probability</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                 <span class="n">dynamodb_error_probability</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                 <span class="n">container_log_level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">,</span>
+                 <span class="n">localstack_verison</span><span class="o">=</span><span class="s1">&#39;latest&#39;</span><span class="p">,</span>
+                 <span class="n">auto_remove</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">pull_image</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">container_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">use_ssl</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_ssl</span> <span class="o">=</span> <span class="n">use_ssl</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_container</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_factory_cache</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">docker_client</span> <span class="o">=</span> <span class="n">docker_client</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">region_name</span> <span class="o">=</span> <span class="n">region_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kinesis_error_probability</span> <span class="o">=</span> <span class="n">kinesis_error_probability</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dynamodb_error_probability</span> <span class="o">=</span> <span class="n">dynamodb_error_probability</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_remove</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">auto_remove</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pull_image</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">pull_image</span><span class="p">)</span>
+
+        <span class="n">plugin</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">hook</span><span class="o">.</span><span class="n">contribute_to_session</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">services</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">services</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">SERVICE_PORTS</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">services</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">,</span> <span class="nb">set</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">services</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">service_name</span> <span class="ow">in</span> <span class="n">services</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">port</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">SERVICE_PORTS</span><span class="p">[</span><span class="n">service_name</span><span class="p">]</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ServiceError</span><span class="p">(</span><span class="s2">&quot;unknown service &quot;</span> <span class="o">+</span> <span class="n">service_name</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">services</span><span class="p">[</span><span class="n">service_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">services</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">services</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">service_name</span><span class="p">,</span> <span class="n">port</span> <span class="ow">in</span> <span class="n">services</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">service_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">constants</span><span class="o">.</span><span class="n">SERVICE_PORTS</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ServiceError</span><span class="p">(</span><span class="s2">&quot;unknown service &quot;</span> <span class="o">+</span> <span class="n">service_name</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">port</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">port</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">SERVICE_PORTS</span><span class="p">[</span><span class="n">service_name</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">services</span><span class="p">[</span><span class="n">service_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;unsupported services type: </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">services</span><span class="p">,))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">container_log_level</span> <span class="o">=</span> <span class="n">container_log_level</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">localstack_verison</span> <span class="o">=</span> <span class="n">localstack_verison</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">container_name</span> <span class="o">=</span> <span class="n">container_name</span> <span class="ow">or</span> <span class="n">generate_container_name</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">hostname</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return hostname for Localstack container.</span>
+
+<span class="sd">        Currently only supports locally running containers.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s1">&#39;127.0.0.1&#39;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">service_aliases</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a full list of possible names supported.&quot;&quot;&quot;</span>
+        <span class="n">services</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">services</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">alias</span><span class="p">,</span> <span class="n">service_name</span> <span class="ow">in</span> <span class="n">constants</span><span class="o">.</span><span class="n">SERVICE_ALIASES</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">service_name</span> <span class="ow">in</span> <span class="n">services</span><span class="p">:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">service_name</span><span class="p">)</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">alias</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Start the Localstack container.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            timeout (float, optional): Wait at most this many seconds</span>
+<span class="sd">                for the Localstack services to start. Default is 1 minute.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            pytest_localstack.exceptions.TimeoutError:</span>
+<span class="sd">                If *timeout* was reached before all Localstack</span>
+<span class="sd">                services were available.</span>
+<span class="sd">            docker.errors.APIError: If the Docker daemon returns an error.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_container</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ContainerAlreadyStartedError</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Starting Localstack container </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">container_name</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%r</span><span class="s1"> running starting hooks&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="n">plugin</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">hook</span><span class="o">.</span><span class="n">session_starting</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="n">image_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_name</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">localstack_verison</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pull_image</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Pulling docker image </span><span class="si">%r</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">image_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">docker_client</span><span class="o">.</span><span class="n">images</span><span class="o">.</span><span class="n">pull</span><span class="p">(</span><span class="n">image_name</span><span class="p">)</span>
+
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="n">services</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">pair</span> <span class="k">for</span> <span class="n">pair</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">services</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="n">kinesis_error_probability</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">kinesis_error_probability</span>
+        <span class="n">dynamodb_error_probability</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">dynamodb_error_probability</span>
+        <span class="n">use_ssl</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">use_ssl</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_container</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">docker_client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="n">image_name</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">container_name</span><span class="p">,</span>
+            <span class="n">detach</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">auto_remove</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_remove</span><span class="p">,</span>
+            <span class="n">environment</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;DEFAULT_REGION&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">region_name</span><span class="p">,</span>
+                <span class="s1">&#39;SERVICES&#39;</span><span class="p">:</span> <span class="n">services</span><span class="p">,</span>
+                <span class="s1">&#39;KINESIS_ERROR_PROBABILITY&#39;</span><span class="p">:</span> <span class="n">kinesis_error_probability</span><span class="p">,</span>
+                <span class="s1">&#39;DYNAMODB_ERROR_PROBABILITY&#39;</span><span class="p">:</span> <span class="n">dynamodb_error_probability</span><span class="p">,</span>
+                <span class="s1">&#39;USE_SSL&#39;</span><span class="p">:</span> <span class="n">use_ssl</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="n">ports</span><span class="o">=</span><span class="p">{</span><span class="n">port</span><span class="p">:</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">port</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">services</span><span class="o">.</span><span class="n">values</span><span class="p">()},</span>
+        <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s1">&#39;Started Localstack container </span><span class="si">%s</span><span class="s1"> (id: </span><span class="si">%s</span><span class="s1">)&#39;</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">container_name</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_container</span><span class="o">.</span><span class="n">short_id</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Tail container logs</span>
+        <span class="n">container_logger</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">getChild</span><span class="p">(</span>
+            <span class="s1">&#39;containers.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_container</span><span class="o">.</span><span class="n">short_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stdout_tailer</span> <span class="o">=</span> <span class="n">container</span><span class="o">.</span><span class="n">DockerLogTailer</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_container</span><span class="p">,</span>
+            <span class="n">container_logger</span><span class="o">.</span><span class="n">getChild</span><span class="p">(</span><span class="s1">&#39;stdout&#39;</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">container_log_level</span><span class="p">,</span>
+            <span class="n">stdout</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">stderr</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stdout_tailer</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stderr_tailer</span> <span class="o">=</span> <span class="n">container</span><span class="o">.</span><span class="n">DockerLogTailer</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_container</span><span class="p">,</span>
+            <span class="n">container_logger</span><span class="o">.</span><span class="n">getChild</span><span class="p">(</span><span class="s1">&#39;stderr&#39;</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">container_log_level</span><span class="p">,</span>
+            <span class="n">stdout</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">stderr</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stderr_tailer</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">timeout_remaining</span> <span class="o">=</span> <span class="n">timeout</span> <span class="o">-</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">timeout_remaining</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">(</span><span class="s2">&quot;Container took too long to start.&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_services</span><span class="p">(</span><span class="n">timeout_remaining</span><span class="p">)</span>
+
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%r</span><span class="s1"> running started hooks&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+            <span class="n">plugin</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">hook</span><span class="o">.</span><span class="n">session_started</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%r</span><span class="s1"> finished started hooks&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_container</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+            <span class="k">raise</span>
+
+    <span class="k">def</span> <span class="nf">_check_services</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="p">,</span> <span class="n">initial_retry_delay</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">max_delay</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check that all Localstack services are running and accessible.</span>
+
+<span class="sd">        Does exponential backoff up to `max_delay`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            timeout (float): Number of seconds to wait for services to</span>
+<span class="sd">                be available.</span>
+<span class="sd">            initial_retry_delay (float, optional): Initial retry delay value</span>
+<span class="sd">                in seconds. Will be multiplied by `2^n` for each retry.</span>
+<span class="sd">                Default: 0.01</span>
+<span class="sd">            max_delay (float, optional): Max time in seconds to wait between</span>
+<span class="sd">                checking service availability. Default: 1</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            pytest_localstack.exceptions.TimeoutError: If not all services</span>
+<span class="sd">                started before `timeout` was reached.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">services</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">services</span><span class="p">)</span>
+        <span class="n">num_retries</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">while</span> <span class="n">services</span> <span class="ow">and</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">timeout</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">service_name</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">services</span><span class="p">):</span>  <span class="c1"># list() because set may change during iteration</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">service_checks</span><span class="o">.</span><span class="n">SERVICE_CHECKS</span><span class="p">[</span><span class="n">service_name</span><span class="p">](</span><span class="bp">self</span><span class="p">)</span>
+                    <span class="n">services</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">service_name</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ServiceError</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="k">if</span> <span class="n">services</span><span class="p">:</span>
+                <span class="n">delay</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">num_retries</span><span class="p">)</span> <span class="o">*</span> <span class="n">initial_retry_delay</span>
+                <span class="k">if</span> <span class="n">delay</span> <span class="o">&gt;</span> <span class="n">max_delay</span><span class="p">:</span>
+                    <span class="n">delay</span> <span class="o">=</span> <span class="n">max_delay</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay</span><span class="p">)</span>
+                    <span class="n">num_retries</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">services</span><span class="p">:</span>
+            <span class="n">services</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">services</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">(</span>
+                <span class="s2">&quot;Localstack services not started: </span><span class="si">{0!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">services</span><span class="p">)</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Stop the Localstack container.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            timeout (float, optional): Timeout in seconds to wait for the</span>
+<span class="sd">                container to stop before sending a SIGKILL. Default: 10</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            docker.errors.APIError: If the Docker daemon returns an error.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_container</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Stopping </span><span class="si">%r</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Running stopping hooks for </span><span class="si">%r</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+            <span class="n">plugin</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">hook</span><span class="o">.</span><span class="n">session_stopping</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Finished stopping hooks for </span><span class="si">%r</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_container</span><span class="o">.</span><span class="n">stop</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_container</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_stdout_tailer</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_stderr_tailer</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Stopped </span><span class="si">%r</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Running stopped hooks for </span><span class="si">%r</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+            <span class="n">plugin</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">hook</span><span class="o">.</span><span class="n">session_stopped</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Finished stopped hooks for </span><span class="si">%r</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Stop container on garbage collection.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_timeout</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">DEFAULT_CONTAINER_START_TIMEOUT</span><span class="p">,</span>
+                  <span class="n">stop_timeout</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">DEFAULT_CONTAINER_STOP_TIMEOUT</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__stop_timeout</span> <span class="o">=</span> <span class="n">stop_timeout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">start_timeout</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc</span><span class="p">,</span> <span class="n">tb</span><span class="p">):</span>
+        <span class="n">timeout</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;__stop_timeout&#39;</span><span class="p">,</span> <span class="n">constants</span><span class="o">.</span><span class="n">DEFAULT_CONTAINER_STOP_TIMEOUT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">map_port</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return host port based on Localstack container port.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_container</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ContainerNotStartedError</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">docker_client</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">port</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_container</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">port</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;HostPort&#39;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">service_hostname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get hostname and port for an AWS service.&quot;&quot;&quot;</span>
+        <span class="n">service_name</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">SERVICE_ALIASES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">service_name</span><span class="p">,</span> <span class="n">service_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">service_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">services</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">exceptions</span><span class="o">.</span><span class="n">ServiceError</span><span class="p">(</span>
+                <span class="s2">&quot;</span><span class="si">{0!r}</span><span class="s2"> does not have </span><span class="si">{1}</span><span class="s2"> enabled&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service_name</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="n">port</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">map_port</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">services</span><span class="p">[</span><span class="n">service_name</span><span class="p">])</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="si">%i</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">endpoint_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the URL for a service endpoint.&quot;&quot;&quot;</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;https&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_ssl</span> <span class="k">else</span> <span class="s1">&#39;http&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;://&#39;</span>
+        <span class="n">url</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">service_hostname</span><span class="p">(</span><span class="n">service_name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">url</span></div>
+
+
+<span class="k">def</span> <span class="nf">generate_container_name</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Generate a random name for a Localstack container.&quot;&quot;&quot;</span>
+    <span class="n">valid_chars</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_letters</span><span class="p">)</span>
+    <span class="n">chars</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">chars</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">6</span><span class="p">:</span>
+        <span class="n">new_chars</span> <span class="o">=</span> <span class="p">[</span><span class="nb">chr</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iterbytes</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="mi">6</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">chars</span><span class="p">)))]</span>
+        <span class="n">chars</span> <span class="o">+=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">new_chars</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">valid_chars</span><span class="p">]</span>
+    <span class="k">return</span> <span class="s1">&#39;pytest-localstack-&#39;</span> <span class="o">+</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chars</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">pytest-localstack</a></h1>
+
+
+
+<p class="blurb">AWS integration tests via Localstack Docker container.</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=mintel&repo=pytest-localstack&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../using.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../internals/index.html">Internals</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  <li><a href="../pytest_localstack.html">pytest_localstack</a><ul>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Mintel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+    <a href="https://github.com/mintel/pytest-localstack" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>

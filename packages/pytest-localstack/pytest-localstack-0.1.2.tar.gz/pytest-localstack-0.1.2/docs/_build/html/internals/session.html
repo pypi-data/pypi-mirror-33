@@ -1,0 +1,180 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>LocalstackSession &#8212; pytest-localstack 0.1.1-dev documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Plugins/Hooks" href="hooks.html" />
+    <link rel="prev" title="Internals" href="index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="localstacksession">
+<h1>LocalstackSession<a class="headerlink" href="#localstacksession" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="pytest_localstack.session.LocalstackSession">
+<em class="property">class </em><code class="descclassname">pytest_localstack.session.</code><code class="descname">LocalstackSession</code><span class="sig-paren">(</span><em>docker_client</em>, <em>services=None</em>, <em>region_name='us-east-1'</em>, <em>kinesis_error_probability=0.0</em>, <em>dynamodb_error_probability=0.0</em>, <em>container_log_level=10</em>, <em>localstack_verison='latest'</em>, <em>auto_remove=True</em>, <em>pull_image=True</em>, <em>container_name=None</em>, <em>use_ssl=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pytest_localstack/session.html#LocalstackSession"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pytest_localstack.session.LocalstackSession" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run a localstack Docker container.</p>
+<p>This class can start and stop a Localstack container, as well as capture
+its logs. It also implments a plugin system to add factories
+for the various AWS client libraries (botocore, boto3, etc).</p>
+<p>Can be used as a context manager:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">docker</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">client</span> <span class="o">=</span> <span class="n">docker</span><span class="o">.</span><span class="n">from_env</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">LocalstackSession</span><span class="p">(</span><span class="n">client</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">s3</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">boto3</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s1">&#39;s3&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>docker_client</strong> – A docker-py Client object that will be used
+to talk to Docker.</li>
+<li><strong>services</strong> (<em>list|dict</em><em>, </em><em>optional</em>) – <p>One of</p>
+<ul>
+<li>A list of AWS service names to start in the
+Localstack container.</li>
+<li>A dict of service names to the port they should run on.</li>
+</ul>
+<p>Defaults to all services. Setting this
+can reduce container startup time and therefore test time.</p>
+</li>
+<li><strong>region_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a><em>, </em><em>optional</em>) – Region name to assume.
+Each Localstack container acts like a single AWS region.
+Defaults to ‘us-east-1’.</li>
+<li><strong>kinesis_error_probability</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.6)"><em>float</em></a><em>, </em><em>optional</em>) – Decimal value between
+0.0 (default) and 1.0 to randomly inject
+ProvisionedThroughputExceededException errors
+into Kinesis API responses.</li>
+<li><strong>dynamodb_error_probability</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.6)"><em>float</em></a><em>, </em><em>optional</em>) – Decimal value
+between 0.0 (default) and 1.0 to randomly inject
+ProvisionedThroughputExceededException errors into
+DynamoDB API responses.</li>
+<li><strong>container_log_level</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a><em>, </em><em>optional</em>) – The logging level to use
+for Localstack container logs. Defaults to <code class="xref py py-attr docutils literal notranslate"><span class="pre">logging.DEBUG</span></code>.</li>
+<li><strong>localstack_verison</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a><em>, </em><em>optional</em>) – The version of the Localstack
+image to use. Defaults to <cite>latest</cite>.</li>
+<li><strong>auto_remove</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.6)"><em>bool</em></a><em>, </em><em>optional</em>) – If True, delete the Localstack
+container when it stops.</li>
+<li><strong>container_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a><em>, </em><em>optional</em>) – The name for the Localstack
+container. Defaults to a randomly generated id.</li>
+<li><strong>use_ssl</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.6)"><em>bool</em></a><em>, </em><em>optional</em>) – If True use SSL to connect to Localstack.
+Default is False.</li>
+<li><strong>**kwargs</strong> – Additional kwargs will be stored in a <cite>kwargs</cite> attribute
+in case test resource factories want to access them.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">pytest-localstack</a></h1>
+
+
+
+<p class="blurb">AWS integration tests via Localstack Docker container.</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=mintel&repo=pytest-localstack&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../using.html">Usage</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Internals</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">LocalstackSession</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hooks.html">Plugins/Hooks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="contrib/index.html">Contrib</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Internals</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Internals</a></li>
+      <li>Next: <a href="hooks.html" title="next chapter">Plugins/Hooks</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Mintel.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="../_sources/internals/session.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+    <a href="https://github.com/mintel/pytest-localstack" class="github">
+        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"  class="github"/>
+    </a>
+    
+
+    
+  </body>
+</html>
