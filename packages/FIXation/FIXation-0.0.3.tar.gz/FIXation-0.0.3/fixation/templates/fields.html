@@ -1,0 +1,54 @@
+{% extends "base_fiximate.html" %}
+{% block page_header %}
+<h2>{{ repository.version }} {{ repository.type|capitalize }}</h2>
+<h3>{{ entry.pretty_name() }} [type '{{ entry.pretty_type() }}']</h3>
+<p class="description">{{ entry.Description }}</p>
+{% endblock %}
+{% block table_header %}
+    <th>Tag</th>
+    <th>Field Name</th>
+    <th>FIXML name</th>
+    <th>Comments</th>
+    <th>Depr.</th>
+{% endblock %}
+{% block table_body %}
+    <tr>
+        <td class="green">
+            <a href="{{ entry | linkify }}">
+            {{ entry.Tag }}
+            </a>
+        </td>
+        <td>
+            <a href="{{ entry | linkify }}">
+            {{ entry.Name }}
+            </a>
+        </td>
+        <td>{{ entry.AbbrName }}</td>
+        <td>
+            {{ entry.Description }}
+            {% if lookup.get_enums(entry.pretty_type()) %}
+            <table>
+            {% for enum in lookup.get_enums(entry.pretty_type()) %}
+            <tr>
+                <td>{{ enum.Value }}</td>
+                <td>=</td>
+                <td>{{ enum.SymbolicName }}</td>
+            </tr>
+            {% endfor %}
+            </table>
+            {% endif %}
+        </td>
+        <td class="green">{{ entry.attrib.deprecated }}</td>
+    </tr>
+{% endblock %}
+{% block page_body %}
+    {% for section, content in lookup.fields_in(entry.pretty_name()).items() %}
+    <p>Used in {{ section }}:</p>
+    <p>
+    {% for mess in content %}
+        [<a href="../{{ section }}/{{ mess[1] }}.html">{{ mess[0] }}]</a>
+    {% endfor %}
+    </p>
+    <hr />
+    {% endfor %}
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "base_document.html" %}
+
+{% macro render_content(msgcontent) %}
+    {% if msgcontent is not blacklisted(message) %}
+        <tr>
+            <td class="green">
+                {% if msgcontent is component %}
+                    <a href="#c-{{ msgcontent.FieldName }}">
+                    <b>Component</b>
+                {% else %}
+                    <a href="#f-{{ msgcontent.TagText }}">
+                    {{ msgcontent.TagText }}
+                {% endif %}
+                </a>
+            </td>
+            <td>
+                {% if msgcontent is component %}
+                    <a href="#c-{{ msgcontent.FieldName }}">
+                    <b>{{ msgcontent.FieldName }}</b>
+                {% else %}
+                    <a href="#f-{{ msgcontent.TagText }}">
+                    {{ msgcontent.FieldName }}
+                {% endif %}
+                </a>
+            </td>
+            <td>{{ msgcontent.AbbrName }}</td>
+            <td class="green center">{% if msgcontent.Reqd %}✔{% endif %}</td>
+            <td>{{ msgcontent.Description }}</td>
+            <td class="green">{{ msgcontent.attrib.deprecated }}</td>
+        </tr>
+    {% endif %}
+{% endmacro %}
+
+{% macro render_message(message) %}
+    {% if message is not blacklisted %}
+        <div>
+            <a name="m-{{ message.Name }}"></a>
+            <h3>{{ message.Name }}</h3>
+            <p class="description">{{ message.Description }}</p>
+            <table>
+                <tr>
+                    <th>Field/Component</th>
+                    <th>Field Name</th>
+                    <th>FIXML name</th>
+                    <th>Req'd</th>
+                    <th>Comments</th>
+                    <th>Depr.</th>
+                </tr>
+            {% for msgcontent in lookup.msgcontents(message.ComponentID) %}
+                {{ render_content(msgcontent) }}
+            {% endfor %}
+            </table>
+        </div>
+    {% endif %}
+{% endmacro %}
+
+{% block page_body %}
+    <h1>FIX specification</h1>
+    <h2>Messages</h2>
+    <ul>
+    {% for message in message_list %}
+    {% if message is not blacklisted %}
+        <li><a href="#m-{{ message.Name }}">{{ message.Name }}</a></li>
+    {% endif %}
+    {% endfor %}
+    </ul>
+    {% for message in message_list %}
+        {{ render_message(message) }}
+    {% endfor %}
+    <h2>Components</h2>
+    <ul>
+    {% for component in component_list %}
+    {% if component is not blacklisted %}
+        <li><a href="#c-{{ component.Name }}">{{ component.Name }}</a></li>
+    {% endif %}
+    {% endfor %}
+    </ul>
+    {% for component in component_list %}
+    {% if component is not blacklisted %}
+        <div>
+            <a name="c-{{ component.Name }}"></a>
+            <h3>{{ component.Name }}</h3>
+            <p class="description">{{ component.Description }}</p>
+            <table>
+                <tr>
+                    <th>Field/Component</th>
+                    <th>Field Name</th>
+                    <th>FIXML name</th>
+                    <th>Req'd</th>
+                    <th>Comments</th>
+                    <th>Depr.</th>
+                </tr>
+            {% for msgcontent in lookup.msgcontents(component.ComponentID) %}
+                {{ render_content(msgcontent) }}
+            {% endfor %}
+            </table>
+        </div>
+    {% endif %}
+    {% endfor %}
+<h2>{{ repository.version }}</h2>
+{% endblock %}
