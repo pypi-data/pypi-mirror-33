@@ -1,0 +1,119 @@
+{% extends "bee_django_course/base.html" %}
+
+{% block content %}
+    {#课程列表#}
+    <div style="margin: 10px 0;">
+        <div class="dropdown">
+            <button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu2" data-toggle="dropdown"
+                    aria-haspopup="true" aria-expanded="false">
+                课程列表
+                <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="dropdownMenu2">
+                {% for u_c in user_course_list %}
+                                    <li><a href="{% url 'bee_django_course:user_course_detail' u_c.id %}">{{ u_c.course.name }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="text-center"><h4>{{ user_course.course.name }}</h4></div>
+
+    <table class="table">
+        <thead>
+        <tr>
+{#            <th>顺序</th>#}
+            <th>ID</th>
+            <th>课件</th>
+            <th>状态</th>
+            <th></th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for e in user_course_section_list %}
+            <tr>
+{#                <td>#}
+{#                    {{ e.section.coursesectionmid_set.all }}#}
+{#                </td>#}
+                <td>
+                    {{ e.id }}
+                </td><td>
+                    {{ e.section.name }}
+                </td>
+                <td>
+                    {% if e.status == 0 %}
+                        未开始
+                    {% elif e.status == 1 %}
+                        学习中
+                    {% elif e.status == 2 %}
+                        已通过
+                    {% elif e.status == 3 %}
+                        退回重修
+                    {% elif e.status == 4 %}
+                        已提交
+                    {% endif %}
+                    {% if  not e.status == 0 %}
+                        <a href="{% url 'bee_django_course:user_course_section_detail' pk=e.id %}">详情</a>
+                    {% endif %}
+                </td>
+                <td>
+
+
+                    {#                    {{ e.score | default:'' }}#}
+                </td>
+                <td>
+                    {% if e.section.has_videowork %}
+                        要求练习：{{ e.section.video_length_req }}分钟
+                        {% if not e.status == 0 %}
+                            已经练习{{ e.work_time }}分钟
+                        {% endif %}
+                    {% endif %}
+                    {% if e.section.has_imagework or e.section.has_textwork %}
+                        <a href="{% url 'bee_django_course:manage_user_assignment' ucs_id=e.id %}" class="btn btn-default">作业</a>
+                    {% endif %}
+                    {#                    {% if e.status == 1 %}#}
+                    {#                        <a href="{% url 'bee_django_course:user_assignment' ucs_id=e.id %}" class="btn btn-default">#}
+                    {#                            写作业#}
+                    {#                        </a>#}
+                    {#                    {% elif e.status == 2 %}#}
+                    {#                        <a href="{% url 'bee_django_course:user_assignment' ucs_id=e.id %}"#}
+                    {#                           class="btn btn-success">查看</a>#}
+                    {#                    {% elif e.status == 3 %}#}
+                    {#                        <a href="{% url 'bee_django_course:user_assignment' ucs_id=e.id %}"#}
+                    {#                           class="btn btn-warning">查看</a>#}
+                    {#                    {% elif e.status == 4 %}#}
+                    {#                        <a href="{% url 'bee_django_course:user_assignment' ucs_id=e.id %}" class="btn btn-info">查看</a>#}
+                    {#                    {% endif %}#}
+                </td>
+                <td>
+                    {% if e.status == 0 %}
+                        <a href="#" class="btn btn-danger create_ucs"
+                           data-confirm="{% url 'bee_django_course:open_user_course_section' ucs_id=e.id %}">
+                            开启
+                        </a>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+
+{% endblock content %}
+{% block scripts %}
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $('.create_ucs').click(function (e) {
+                if (confirm('确定开启此课吗?')) {
+                    e.preventDefault();
+                    var url = $(this).attr('data-confirm');
+                    $.post(url).done(function (data) {
+                        alert(data['message']);
+                        window.location.href = data['new_url'];
+                    });
+                }
+            });
+        });
+    </script>
+{% endblock scripts %}
