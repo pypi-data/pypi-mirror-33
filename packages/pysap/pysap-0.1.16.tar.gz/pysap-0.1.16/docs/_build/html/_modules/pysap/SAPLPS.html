@@ -1,0 +1,263 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pysap.SAPLPS &#8212; pysap 0.1.16 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for pysap.SAPLPS</h1><div class="highlight"><pre>
+<span></span><span class="c1"># ===========</span>
+<span class="c1"># pysap - Python library for crafting SAP&#39;s network protocols packets</span>
+<span class="c1">#</span>
+<span class="c1"># Copyright (C) 2012-2017 by Martin Gallo, Core Security</span>
+<span class="c1">#</span>
+<span class="c1"># The library was designed and developed by Martin Gallo from</span>
+<span class="c1"># Core Security&#39;s CoreLabs team.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software; you can redistribute it and/or</span>
+<span class="c1"># modify it under the terms of the GNU General Public License</span>
+<span class="c1"># as published by the Free Software Foundation; either version 2</span>
+<span class="c1"># of the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1"># ==============</span>
+
+<span class="c1"># Standard imports</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="c1"># External imports</span>
+<span class="kn">from</span> <span class="nn">scapy.packet</span> <span class="k">import</span> <span class="n">Packet</span>
+<span class="kn">from</span> <span class="nn">scapy.fields</span> <span class="k">import</span> <span class="p">(</span><span class="n">ByteField</span><span class="p">,</span> <span class="n">ByteEnumField</span><span class="p">,</span> <span class="n">ShortField</span><span class="p">,</span> <span class="n">StrFixedLenField</span><span class="p">,</span>
+                          <span class="n">StrLenField</span><span class="p">,</span> <span class="n">LEIntField</span><span class="p">)</span>
+<span class="c1"># Custom imports</span>
+<span class="kn">from</span> <span class="nn">pysap.utils.crypto</span> <span class="k">import</span> <span class="n">dpapi_decrypt_blob</span>
+<span class="c1"># Optional imports</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">cryptography.hazmat.backends</span> <span class="k">import</span> <span class="n">default_backend</span>
+    <span class="kn">from</span> <span class="nn">cryptography.hazmat.primitives.ciphers</span> <span class="k">import</span> <span class="n">Cipher</span><span class="p">,</span> <span class="n">algorithms</span><span class="p">,</span> <span class="n">modes</span>
+    <span class="kn">from</span> <span class="nn">cryptography.hazmat.primitives.hashes</span> <span class="k">import</span> <span class="n">Hash</span><span class="p">,</span> <span class="n">SHA256</span><span class="p">,</span> <span class="n">SHA1</span>
+    <span class="kn">from</span> <span class="nn">cryptography.hazmat.primitives.hmac</span> <span class="k">import</span> <span class="n">HMAC</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">Cipher</span> <span class="o">=</span> <span class="n">Hash</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<span class="c1"># Create a logger for the LPS layer</span>
+<span class="n">log_lps</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;pysap.lps&quot;</span><span class="p">)</span>
+
+
+<span class="n">cred_key_lps_fallback</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\xe7\x6a\xd2\xce\x4b\xa7\xc7\x9e\xf9\x79\x5f\xa8\x2e\x6e\xaa\x1d\x76\x02\x2e\xcd\xd7\x74\x38\x51</span><span class="s2">&quot;</span>
+<span class="sd">&quot;&quot;&quot;Fixed key embedded in CommonCryptoLib for encrypted credentials using LPS in fallback mode&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="SAP_LPS_Decryption_Error"><a class="viewcode-back" href="../../api/pysap.SAPLPS.html#pysap.SAPLPS.SAP_LPS_Decryption_Error">[docs]</a><span class="k">class</span> <span class="nc">SAP_LPS_Decryption_Error</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="SAP_LPS_Cipher"><a class="viewcode-back" href="../../api/pysap.SAPLPS.html#pysap.SAPLPS.SAP_LPS_Cipher">[docs]</a><span class="k">class</span> <span class="nc">SAP_LPS_Cipher</span><span class="p">(</span><span class="n">Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP LPS cipher packet. This is the data stored inside an LPS encrypted blob</span>
+<span class="sd">    (credential or PSE file). It contains all the required data to decrypt and validate</span>
+<span class="sd">    the stored context.</span>
+
+<span class="sd">    Context length should be &lt;28h</span>
+<span class="sd">    Restriction length should be &lt;400h</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP LPS Cipher&quot;</span>
+
+    <span class="n">LPS_FALLBACK</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">LPS_DPAPI</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">LPS_TPM</span> <span class="o">=</span> <span class="mi">2</span>
+
+    <span class="n">lps_types</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">LPS_FALLBACK</span><span class="p">:</span> <span class="s2">&quot;FALLBACK&quot;</span><span class="p">,</span>
+        <span class="n">LPS_DPAPI</span><span class="p">:</span> <span class="s2">&quot;DPAPI&quot;</span><span class="p">,</span>
+        <span class="n">LPS_TPM</span><span class="p">:</span> <span class="s2">&quot;TPM&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="sd">&quot;&quot;&quot;LPS types&quot;&quot;&quot;</span>
+
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="n">ByteEnumField</span><span class="p">(</span><span class="s2">&quot;lps_type&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">lps_types</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;context_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">context_length</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;restriction_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;restriction&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">restriction_length</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;encrypted_key_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;encrypted_key&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">encrypted_key_length</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;unknown_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;unknown&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">unknown_length</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;encrypted_data_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;encrypted_data&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">encrypted_data_length</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;hmac&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mh">0x14</span><span class="p">),</span>
+        <span class="n">LEIntField</span><span class="p">(</span><span class="s2">&quot;checksum&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+    <span class="p">]</span>
+
+<div class="viewcode-block" id="SAP_LPS_Cipher.decrypt"><a class="viewcode-back" href="../../api/pysap.SAPLPS.html#pysap.SAPLPS.SAP_LPS_Cipher.decrypt">[docs]</a>    <span class="k">def</span> <span class="nf">decrypt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decrypt a blob using LPS. Implements FALLBACK and DP methods to derive</span>
+<span class="sd">        or obtain the encryption key from the one stored in the PSE/credential file and then uses</span>
+<span class="sd">        that encryption key to decrypt the credential using the AES cipher.</span>
+
+<span class="sd">        LPS-protected PSEs/credentials are verified with both a CRC32 checksum and an HMAC.</span>
+<span class="sd">        Validation of the checksum and HMAC is not implemented.</span>
+
+<span class="sd">        Requires the cryptography library installed.</span>
+
+<span class="sd">        :return: decrypted object</span>
+<span class="sd">        :rtype: string</span>
+
+<span class="sd">        :raise Exception: if the cryptography library is not available</span>
+<span class="sd">        :raise NotImplemented: if the LPS method is not implemented</span>
+<span class="sd">        :raise SAP_LPS_Decryption_Error: if there&#39;s an error decrypting the object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">Cipher</span><span class="p">:</span>
+            <span class="n">log_lps</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Required library not found&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Required library not found&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Validate supported version</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">log_lps</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Version not supported&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">SAP_LPS_Decryption_Error</span><span class="p">(</span><span class="s2">&quot;Version not supported&quot;</span><span class="p">)</span>
+
+        <span class="c1"># TODO: Calculate and validate CRC32</span>
+
+        <span class="c1"># Decrypt the encryption key using the LPS method</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lps_type</span> <span class="ow">in</span> <span class="n">lps_encryption_key_decryptor</span><span class="p">:</span>
+            <span class="n">encryption_key</span> <span class="o">=</span> <span class="n">lps_encryption_key_decryptor</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">lps_type</span><span class="p">](</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log_lps</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Invalid LPS decryption method&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">SAP_LPS_Decryption_Error</span><span class="p">(</span><span class="s2">&quot;Invalid LPS decryption method&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Decrypt the cipher text with the encryption key</span>
+        <span class="n">iv</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">16</span>
+        <span class="n">decryptor</span> <span class="o">=</span> <span class="n">Cipher</span><span class="p">(</span><span class="n">algorithms</span><span class="o">.</span><span class="n">AES</span><span class="p">(</span><span class="n">encryption_key</span><span class="p">),</span> <span class="n">modes</span><span class="o">.</span><span class="n">CBC</span><span class="p">(</span><span class="n">iv</span><span class="p">),</span> <span class="n">backend</span><span class="o">=</span><span class="n">default_backend</span><span class="p">())</span><span class="o">.</span><span class="n">decryptor</span><span class="p">()</span>
+        <span class="n">plain</span> <span class="o">=</span> <span class="n">decryptor</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">encrypted_data</span><span class="p">)</span> <span class="o">+</span> <span class="n">decryptor</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+
+        <span class="c1"># TODO: Calculate and validate HMAC</span>
+
+        <span class="k">return</span> <span class="n">plain</span></div>
+
+<div class="viewcode-block" id="SAP_LPS_Cipher.decrypt_encryption_key_dpapi"><a class="viewcode-back" href="../../api/pysap.SAPLPS.html#pysap.SAPLPS.SAP_LPS_Cipher.decrypt_encryption_key_dpapi">[docs]</a>    <span class="k">def</span> <span class="nf">decrypt_encryption_key_dpapi</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decrypts the encryption key using the DP API. The key is encrypted using</span>
+<span class="sd">        the DP API without any additional entropy.</span>
+
+<span class="sd">        :return: Encryption key decrypted</span>
+<span class="sd">        :rtype: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log_lps</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Obtaining encryption key with DPAPI LPS mode&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dpapi_decrypt_blob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">encrypted_key</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SAP_LPS_Cipher.decrypt_encryption_key_fallback"><a class="viewcode-back" href="../../api/pysap.SAPLPS.html#pysap.SAPLPS.SAP_LPS_Cipher.decrypt_encryption_key_fallback">[docs]</a>    <span class="k">def</span> <span class="nf">decrypt_encryption_key_fallback</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decrypts the encryption key using the FALLBACK method. In this method, the</span>
+<span class="sd">        context string, usually &quot;CredEncryption&quot; or &quot;PSEEncryption&quot;, is encrypted using</span>
+<span class="sd">        a derivation of a fixed key hardcoded in CommonCryptoLib, and used as key to</span>
+<span class="sd">        encrypt the actual encryption key used in the file with the AES cipher.</span>
+
+<span class="sd">        :return: Encryption key decrypted</span>
+<span class="sd">        :rtype: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log_lps</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Obtaining encryption key with FALLBACK LPS mode&quot;</span><span class="p">)</span>
+
+        <span class="n">digest</span> <span class="o">=</span> <span class="n">Hash</span><span class="p">(</span><span class="n">SHA1</span><span class="p">(),</span> <span class="n">backend</span><span class="o">=</span><span class="n">default_backend</span><span class="p">())</span>
+        <span class="n">digest</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">cred_key_lps_fallback</span><span class="p">)</span>
+        <span class="n">hashed_key</span> <span class="o">=</span> <span class="n">digest</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+
+        <span class="n">hmac</span> <span class="o">=</span> <span class="n">HMAC</span><span class="p">(</span><span class="n">hashed_key</span><span class="p">,</span> <span class="n">SHA1</span><span class="p">(),</span> <span class="n">backend</span><span class="o">=</span><span class="n">default_backend</span><span class="p">())</span>
+        <span class="n">hmac</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="p">)</span>
+        <span class="n">default_key</span> <span class="o">=</span> <span class="n">hmac</span><span class="o">.</span><span class="n">finalize</span><span class="p">()[:</span><span class="mi">16</span><span class="p">]</span>
+
+        <span class="n">iv</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">16</span>
+        <span class="n">decryptor</span> <span class="o">=</span> <span class="n">Cipher</span><span class="p">(</span><span class="n">algorithms</span><span class="o">.</span><span class="n">AES</span><span class="p">(</span><span class="n">default_key</span><span class="p">),</span> <span class="n">modes</span><span class="o">.</span><span class="n">CBC</span><span class="p">(</span><span class="n">iv</span><span class="p">),</span> <span class="n">backend</span><span class="o">=</span><span class="n">default_backend</span><span class="p">())</span><span class="o">.</span><span class="n">decryptor</span><span class="p">()</span>
+        <span class="n">encryption_key</span> <span class="o">=</span> <span class="n">decryptor</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">encrypted_key</span><span class="p">)</span> <span class="o">+</span> <span class="n">decryptor</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">encryption_key</span></div>
+
+<div class="viewcode-block" id="SAP_LPS_Cipher.decrypt_encryption_key_tpm"><a class="viewcode-back" href="../../api/pysap.SAPLPS.html#pysap.SAPLPS.SAP_LPS_Cipher.decrypt_encryption_key_tpm">[docs]</a>    <span class="k">def</span> <span class="nf">decrypt_encryption_key_tpm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decrypts the encryption key using the TPM method.</span>
+
+<span class="sd">        :return: Encryption key decrypted</span>
+<span class="sd">        :rtype: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log_lps</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;LPS TPM decryption not implemented&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="bp">NotImplemented</span><span class="p">(</span><span class="s2">&quot;LPS TPM decryption not implemented&quot;</span><span class="p">)</span></div></div>
+
+<span class="n">lps_encryption_key_decryptor</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">SAP_LPS_Cipher</span><span class="o">.</span><span class="n">LPS_FALLBACK</span><span class="p">:</span> <span class="n">SAP_LPS_Cipher</span><span class="o">.</span><span class="n">decrypt_encryption_key_fallback</span><span class="p">,</span>
+    <span class="n">SAP_LPS_Cipher</span><span class="o">.</span><span class="n">LPS_DPAPI</span><span class="p">:</span> <span class="n">SAP_LPS_Cipher</span><span class="o">.</span><span class="n">decrypt_encryption_key_dpapi</span><span class="p">,</span>
+    <span class="n">SAP_LPS_Cipher</span><span class="o">.</span><span class="n">LPS_TPM</span><span class="p">:</span> <span class="n">SAP_LPS_Cipher</span><span class="o">.</span><span class="n">decrypt_encryption_key_tpm</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;LPS encryption key decryptor functions&quot;&quot;&quot;</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2012-2018, Martin Gallo, Core Security.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,429 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pysap.SAPPSE &#8212; pysap 0.1.16 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for pysap.SAPPSE</h1><div class="highlight"><pre>
+<span></span><span class="c1"># ===========</span>
+<span class="c1"># pysap - Python library for crafting SAP&#39;s network protocols packets</span>
+<span class="c1">#</span>
+<span class="c1"># Copyright (C) 2012-2018 by Martin Gallo, Core Security</span>
+<span class="c1">#</span>
+<span class="c1"># The library was designed and developed by Martin Gallo from</span>
+<span class="c1"># Core Security&#39;s CoreLabs team.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software; you can redistribute it and/or</span>
+<span class="c1"># modify it under the terms of the GNU General Public License</span>
+<span class="c1"># as published by the Free Software Foundation; either version 2</span>
+<span class="c1"># of the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1"># ==============</span>
+
+<span class="c1"># Standard imports</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="c1"># External imports</span>
+<span class="kn">from</span> <span class="nn">scapy.asn1packet</span> <span class="k">import</span> <span class="n">ASN1_Packet</span>
+<span class="kn">from</span> <span class="nn">scapy.asn1fields</span> <span class="k">import</span> <span class="p">(</span><span class="n">ASN1F_SEQUENCE</span><span class="p">,</span> <span class="n">ASN1F_PACKET</span><span class="p">,</span> <span class="n">ASN1F_INTEGER</span><span class="p">,</span> <span class="n">ASN1F_STRING</span><span class="p">,</span>
+                              <span class="n">ASN1_Codecs</span><span class="p">,</span> <span class="n">ASN1F_CHOICE</span><span class="p">,</span> <span class="n">ASN1F_OID</span><span class="p">,</span> <span class="n">ASN1F_optional</span><span class="p">,</span>
+                              <span class="n">ASN1F_enum_INTEGER</span><span class="p">,</span> <span class="n">ASN1F_BIT_STRING</span><span class="p">,</span> <span class="n">ASN1F_SET_OF</span><span class="p">,</span>
+                              <span class="n">ASN1F_PRINTABLE_STRING</span><span class="p">,</span> <span class="n">ASN1F_GENERALIZED_TIME</span><span class="p">,</span> <span class="n">ASN1_SEQUENCE</span><span class="p">,</span>
+                              <span class="n">ASN1_Class_UNIVERSAL</span><span class="p">,</span> <span class="n">BERcodec_SEQUENCE</span><span class="p">)</span>
+<span class="c1"># Custom imports</span>
+<span class="kn">from</span> <span class="nn">pysap.SAPLPS</span> <span class="k">import</span> <span class="n">SAP_LPS_Cipher</span>
+<span class="kn">from</span> <span class="nn">pysap.utils.crypto</span> <span class="k">import</span> <span class="n">PKCS12_PBES1</span>
+<span class="kn">from</span> <span class="nn">pysap.utils.fields</span> <span class="k">import</span> <span class="n">ASN1F_CHOICE_SAFE</span>
+<span class="c1"># Optional imports</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">cryptography.hazmat.backends</span> <span class="k">import</span> <span class="n">default_backend</span>
+    <span class="kn">from</span> <span class="nn">cryptography.hazmat.primitives.hashes</span> <span class="k">import</span> <span class="n">Hash</span><span class="p">,</span> <span class="n">SHA1</span>
+    <span class="kn">from</span> <span class="nn">cryptography.hazmat.primitives.ciphers</span> <span class="k">import</span> <span class="n">Cipher</span><span class="p">,</span> <span class="n">algorithms</span><span class="p">,</span> <span class="n">modes</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">Cipher</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<span class="c1"># Create a logger for the PSE layer</span>
+<span class="n">log_pse</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;pysap.pse&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ASN1_Class_PSE"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.ASN1_Class_PSE">[docs]</a><span class="k">class</span> <span class="nc">ASN1_Class_PSE</span><span class="p">(</span><span class="n">ASN1_Class_UNIVERSAL</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;PSE&quot;</span>
+    <span class="n">v2_ENC_CONT</span> <span class="o">=</span> <span class="mh">0xa0</span>
+    <span class="n">v4_ENC_CONT</span> <span class="o">=</span> <span class="mh">0xa3</span></div>
+
+
+<div class="viewcode-block" id="ASN1_PSE_v2_ENC_CONT_SEQUENCE"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.ASN1_PSE_v2_ENC_CONT_SEQUENCE">[docs]</a><span class="k">class</span> <span class="nc">ASN1_PSE_v2_ENC_CONT_SEQUENCE</span><span class="p">(</span><span class="n">ASN1_SEQUENCE</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_PSE</span><span class="o">.</span><span class="n">v2_ENC_CONT</span></div>
+
+
+<div class="viewcode-block" id="ASN1_PSE_v4_ENC_CONT_SEQUENCE"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.ASN1_PSE_v4_ENC_CONT_SEQUENCE">[docs]</a><span class="k">class</span> <span class="nc">ASN1_PSE_v4_ENC_CONT_SEQUENCE</span><span class="p">(</span><span class="n">ASN1_SEQUENCE</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_PSE</span><span class="o">.</span><span class="n">v4_ENC_CONT</span></div>
+
+
+<div class="viewcode-block" id="BERcodec_PSE_v2_ENC_CONT_SEQUENCE"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.BERcodec_PSE_v2_ENC_CONT_SEQUENCE">[docs]</a><span class="k">class</span> <span class="nc">BERcodec_PSE_v2_ENC_CONT_SEQUENCE</span><span class="p">(</span><span class="n">BERcodec_SEQUENCE</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_PSE</span><span class="o">.</span><span class="n">v2_ENC_CONT</span></div>
+
+
+<div class="viewcode-block" id="BERcodec_PSE_v4_ENC_CONT_SEQUENCE"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.BERcodec_PSE_v4_ENC_CONT_SEQUENCE">[docs]</a><span class="k">class</span> <span class="nc">BERcodec_PSE_v4_ENC_CONT_SEQUENCE</span><span class="p">(</span><span class="n">BERcodec_SEQUENCE</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_PSE</span><span class="o">.</span><span class="n">v4_ENC_CONT</span></div>
+
+
+<div class="viewcode-block" id="ASN1F_PSE_v2_ENC_CONT_SEQUENCE"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.ASN1F_PSE_v2_ENC_CONT_SEQUENCE">[docs]</a><span class="k">class</span> <span class="nc">ASN1F_PSE_v2_ENC_CONT_SEQUENCE</span><span class="p">(</span><span class="n">ASN1F_SEQUENCE</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_PSE</span><span class="o">.</span><span class="n">v2_ENC_CONT</span></div>
+
+
+<div class="viewcode-block" id="ASN1F_PSE_v4_ENC_CONT_SEQUENCE"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.ASN1F_PSE_v4_ENC_CONT_SEQUENCE">[docs]</a><span class="k">class</span> <span class="nc">ASN1F_PSE_v4_ENC_CONT_SEQUENCE</span><span class="p">(</span><span class="n">ASN1F_SEQUENCE</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_PSE</span><span class="o">.</span><span class="n">v4_ENC_CONT</span></div>
+
+
+<div class="viewcode-block" id="PKCS12_PBE1_Parameters"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.PKCS12_PBE1_Parameters">[docs]</a><span class="k">class</span> <span class="nc">PKCS12_PBE1_Parameters</span><span class="p">(</span><span class="n">ASN1_Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;PKCS12 PBE1 Parameters&quot;&quot;&quot;</span>
+    <span class="n">ASN1_codec</span> <span class="o">=</span> <span class="n">ASN1_Codecs</span><span class="o">.</span><span class="n">BER</span>
+    <span class="n">ASN1_root</span> <span class="o">=</span> <span class="n">ASN1F_SEQUENCE</span><span class="p">(</span>
+        <span class="n">ASN1F_STRING</span><span class="p">(</span><span class="s2">&quot;salt&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">ASN1F_INTEGER</span><span class="p">(</span><span class="s2">&quot;iterations&quot;</span><span class="p">,</span> <span class="mi">2048</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<span class="n">PKCS12_ALGORITHM_PBE1_SHA_3DES_CBC</span> <span class="o">=</span> <span class="s2">&quot;1.2.840.113549.1.12.1.3&quot;</span>
+
+<span class="n">PKCS5_ALGORITHM_PBES2</span> <span class="o">=</span> <span class="s2">&quot;1.2.840.113549.1.5.13&quot;</span>
+
+<span class="n">NIST_ALGORITHM_AES_256_CBC</span> <span class="o">=</span> <span class="s2">&quot;2.16.840.1.101.3.4.1.42&quot;</span>
+
+
+<div class="viewcode-block" id="PKCS5_Salt_Parameter"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.PKCS5_Salt_Parameter">[docs]</a><span class="k">class</span> <span class="nc">PKCS5_Salt_Parameter</span><span class="p">(</span><span class="n">ASN1_Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;PKCS5 Salt Parameter&quot;&quot;&quot;</span>
+    <span class="n">ASN1_codec</span> <span class="o">=</span> <span class="n">ASN1_Codecs</span><span class="o">.</span><span class="n">BER</span>
+    <span class="n">ASN1_root</span> <span class="o">=</span> <span class="n">ASN1F_STRING</span><span class="p">(</span><span class="s2">&quot;salt&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PKCS5_Algorithm_Identifier"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.PKCS5_Algorithm_Identifier">[docs]</a><span class="k">class</span> <span class="nc">PKCS5_Algorithm_Identifier</span><span class="p">(</span><span class="n">ASN1_Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;PKCS5 Algorithm Identifier&quot;&quot;&quot;</span>
+    <span class="n">ASN1_codec</span> <span class="o">=</span> <span class="n">ASN1_Codecs</span><span class="o">.</span><span class="n">BER</span>
+    <span class="n">ASN1_root</span> <span class="o">=</span> <span class="n">ASN1F_SEQUENCE</span><span class="p">(</span>
+        <span class="n">ASN1F_OID</span><span class="p">(</span><span class="s2">&quot;alg_id&quot;</span><span class="p">,</span> <span class="n">PKCS12_ALGORITHM_PBE1_SHA_3DES_CBC</span><span class="p">),</span>
+        <span class="n">ASN1F_optional</span><span class="p">(</span>
+            <span class="n">ASN1F_CHOICE</span><span class="p">(</span>
+                <span class="s2">&quot;parameters&quot;</span><span class="p">,</span> <span class="n">PKCS12_PBE1_Parameters</span><span class="p">(),</span>
+                <span class="n">PKCS12_PBE1_Parameters</span><span class="p">,</span>
+                <span class="n">PKCS5_Salt_Parameter</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span></div>
+
+
+<span class="n">sappse_obj_oid</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;SignCert&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.1.1&quot;</span><span class="p">,</span>       <span class="c1"># certificate of public verification key</span>
+    <span class="s2">&quot;EncCert&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.1.2&quot;</span><span class="p">,</span>        <span class="c1"># certificate of public encryption key</span>
+    <span class="s2">&quot;Cert&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.1.3&quot;</span><span class="p">,</span>           <span class="c1"># certificate of public key</span>
+    <span class="s2">&quot;SignCSet&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.2.1&quot;</span><span class="p">,</span>       <span class="c1"># cross-certificates of public verification key</span>
+    <span class="s2">&quot;EncCSet&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.2.2&quot;</span><span class="p">,</span>        <span class="c1"># cross-certificates of public encryption key</span>
+    <span class="s2">&quot;CSet&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.2.3&quot;</span><span class="p">,</span>           <span class="c1"># cross-certificates of public key</span>
+    <span class="s2">&quot;CrossCSet&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.8.1&quot;</span><span class="p">,</span>      <span class="c1"># cross certificate pairs</span>
+    <span class="s2">&quot;SignSK&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.3.1&quot;</span><span class="p">,</span>         <span class="c1"># secret signature key</span>
+    <span class="s2">&quot;DecSKnew&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.3.2&quot;</span><span class="p">,</span>       <span class="c1"># secret decryption key (current)</span>
+    <span class="s2">&quot;DecSKold&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.3.3&quot;</span><span class="p">,</span>       <span class="c1"># secret decryption key (old)</span>
+    <span class="s2">&quot;SKnew&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.3.4&quot;</span><span class="p">,</span>          <span class="c1"># secret key (current)</span>
+    <span class="s2">&quot;SKold&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.3.5&quot;</span><span class="p">,</span>          <span class="c1"># secret key (old)</span>
+    <span class="s2">&quot;FCPath&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.4.1&quot;</span><span class="p">,</span>         <span class="c1"># forward certification path</span>
+    <span class="s2">&quot;PKRoot&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.5.1&quot;</span><span class="p">,</span>         <span class="c1"># top level public verification key</span>
+    <span class="s2">&quot;PKList&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.6.1&quot;</span><span class="p">,</span>         <span class="c1"># list of trusted public verification keys</span>
+    <span class="s2">&quot;EKList&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.6.2&quot;</span><span class="p">,</span>         <span class="c1"># list of trusted public encryption keys</span>
+    <span class="s2">&quot;PCAList&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.6.3&quot;</span><span class="p">,</span>        <span class="c1"># list of recognized PCAs</span>
+    <span class="s2">&quot;CrlSet&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.9.1&quot;</span><span class="p">,</span>         <span class="c1"># list of revocation lists</span>
+    <span class="s2">&quot;SerialNumber&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.10.1&quot;</span><span class="p">,</span>  <span class="c1"># current serial number (CA only)</span>
+    <span class="s2">&quot;EDBKey&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.11.1&quot;</span><span class="p">,</span>        <span class="c1"># DSA database encryption key</span>
+    <span class="s2">&quot;AliasList&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.12.1&quot;</span><span class="p">,</span>     <span class="c1"># user&#39;s alias list</span>
+    <span class="s2">&quot;QuipuPWD&quot;</span><span class="p">:</span> <span class="s2">&quot;1.3.36.2.13.1&quot;</span><span class="p">,</span>      <span class="c1"># password for X.500 directory access</span>
+<span class="p">}</span>
+
+
+<span class="kn">from</span> <span class="nn">scapy.layers.x509</span> <span class="k">import</span> <span class="p">(</span><span class="n">X509_SubjectPublicKeyInfo</span><span class="p">,</span> <span class="n">X509_Cert</span><span class="p">,</span> <span class="n">X509_DirectoryName</span><span class="p">,</span> <span class="n">X509_Validity</span><span class="p">,</span>
+                               <span class="n">X509_AlgorithmIdentifier</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SAPPSE_Root_Key"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.SAPPSE_Root_Key">[docs]</a><span class="k">class</span> <span class="nc">SAPPSE_Root_Key</span><span class="p">(</span><span class="n">ASN1_Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP PSEv2 Root Key definition&quot;&quot;&quot;</span>
+    <span class="n">ASN1_codec</span> <span class="o">=</span> <span class="n">ASN1_Codecs</span><span class="o">.</span><span class="n">BER</span>
+    <span class="n">ASN1_root</span> <span class="o">=</span> <span class="n">ASN1F_SEQUENCE</span><span class="p">(</span>
+        <span class="n">ASN1F_enum_INTEGER</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="mh">0x0</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;v0&quot;</span><span class="p">],</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="mh">0xa0</span><span class="p">),</span>
+        <span class="n">ASN1F_INTEGER</span><span class="p">(</span><span class="s2">&quot;serial_number&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;public_key&quot;</span><span class="p">,</span> <span class="n">X509_SubjectPublicKeyInfo</span><span class="p">(),</span> <span class="n">X509_SubjectPublicKeyInfo</span><span class="p">),</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;validity&quot;</span><span class="p">,</span> <span class="n">X509_Validity</span><span class="p">(),</span> <span class="n">X509_Validity</span><span class="p">,</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="mh">0xa1</span><span class="p">),</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;sign_alg_id&quot;</span><span class="p">,</span> <span class="n">X509_AlgorithmIdentifier</span><span class="p">(),</span> <span class="n">X509_AlgorithmIdentifier</span><span class="p">,</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="mh">0xa2</span><span class="p">),</span>
+        <span class="n">ASN1F_BIT_STRING</span><span class="p">(</span><span class="s2">&quot;sign_bit_string&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SAPPSE_Obj_PKRoot"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.SAPPSE_Obj_PKRoot">[docs]</a><span class="k">class</span> <span class="nc">SAPPSE_Obj_PKRoot</span><span class="p">(</span><span class="n">ASN1_Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP PSEv2 PKRoot Object definition&quot;&quot;&quot;</span>
+    <span class="n">ASN1_codec</span> <span class="o">=</span> <span class="n">ASN1_Codecs</span><span class="o">.</span><span class="n">BER</span>
+    <span class="n">ASN1_root</span> <span class="o">=</span> <span class="n">ASN1F_SEQUENCE</span><span class="p">(</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;ca&quot;</span><span class="p">,</span> <span class="n">X509_DirectoryName</span><span class="p">(),</span> <span class="n">X509_DirectoryName</span><span class="p">),</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;new_key&quot;</span><span class="p">,</span> <span class="n">SAPPSE_Root_Key</span><span class="p">(),</span> <span class="n">SAPPSE_Root_Key</span><span class="p">),</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;old_key&quot;</span><span class="p">,</span> <span class="n">SAPPSE_Root_Key</span><span class="p">(),</span> <span class="n">SAPPSE_Root_Key</span><span class="p">,</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="mh">0xa0</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SAPPSE_Obj_PKList"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.SAPPSE_Obj_PKList">[docs]</a><span class="k">class</span> <span class="nc">SAPPSE_Obj_PKList</span><span class="p">(</span><span class="n">ASN1_Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP PSEv2 PKList, EKList, PCAList Object definition&quot;&quot;&quot;</span>
+    <span class="n">ASN1_codec</span> <span class="o">=</span> <span class="n">ASN1_Codecs</span><span class="o">.</span><span class="n">BER</span>
+    <span class="n">ASN1_root</span> <span class="o">=</span> <span class="n">ASN1F_SEQUENCE</span><span class="p">(</span>
+        <span class="n">ASN1F_enum_INTEGER</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="mh">0x0</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;v0&quot;</span><span class="p">],</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="mh">0xa0</span><span class="p">),</span>
+        <span class="n">ASN1F_INTEGER</span><span class="p">(</span><span class="s2">&quot;serial_number&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;signature&quot;</span><span class="p">,</span> <span class="n">X509_AlgorithmIdentifier</span><span class="p">(),</span> <span class="n">X509_AlgorithmIdentifier</span><span class="p">),</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;issuer&quot;</span><span class="p">,</span> <span class="n">X509_DirectoryName</span><span class="p">(),</span> <span class="n">X509_DirectoryName</span><span class="p">),</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;validity&quot;</span><span class="p">,</span> <span class="n">X509_Validity</span><span class="p">(),</span> <span class="n">X509_Validity</span><span class="p">),</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;partner&quot;</span><span class="p">,</span> <span class="n">X509_DirectoryName</span><span class="p">(),</span> <span class="n">X509_DirectoryName</span><span class="p">),</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;verification_key&quot;</span><span class="p">,</span> <span class="n">X509_SubjectPublicKeyInfo</span><span class="p">(),</span> <span class="n">X509_SubjectPublicKeyInfo</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SAPPSE_Obj_CertList"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.SAPPSE_Obj_CertList">[docs]</a><span class="k">class</span> <span class="nc">SAPPSE_Obj_CertList</span><span class="p">(</span><span class="n">ASN1_Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP PSEv2 CertList, CSet, SignCSet, EncCSet Object definition&quot;&quot;&quot;</span>
+    <span class="n">ASN1_codec</span> <span class="o">=</span> <span class="n">ASN1_Codecs</span><span class="o">.</span><span class="n">BER</span>
+    <span class="n">ASN1_root</span> <span class="o">=</span> <span class="n">ASN1F_SET_OF</span><span class="p">(</span><span class="s2">&quot;certs&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">X509_Cert</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SAPPSE_Obj"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.SAPPSE_Obj">[docs]</a><span class="k">class</span> <span class="nc">SAPPSE_Obj</span><span class="p">(</span><span class="n">ASN1_Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP PSEv2 Object definition&quot;&quot;&quot;</span>
+    <span class="n">ASN1_codec</span> <span class="o">=</span> <span class="n">ASN1_Codecs</span><span class="o">.</span><span class="n">BER</span>
+    <span class="n">ASN1_root</span> <span class="o">=</span> <span class="n">ASN1F_SEQUENCE</span><span class="p">(</span>
+        <span class="n">ASN1F_PRINTABLE_STRING</span><span class="p">(</span><span class="s2">&quot;object_name&quot;</span><span class="p">,</span> <span class="s2">&quot;PKRoot&quot;</span><span class="p">),</span>
+        <span class="n">ASN1F_GENERALIZED_TIME</span><span class="p">(</span><span class="s2">&quot;created&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="n">ASN1F_OID</span><span class="p">(</span><span class="s2">&quot;object_type&quot;</span><span class="p">,</span> <span class="n">sappse_obj_oid</span><span class="p">[</span><span class="s2">&quot;PKRoot&quot;</span><span class="p">]),</span>
+        <span class="n">ASN1F_CHOICE_SAFE</span><span class="p">(</span><span class="s2">&quot;object_value&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">X509_SubjectPublicKeyInfo</span><span class="p">,</span>               <span class="c1"># SKnew, SKold, DECSKnew, DECSKold, SignSK</span>
+                     <span class="n">X509_Cert</span><span class="p">,</span>                               <span class="c1"># Cert, SignCert, EncCert</span>
+                     <span class="n">SAPPSE_Obj_PKRoot</span><span class="p">,</span>                       <span class="c1"># PKRoot</span>
+                     <span class="n">SAPPSE_Obj_CertList</span><span class="p">,</span>                     <span class="c1"># CertList, CSet, SignCSet, EncCSet</span>
+                     <span class="c1">#ASN1F_SET_OF(&quot;cert_pairs&quot;, None, X509_CertPair),       # CrossCSet</span>
+                     <span class="c1">#ASN1F_SEQUENCE_OF(&quot;forward_certification_path&quot;, None,  # FCPath</span>
+                     <span class="c1">#                  ASN1F_SET_OF(&quot;cross_certs&quot;, None,</span>
+                     <span class="c1">#                               X509_Cert)),</span>
+                     <span class="c1">#ASN1F_SET_OF(&quot;pklist&quot;, SAPPSE_Obj_PKList(), SAPPSE_Obj_PKList),  # PKList, EKList, PCAList</span>
+                     <span class="c1">#ASN1F_SET_OF(&quot;crlset&quot;, SAPPSE_Obj_CRLSet(), SAPPSE_Obj_CRLSet),  # CRLSet</span>
+                     <span class="c1">#ASN1F_STRING(&quot;serial_number&quot;),           # SerialNumber</span>
+                     <span class="c1">#ASN1F_STRING(&quot;quipu_password&quot;),          # QuipuPWD</span>
+                     <span class="c1">#SAPPSE_Obj_EDBKey,                       # EDBKey</span>
+                     <span class="p">)</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SAPPSE_Cont"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.SAPPSE_Cont">[docs]</a><span class="k">class</span> <span class="nc">SAPPSE_Cont</span><span class="p">(</span><span class="n">ASN1_Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP PSEv2 Content definition&quot;&quot;&quot;</span>
+    <span class="n">ASN1_codec</span> <span class="o">=</span> <span class="n">ASN1_Codecs</span><span class="o">.</span><span class="n">BER</span>
+    <span class="n">ASN1_root</span> <span class="o">=</span> <span class="n">ASN1F_SEQUENCE</span><span class="p">(</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;algorithm_identifier&quot;</span><span class="p">,</span> <span class="n">PKCS5_Algorithm_Identifier</span><span class="p">(),</span>
+                     <span class="n">PKCS5_Algorithm_Identifier</span><span class="p">),</span>
+        <span class="n">ASN1F_GENERALIZED_TIME</span><span class="p">(</span><span class="s2">&quot;timestamp&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="n">ASN1F_INTEGER</span><span class="p">(</span><span class="s2">&quot;unknown1&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">ASN1F_SET_OF</span><span class="p">(</span><span class="s2">&quot;pse_obj&quot;</span><span class="p">,</span> <span class="n">SAPPSE_Obj</span><span class="p">(),</span> <span class="n">SAPPSE_Obj</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SAPPSEv2_Enc_Cont"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.SAPPSEv2_Enc_Cont">[docs]</a><span class="k">class</span> <span class="nc">SAPPSEv2_Enc_Cont</span><span class="p">(</span><span class="n">ASN1_Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP PSEv2 Encrypted content definition&quot;&quot;&quot;</span>
+    <span class="n">ASN1_codec</span> <span class="o">=</span> <span class="n">ASN1_Codecs</span><span class="o">.</span><span class="n">BER</span>
+    <span class="n">ASN1_root</span> <span class="o">=</span> <span class="n">ASN1F_PSE_v2_ENC_CONT_SEQUENCE</span><span class="p">(</span>
+        <span class="n">ASN1F_STRING</span><span class="p">(</span><span class="s2">&quot;encrypted_pin&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;algorithm_identifier&quot;</span><span class="p">,</span> <span class="n">PKCS5_Algorithm_Identifier</span><span class="p">(),</span>
+                     <span class="n">PKCS5_Algorithm_Identifier</span><span class="p">),</span>
+        <span class="n">ASN1F_STRING</span><span class="p">(</span><span class="s2">&quot;cipher_text&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SAPPSEv4_Enc_Cont"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.SAPPSEv4_Enc_Cont">[docs]</a><span class="k">class</span> <span class="nc">SAPPSEv4_Enc_Cont</span><span class="p">(</span><span class="n">ASN1_Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP PSEv4 Encrypted content definition&quot;&quot;&quot;</span>
+    <span class="n">ASN1_codec</span> <span class="o">=</span> <span class="n">ASN1_Codecs</span><span class="o">.</span><span class="n">BER</span>
+    <span class="n">ASN1_root</span> <span class="o">=</span> <span class="n">ASN1F_PSE_v4_ENC_CONT_SEQUENCE</span><span class="p">(</span>
+        <span class="n">ASN1F_INTEGER</span><span class="p">(</span><span class="s2">&quot;unknown&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">ASN1F_PACKET</span><span class="p">(</span><span class="s2">&quot;algorithm_identifier&quot;</span><span class="p">,</span> <span class="n">PKCS5_Algorithm_Identifier</span><span class="p">(),</span>
+                     <span class="n">PKCS5_Algorithm_Identifier</span><span class="p">),</span>
+        <span class="n">ASN1F_STRING</span><span class="p">(</span><span class="s2">&quot;cipher_text&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">ASN1F_STRING</span><span class="p">(</span><span class="s2">&quot;encrypted_pin&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SAPPSEFile"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.SAPPSEFile">[docs]</a><span class="k">class</span> <span class="nc">SAPPSEFile</span><span class="p">(</span><span class="n">ASN1_Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP PSE definition&quot;&quot;&quot;</span>
+    <span class="n">ASN1_codec</span> <span class="o">=</span> <span class="n">ASN1_Codecs</span><span class="o">.</span><span class="n">BER</span>
+    <span class="n">ASN1_root</span> <span class="o">=</span> <span class="n">ASN1F_SEQUENCE</span><span class="p">(</span>
+        <span class="n">ASN1F_INTEGER</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="n">ASN1F_CHOICE</span><span class="p">(</span><span class="s2">&quot;enc_cont&quot;</span><span class="p">,</span> <span class="n">SAPPSEv2_Enc_Cont</span><span class="p">(),</span>
+                     <span class="n">SAPPSEv2_Enc_Cont</span><span class="p">,</span>
+                     <span class="n">SAPPSEv4_Enc_Cont</span><span class="p">,</span>
+                     <span class="p">)</span>
+    <span class="p">)</span>
+
+<div class="viewcode-block" id="SAPPSEFile.decrypt"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.SAPPSEFile.decrypt">[docs]</a>    <span class="k">def</span> <span class="nf">decrypt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pin</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decrypts a PSE file given a provided PIN. Calls the respective decryption function</span>
+<span class="sd">        based on the PSE version.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">decrypt_non_lps</span><span class="p">(</span><span class="n">pin</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="mi">256</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">decrypt_lps</span><span class="p">(</span><span class="n">pin</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unsupported or invalid PSE version&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SAPPSEFile.decrypt_lps"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.SAPPSEFile.decrypt_lps">[docs]</a>    <span class="k">def</span> <span class="nf">decrypt_lps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pin</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decrypts an LPS encrypted PSE file given a provided PIN.</span>
+
+<span class="sd">        :param pin:</span>
+<span class="sd">        :type pin: string</span>
+
+<span class="sd">        :return: decrypted object</span>
+<span class="sd">        :rtype: SAPPSE_Cont</span>
+
+<span class="sd">        :raise ValueError: if the provided PIN doesn&#39;t match with the one used for encryption</span>
+<span class="sd">        :raise NotImplementedError: if the algorithm specified is not supported</span>
+<span class="sd">        :raise Exception: if the algorithm specified is not valid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Decrypt the encryption key using the LPS method</span>
+        <span class="n">cipher</span> <span class="o">=</span> <span class="n">SAP_LPS_Cipher</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enc_cont</span><span class="o">.</span><span class="n">encrypted_pin</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+        <span class="n">log_pse</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Obtained LPS cipher object (version=</span><span class="si">{}</span><span class="s2">, lps=</span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cipher</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
+                                                                               <span class="n">cipher</span><span class="o">.</span><span class="n">lps_type</span><span class="p">))</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">cipher</span><span class="o">.</span><span class="n">decrypt</span><span class="p">()</span>
+
+        <span class="c1"># Choose the proper algorithms and values according to the algorithm ID</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">enc_cont</span><span class="o">.</span><span class="n">algorithm_identifier</span><span class="o">.</span><span class="n">alg_id</span> <span class="o">==</span> <span class="n">NIST_ALGORITHM_AES_256_CBC</span><span class="p">:</span>
+            <span class="n">salt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">enc_cont</span><span class="o">.</span><span class="n">algorithm_identifier</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">salt</span><span class="o">.</span><span class="n">val</span>
+            <span class="n">algorithm</span> <span class="o">=</span> <span class="n">algorithms</span><span class="o">.</span><span class="n">AES</span>
+            <span class="n">mode</span> <span class="o">=</span> <span class="n">modes</span><span class="o">.</span><span class="n">CBC</span>
+            <span class="n">key</span><span class="p">,</span> <span class="n">iv</span> <span class="o">=</span> <span class="n">key</span><span class="p">[:</span><span class="mi">32</span><span class="p">],</span> <span class="n">key</span><span class="p">[</span><span class="mi">32</span><span class="p">:]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Invalid PBE algorithm&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Decrypt the cipher text with the derived key and IV</span>
+        <span class="n">decryptor</span> <span class="o">=</span> <span class="n">Cipher</span><span class="p">(</span><span class="n">algorithm</span><span class="p">(</span><span class="n">key</span><span class="p">),</span> <span class="n">mode</span><span class="p">(</span><span class="n">iv</span><span class="p">),</span> <span class="n">backend</span><span class="o">=</span><span class="n">default_backend</span><span class="p">())</span><span class="o">.</span><span class="n">decryptor</span><span class="p">()</span>
+        <span class="n">plain</span> <span class="o">=</span> <span class="n">decryptor</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enc_cont</span><span class="o">.</span><span class="n">cipher_text</span><span class="o">.</span><span class="n">val</span><span class="p">)</span> <span class="o">+</span> <span class="n">decryptor</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">plain</span></div>
+
+<div class="viewcode-block" id="SAPPSEFile.decrypt_non_lps"><a class="viewcode-back" href="../../api/pysap.SAPPSE.html#pysap.SAPPSE.SAPPSEFile.decrypt_non_lps">[docs]</a>    <span class="k">def</span> <span class="nf">decrypt_non_lps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pin</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decrypts a non-LPS encrypted PSE file given a provided PIN. Implements PKCS12 PBE1</span>
+<span class="sd">        based encryption for v2 PSE files.</span>
+
+<span class="sd">        :param pin:</span>
+<span class="sd">        :type pin: string</span>
+
+<span class="sd">        :return: decrypted object</span>
+<span class="sd">        :rtype: SAPPSE_Cont</span>
+
+<span class="sd">        :raise ValueError: if the provided PIN doesn&#39;t match with the one used for encryption</span>
+<span class="sd">        :raise NotImplementedError: if the algorithm specified is not supported</span>
+<span class="sd">        :raise Exception: if the algorithm specified is not valid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">cipher_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">enc_cont</span><span class="o">.</span><span class="n">cipher_text</span><span class="o">.</span><span class="n">val</span>
+
+        <span class="c1"># Choose the proper algorithms and values according to the algorithm ID</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">enc_cont</span><span class="o">.</span><span class="n">algorithm_identifier</span><span class="o">.</span><span class="n">alg_id</span> <span class="o">==</span> <span class="n">PKCS12_ALGORITHM_PBE1_SHA_3DES_CBC</span><span class="p">:</span>
+            <span class="n">salt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">enc_cont</span><span class="o">.</span><span class="n">algorithm_identifier</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">salt</span><span class="o">.</span><span class="n">val</span>
+            <span class="n">iterations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">enc_cont</span><span class="o">.</span><span class="n">algorithm_identifier</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">iterations</span><span class="o">.</span><span class="n">val</span>
+            <span class="n">hash_algorithm</span> <span class="o">=</span> <span class="n">SHA1</span>
+            <span class="n">enc_algorithm</span> <span class="o">=</span> <span class="n">algorithms</span><span class="o">.</span><span class="n">TripleDES</span>
+            <span class="n">enc_mode</span> <span class="o">=</span> <span class="n">modes</span><span class="o">.</span><span class="n">CBC</span>
+            <span class="n">iv</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">pbes_cls</span> <span class="o">=</span> <span class="n">PKCS12_PBES1</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">enc_cont</span><span class="o">.</span><span class="n">algorithm_identifier</span><span class="o">.</span><span class="n">alg_id</span> <span class="o">==</span> <span class="n">PKCS5_ALGORITHM_PBES2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;PBE algorithm not implemented&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Invalid PBE algorithm&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Build the PBE class</span>
+        <span class="n">pbes</span> <span class="o">=</span> <span class="n">pbes_cls</span><span class="p">(</span><span class="n">salt</span><span class="p">,</span> <span class="n">iterations</span><span class="p">,</span> <span class="n">iv</span><span class="p">,</span> <span class="n">pin</span><span class="p">,</span> <span class="n">hash_algorithm</span><span class="p">,</span> <span class="n">enc_algorithm</span><span class="p">,</span> <span class="n">enc_mode</span><span class="p">,</span> <span class="n">default_backend</span><span class="p">())</span>
+
+        <span class="c1"># On version 2, we can check that the PIN was valid before decrypting the whole</span>
+        <span class="c1"># cipher text</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">encrypted_pin</span> <span class="o">=</span> <span class="n">pbes</span><span class="o">.</span><span class="n">encrypt</span><span class="p">(</span><span class="n">pin</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">encrypted_pin</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">enc_cont</span><span class="o">.</span><span class="n">encrypted_pin</span><span class="o">.</span><span class="n">val</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid PIN supplied&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Decrypt and parse the cipher text</span>
+        <span class="n">plain_text</span> <span class="o">=</span> <span class="n">pbes</span><span class="o">.</span><span class="n">decrypt</span><span class="p">(</span><span class="n">cipher_text</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">plain_text</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2012-2018, Martin Gallo, Core Security.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

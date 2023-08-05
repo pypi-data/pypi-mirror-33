@@ -1,0 +1,328 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pysap.SAPDiagClient &#8212; pysap 0.1.16 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for pysap.SAPDiagClient</h1><div class="highlight"><pre>
+<span></span><span class="c1"># ===========</span>
+<span class="c1"># pysap - Python library for crafting SAP&#39;s network protocols packets</span>
+<span class="c1">#</span>
+<span class="c1"># Copyright (C) 2012-2018 by Martin Gallo, Core Security</span>
+<span class="c1">#</span>
+<span class="c1"># The library was designed and developed by Martin Gallo from</span>
+<span class="c1"># Core Security&#39;s CoreLabs team.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software; you can redistribute it and/or</span>
+<span class="c1"># modify it under the terms of the GNU General Public License</span>
+<span class="c1"># as published by the Free Software Foundation; either version 2</span>
+<span class="c1"># of the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1"># ==============</span>
+
+<span class="c1"># Standard imports</span>
+<span class="kn">from</span> <span class="nn">random</span> <span class="k">import</span> <span class="n">randint</span>
+<span class="kn">from</span> <span class="nn">socket</span> <span class="k">import</span> <span class="n">error</span> <span class="k">as</span> <span class="n">SocketError</span>
+<span class="kn">from</span> <span class="nn">binascii</span> <span class="k">import</span> <span class="n">unhexlify</span> <span class="k">as</span> <span class="n">unhex</span>
+<span class="c1"># Custom imports</span>
+<span class="kn">from</span> <span class="nn">pysap.SAPRouter</span> <span class="k">import</span> <span class="n">SAPRoutedStreamSocket</span>
+<span class="kn">from</span> <span class="nn">pysap.SAPDiag</span> <span class="k">import</span> <span class="n">SAPDiag</span><span class="p">,</span> <span class="n">SAPDiagDP</span><span class="p">,</span> <span class="n">SAPDiagItem</span>
+<span class="kn">from</span> <span class="nn">pysap.SAPDiagItems</span> <span class="k">import</span> <span class="p">(</span><span class="n">user_connect_compressed</span><span class="p">,</span>
+                                <span class="n">user_connect_uncompressed</span><span class="p">,</span>
+                                <span class="n">support_data</span> <span class="k">as</span> <span class="n">default_support_data</span><span class="p">,</span>
+                                <span class="n">SAPDiagStep</span><span class="p">,</span> <span class="n">SAPDiagSupportBits</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SAPDiagConnection"><a class="viewcode-back" href="../../api/pysap.SAPDiagClient.html#pysap.SAPDiagClient.SAPDiagConnection">[docs]</a><span class="k">class</span> <span class="nc">SAPDiagConnection</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Diag Connection</span>
+
+<span class="sd">    This class represents a basic client connection to a Diag server.</span>
+<span class="sd">    Handles initialization and further interaction by sending/receiving</span>
+<span class="sd">    packets.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">last_response</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="sd">&quot;&quot;&quot; :ivar: stores the last response received from the server</span>
+<span class="sd">        :type: :class:`SAPNI&lt;SAPNI.SAPNI&gt;` &quot;&quot;&quot;</span>
+
+    <span class="n">initialized</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="sd">&quot;&quot;&quot; :ivar: if the connection was initialized</span>
+<span class="sd">        :type: ``bool`` &quot;&quot;&quot;</span>
+
+    <span class="n">step</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="sd">&quot;&quot;&quot; :ivar: number of the last dialog step performed</span>
+<span class="sd">        :type: ``int`` &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">terminal</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">init</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">route</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">support_data</span><span class="o">=</span><span class="n">default_support_data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates the connection to the Diag server.</span>
+
+<span class="sd">        :param host: remote host to connect to</span>
+<span class="sd">        :type host: C{string}</span>
+
+<span class="sd">        :param port: remote port to connect to</span>
+<span class="sd">        :type port: ``int``</span>
+
+<span class="sd">        :param terminal: terminal name to use when connecting to the server.</span>
+<span class="sd">            If no terminal name is specified, a random IP address will be</span>
+<span class="sd">            generated and used instead of the terminal name.</span>
+<span class="sd">        :type terminal: C{string}</span>
+
+<span class="sd">        :param compress: if true, the compression will be enabled for the</span>
+<span class="sd">            connection. Otherwise, the connection will be established using</span>
+<span class="sd">            compression.</span>
+<span class="sd">        :type compress: ``bool``</span>
+
+<span class="sd">        :param init: if true, the initialization will be performed after the</span>
+<span class="sd">            connection is established.</span>
+<span class="sd">        :type init: ``bool``</span>
+
+<span class="sd">        :param route: route to use for connecting through a SAP Router</span>
+<span class="sd">        :type route: C{string}</span>
+
+<span class="sd">        :param support_data: support data bits to use when initializing. It</span>
+<span class="sd">            identifies the client&#39;s capabilities.</span>
+<span class="sd">        :type support_data: :class:`SAPDiagItem` or :class:`SAPDiagSupportBits` or C{string}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="n">host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">terminal</span> <span class="o">=</span> <span class="n">terminal</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_terminal_name</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">route</span> <span class="o">=</span> <span class="n">route</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">support_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_support_data_item</span><span class="p">(</span><span class="n">support_data</span><span class="p">)</span> <span class="ow">or</span> <span class="n">default_support_data</span>
+        <span class="k">if</span> <span class="n">compress</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">compress</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">compress</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">init</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">init</span><span class="p">()</span>
+
+<div class="viewcode-block" id="SAPDiagConnection.connect"><a class="viewcode-back" href="../../api/pysap.SAPDiagClient.html#pysap.SAPDiagClient.SAPDiagConnection.connect">[docs]</a>    <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates a :class:`SAPNIStreamSocket` connection to the host/port. If a route</span>
+<span class="sd">        was specified, connect to the target Diag server through the SAP Router.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">SAPRoutedStreamSocket</span><span class="o">.</span><span class="n">get_nisocket</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span>
+                                                              <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span>
+                                                              <span class="bp">self</span><span class="o">.</span><span class="n">route</span><span class="p">,</span>
+                                                              <span class="n">base_cls</span><span class="o">=</span><span class="n">SAPDiag</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SAPDiagConnection.get_terminal_name"><a class="viewcode-back" href="../../api/pysap.SAPDiagClient.html#pysap.SAPDiagClient.SAPDiagConnection.get_terminal_name">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_terminal_name</span><span class="p">():</span>
+        <span class="sd">&quot;&quot;&quot;Generates a random IP address to use as a terminal name. In SAP</span>
+<span class="sd">        systems that don&#39;t implement SAP Note 1497445, the dispatcher registers</span>
+<span class="sd">        logs the terminal name as provided by the client, or fallback to</span>
+<span class="sd">        registering the IP address if the terminal name can&#39;t be resolved.</span>
+<span class="sd">        Using a random IP address as terminal name in unpatched systems will</span>
+<span class="sd">        make the &#39;terminal&#39; field of the security audit log unreliable.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">))</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SAPDiagConnection.get_support_data_item"><a class="viewcode-back" href="../../api/pysap.SAPDiagClient.html#pysap.SAPDiagClient.SAPDiagConnection.get_support_data_item">[docs]</a>    <span class="k">def</span> <span class="nf">get_support_data_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">support_data</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">support_data</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">support_data</span> <span class="o">=</span> <span class="n">SAPDiagSupportBits</span><span class="p">(</span><span class="n">unhex</span><span class="p">(</span><span class="n">support_data</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">support_data</span><span class="p">,</span> <span class="n">SAPDiagSupportBits</span><span class="p">):</span>
+            <span class="n">support_data</span> <span class="o">=</span> <span class="n">SAPDiagItem</span><span class="p">(</span><span class="n">item_type</span><span class="o">=</span><span class="s2">&quot;APPL&quot;</span><span class="p">,</span>
+                                       <span class="n">item_id</span><span class="o">=</span><span class="s2">&quot;ST_USER&quot;</span><span class="p">,</span>
+                                       <span class="n">item_sid</span><span class="o">=</span><span class="s2">&quot;SUPPORTDATA&quot;</span><span class="p">,</span>
+                                       <span class="n">item_value</span><span class="o">=</span><span class="n">support_data</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">support_data</span><span class="p">,</span> <span class="n">SAPDiagItem</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">support_data</span>
+
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="SAPDiagConnection.init"><a class="viewcode-back" href="../../api/pysap.SAPDiagClient.html#pysap.SAPDiagClient.SAPDiagConnection.init">[docs]</a>    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sends an initialization request. If the socket wasn&#39;t created,</span>
+<span class="sd">        call the :class:`connect` method. If compression was specified, the</span>
+<span class="sd">        initialization will be performed using the respective User</span>
+<span class="sd">        Connect item.</span>
+
+<span class="sd">        :return: initialization response (usually login screen)</span>
+<span class="sd">        :rtype: :class:`SAPNI&lt;SAPNI.SAPNI&gt;`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+
+        <span class="c1"># If the connection is compressed, use the respective User Connect item</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compress</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">user_connect</span> <span class="o">=</span> <span class="n">user_connect_compressed</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">user_connect</span> <span class="o">=</span> <span class="n">user_connect_uncompressed</span>
+
+        <span class="c1"># The initialization is always performed uncompressed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialized</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># XXX: Check that the respose was ok</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sr</span><span class="p">(</span><span class="n">SAPDiagDP</span><span class="p">(</span><span class="n">terminal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">terminal</span><span class="p">)</span> <span class="o">/</span>
+                       <span class="n">SAPDiag</span><span class="p">(</span><span class="n">compress</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">com_flag_TERM_INI</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span>
+                       <span class="n">user_connect</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">support_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SAPDiagConnection.send"><a class="viewcode-back" href="../../api/pysap.SAPDiagClient.html#pysap.SAPDiagClient.SAPDiagConnection.send">[docs]</a>    <span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sends a packet using the :class:`SAPNIStreamSocket`</span>
+
+<span class="sd">        :param packet: packet to send</span>
+<span class="sd">        :type packet: :class:`SAPDiag&lt;SAPDiag.SAPDiag&gt;`</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SAPDiagConnection.receive"><a class="viewcode-back" href="../../api/pysap.SAPDiagClient.html#pysap.SAPDiagClient.SAPDiagConnection.receive">[docs]</a>    <span class="k">def</span> <span class="nf">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Receive a :class:`SAPNI&lt;SAPNI.SAPNI&gt;` packet using the :class:`SAPNIStreamSocket`. Response is</span>
+<span class="sd">        returned and also stored in :class:`last_response`.</span>
+
+<span class="sd">        :return: packet received</span>
+<span class="sd">        :rtype: :class:`SAPNI&lt;SAPNI.SAPNI&gt;`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">recv</span><span class="p">()</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_response</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="SAPDiagConnection.sr"><a class="viewcode-back" href="../../api/pysap.SAPDiagClient.html#pysap.SAPDiagClient.SAPDiagConnection.sr">[docs]</a>    <span class="k">def</span> <span class="nf">sr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sends and receive a :class:`SAPNI&lt;SAPNI.SAPNI&gt;` packet using the :class:`SAPNIStreamSocket`</span>
+
+<span class="sd">        :param packet: packet to send</span>
+<span class="sd">        :type packet: :class:`SAPDiag&lt;SAPDiag.SAPDiag&gt;`</span>
+
+<span class="sd">        :return: packet received</span>
+<span class="sd">        :rtype: :class:`SAPNI&lt;SAPNI.SAPNI&gt;`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_response</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="SAPDiagConnection.close"><a class="viewcode-back" href="../../api/pysap.SAPDiagClient.html#pysap.SAPDiagClient.SAPDiagConnection.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Send an &#39;end of connection&#39; packet and closes the socket</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">SAPDiag</span><span class="p">(</span><span class="n">compress</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">com_flag_TERM_EOC</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">SocketError</span><span class="p">:</span>  <span class="c1"># We don&#39;t care about socket errors at this time</span>
+            <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="SAPDiagConnection.sr_message"><a class="viewcode-back" href="../../api/pysap.SAPDiagClient.html#pysap.SAPDiagClient.SAPDiagConnection.sr_message">[docs]</a>    <span class="k">def</span> <span class="nf">sr_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sends and receive a :class:`SAPDiag&lt;SAPDiag.SAPDiag&gt;` message, prepending the</span>
+<span class="sd">        Diag header.</span>
+
+<span class="sd">        :param msg: items to send</span>
+<span class="sd">        :type msg: ``list`` of :class:`SAPDiagItem`</span>
+
+<span class="sd">        :return: server&#39;s response</span>
+<span class="sd">        :rtype: :class:`SAPNI&lt;SAPNI.SAPNI&gt;`</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sr</span><span class="p">(</span><span class="n">SAPDiag</span><span class="p">(</span><span class="n">compress</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">compress</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">msg</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SAPDiagConnection.send_message"><a class="viewcode-back" href="../../api/pysap.SAPDiagClient.html#pysap.SAPDiagClient.SAPDiagConnection.send_message">[docs]</a>    <span class="k">def</span> <span class="nf">send_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sends a :class:`SAPDiag&lt;SAPDiag.SAPDiag&gt;` message, prepending the Diag header.</span>
+
+<span class="sd">        :param msg: items to send</span>
+<span class="sd">        :type msg: ``list`` of :class:`SAPDiagItem`</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">SAPDiag</span><span class="p">(</span><span class="n">compress</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">compress</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">msg</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SAPDiagConnection.interact"><a class="viewcode-back" href="../../api/pysap.SAPDiagClient.html#pysap.SAPDiagClient.SAPDiagConnection.interact">[docs]</a>    <span class="k">def</span> <span class="nf">interact</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Interacts with the SAP Diag server, adding the :class:`SAPDiagStep` item and</span>
+<span class="sd">        ending with a &#39;end of message&#39; item.</span>
+
+<span class="sd">        :param message: items to send</span>
+<span class="sd">        :type message: ``list`` of :class:`SAPDiagItem`</span>
+
+<span class="sd">        :return: server&#39;s response</span>
+<span class="sd">        :rtype: :class:`SAPNI&lt;SAPNI.SAPNI&gt;`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">initialized</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">step</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">message</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">SAPDiagItem</span><span class="p">(</span><span class="n">item_type</span><span class="o">=</span><span class="s2">&quot;APPL&quot;</span><span class="p">,</span> <span class="n">item_id</span><span class="o">=</span><span class="s2">&quot;ST_USER&quot;</span><span class="p">,</span>
+                                          <span class="n">item_sid</span><span class="o">=</span><span class="mh">0x26</span><span class="p">,</span>
+                                          <span class="n">item_value</span><span class="o">=</span><span class="n">SAPDiagStep</span><span class="p">(</span><span class="n">step</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">)))</span>
+            <span class="n">message</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SAPDiagItem</span><span class="p">(</span><span class="n">item_type</span><span class="o">=</span><span class="s2">&quot;EOM&quot;</span><span class="p">))</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sr_message</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2012-2018, Martin Gallo, Core Security.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

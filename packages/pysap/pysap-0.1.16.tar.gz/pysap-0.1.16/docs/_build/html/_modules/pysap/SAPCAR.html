@@ -1,0 +1,915 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pysap.SAPCAR &#8212; pysap 0.1.16 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for pysap.SAPCAR</h1><div class="highlight"><pre>
+<span></span><span class="c1"># ===========</span>
+<span class="c1"># pysap - Python library for crafting SAP&#39;s network protocols packets</span>
+<span class="c1">#</span>
+<span class="c1"># Copyright (C) 2012-2018 by Martin Gallo, Core Security</span>
+<span class="c1">#</span>
+<span class="c1"># The library was designed and developed by Martin Gallo from</span>
+<span class="c1"># Core Security&#39;s CoreLabs team.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software; you can redistribute it and/or</span>
+<span class="c1"># modify it under the terms of the GNU General Public License</span>
+<span class="c1"># as published by the Free Software Foundation; either version 2</span>
+<span class="c1"># of the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1"># ==============</span>
+
+<span class="c1"># Standard imports</span>
+<span class="kn">import</span> <span class="nn">stat</span>
+<span class="kn">from</span> <span class="nn">zlib</span> <span class="k">import</span> <span class="n">crc32</span>
+<span class="kn">from</span> <span class="nn">struct</span> <span class="k">import</span> <span class="n">pack</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">stat</span> <span class="k">as</span> <span class="n">os_stat</span>
+<span class="kn">from</span> <span class="nn">cStringIO</span> <span class="k">import</span> <span class="n">StringIO</span>
+<span class="c1"># External imports</span>
+<span class="kn">from</span> <span class="nn">scapy.packet</span> <span class="k">import</span> <span class="n">Packet</span>
+<span class="kn">from</span> <span class="nn">scapy.fields</span> <span class="k">import</span> <span class="p">(</span><span class="n">ByteField</span><span class="p">,</span> <span class="n">ByteEnumField</span><span class="p">,</span> <span class="n">LEIntField</span><span class="p">,</span> <span class="n">FieldLenField</span><span class="p">,</span>
+                          <span class="n">PacketField</span><span class="p">,</span> <span class="n">StrFixedLenField</span><span class="p">,</span> <span class="n">PacketListField</span><span class="p">,</span>
+                          <span class="n">ConditionalField</span><span class="p">,</span> <span class="n">LESignedIntField</span><span class="p">,</span> <span class="n">StrField</span><span class="p">)</span>
+<span class="c1"># Custom imports</span>
+<span class="kn">from</span> <span class="nn">pysap.utils.fields</span> <span class="k">import</span> <span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">,</span> <span class="n">StrNullFixedLenField</span><span class="p">,</span> <span class="n">PacketListStopField</span><span class="p">,</span> <span class="n">LELongField</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">pysapcompress</span> <span class="k">import</span> <span class="p">(</span><span class="n">decompress</span><span class="p">,</span> <span class="n">compress</span><span class="p">,</span> <span class="n">ALG_LZH</span><span class="p">,</span> <span class="n">CompressError</span><span class="p">,</span>
+                           <span class="n">DecompressError</span><span class="p">)</span>
+
+
+<span class="c1"># Filemode code obtained from Python 3 stat.py</span>
+<span class="n">_filemode_table</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="p">((</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IFLNK</span><span class="p">,</span>         <span class="s2">&quot;l&quot;</span><span class="p">),</span>
+     <span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IFREG</span><span class="p">,</span>         <span class="s2">&quot;-&quot;</span><span class="p">),</span>
+     <span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IFBLK</span><span class="p">,</span>         <span class="s2">&quot;b&quot;</span><span class="p">),</span>
+     <span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IFDIR</span><span class="p">,</span>         <span class="s2">&quot;d&quot;</span><span class="p">),</span>
+     <span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IFCHR</span><span class="p">,</span>         <span class="s2">&quot;c&quot;</span><span class="p">),</span>
+     <span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IFIFO</span><span class="p">,</span>         <span class="s2">&quot;p&quot;</span><span class="p">)),</span>
+
+    <span class="p">((</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IRUSR</span><span class="p">,</span>         <span class="s2">&quot;r&quot;</span><span class="p">),),</span>
+    <span class="p">((</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IWUSR</span><span class="p">,</span>         <span class="s2">&quot;w&quot;</span><span class="p">),),</span>
+    <span class="p">((</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IXUSR</span><span class="o">|</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISUID</span><span class="p">,</span> <span class="s2">&quot;s&quot;</span><span class="p">),</span>
+     <span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISUID</span><span class="p">,</span>         <span class="s2">&quot;S&quot;</span><span class="p">),</span>
+     <span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IXUSR</span><span class="p">,</span>         <span class="s2">&quot;x&quot;</span><span class="p">)),</span>
+
+    <span class="p">((</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IRGRP</span><span class="p">,</span>         <span class="s2">&quot;r&quot;</span><span class="p">),),</span>
+    <span class="p">((</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IWGRP</span><span class="p">,</span>         <span class="s2">&quot;w&quot;</span><span class="p">),),</span>
+    <span class="p">((</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IXGRP</span><span class="o">|</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISGID</span><span class="p">,</span> <span class="s2">&quot;s&quot;</span><span class="p">),</span>
+     <span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISGID</span><span class="p">,</span>         <span class="s2">&quot;S&quot;</span><span class="p">),</span>
+     <span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IXGRP</span><span class="p">,</span>         <span class="s2">&quot;x&quot;</span><span class="p">)),</span>
+
+    <span class="p">((</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IROTH</span><span class="p">,</span>         <span class="s2">&quot;r&quot;</span><span class="p">),),</span>
+    <span class="p">((</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IWOTH</span><span class="p">,</span>         <span class="s2">&quot;w&quot;</span><span class="p">),),</span>
+    <span class="p">((</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IXOTH</span><span class="o">|</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISVTX</span><span class="p">,</span> <span class="s2">&quot;t&quot;</span><span class="p">),</span>
+     <span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">S_ISVTX</span><span class="p">,</span>         <span class="s2">&quot;T&quot;</span><span class="p">),</span>
+     <span class="p">(</span><span class="n">stat</span><span class="o">.</span><span class="n">S_IXOTH</span><span class="p">,</span>         <span class="s2">&quot;x&quot;</span><span class="p">))</span>
+<span class="p">)</span>
+
+
+<span class="n">SIZE_FOUR_GB</span> <span class="o">=</span> <span class="mh">0xffffffff</span> <span class="o">+</span> <span class="mi">1</span>
+
+
+<div class="viewcode-block" id="filemode"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.filemode">[docs]</a><span class="k">def</span> <span class="nf">filemode</span><span class="p">(</span><span class="n">mode</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convert a file&#39;s mode to a string of the form &#39;-rwxrwxrwx&#39;.&quot;&quot;&quot;</span>
+    <span class="n">perm</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">_filemode_table</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">bit</span><span class="p">,</span> <span class="n">char</span> <span class="ow">in</span> <span class="n">table</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">mode</span> <span class="o">&amp;</span> <span class="n">bit</span> <span class="o">==</span> <span class="n">bit</span><span class="p">:</span>
+                <span class="n">perm</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">char</span><span class="p">)</span>
+                <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">perm</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SAPCARInvalidFileException"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARInvalidFileException">[docs]</a><span class="k">class</span> <span class="nc">SAPCARInvalidFileException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Exception to denote an invalid SAP CAR file&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="SAPCARInvalidChecksumException"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARInvalidChecksumException">[docs]</a><span class="k">class</span> <span class="nc">SAPCARInvalidChecksumException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Exception to denote a syntactically valid SAP CAR file with an invalid checksum&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="SAPCARCompressedBlobFormat"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARCompressedBlobFormat">[docs]</a><span class="k">class</span> <span class="nc">SAPCARCompressedBlobFormat</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP CAR compressed blob</span>
+
+<span class="sd">    This is used for decompressing blobs inside the compressed block.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP CAR Archive Compressed blob&quot;</span>
+
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">LEIntField</span><span class="p">(</span><span class="s2">&quot;compressed_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="n">LEIntField</span><span class="p">(</span><span class="s2">&quot;uncompress_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="n">ByteEnumField</span><span class="p">(</span><span class="s2">&quot;algorithm&quot;</span><span class="p">,</span> <span class="mh">0x12</span><span class="p">,</span> <span class="p">{</span><span class="mh">0x12</span><span class="p">:</span> <span class="s2">&quot;LZH&quot;</span><span class="p">,</span> <span class="mh">0x10</span><span class="p">:</span> <span class="s2">&quot;LZC&quot;</span><span class="p">}),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;magic_bytes&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x1f\x9d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;special&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrField</span><span class="p">(</span><span class="s2">&quot;blob&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">remain</span><span class="o">=</span><span class="mi">4</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">compressed_length</span> <span class="o">&lt;=</span> <span class="mi">8</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;blob&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">compressed_length</span> <span class="o">-</span> <span class="mi">8</span><span class="p">),</span>
+                         <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">compressed_length</span> <span class="o">&gt;</span> <span class="mi">8</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<span class="n">SAPCAR_BLOCK_TYPE_COMPRESSED_LAST</span> <span class="o">=</span> <span class="s2">&quot;ED&quot;</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR compressed end of data block&quot;&quot;&quot;</span>
+
+<span class="n">SAPCAR_BLOCK_TYPE_COMPRESSED</span> <span class="o">=</span> <span class="s2">&quot;DA&quot;</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR compressed block&quot;&quot;&quot;</span>
+
+<span class="n">SAPCAR_BLOCK_TYPE_UNCOMPRESSED_LAST</span> <span class="o">=</span> <span class="s2">&quot;UE&quot;</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR uncompressed end of data block&quot;&quot;&quot;</span>
+
+<span class="n">SAPCAR_BLOCK_TYPE_UNCOMPRESSED</span> <span class="o">=</span> <span class="s2">&quot;UD&quot;</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR uncompressed block&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="SAPCARCompressedBlockFormat"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARCompressedBlockFormat">[docs]</a><span class="k">class</span> <span class="nc">SAPCARCompressedBlockFormat</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP CAR compressed block</span>
+
+<span class="sd">    This is used for decompressing blocks inside the file info format.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP CAR Archive Compressed block&quot;</span>
+
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="n">SAPCAR_BLOCK_TYPE_COMPRESSED_LAST</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketField</span><span class="p">(</span><span class="s2">&quot;compressed&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPCARCompressedBlobFormat</span><span class="p">),</span>
+                         <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">SAPCAR_BLOCK_TYPE_COMPRESSED_LAST</span><span class="p">,</span> <span class="n">SAPCAR_BLOCK_TYPE_COMPRESSED</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">LESignedIntField</span><span class="p">(</span><span class="s2">&quot;checksum&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                         <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">SAPCAR_BLOCK_TYPE_COMPRESSED_LAST</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="sapcar_is_last_block"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.sapcar_is_last_block">[docs]</a><span class="k">def</span> <span class="nf">sapcar_is_last_block</span><span class="p">(</span><span class="n">packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper function that evaluates if a block packet is the end of data one or not.</span>
+
+<span class="sd">    :param packet: packet to check</span>
+<span class="sd">    :type packet: Packet</span>
+
+<span class="sd">    :return: if the block packet is the end of data one</span>
+<span class="sd">    :rtype: bool</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">packet</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">SAPCAR_BLOCK_TYPE_COMPRESSED_LAST</span><span class="p">,</span> <span class="n">SAPCAR_BLOCK_TYPE_UNCOMPRESSED_LAST</span><span class="p">]</span></div>
+
+
+<span class="n">SAPCAR_TYPE_FILE</span> <span class="o">=</span> <span class="s2">&quot;RG&quot;</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR regular file string&quot;&quot;&quot;</span>
+
+<span class="n">SAPCAR_TYPE_DIR</span> <span class="o">=</span> <span class="s2">&quot;DR&quot;</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR directory string&quot;&quot;&quot;</span>
+
+<span class="n">SAPCAR_TYPE_SHORTCUT</span> <span class="o">=</span> <span class="s2">&quot;SC&quot;</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR Windows short cut string&quot;&quot;&quot;</span>
+
+<span class="n">SAPCAR_TYPE_LINK</span> <span class="o">=</span> <span class="s2">&quot;LK&quot;</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR Unix soft link string&quot;&quot;&quot;</span>
+
+<span class="n">SAPCAR_TYPE_AS400</span> <span class="o">=</span> <span class="s2">&quot;SV&quot;</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR AS400 save file string&quot;&quot;&quot;</span>
+
+
+<span class="n">SAPCAR_VERSION_200</span> <span class="o">=</span> <span class="s2">&quot;2.00&quot;</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR file format version 2.00 string&quot;&quot;&quot;</span>
+
+<span class="n">SAPCAR_VERSION_201</span> <span class="o">=</span> <span class="s2">&quot;2.01&quot;</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR file format version 2.01 string&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="SAPCARArchiveFilev200Format"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchiveFilev200Format">[docs]</a><span class="k">class</span> <span class="nc">SAPCARArchiveFilev200Format</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP CAR file information format</span>
+
+<span class="sd">    This is ued to parse files inside a SAP CAR archive.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP CAR Archive File 2.00&quot;</span>
+
+    <span class="n">version</span> <span class="o">=</span> <span class="n">SAPCAR_VERSION_200</span>
+    <span class="n">is_filename_null_terminated</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="n">SAPCAR_TYPE_FILE</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="n">LEIntField</span><span class="p">(</span><span class="s2">&quot;perm_mode&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">LELongField</span><span class="p">(</span><span class="s2">&quot;file_length_low&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">LEIntField</span><span class="p">(</span><span class="s2">&quot;file_length_high&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">LELongField</span><span class="p">(</span><span class="s2">&quot;timestamp&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">LEIntField</span><span class="p">(</span><span class="s2">&quot;code_page&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;user_info_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;user_info&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;&lt;H&quot;</span><span class="p">),</span>
+        <span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;filename_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;filename&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;&lt;H&quot;</span><span class="p">),</span>
+        <span class="n">StrNullFixedLenField</span><span class="p">(</span><span class="s2">&quot;filename&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">filename_length</span><span class="p">,</span>
+                             <span class="n">null_terminated</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">is_filename_null_terminated</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;user_info&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">user_info_length</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketListStopField</span><span class="p">(</span><span class="s2">&quot;blocks&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPCARCompressedBlockFormat</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="n">sapcar_is_last_block</span><span class="p">),</span>
+                         <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">SAPCAR_TYPE_FILE</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="n">file_length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">file_length</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Getter for the file length fields. It converts the two length fields (low and high) as provided in the</span>
+<span class="sd">        archive file into a long long integer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_length_high</span> <span class="o">*</span> <span class="n">SIZE_FOUR_GB</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_length_low</span>
+
+    <span class="nd">@file_length</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">file_length</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_length</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Setter for the file length fields. It splits the long long integer int on the two length fields (low and</span>
+<span class="sd">        high) as required by the archive file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_length_low</span> <span class="o">=</span> <span class="n">file_length</span> <span class="o">&amp;</span> <span class="mh">0xffffffff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_length_high</span> <span class="o">=</span> <span class="n">file_length</span> <span class="o">&gt;&gt;</span> <span class="mi">32</span>
+
+<div class="viewcode-block" id="SAPCARArchiveFilev200Format.extract"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchiveFilev200Format.extract">[docs]</a>    <span class="k">def</span> <span class="nf">extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Extracts the archive file and writes the extracted file to the provided file object. Returns the checksum</span>
+<span class="sd">        obtained from the archive. If blocks are uncompressed, the file is directly extracted. If the blocks are</span>
+<span class="sd">        compressed, each block is added to a buffer, skipping the length field, and decompression is performed after</span>
+<span class="sd">        the block marked as end of data. Expected length and compression header is obtained from the first block and</span>
+<span class="sd">        checksum from the end of data block.</span>
+
+<span class="sd">        :param fd: file-like object to write the extracted file to</span>
+<span class="sd">        :type fd: file</span>
+
+<span class="sd">        :return: checksum</span>
+<span class="sd">        :rtype: int</span>
+
+<span class="sd">        :raise DecompressError: If there&#39;s a decompression error</span>
+<span class="sd">        :raise SAPCARInvalidFileException: If the file is invalid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+        <span class="n">compressed</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">checksum</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">exp_length</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">remaining_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_length</span>
+        <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">blocks</span><span class="p">:</span>
+            <span class="c1"># Process uncompressed block types</span>
+            <span class="k">if</span> <span class="n">block</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">SAPCAR_BLOCK_TYPE_UNCOMPRESSED</span><span class="p">,</span> <span class="n">SAPCAR_BLOCK_TYPE_UNCOMPRESSED_LAST</span><span class="p">]:</span>
+                <span class="n">fd</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">compressed</span><span class="p">)</span>
+                <span class="n">remaining_length</span> <span class="o">-=</span> <span class="nb">len</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">compressed</span><span class="p">)</span>
+            <span class="c1"># Store compressed block types for later decompression</span>
+            <span class="k">elif</span> <span class="n">block</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">[</span><span class="n">SAPCAR_BLOCK_TYPE_COMPRESSED</span><span class="p">,</span> <span class="n">SAPCAR_BLOCK_TYPE_COMPRESSED_LAST</span><span class="p">]:</span>
+                <span class="c1"># Add compressed block to a buffer, skipping the first 4 bytes of each block (uncompressed length)</span>
+                <span class="n">compressed</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">compressed</span><span class="p">)[</span><span class="mi">4</span><span class="p">:]</span>
+                <span class="c1"># If the expected length wasn&#39;t already set, do it</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">exp_length</span><span class="p">:</span>
+                    <span class="n">exp_length</span> <span class="o">=</span> <span class="n">block</span><span class="o">.</span><span class="n">compressed</span><span class="o">.</span><span class="n">uncompress_length</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SAPCARInvalidFileException</span><span class="p">(</span><span class="s2">&quot;Invalid block type found&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Check end of data block, performing decompression if needed</span>
+            <span class="k">if</span> <span class="n">sapcar_is_last_block</span><span class="p">(</span><span class="n">block</span><span class="p">):</span>
+                <span class="n">checksum</span> <span class="o">=</span> <span class="n">block</span><span class="o">.</span><span class="n">checksum</span>
+                <span class="c1"># If there was at least one compressed block that set the expected length, decompress it</span>
+                <span class="k">if</span> <span class="n">exp_length</span><span class="p">:</span>
+                    <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">block_length</span><span class="p">,</span> <span class="n">block_buffer</span><span class="p">)</span> <span class="o">=</span> <span class="n">decompress</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">compressed</span><span class="p">),</span> <span class="n">exp_length</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">block_length</span> <span class="o">!=</span> <span class="n">exp_length</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">block_buffer</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">DecompressError</span><span class="p">(</span><span class="s2">&quot;Error decompressing block&quot;</span><span class="p">)</span>
+                    <span class="n">fd</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">block_buffer</span><span class="p">)</span>
+                <span class="k">break</span>
+
+        <span class="k">return</span> <span class="n">checksum</span></div></div>
+
+
+<div class="viewcode-block" id="SAPCARArchiveFilev201Format"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchiveFilev201Format">[docs]</a><span class="k">class</span> <span class="nc">SAPCARArchiveFilev201Format</span><span class="p">(</span><span class="n">SAPCARArchiveFilev200Format</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP CAR file information format</span>
+
+<span class="sd">    This is used to parse files inside a SAP CAR archive.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP CAR Archive File 2.01&quot;</span>
+
+    <span class="n">version</span> <span class="o">=</span> <span class="n">SAPCAR_VERSION_201</span>
+    <span class="n">is_filename_null_terminated</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+
+<span class="n">SAPCAR_HEADER_MAGIC_STRING_STANDARD</span> <span class="o">=</span> <span class="s2">&quot;CAR</span><span class="se">\x20</span><span class="s2">&quot;</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR archive header magic string standard&quot;&quot;&quot;</span>
+
+<span class="n">SAPCAR_HEADER_MAGIC_STRING_BACKUP</span> <span class="o">=</span> <span class="s2">&quot;CAR</span><span class="se">\x00</span><span class="s2">&quot;</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR archive header magic string backup file&quot;&quot;&quot;</span>
+
+
+<span class="n">sapcar_archive_file_versions</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">SAPCAR_VERSION_200</span><span class="p">:</span> <span class="n">SAPCARArchiveFilev200Format</span><span class="p">,</span>
+    <span class="n">SAPCAR_VERSION_201</span><span class="p">:</span> <span class="n">SAPCARArchiveFilev201Format</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;SAP CAR file format versions&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="SAPCARArchiveFormat"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchiveFormat">[docs]</a><span class="k">class</span> <span class="nc">SAPCARArchiveFormat</span><span class="p">(</span><span class="n">Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP CAR file format</span>
+
+<span class="sd">    This is used to parse SAP CAR archive files.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP CAR Archive&quot;</span>
+
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;magic_string&quot;</span><span class="p">,</span> <span class="n">SAPCAR_HEADER_MAGIC_STRING_STANDARD</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="n">SAPCAR_VERSION_201</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketListField</span><span class="p">(</span><span class="s2">&quot;files0&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPCARArchiveFilev200Format</span><span class="p">),</span>
+                         <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="n">SAPCAR_VERSION_200</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketListField</span><span class="p">(</span><span class="s2">&quot;files1&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPCARArchiveFilev201Format</span><span class="p">),</span>
+                         <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="n">SAPCAR_VERSION_201</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPCARArchiveFile"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchiveFile">[docs]</a><span class="k">class</span> <span class="nc">SAPCARArchiveFile</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Proxy class that can be used to access a file inside a SAP CAR</span>
+<span class="sd">    archive and obtain its properties.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Instance attributes</span>
+    <span class="n">_file_format</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_format</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Construct the file proxy object from a L{SAPCARArchiveFilev200Format}</span>
+<span class="sd">        or L{SAPCARArchiveFilev201Format} object.</span>
+
+<span class="sd">        :param file_format: file format object</span>
+<span class="sd">        :type file_format: Packet</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span> <span class="o">=</span> <span class="n">file_format</span>
+
+<div class="viewcode-block" id="SAPCARArchiveFile.is_file"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchiveFile.is_file">[docs]</a>    <span class="k">def</span> <span class="nf">is_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Determines if the file is a regular file.</span>
+
+<span class="sd">        :return: if the file is a regular file</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">SAPCAR_TYPE_FILE</span></div>
+
+<div class="viewcode-block" id="SAPCARArchiveFile.is_directory"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchiveFile.is_directory">[docs]</a>    <span class="k">def</span> <span class="nf">is_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Determines if the file is a directory.</span>
+
+<span class="sd">        :return: if the file is a directory</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">SAPCAR_TYPE_DIR</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The version of the file.</span>
+
+<span class="sd">        :return: version of the file</span>
+<span class="sd">        :rtype: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">version</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The type of the file.</span>
+
+<span class="sd">        :return: type of the file</span>
+<span class="sd">        :rtype: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">type</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">filename</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The name of the file.</span>
+
+<span class="sd">        :return: name of the file</span>
+<span class="sd">        :rtype: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">filename</span>
+
+    <span class="nd">@filename</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">filename</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the name of the file.</span>
+
+<span class="sd">        :param filename: the name of the file</span>
+<span class="sd">        :type filename: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">filename_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="n">SAPCAR_VERSION_201</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">filename_length</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The size of the file.</span>
+
+<span class="sd">        :return: size of the file</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">file_length</span>
+
+    <span class="nd">@size</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_length</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the size of the file.</span>
+
+<span class="sd">        :param file_length: the size of the file</span>
+<span class="sd">        :type file_length: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">file_length</span> <span class="o">=</span> <span class="n">file_length</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The permissions of the file.</span>
+
+<span class="sd">        :return: permissions in human-readable format</span>
+<span class="sd">        :rtype: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">filemode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">perm_mode</span><span class="p">)</span>
+
+    <span class="nd">@permissions</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">perm_mode</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the permissions on the file.</span>
+
+<span class="sd">        :param perm_mode: the permissions to set</span>
+<span class="sd">        :type perm_mode: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">perm_mode</span> <span class="o">=</span> <span class="n">perm_mode</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">perm_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The permissions mode of the file.</span>
+
+<span class="sd">        :return: permissions in numeric format</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">perm_mode</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The timestamp of the file.</span>
+
+<span class="sd">        :return: timestamp in human-readable format</span>
+<span class="sd">        :rtype: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcfromtimestamp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">timestamp</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%d</span><span class="s1"> %b %Y %H:%M&#39;</span><span class="p">)</span>
+
+    <span class="nd">@timestamp</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the file timestamp.</span>
+
+<span class="sd">        :param timestamp: the timestamp to set</span>
+<span class="sd">        :type timestamp: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">=</span> <span class="n">timestamp</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">timestamp_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The timestamp of the file.</span>
+
+<span class="sd">        :return: timestamp in numeric format</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">timestamp</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">checksum</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The checksum of the file.</span>
+
+<span class="sd">        :return: checksum</span>
+<span class="sd">        :rtype: int</span>
+
+<span class="sd">        :raise SAPCARInvalidFileException: if the file is invalid and contains more than one end of data block</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">checksum</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">blocks</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">blocks</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">block</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">SAPCAR_BLOCK_TYPE_COMPRESSED_LAST</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">checksum</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">SAPCARInvalidFileException</span><span class="p">(</span><span class="s2">&quot;More than one end of data block found for the file&quot;</span><span class="p">)</span>
+                    <span class="n">checksum</span> <span class="o">=</span> <span class="n">block</span><span class="o">.</span><span class="n">checksum</span>
+        <span class="k">return</span> <span class="n">checksum</span>
+
+    <span class="nd">@checksum</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">checksum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">checksum</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the file checksum.</span>
+
+<span class="sd">        :param checksum: checksum to set</span>
+<span class="sd">        :rtype checksum: int</span>
+
+<span class="sd">        :raise SAPCARInvalidFileException: if the file is invalid and contains more than one end of data block</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">checksum_set</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">blocks</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">block</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">SAPCAR_BLOCK_TYPE_COMPRESSED_LAST</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">checksum_set</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">SAPCARInvalidFileException</span><span class="p">(</span><span class="s2">&quot;More than one end of data block found for the file&quot;</span><span class="p">)</span>
+                <span class="n">block</span><span class="o">.</span><span class="n">checksum</span> <span class="o">=</span> <span class="n">checksum</span>
+                <span class="n">checksum_set</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">checksum_set</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SAPCARInvalidFileException</span><span class="p">(</span><span class="s2">&quot;No end of data block found for the file&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SAPCARArchiveFile.calculate_checksum"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchiveFile.calculate_checksum">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">calculate_checksum</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculates the CRC32 checksum of a given data string.</span>
+
+<span class="sd">        :param data: data to calculate the checksum over</span>
+<span class="sd">        :type data: str</span>
+
+<span class="sd">        :return: the CRC32 checksum</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="o">-</span><span class="n">crc32</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span></div>
+
+<div class="viewcode-block" id="SAPCARArchiveFile.from_file"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchiveFile.from_file">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">SAPCAR_VERSION_201</span><span class="p">,</span> <span class="n">archive_filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Populates the file format object from an actual file on the</span>
+<span class="sd">        local file system.</span>
+
+<span class="sd">        :param filename: filename to build the file format object from</span>
+<span class="sd">        :type filename: string</span>
+
+<span class="sd">        :param version: version of the file to construct</span>
+<span class="sd">        :type version: string</span>
+
+<span class="sd">        :param archive_filename: filename to use inside the archive file</span>
+<span class="sd">        :type archive_filename: string</span>
+
+<span class="sd">        :raise ValueError: if the version requested is invalid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Read the file properties and its content</span>
+        <span class="n">stat</span> <span class="o">=</span> <span class="n">os_stat</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fd</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+        <span class="c1"># Compress the file content and build the compressed string</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">out_length</span><span class="p">,</span> <span class="n">out_buffer</span><span class="p">)</span> <span class="o">=</span> <span class="n">compress</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ALG_LZH</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">CompressError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">out_buffer</span> <span class="o">=</span> <span class="n">pack</span><span class="p">(</span><span class="s2">&quot;&lt;I&quot;</span><span class="p">,</span> <span class="n">out_length</span><span class="p">)</span> <span class="o">+</span> <span class="n">out_buffer</span>
+
+        <span class="c1"># Check the version and grab the file format class</span>
+        <span class="k">if</span> <span class="n">version</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sapcar_archive_file_versions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid version&quot;</span><span class="p">)</span>
+        <span class="n">ff</span> <span class="o">=</span> <span class="n">sapcar_archive_file_versions</span><span class="p">[</span><span class="n">version</span><span class="p">]</span>
+
+        <span class="c1"># If an archive filename was not provided, use the actual filename</span>
+        <span class="k">if</span> <span class="n">archive_filename</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">archive_filename</span> <span class="o">=</span> <span class="n">filename</span>
+
+        <span class="c1"># Build the object and fill the fields</span>
+        <span class="n">archive_file</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+        <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span> <span class="o">=</span> <span class="n">ff</span><span class="p">()</span>
+        <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">perm_mode</span> <span class="o">=</span> <span class="n">stat</span><span class="o">.</span><span class="n">st_mode</span>
+        <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">=</span> <span class="n">stat</span><span class="o">.</span><span class="n">st_atime</span>
+        <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">file_length</span> <span class="o">=</span> <span class="n">stat</span><span class="o">.</span><span class="n">st_size</span>
+        <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">archive_filename</span>
+        <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">filename_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">archive_filename</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="n">SAPCAR_VERSION_201</span><span class="p">:</span>
+            <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">filename_length</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="c1"># Put the compressed blob inside a end of data block and add it to the object</span>
+        <span class="n">block</span> <span class="o">=</span> <span class="n">SAPCARCompressedBlockFormat</span><span class="p">()</span>
+        <span class="n">block</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">SAPCAR_BLOCK_TYPE_COMPRESSED_LAST</span>
+        <span class="n">block</span><span class="o">.</span><span class="n">compressed</span> <span class="o">=</span> <span class="n">SAPCARCompressedBlobFormat</span><span class="p">(</span><span class="n">out_buffer</span><span class="p">)</span>
+        <span class="n">block</span><span class="o">.</span><span class="n">checksum</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">calculate_checksum</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">archive_file</span></div>
+
+<div class="viewcode-block" id="SAPCARArchiveFile.from_archive_file"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchiveFile.from_archive_file">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_archive_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">archive_file</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">SAPCAR_VERSION_201</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Populates the file format object from another archive file object.</span>
+
+<span class="sd">        :param archive_file: archive file object to build the file format object from</span>
+<span class="sd">        :type archive_file: L{SAPCARArchiveFile}</span>
+
+<span class="sd">        :param version: version of the file to construct</span>
+<span class="sd">        :type version: string</span>
+
+<span class="sd">        :raise ValueError: if the version requested is invalid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">version</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sapcar_archive_file_versions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid version&quot;</span><span class="p">)</span>
+        <span class="n">ff</span> <span class="o">=</span> <span class="n">sapcar_archive_file_versions</span><span class="p">[</span><span class="n">version</span><span class="p">]</span>
+
+        <span class="n">new_archive_file</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+        <span class="n">new_archive_file</span><span class="o">.</span><span class="n">_file_format</span> <span class="o">=</span> <span class="n">ff</span><span class="p">()</span>
+        <span class="n">new_archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">type</span>
+        <span class="n">new_archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">perm_mode</span> <span class="o">=</span> <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">perm_mode</span>
+        <span class="n">new_archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">=</span> <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">timestamp</span>
+        <span class="n">new_archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">file_length</span> <span class="o">=</span> <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">file_length</span>
+        <span class="n">new_archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">filename</span>
+        <span class="n">new_archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">filename_length</span> <span class="o">=</span> <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">filename_length</span>
+
+        <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="n">archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">blocks</span><span class="p">:</span>
+            <span class="n">new_block</span> <span class="o">=</span> <span class="n">SAPCARCompressedBlockFormat</span><span class="p">()</span>
+            <span class="n">new_block</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">block</span><span class="o">.</span><span class="n">type</span>
+            <span class="n">new_block</span><span class="o">.</span><span class="n">compressed</span> <span class="o">=</span> <span class="n">SAPCARCompressedBlobFormat</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">compressed</span><span class="p">))</span>
+            <span class="n">new_block</span><span class="o">.</span><span class="n">checksum</span> <span class="o">=</span> <span class="n">block</span><span class="o">.</span><span class="n">checksum</span>
+            <span class="n">new_archive_file</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_block</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">new_archive_file</span></div>
+
+<div class="viewcode-block" id="SAPCARArchiveFile.open"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchiveFile.open">[docs]</a>    <span class="k">def</span> <span class="nf">open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enforce_checksum</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Opens the compressed file and returns a file-like object that</span>
+<span class="sd">        can be used to access its uncompressed content.</span>
+
+<span class="sd">        :param enforce_checksum: If the checksum validation should be enforce</span>
+<span class="sd">        :type enforce_checksum: bool</span>
+
+<span class="sd">        :return: file-like object with the uncompressed file content</span>
+<span class="sd">        :rtype: file</span>
+
+<span class="sd">        :raise Exception: If the file to open is a directory</span>
+<span class="sd">        :raise DecompressError: If there&#39;s a decompression error</span>
+<span class="sd">        :raise SAPCARInvalidFileException: If the file is invalid</span>
+<span class="sd">        :raise SAPCARInvalidChecksumException: If the checksum is invalid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check that the type is file, so we don&#39;t try to extract from a directory</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_directory</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Invalid file type&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Extract the file to a file-like object</span>
+        <span class="n">out_file</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">checksum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_format</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">out_file</span><span class="p">)</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Validate the checksum if required</span>
+        <span class="k">if</span> <span class="n">enforce_checksum</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">checksum</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_checksum</span><span class="p">(</span><span class="n">out_file</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()):</span>
+                <span class="k">raise</span> <span class="n">SAPCARInvalidChecksumException</span><span class="p">(</span><span class="s2">&quot;Invalid checksum found&quot;</span><span class="p">)</span>
+            <span class="n">out_file</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Return the extracted file</span>
+        <span class="k">return</span> <span class="n">out_file</span></div>
+
+<div class="viewcode-block" id="SAPCARArchiveFile.check_checksum"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchiveFile.check_checksum">[docs]</a>    <span class="k">def</span> <span class="nf">check_checksum</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Checks if the checksum of the file is valid.</span>
+
+<span class="sd">        :return: if the checksum matches</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="n">crc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_checksum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">open</span><span class="p">()</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">crc</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">checksum</span></div></div>
+
+
+<div class="viewcode-block" id="SAPCARArchive"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchive">[docs]</a><span class="k">class</span> <span class="nc">SAPCARArchive</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Proxy class that can be used to read SAP CAR archive files.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Instance attributes</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">fd</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_sapcar</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fil</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;rb+&quot;</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">SAPCAR_VERSION_201</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Opens an archive file and allow access to it.</span>
+
+<span class="sd">        :param fil: filename or file descriptor to open</span>
+<span class="sd">        :type fil: string or file</span>
+
+<span class="sd">        :param mode: mode to open the file</span>
+<span class="sd">        :type mode: string</span>
+
+<span class="sd">        :param version: archive file version to use when creating</span>
+<span class="sd">        :type version: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Ensure version is withing supported versions</span>
+        <span class="k">if</span> <span class="n">version</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sapcar_archive_file_versions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid version&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Ensure mode is within supported modes</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;r+&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="s2">&quot;w+&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">,</span> <span class="s2">&quot;rb+&quot;</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">,</span> <span class="s2">&quot;wb+&quot;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid mode&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Ensure file is open in binary mode</span>
+        <span class="k">if</span> <span class="s2">&quot;b&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="n">mode</span> <span class="o">+=</span> <span class="s2">&quot;b&quot;</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fil</span><span class="p">,</span> <span class="p">(</span><span class="n">basestring</span><span class="p">,</span> <span class="n">unicode</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">fil</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fd</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">fil</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">fil</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fd</span> <span class="o">=</span> <span class="n">fil</span>
+
+        <span class="k">if</span> <span class="s2">&quot;r&quot;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="n">version</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The list of file objects inside this archive file.</span>
+
+<span class="sd">        :return: list of file objects</span>
+<span class="sd">        :rtype: L{dict} of L{SAPCARArchiveFile}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fils</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">fil</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files</span><span class="p">:</span>
+                <span class="n">fils</span><span class="p">[</span><span class="n">fil</span><span class="o">.</span><span class="n">filename</span><span class="p">]</span> <span class="o">=</span> <span class="n">SAPCARArchiveFile</span><span class="p">(</span><span class="n">fil</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fils</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">files_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The list of file names inside this archive file.</span>
+
+<span class="sd">        :return: list of file names</span>
+<span class="sd">        :rtype: L{list} of L{string}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The version of the archive file.</span>
+
+<span class="sd">        :return: version</span>
+<span class="sd">        :rtype: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span><span class="o">.</span><span class="n">version</span>
+
+    <span class="nd">@version</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">version</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the version of the file. If the version is different to the current one, it</span>
+<span class="sd">        converts the archive file.</span>
+
+<span class="sd">        :param version: version to set</span>
+<span class="sd">        :type version: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">version</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sapcar_archive_file_versions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid version&quot;</span><span class="p">)</span>
+        <span class="c1"># If version is different, we should convert each file</span>
+        <span class="k">if</span> <span class="n">version</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span><span class="o">.</span><span class="n">version</span><span class="p">:</span>
+            <span class="n">fils</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">fil</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">new_file</span> <span class="o">=</span> <span class="n">SAPCARArchiveFile</span><span class="o">.</span><span class="n">from_archive_file</span><span class="p">(</span><span class="n">fil</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">version</span><span class="p">)</span>
+                <span class="n">fils</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_file</span><span class="o">.</span><span class="n">_file_format</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_files</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">fil</span><span class="o">.</span><span class="n">_file_format</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="n">version</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_files</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_files</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">fils</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SAPCARArchive.read"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchive.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reads the SAP CAR archive file and populates the files list.</span>
+
+<span class="sd">        :raise Exception: if the file is invalid or unsupported</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fd</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span> <span class="o">=</span> <span class="n">SAPCARArchiveFormat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fd</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span><span class="o">.</span><span class="n">magic_string</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="n">SAPCAR_HEADER_MAGIC_STRING_STANDARD</span><span class="p">,</span> <span class="n">SAPCAR_HEADER_MAGIC_STRING_BACKUP</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Invalid or unsupported magic string in file&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span><span class="o">.</span><span class="n">version</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sapcar_archive_file_versions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Invalid or unsupported version in file&quot;</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The file format objects according to the version.</span>
+
+<span class="sd">        :return: files format objects according to the version</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="n">SAPCAR_VERSION_200</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span><span class="o">.</span><span class="n">files0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span><span class="o">.</span><span class="n">files1</span>
+
+    <span class="nd">@_files</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">files</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="n">SAPCAR_VERSION_200</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span><span class="o">.</span><span class="n">files0</span> <span class="o">=</span> <span class="n">files</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span><span class="o">.</span><span class="n">files1</span> <span class="o">=</span> <span class="n">files</span>
+
+<div class="viewcode-block" id="SAPCARArchive.create"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchive.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates the structure for holding a new SAP CAR archive file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span> <span class="o">=</span> <span class="n">SAPCARArchiveFormat</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="SAPCARArchive.write"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchive.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Writes the SAP CAR archive file to the file descriptor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fd</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fd</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fd</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="SAPCARArchive.write_as"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchive.write_as">[docs]</a>    <span class="k">def</span> <span class="nf">write_as</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Writes the SAP CAR archive file to another file.</span>
+
+<span class="sd">        :param filename: name of the file to write to</span>
+<span class="sd">        :type filename: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fd</span><span class="p">:</span>
+                <span class="n">fd</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SAPCARArchive.add_file"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchive.add_file">[docs]</a>    <span class="k">def</span> <span class="nf">add_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">archive_filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds a new file to the SAP CAR archive file.</span>
+
+<span class="sd">        :param filename: name of the file to add</span>
+<span class="sd">        :type filename: string</span>
+
+<span class="sd">        :param archive_filename: name of the file to use in the archive</span>
+<span class="sd">        :type archive_filename: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fil</span> <span class="o">=</span> <span class="n">SAPCARArchiveFile</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="n">archive_filename</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fil</span><span class="o">.</span><span class="n">_file_format</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SAPCARArchive.open"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchive.open">[docs]</a>    <span class="k">def</span> <span class="nf">open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a file-like object that can be used to access a file</span>
+<span class="sd">        inside the SAP CAR archive.</span>
+
+<span class="sd">        :param filename: name of the file to open</span>
+<span class="sd">        :type filename: string</span>
+
+<span class="sd">        :return: a file-like object that can be used to access the decompressed file.</span>
+<span class="sd">        :rtype: file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">filename</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Invalid filename&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="n">filename</span><span class="p">]</span><span class="o">.</span><span class="n">open</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="SAPCARArchive.close"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchive.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Close the file descriptor object associated to the archive file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fd</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="SAPCARArchive.raw"><a class="viewcode-back" href="../../api/pysap.SAPCAR.html#pysap.SAPCAR.SAPCARArchive.raw">[docs]</a>    <span class="k">def</span> <span class="nf">raw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the raw data of the archive file.</span>
+
+<span class="sd">        :return: raw data</span>
+<span class="sd">        :rtype: string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sapcar</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2012-2018, Martin Gallo, Core Security.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

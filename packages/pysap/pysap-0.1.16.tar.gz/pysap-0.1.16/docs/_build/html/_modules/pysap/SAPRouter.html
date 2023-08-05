@@ -1,0 +1,981 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pysap.SAPRouter &#8212; pysap 0.1.16 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for pysap.SAPRouter</h1><div class="highlight"><pre>
+<span></span><span class="c1"># ===========</span>
+<span class="c1"># pysap - Python library for crafting SAP&#39;s network protocols packets</span>
+<span class="c1">#</span>
+<span class="c1"># Copyright (C) 2012-2018 by Martin Gallo, Core Security</span>
+<span class="c1">#</span>
+<span class="c1"># The library was designed and developed by Martin Gallo from</span>
+<span class="c1"># Core Security&#39;s CoreLabs team.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software; you can redistribute it and/or</span>
+<span class="c1"># modify it under the terms of the GNU General Public License</span>
+<span class="c1"># as published by the Free Software Foundation; either version 2</span>
+<span class="c1"># of the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1"># ==============</span>
+
+<span class="c1"># Standard imports</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">socket</span> <span class="k">import</span> <span class="n">error</span> <span class="k">as</span> <span class="n">SocketError</span>
+<span class="c1"># External imports</span>
+<span class="kn">from</span> <span class="nn">scapy.layers.inet</span> <span class="k">import</span> <span class="n">TCP</span>
+<span class="kn">from</span> <span class="nn">scapy.packet</span> <span class="k">import</span> <span class="n">Packet</span><span class="p">,</span> <span class="n">bind_layers</span><span class="p">,</span> <span class="n">Raw</span>
+<span class="kn">from</span> <span class="nn">scapy.supersocket</span> <span class="k">import</span> <span class="n">socket</span><span class="p">,</span> <span class="n">StreamSocket</span>
+<span class="kn">from</span> <span class="nn">scapy.fields</span> <span class="k">import</span> <span class="p">(</span><span class="n">ByteField</span><span class="p">,</span> <span class="n">ShortField</span><span class="p">,</span> <span class="n">ConditionalField</span><span class="p">,</span> <span class="n">StrField</span><span class="p">,</span>
+                          <span class="n">IntField</span><span class="p">,</span> <span class="n">StrNullField</span><span class="p">,</span> <span class="n">PacketListField</span><span class="p">,</span>
+                          <span class="n">FieldLenField</span><span class="p">,</span> <span class="n">FieldListField</span><span class="p">,</span> <span class="n">SignedIntEnumField</span><span class="p">,</span>
+                          <span class="n">StrFixedLenField</span><span class="p">,</span> <span class="n">PacketField</span><span class="p">,</span> <span class="n">BitField</span><span class="p">,</span> <span class="n">LongField</span><span class="p">,</span>
+                          <span class="n">ByteEnumKeysField</span><span class="p">)</span>
+<span class="c1"># Custom imports</span>
+<span class="kn">from</span> <span class="nn">pysap.SAPSNC</span> <span class="k">import</span> <span class="n">SAPSNCFrame</span>
+<span class="kn">from</span> <span class="nn">pysap.SAPNI</span> <span class="k">import</span> <span class="p">(</span><span class="n">SAPNI</span><span class="p">,</span> <span class="n">SAPNIStreamSocket</span><span class="p">,</span> <span class="n">SAPNIProxy</span><span class="p">,</span>
+                         <span class="n">SAPNIProxyHandler</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">pysap.utils.fields</span> <span class="k">import</span> <span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">,</span> <span class="n">StrNullFixedLenField</span><span class="p">)</span>
+
+
+<span class="c1"># Create a logger for the SAPRouter layer</span>
+<span class="n">log_saprouter</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;pysap.saprouter&quot;</span><span class="p">)</span>
+
+
+<span class="c1"># Router Opcode values</span>
+<span class="n">router_control_opcodes</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">0</span><span class="p">:</span> <span class="s2">&quot;Error information&quot;</span><span class="p">,</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;Version request&quot;</span><span class="p">,</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;Version response&quot;</span><span class="p">,</span>
+    <span class="mi">5</span><span class="p">:</span> <span class="s2">&quot;Send Handle (5)&quot;</span><span class="p">,</span>            <span class="c1"># TODO: Check this opcodes</span>
+    <span class="mi">6</span><span class="p">:</span> <span class="s2">&quot;Send Handle (6)&quot;</span><span class="p">,</span>            <span class="c1"># TODO: Check this opcodes</span>
+    <span class="mi">8</span><span class="p">:</span> <span class="s2">&quot;Send Handle (8)&quot;</span><span class="p">,</span>            <span class="c1"># TODO: Check this opcodes</span>
+    <span class="mi">70</span><span class="p">:</span> <span class="s2">&quot;SNC request&quot;</span><span class="p">,</span>
+    <span class="mi">71</span><span class="p">:</span> <span class="s2">&quot;SNC handshake complete&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Router Opcode values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Router Return Code values (as per SAP Note 63342 https://launchpad.support.sap.com/#/notes/63342)</span>
+<span class="n">router_return_codes</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="o">-</span><span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;NI-internal error (NIEINTERN)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;Host name unknown (NIEHOST_UNKNOWN)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;Service unknown (NIESERV_UNKNOWN)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">4</span><span class="p">:</span> <span class="s2">&quot;Service already used (NIESERV_USED)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">5</span><span class="p">:</span> <span class="s2">&quot;Time limit reached (NIETIMEOUT)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">6</span><span class="p">:</span> <span class="s2">&quot;Connection to partner broken (NIECONN_BROKEN)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">7</span><span class="p">:</span> <span class="s2">&quot;Data range too small (NIETOO_SMALL)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">8</span><span class="p">:</span> <span class="s2">&quot;Invalid parameters (NIEINVAL)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">9</span><span class="p">:</span> <span class="s2">&quot;Wake-Up (without data) (NIEWAKEUP)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">10</span><span class="p">:</span> <span class="s2">&quot;Connection setup failed (NIECONN_REFUSED)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">11</span><span class="p">:</span> <span class="s2">&quot;PING/PONG signal received (NIEPING)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">12</span><span class="p">:</span> <span class="s2">&quot;Connection to partner via NiRouter not yet set up (NIECONN_PENDING)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">13</span><span class="p">:</span> <span class="s2">&quot;Invalid version (NIEVERSION)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">14</span><span class="p">:</span> <span class="s2">&quot;Local hostname cannot be found (NIEMYHOSTNAME)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">15</span><span class="p">:</span> <span class="s2">&quot;No free port in range (NIENOFREEPORT)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">16</span><span class="p">:</span> <span class="s2">&quot;Local hostname invalid (NIEMYHOST_VERIFY)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">17</span><span class="p">:</span> <span class="s2">&quot;Error in the SNC shift in the saprouter ==&gt; (NIESNC_FAILURE)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">18</span><span class="p">:</span> <span class="s2">&quot;Opcode received (NIEOPCODE)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">19</span><span class="p">:</span> <span class="s2">&quot;queue limit reached, next package not accepted (NIEQUE_FULL)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">20</span><span class="p">:</span> <span class="s2">&quot;Requested package too large (NIETOO_BIG)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">90</span><span class="p">:</span> <span class="s2">&quot;Host name unknown (NIEROUT_HOST_UNKNOWN)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">91</span><span class="p">:</span> <span class="s2">&quot;Service unknown (NIEROUT_SERV_UNKNOWN)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">92</span><span class="p">:</span> <span class="s2">&quot;Connection setup failed (NIEROUT_CONN_REFUSED)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">93</span><span class="p">:</span> <span class="s2">&quot;NI-internal errors (NIEROUT_INTERN)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">94</span><span class="p">:</span> <span class="s2">&quot;Connect from source to destination not allowed (NIEROUT_PERM_DENIED)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">95</span><span class="p">:</span> <span class="s2">&quot;Connection terminated (NIEROUT_CONN_BROKEN)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">96</span><span class="p">:</span> <span class="s2">&quot;Invalid client version (NIEROUT_VERSION)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">97</span><span class="p">:</span> <span class="s2">&quot;Connection cancelled by administrator (NIEROUT_CANCELED)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">98</span><span class="p">:</span> <span class="s2">&quot;saprouter shutdown (NIEROUT_SHUTDOWN)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">99</span><span class="p">:</span> <span class="s2">&quot;Information request refused (NIEROUT_INFO_DENIED)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">100</span><span class="p">:</span> <span class="s2">&quot;Max. number of clients reached (NIEROUT_OVERFLOW)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">101</span><span class="p">:</span> <span class="s2">&quot;Talkmode not allowed (NIEROUT_MODE_DENIED)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">102</span><span class="p">:</span> <span class="s2">&quot;Client not available (NIEROUT_NOCLIENT)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">103</span><span class="p">:</span> <span class="s2">&quot;Error in external library (NIEROUT_EXTERN)&quot;</span><span class="p">,</span>
+    <span class="o">-</span><span class="mi">104</span><span class="p">:</span> <span class="s2">&quot;Error in the SNC shift (NIEROUT_SNC_FAILURE)&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Router Return Code values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Router Administration Command values</span>
+<span class="n">router_adm_commands</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;Information Request&quot;</span><span class="p">,</span>
+    <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;New Route Table Request&quot;</span><span class="p">,</span>
+    <span class="mi">4</span><span class="p">:</span> <span class="s2">&quot;Toggle Trace Request&quot;</span><span class="p">,</span>
+    <span class="mi">5</span><span class="p">:</span> <span class="s2">&quot;Stop Request&quot;</span><span class="p">,</span>
+    <span class="mi">6</span><span class="p">:</span> <span class="s2">&quot;Cancel Route Request&quot;</span><span class="p">,</span>
+    <span class="mi">7</span><span class="p">:</span> <span class="s2">&quot;Dump Buffers Request&quot;</span><span class="p">,</span>
+    <span class="mi">8</span><span class="p">:</span> <span class="s2">&quot;Flush Buffers Request&quot;</span><span class="p">,</span>
+    <span class="mi">9</span><span class="p">:</span> <span class="s2">&quot;Soft Shutdown Request&quot;</span><span class="p">,</span>
+    <span class="mi">10</span><span class="p">:</span> <span class="s2">&quot;Set Trace Peer&quot;</span><span class="p">,</span>
+    <span class="mi">11</span><span class="p">:</span> <span class="s2">&quot;Clear Trace Peer&quot;</span><span class="p">,</span>
+    <span class="mi">12</span><span class="p">:</span> <span class="s2">&quot;Trace Connection&quot;</span><span class="p">,</span>
+    <span class="mi">13</span><span class="p">:</span> <span class="s2">&quot;Trace Connection&quot;</span><span class="p">,</span>
+    <span class="mi">14</span><span class="p">:</span> <span class="s2">&quot;Hide Error Information Request&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Router Administration Command values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Router NI Talk mode values</span>
+<span class="n">router_ni_talk_mode_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">0</span><span class="p">:</span> <span class="s2">&quot;NI_MSG_IO&quot;</span><span class="p">,</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;NI_RAW_IO&quot;</span><span class="p">,</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;NI_ROUT_IO&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Router NI Talk mode values&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="SAPRouterRouteHop"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouterRouteHop">[docs]</a><span class="k">class</span> <span class="nc">SAPRouterRouteHop</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Router Protocol Route Hop</span>
+
+<span class="sd">    This packet is used to describe a hop in a route using the SAP Router.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Router Route Hop&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;hostname&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;port&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;password&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+    <span class="p">]</span>
+
+    <span class="n">regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        (/[hH]/(?P&lt;hostname&gt;[\w\.]+)              # Hostname, FQDN or IP addresss</span>
+<span class="s2">        (/[sS]/(?P&lt;port&gt;[\w]+))?                  # Optional port/service</span>
+<span class="s2">        (/[pwPW]/(?P&lt;password&gt;[\w.]+))?          # Optional password</span>
+<span class="s2">        )</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">VERBOSE</span><span class="p">)</span>
+    <span class="sd">&quot;&quot;&quot; :cvar: Regular expression for matching route strings</span>
+<span class="sd">        :type: regex</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SAPRouterRouteHop.from_string"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouterRouteHop.from_string">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_string</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">route_string</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Build a list of route hops from a route string. The format of a</span>
+<span class="sd">        route string is:</span>
+
+<span class="sd">        (/H/host/S/service/W/pass)*</span>
+
+<span class="sd">        or for older versions (&lt;4.0):</span>
+
+<span class="sd">        (/H/host/S/service/P/pass)*</span>
+
+<span class="sd">        :param route_string: route string</span>
+<span class="sd">        :type route_string: C{string}</span>
+
+<span class="sd">        :return: route hops in the route string</span>
+<span class="sd">        :rtype: ``list`` of :class:`SAPRouterRouteHop`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">route_hop</span> <span class="ow">in</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">groupdict</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">regex</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="n">route_string</span><span class="p">)]:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">cls</span><span class="p">(</span><span class="n">hostname</span><span class="o">=</span><span class="n">route_hop</span><span class="p">[</span><span class="s2">&quot;hostname&quot;</span><span class="p">],</span>
+                              <span class="n">port</span><span class="o">=</span><span class="n">route_hop</span><span class="p">[</span><span class="s2">&quot;port&quot;</span><span class="p">],</span>
+                              <span class="n">password</span><span class="o">=</span><span class="n">route_hop</span><span class="p">[</span><span class="s2">&quot;password&quot;</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="n">result</span></div>
+
+<div class="viewcode-block" id="SAPRouterRouteHop.from_hops"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouterRouteHop.from_hops">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_hops</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">route_hops</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Build a route string from a list of route hops.</span>
+
+<span class="sd">        :param route_hops: route hops</span>
+<span class="sd">        :type route_hops: ``list`` of :class:`SAPRouterRouteHop`</span>
+
+<span class="sd">        :return: route string</span>
+<span class="sd">        :rtype: C{string}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">route_hop</span> <span class="ow">in</span> <span class="n">route_hops</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">+=</span> <span class="s2">&quot;/H/</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">route_hop</span><span class="o">.</span><span class="n">hostname</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">route_hop</span><span class="o">.</span><span class="n">port</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">+=</span> <span class="s2">&quot;/S/</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">route_hop</span><span class="o">.</span><span class="n">port</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">route_hop</span><span class="o">.</span><span class="n">password</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">+=</span> <span class="s2">&quot;/W/</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">route_hop</span><span class="o">.</span><span class="n">password</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span></div></div>
+
+
+<div class="viewcode-block" id="SAPRouterInfoClient"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouterInfoClient">[docs]</a><span class="k">class</span> <span class="nc">SAPRouterInfoClient</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Router Protocol Information Request Client info</span>
+
+<span class="sd">    This packet is used to return the information of a connected client.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Router Client Info&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>  <span class="c1"># 137 bytes length</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;flag_XXX1&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;flag_XXX2&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;flag_XXX3&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;flag_XXX4&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;flag_XXX5&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;flag_traced&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;flag_connected&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;flag_routed&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">LongField</span><span class="p">(</span><span class="s2">&quot;connected_on&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrNullFixedLenField</span><span class="p">(</span><span class="s2">&quot;address&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">45</span><span class="p">),</span>
+        <span class="n">StrNullFixedLenField</span><span class="p">(</span><span class="s2">&quot;partner&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">45</span><span class="p">),</span>
+        <span class="n">StrNullFixedLenField</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">27</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;XXX3&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">4</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPRouterInfoClients"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouterInfoClients">[docs]</a><span class="k">class</span> <span class="nc">SAPRouterInfoClients</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Router Protocol Information Request Client info list</span>
+
+<span class="sd">    This packet is used to return the list of current connected clients.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Router Client Info List&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">PacketListField</span><span class="p">(</span><span class="s2">&quot;clients&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPRouterInfoClient</span><span class="p">)</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPRouterInfoServer"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouterInfoServer">[docs]</a><span class="k">class</span> <span class="nc">SAPRouterInfoServer</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Router Protocol Information Request Server info</span>
+
+<span class="sd">    This packet is used to return information about the SAP Router</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Router Server Info&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;pid&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;ppid&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">LongField</span><span class="p">(</span><span class="s2">&quot;started_on&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;port&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;pport&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPRouterError"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouterError">[docs]</a><span class="k">class</span> <span class="nc">SAPRouterError</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Router Protocol Error Text</span>
+
+<span class="sd">    This packet is used to describe an error returned by SAP Router.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Router Error Text&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;eyecatcher&quot;</span><span class="p">,</span> <span class="s2">&quot;*ERR*&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;counter&quot;</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;return_code&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;component&quot;</span><span class="p">,</span> <span class="s2">&quot;NI (network interface)&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;release&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;module&quot;</span><span class="p">,</span> <span class="s2">&quot;nirout.cpp&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;line&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;detail&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;error_time&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;system_call&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;errorno&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;errorno_text&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;error_count&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;location&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;XXX5&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;XXX6&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;XXX7&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;XXX8&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;eyecatcher&quot;</span><span class="p">,</span> <span class="s2">&quot;*ERR*&quot;</span><span class="p">),</span>
+    <span class="p">]</span>
+
+    <span class="n">time_format</span> <span class="o">=</span> <span class="s2">&quot;%a %b </span><span class="si">%d</span><span class="s2"> %H:%M:%S %Y&quot;</span>
+    <span class="sd">&quot;&quot;&quot; :cvar: Format to use when building the time field</span>
+<span class="sd">        :type: C{string}</span>
+<span class="sd">    &quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="router_is_route"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.router_is_route">[docs]</a><span class="k">def</span> <span class="nf">router_is_route</span><span class="p">(</span><span class="n">pkt</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns if the packet is a Route packet.</span>
+
+<span class="sd">    :param pkt: packet to look at</span>
+<span class="sd">    :type pkt: :class:`SAPRouter`</span>
+
+<span class="sd">    :return: if the type of the packet is Route</span>
+<span class="sd">    :rtype: ``bool``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pkt</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">SAPRouter</span><span class="o">.</span><span class="n">SAPROUTER_ROUTE</span></div>
+
+
+<div class="viewcode-block" id="router_is_admin"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.router_is_admin">[docs]</a><span class="k">def</span> <span class="nf">router_is_admin</span><span class="p">(</span><span class="n">pkt</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns if the packet is a Admin packet.</span>
+
+<span class="sd">    :param pkt: packet to look at</span>
+<span class="sd">    :type pkt: :class:`SAPRouter`</span>
+
+<span class="sd">    :return: if the type of the packet is Admin</span>
+<span class="sd">    :rtype: ``bool``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pkt</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">SAPRouter</span><span class="o">.</span><span class="n">SAPROUTER_ADMIN</span></div>
+
+
+<div class="viewcode-block" id="router_is_error"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.router_is_error">[docs]</a><span class="k">def</span> <span class="nf">router_is_error</span><span class="p">(</span><span class="n">pkt</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns if the packet is a Error Information packet.</span>
+
+<span class="sd">    :param pkt: packet to look at</span>
+<span class="sd">    :type pkt: :class:`SAPRouter`</span>
+
+<span class="sd">    :return: if the type of the packet is Error</span>
+<span class="sd">    :rtype: ``bool``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pkt</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">SAPRouter</span><span class="o">.</span><span class="n">SAPROUTER_ERROR</span></div>
+
+
+<div class="viewcode-block" id="router_is_control"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.router_is_control">[docs]</a><span class="k">def</span> <span class="nf">router_is_control</span><span class="p">(</span><span class="n">pkt</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns if the packet is a Control packet.</span>
+
+<span class="sd">    :param pkt: packet to look at</span>
+<span class="sd">    :type pkt: :class:`SAPRouter`</span>
+
+<span class="sd">    :return: if the type of the packet is Control</span>
+<span class="sd">    :rtype: ``bool``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pkt</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">SAPRouter</span><span class="o">.</span><span class="n">SAPROUTER_CONTROL</span></div>
+
+
+<div class="viewcode-block" id="router_is_pong"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.router_is_pong">[docs]</a><span class="k">def</span> <span class="nf">router_is_pong</span><span class="p">(</span><span class="n">pkt</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns if the packet is a Pong (route accepted) packet.</span>
+
+<span class="sd">    :param pkt: packet to look at</span>
+<span class="sd">    :type pkt: :class:`SAPRouter`</span>
+
+<span class="sd">    :return: if the type of the packet is Pong</span>
+<span class="sd">    :rtype: ``bool``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pkt</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">SAPRouter</span><span class="o">.</span><span class="n">SAPROUTER_PONG</span></div>
+
+
+<div class="viewcode-block" id="router_is_known_type"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.router_is_known_type">[docs]</a><span class="k">def</span> <span class="nf">router_is_known_type</span><span class="p">(</span><span class="n">pkt</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns if the packet is of a known type (Admin, Route, Error or Pong).</span>
+
+<span class="sd">    :param pkt: packet to look at</span>
+<span class="sd">    :type pkt: :class:`SAPRouter`</span>
+
+<span class="sd">    :return: if the type of the packet is known</span>
+<span class="sd">    :rtype: ``bool``</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pkt</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="n">SAPRouter</span><span class="o">.</span><span class="n">router_type_values</span></div>
+
+
+<div class="viewcode-block" id="SAPRouter"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouter">[docs]</a><span class="k">class</span> <span class="nc">SAPRouter</span><span class="p">(</span><span class="n">Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Router packet</span>
+
+<span class="sd">    This packet is used for general SAP Router packets. There are (at least)</span>
+<span class="sd">    five types of SAP Router packets:</span>
+
+<span class="sd">        1. Route packets. For requesting the routing of a connection to a</span>
+<span class="sd">        remote hosts. The packet contains some general information and a</span>
+<span class="sd">        connection string with a list of routing hops (:class:`SAPRouterRouteHop`).</span>
+
+<span class="sd">        2. Administration packets. This packet is used for the SAP Router to</span>
+<span class="sd">        send administrative commands. It&#39;s suppose to be used only from the</span>
+<span class="sd">        hosts running the SAP Router or when an specific route is included in</span>
+<span class="sd">        the routing table. Generally administration packets are not accepted</span>
+<span class="sd">        from the external binding.</span>
+
+<span class="sd">        3. Error Information packets. Packets sent when an error occurred.</span>
+
+<span class="sd">        4. Control Message packets. Used to perform some control activities,</span>
+<span class="sd">        like retrieving the current SAPRouter version or to perform the SNC</span>
+<span class="sd">        handshake. They have the same structure that error information</span>
+<span class="sd">        packets.</span>
+
+<span class="sd">        5. Route accepted packet. Used to acknowledge a route request</span>
+<span class="sd">        (&quot;NI_PONG&quot;).</span>
+
+
+<span class="sd">    Routed packets and some responses doesn&#39;t fill in these five packet</span>
+<span class="sd">    types. For identifying those cases, you should check the type using the</span>
+<span class="sd">    function :class:`router_is_known_type`.</span>
+
+<span class="sd">    NI Versions found (unconfirmed):</span>
+<span class="sd">        - 30: Release 40C</span>
+<span class="sd">        - 36: Release &lt;6.20</span>
+<span class="sd">        - 38: Release 7.00/7.10</span>
+<span class="sd">        - 39: Release 7.11</span>
+<span class="sd">        - 40: Release 7.20/7.21</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Default router version to use</span>
+    <span class="n">SAPROUTER_DEFAULT_VERSION</span> <span class="o">=</span> <span class="mi">40</span>
+
+    <span class="c1"># Constants for router types</span>
+    <span class="n">SAPROUTER_ROUTE</span> <span class="o">=</span> <span class="s2">&quot;NI_ROUTE&quot;</span>
+    <span class="sd">&quot;&quot;&quot; :cvar: Constant for route packets</span>
+<span class="sd">        :type: C{string} &quot;&quot;&quot;</span>
+
+    <span class="n">SAPROUTER_ADMIN</span> <span class="o">=</span> <span class="s2">&quot;ROUTER_ADM&quot;</span>
+    <span class="sd">&quot;&quot;&quot; :cvar: Constant for administration packets</span>
+<span class="sd">        :type: C{string} &quot;&quot;&quot;</span>
+
+    <span class="n">SAPROUTER_ERROR</span> <span class="o">=</span> <span class="s2">&quot;NI_RTERR&quot;</span>
+    <span class="sd">&quot;&quot;&quot; :cvar: Constant for error information packets</span>
+<span class="sd">        :type: C{string} &quot;&quot;&quot;</span>
+
+    <span class="n">SAPROUTER_CONTROL</span> <span class="o">=</span> <span class="s2">&quot;NI_RTERR&quot;</span>
+    <span class="sd">&quot;&quot;&quot; :cvar: Constant for control messages packets</span>
+<span class="sd">        :type: C{string} &quot;&quot;&quot;</span>
+
+    <span class="n">SAPROUTER_PONG</span> <span class="o">=</span> <span class="s2">&quot;NI_PONG&quot;</span>
+    <span class="sd">&quot;&quot;&quot; :cvar: Constant for route accepted packets</span>
+<span class="sd">        :type: C{string} &quot;&quot;&quot;</span>
+
+    <span class="n">router_type_values</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">SAPROUTER_ADMIN</span><span class="p">,</span>
+        <span class="n">SAPROUTER_ERROR</span><span class="p">,</span>
+        <span class="n">SAPROUTER_CONTROL</span><span class="p">,</span>
+        <span class="n">SAPROUTER_ROUTE</span><span class="p">,</span>
+        <span class="n">SAPROUTER_PONG</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="sd">&quot;&quot;&quot; :cvar: List of known packet types</span>
+<span class="sd">        :type: ``list`` of C{string} &quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Router&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="c1"># General fields present in all SAP Router packets</span>
+        <span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="n">SAPROUTER_ROUTE</span><span class="p">),</span>
+
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">router_is_known_type</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">router_is_pong</span><span class="p">(</span><span class="n">pkt</span><span class="p">)),</span>
+
+        <span class="c1"># Route packets</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;route_ni_version&quot;</span><span class="p">,</span> <span class="n">SAPROUTER_DEFAULT_VERSION</span><span class="p">),</span> <span class="n">router_is_route</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;route_entries&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">router_is_route</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;route_talk_mode&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">router_ni_talk_mode_values</span><span class="p">),</span> <span class="n">router_is_route</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;route_padd&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">router_is_route</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;route_rest_nodes&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">router_is_route</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;route_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;route_string&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;I&quot;</span><span class="p">),</span> <span class="n">router_is_route</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;route_offset&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">router_is_route</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketListField</span><span class="p">(</span><span class="s2">&quot;route_string&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPRouterRouteHop</span><span class="p">,</span>
+                                         <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">route_length</span><span class="p">),</span> <span class="n">router_is_route</span><span class="p">),</span>
+
+        <span class="c1"># Admin packets</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;adm_command&quot;</span><span class="p">,</span> <span class="mh">0x02</span><span class="p">,</span> <span class="n">router_adm_commands</span><span class="p">),</span> <span class="n">router_is_admin</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;adm_unused&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">router_is_admin</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">adm_command</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">13</span><span class="p">]),</span>
+
+        <span class="c1"># Info Request fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrNullFixedLenField</span><span class="p">(</span><span class="s2">&quot;adm_password&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">19</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">router_is_admin</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">adm_command</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">2</span><span class="p">]),</span>
+
+        <span class="c1"># Cancel Route fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;adm_client_count&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">count_of</span><span class="o">=</span><span class="s2">&quot;adm_client_ids&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;H&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">router_is_admin</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">adm_command</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">6</span><span class="p">]),</span>
+        <span class="c1"># Trace Connection fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;adm_client_count&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">count_of</span><span class="o">=</span><span class="s2">&quot;adm_client_ids&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;I&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">router_is_admin</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">adm_command</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">12</span><span class="p">,</span> <span class="mi">13</span><span class="p">]),</span>
+
+        <span class="c1"># Cancel Route or Trace Connection fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">FieldListField</span><span class="p">(</span><span class="s2">&quot;adm_client_ids&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mh">0x00</span><span class="p">],</span> <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">count_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">adm_client_count</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">router_is_admin</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">adm_command</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">6</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">13</span><span class="p">]),</span>
+
+        <span class="c1"># Set/Clear Peer Trace fields  # TODO: Check whether this field should be a IPv6 address or another proper field</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;adm_address_mask&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">router_is_admin</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">adm_command</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">11</span><span class="p">]),</span>
+
+        <span class="c1"># Error Information/Control Messages fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;opcode&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">router_control_opcodes</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">router_is_error</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">or</span> <span class="n">router_is_control</span><span class="p">(</span><span class="n">pkt</span><span class="p">)),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;opcode_padd&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">router_is_error</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">or</span> <span class="n">router_is_control</span><span class="p">(</span><span class="n">pkt</span><span class="p">)),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">SignedIntEnumField</span><span class="p">(</span><span class="s2">&quot;return_code&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">router_return_codes</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">router_is_error</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">or</span> <span class="n">router_is_control</span><span class="p">(</span><span class="n">pkt</span><span class="p">)),</span>
+
+        <span class="c1"># Error Information fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;err_text_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;err_text_value&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;!I&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">router_is_error</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketField</span><span class="p">(</span><span class="s2">&quot;err_text_value&quot;</span><span class="p">,</span> <span class="n">SAPRouterError</span><span class="p">(),</span> <span class="n">SAPRouterError</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">router_is_error</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">err_text_length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;err_text_unknown&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">router_is_error</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">),</span>
+
+        <span class="c1"># Control Message fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;control_text_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">router_is_control</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrField</span><span class="p">(</span><span class="s2">&quot;control_text_value&quot;</span><span class="p">,</span> <span class="s2">&quot;*ERR&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">router_is_control</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">),</span>
+
+        <span class="c1"># SNC Frame fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketField</span><span class="p">(</span><span class="s2">&quot;snc_frame&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPSNCFrame</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">router_is_control</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">70</span><span class="p">,</span> <span class="mi">71</span><span class="p">])</span>
+    <span class="p">]</span></div>
+
+
+<span class="c1"># Retrieve the version of the remote SAP Router</span>
+<div class="viewcode-block" id="get_router_version"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.get_router_version">[docs]</a><span class="k">def</span> <span class="nf">get_router_version</span><span class="p">(</span><span class="n">connection</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper function to retrieve the version of a remote SAP Router. It</span>
+<span class="sd">    uses a control packet with the &#39;version request&#39; operation code. The version</span>
+<span class="sd">    is obtained either from a valid &#39;version response&#39; packet or from the error</span>
+<span class="sd">    message packet if something happened.</span>
+
+<span class="sd">    :param connection: connection with the SAP Router</span>
+<span class="sd">    :type connection: :class:`SAPNIStreamSocket`</span>
+
+<span class="sd">    :return: version</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">sr</span><span class="p">(</span><span class="n">SAPRouter</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">SAPRouter</span><span class="o">.</span><span class="n">SAPROUTER_CONTROL</span><span class="p">,</span>
+                                       <span class="n">version</span><span class="o">=</span><span class="n">SAPRouter</span><span class="o">.</span><span class="n">SAPROUTER_DEFAULT_VERSION</span><span class="p">,</span>
+                                       <span class="n">opcode</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">response</span><span class="o">.</span><span class="n">decode_payload_as</span><span class="p">(</span><span class="n">SAPRouter</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">version</span></div>
+
+
+<div class="viewcode-block" id="SAPRouteException"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouteException">[docs]</a><span class="k">class</span> <span class="nc">SAPRouteException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Exception for SAP Router routing errors&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="SAPRoutedStreamSocket"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRoutedStreamSocket">[docs]</a><span class="k">class</span> <span class="nc">SAPRoutedStreamSocket</span><span class="p">(</span><span class="n">SAPNIStreamSocket</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Stream socket implementation for a connection routed through a SAP</span>
+<span class="sd">    Router server. It works by wrapping a :class:`SAPNIStreamSocket` and connecting</span>
+<span class="sd">    first to the SAP Router given a route string or list of :class:`SAPRouterRouteHop`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">desc</span> <span class="o">=</span> <span class="s2">&quot;NI Stream socket routed trough a SAP Router&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sock</span><span class="p">,</span> <span class="n">route</span><span class="p">,</span> <span class="n">talk_mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">router_version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">keep_alive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">base_cls</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize the routed stream socket. It should receive a socket</span>
+<span class="sd">        connected with the SAP Router, and a route to specify to it. After</span>
+<span class="sd">        initialization and if the route is accepted all calls to send() and</span>
+<span class="sd">        recv() would be made to the target host/service trough the SAP</span>
+<span class="sd">        Router.</span>
+
+<span class="sd">        :param sock: a socket connected to the SAP Router</span>
+<span class="sd">        :type sock: C{socket}</span>
+
+<span class="sd">        :param route: a route to specify to the SAP Router</span>
+<span class="sd">        :type route: ``list`` of :class:`SAPRouterRouteHop`</span>
+
+<span class="sd">        :param talk_mode: the talk mode to use when routing</span>
+<span class="sd">        :type talk_mode: ``int``</span>
+
+<span class="sd">        :param router_version: the router version to use for requesting the</span>
+<span class="sd">            route. If no router version is provided, it will be obtained from</span>
+<span class="sd">            the SAP Router by means of a control packet.</span>
+<span class="sd">        :type router_version: ``int``</span>
+
+<span class="sd">        :param keep_alive: if true, the socket will automatically respond to</span>
+<span class="sd">            keep-alive request messages. Otherwise, the keep-alive messages</span>
+<span class="sd">            are passed to the caller in :class:`recv` and :class:`sr` calls.</span>
+<span class="sd">        :type keep_alive: ``bool``</span>
+
+<span class="sd">        :param base_cls: the base class to use when receiving packets, it uses</span>
+<span class="sd">            SAPNI as default if no class specified</span>
+<span class="sd">        :type base_cls: :class:`Packet` class</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">routed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">talk_mode</span> <span class="o">=</span> <span class="n">talk_mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">router_version</span> <span class="o">=</span> <span class="n">router_version</span>
+        <span class="c1"># Connect to the SAP Router</span>
+        <span class="n">SAPNIStreamSocket</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sock</span><span class="p">,</span> <span class="n">keep_alive</span><span class="o">=</span><span class="n">keep_alive</span><span class="p">,</span>
+                                   <span class="n">base_cls</span><span class="o">=</span><span class="n">base_cls</span><span class="p">)</span>
+        <span class="c1"># Now that we&#39;ve a NIStreamSocket, retrieve the router version if</span>
+        <span class="c1"># was not specified</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">router_version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">router_version</span> <span class="o">=</span> <span class="n">get_router_version</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">route_to</span><span class="p">(</span><span class="n">route</span><span class="p">,</span> <span class="n">talk_mode</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SAPRoutedStreamSocket.route_to"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRoutedStreamSocket.route_to">[docs]</a>    <span class="k">def</span> <span class="nf">route_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">route</span><span class="p">,</span> <span class="n">talk_mode</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Make the route request to the target host/service.</span>
+
+<span class="sd">        :param route: a route to specify to the SAP Router</span>
+<span class="sd">        :type route: ``list`` of :class:`SAPRouterRouteHop`</span>
+
+<span class="sd">        :param talk_mode: the talk mode to use when routing</span>
+<span class="sd">        :type talk_mode: ``int``</span>
+
+<span class="sd">        :raise SAPRouteException: if the route request to the target host/port</span>
+<span class="sd">            was not accepted by the SAP Router</span>
+
+<span class="sd">        :raise socket.error: if the connection to the target host/port failed</span>
+<span class="sd">            or the SAP Router returned an error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Build the route request packet</span>
+        <span class="n">talk_mode</span> <span class="o">=</span> <span class="n">talk_mode</span> <span class="ow">or</span> <span class="mi">0</span>
+        <span class="n">router_strings</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">route</span><span class="p">))</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">:</span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">route</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">route</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">port</span><span class="p">))</span>
+        <span class="n">router_strings_lens</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">len</span><span class="p">,</span> <span class="n">router_strings</span><span class="p">))</span>
+        <span class="n">route_request</span> <span class="o">=</span> <span class="n">SAPRouter</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">SAPRouter</span><span class="o">.</span><span class="n">SAPROUTER_ROUTE</span><span class="p">,</span>
+                                  <span class="n">route_ni_version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">router_version</span><span class="p">,</span>
+                                  <span class="n">route_entries</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">route</span><span class="p">),</span>
+                                  <span class="n">route_talk_mode</span><span class="o">=</span><span class="n">talk_mode</span><span class="p">,</span>
+                                  <span class="n">route_rest_nodes</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">route</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+                                  <span class="n">route_length</span><span class="o">=</span><span class="nb">sum</span><span class="p">(</span><span class="n">router_strings_lens</span><span class="p">),</span>
+                                  <span class="n">route_offset</span><span class="o">=</span><span class="n">router_strings_lens</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                  <span class="n">route_string</span><span class="o">=</span><span class="n">route</span><span class="p">)</span>
+        <span class="n">log_saprouter</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Requesting route to </span><span class="si">%s</span><span class="s2"> using mode </span><span class="si">%d</span><span class="s2"> (</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span>
+                            <span class="n">target</span><span class="p">,</span> <span class="n">talk_mode</span><span class="p">,</span> <span class="n">router_ni_talk_mode_values</span><span class="p">[</span><span class="n">talk_mode</span><span class="p">])</span>
+        <span class="c1"># Send the request and grab the response</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sr</span><span class="p">(</span><span class="n">route_request</span><span class="p">)</span>
+        <span class="n">response</span><span class="o">.</span><span class="n">decode_payload_as</span><span class="p">(</span><span class="n">SAPRouter</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">SAPRouter</span> <span class="ow">in</span> <span class="n">response</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="n">SAPRouter</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">router_is_pong</span><span class="p">(</span><span class="n">response</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">routed</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">log_saprouter</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Route to </span><span class="si">%s</span><span class="s2"> accepted&quot;</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">router_is_error</span><span class="p">(</span><span class="n">response</span><span class="p">)</span> <span class="ow">and</span> <span class="n">response</span><span class="o">.</span><span class="n">return_code</span> <span class="o">==</span> <span class="o">-</span><span class="mi">94</span><span class="p">:</span>
+                <span class="n">log_saprouter</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Route to </span><span class="si">%s</span><span class="s2"> denied&quot;</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">SAPRouteException</span><span class="p">(</span><span class="s2">&quot;Route request not accepted&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log_saprouter</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Error requesting route to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Router error:&quot;</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">err_text_value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log_saprouter</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Error requesting route to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Wrong response received&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SAPRoutedStreamSocket.recv"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRoutedStreamSocket.recv">[docs]</a>    <span class="k">def</span> <span class="nf">recv</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Receive a packet from the target host. If the talk mode in use is</span>
+<span class="sd">        native and we&#39;ve already set the route, the packet received is a raw</span>
+<span class="sd">        packet. Otherwise, the packet received is a NI layer packet in the same</span>
+<span class="sd">        way the :class:`SAPNIStreamSocket` works.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If we&#39;re working on native mode and the route was accepted, we don&#39;t</span>
+        <span class="c1"># need the NI layer anymore. Just use the plain socket inside the</span>
+        <span class="c1"># NIStreamSockets.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">routed</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">talk_mode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">StreamSocket</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="c1"># If the route was not accepted yet or we&#39;re working on non-native talk</span>
+        <span class="c1"># mode, we need the NI layer.</span>
+        <span class="k">return</span> <span class="n">SAPNIStreamSocket</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SAPRoutedStreamSocket.send"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRoutedStreamSocket.send">[docs]</a>    <span class="k">def</span> <span class="nf">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Send a packet. If the talk mode in use is native the packet sent is</span>
+<span class="sd">        a raw packet. Otherwise, the packet is a NI layer packet in the same way</span>
+<span class="sd">        the :class:`SAPNIStreamSocket` works.</span>
+
+<span class="sd">        :param packet: packet to send</span>
+<span class="sd">        :type packet: Packet</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If we&#39;re working on native mode and the route was accepted, we don&#39;t</span>
+        <span class="c1"># need the NI layer anymore. Just use the plain socket inside the</span>
+        <span class="c1"># NIStreamSockets.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">routed</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">talk_mode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">StreamSocket</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet</span><span class="p">)</span>
+        <span class="c1"># If the route was not accepted yet or we&#39;re working on non-native talk</span>
+        <span class="c1"># mode, we need the NI layer.</span>
+        <span class="k">return</span> <span class="n">SAPNIStreamSocket</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SAPRoutedStreamSocket.get_nisocket"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRoutedStreamSocket.get_nisocket">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_nisocket</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">route</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">talk_mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">router_version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Helper function to obtain a :class:`SAPRoutedStreamSocket`. If no</span>
+<span class="sd">        route is specified, it returns a plain `SAPNIStreamSocket`. If no</span>
+<span class="sd">        route is specified and the talk mode is raw, it returns a plain</span>
+<span class="sd">        `StreamSocket` as it&#39;s assumed that the NI layer is not desired.</span>
+
+<span class="sd">        :param host: target host to connect to if not specified in the route</span>
+<span class="sd">        :type host: C{string}</span>
+
+<span class="sd">        :param port: target port to connect to if not specified in the route</span>
+<span class="sd">        :type port: ``int``</span>
+
+<span class="sd">        :param route: route to use for determining the SAP Router to connect</span>
+<span class="sd">        :type route: C{string} or ``list`` of :class:`SAPRouterRouteHop`</span>
+
+<span class="sd">        :param password: target password if not specified in the route</span>
+<span class="sd">        :type password: C{string}</span>
+
+<span class="sd">        :param talk_mode: the talk mode to use for requesting the route</span>
+<span class="sd">        :type talk_mode: ``int``</span>
+
+<span class="sd">        :param router_version: the router version to use for requesting the</span>
+<span class="sd">            route</span>
+<span class="sd">        :type router_version: ``int``</span>
+
+<span class="sd">        :keyword kwargs: arguments to pass to :class:`SAPRoutedStreamSocket`</span>
+<span class="sd">            constructor</span>
+
+<span class="sd">        :return: connected socket through the specified route</span>
+<span class="sd">        :rtype: :class:`SAPRoutedStreamSocket`</span>
+
+<span class="sd">        :raise SAPRouteException: if the route request to the target host/port</span>
+<span class="sd">            was not accepted by the SAP Router</span>
+
+<span class="sd">        :raise socket.error: if the connection to the target host/port failed</span>
+<span class="sd">            or the SAP Router returned an error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If no route was provided, check the talk mode</span>
+        <span class="k">if</span> <span class="n">route</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># If talk mode is raw, create a new StreamSocket and get rid of the</span>
+            <span class="c1"># NI layer completely and force the base class to Raw.</span>
+            <span class="k">if</span> <span class="n">talk_mode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">sock</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">((</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span>
+                <span class="k">if</span> <span class="s2">&quot;base_cls&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                    <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;base_cls&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Raw</span>
+                <span class="k">return</span> <span class="n">StreamSocket</span><span class="p">(</span><span class="n">sock</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+            <span class="c1"># Otherwise use the standard SAPNIStreamSocket get_nisocket method</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">SAPNIStreamSocket</span><span class="o">.</span><span class="n">get_nisocket</span><span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># If the route was provided using a route string, convert it to a</span>
+        <span class="c1"># list of hops</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">route</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">route</span> <span class="o">=</span> <span class="n">SAPRouterRouteHop</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">route</span><span class="p">)</span>
+
+        <span class="c1"># If the host and port were specified, we need to add a new hop to</span>
+        <span class="c1"># the route</span>
+        <span class="k">if</span> <span class="n">host</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">port</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">route</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SAPRouterRouteHop</span><span class="p">(</span><span class="n">hostname</span><span class="o">=</span><span class="n">host</span><span class="p">,</span>
+                                           <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span>
+                                           <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">))</span>
+
+        <span class="c1"># Connect to the first hop in the route (it should be the SAP Router)</span>
+        <span class="n">sock</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">((</span><span class="n">route</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">route</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">port</span><span class="p">)))</span>
+
+        <span class="c1"># Create a SAPRoutedStreamSocket instance specifying the route</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">sock</span><span class="p">,</span> <span class="n">route</span><span class="p">,</span> <span class="n">talk_mode</span><span class="p">,</span> <span class="n">router_version</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="SAPRouterNativeProxy"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouterNativeProxy">[docs]</a><span class="k">class</span> <span class="nc">SAPRouterNativeProxy</span><span class="p">(</span><span class="n">SAPNIProxy</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Router Native Proxy</span>
+
+<span class="sd">    Proxy implementation that routes traffic through a remote SAP Router server</span>
+<span class="sd">    to a target host/port. It works by binding a :class:`SAPNIStreamSocket` and</span>
+<span class="sd">    requesting the SAP Router a route to the target location. If the route is</span>
+<span class="sd">    accepted it keeps the listener open for connections and spawn a new</span>
+<span class="sd">    :class:`SAPRouterNativeRouterHandler` instance for each client.</span>
+
+<span class="sd">    Example usage::</span>
+
+<span class="sd">        proxy = SAPRouterNativeProxy(local_host, local_port,</span>
+<span class="sd">                                     remote_host, remote_port,</span>
+<span class="sd">                                     SAPRouterNativeRouterHandler,</span>
+<span class="sd">                                     target_address=target_address,</span>
+<span class="sd">                                     target_post=target_port,</span>
+<span class="sd">                                     target_pass=target_pass)</span>
+<span class="sd">        proxy.handle_connection()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bind_address</span><span class="p">,</span> <span class="n">bind_port</span><span class="p">,</span> <span class="n">remote_address</span><span class="p">,</span> <span class="n">remote_port</span><span class="p">,</span>
+                 <span class="n">handler</span><span class="p">,</span> <span class="n">target_address</span><span class="p">,</span> <span class="n">target_port</span><span class="p">,</span> <span class="n">target_pass</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">talk_mode</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">backlog</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">keep_alive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create the proxy binding a socket in the giving port, requesting the</span>
+<span class="sd">        route to the target address/port and setting the handler for the</span>
+<span class="sd">        incoming connections.</span>
+
+<span class="sd">        :param bind_address: address to bind the listener socket</span>
+<span class="sd">        :type bind_address: C{string}</span>
+
+<span class="sd">        :param bind_port: port to bind the listener socket</span>
+<span class="sd">        :type bind_port: ``int``</span>
+
+<span class="sd">        :param remote_address: remote address to connect to</span>
+<span class="sd">        :param remote_address: C{string}</span>
+
+<span class="sd">        :param remote_port: remote port to connect to</span>
+<span class="sd">        :type remote_port: ``int``</span>
+
+<span class="sd">        :param handler: handler class</span>
+<span class="sd">        :type handler: :class:`SAPNIProxyHandler` class</span>
+
+<span class="sd">        :param target_address: target address to connect to</span>
+<span class="sd">        :param target_address: C{string}</span>
+
+<span class="sd">        :param target_port: target port to connect to</span>
+<span class="sd">        :type target_port: ``int``</span>
+
+<span class="sd">        :param target_pass: target password to use when requesting the route</span>
+<span class="sd">        :param target_pass: C{string}</span>
+
+<span class="sd">        :param talk_mode: talk mode to use when requesting the route</span>
+<span class="sd">        :type talk_mode: ``int``</span>
+
+<span class="sd">        :param backlog: backlog parameter to set in the listener socket</span>
+<span class="sd">        :type backlog: ``int``</span>
+
+<span class="sd">        :param keep_alive:  if true, the proxy will handle the keep-alive</span>
+<span class="sd">            requests and responses. Otherwise, keep-alive messages are passed</span>
+<span class="sd">            to the handler as regular packets.</span>
+<span class="sd">        :type keep_alive: ``bool``</span>
+
+<span class="sd">        :param options: options to pass to the handler instance</span>
+<span class="sd">        :type options: ``dict``</span>
+
+<span class="sd">        :raise SAPRouteException: if the route request is denied</span>
+<span class="sd">        :raise Exception: if an error occurred when requesting the route</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SAPRouterNativeProxy</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">bind_address</span><span class="p">,</span> <span class="n">bind_port</span><span class="p">,</span>
+                                                   <span class="n">remote_address</span><span class="p">,</span> <span class="n">remote_port</span><span class="p">,</span>
+                                                   <span class="n">handler</span> <span class="ow">or</span> <span class="n">SAPRouterNativeRouterHandler</span><span class="p">,</span>
+                                                   <span class="n">backlog</span><span class="p">,</span> <span class="n">keep_alive</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target_address</span> <span class="o">=</span> <span class="n">target_address</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target_port</span> <span class="o">=</span> <span class="n">target_port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target_pass</span> <span class="o">=</span> <span class="n">target_pass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">talk_mode</span> <span class="o">=</span> <span class="n">talk_mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">routed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">route</span><span class="p">()</span>
+
+<div class="viewcode-block" id="SAPRouterNativeProxy.handle_connection"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouterNativeProxy.handle_connection">[docs]</a>    <span class="k">def</span> <span class="nf">handle_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Block until a connection is received from the listener, request</span>
+<span class="sd">        a route to forward the traffic through the remote SAP Router and</span>
+<span class="sd">        handle the client using the provided handler class.</span>
+
+<span class="sd">        :return: the handler instance handling the request</span>
+<span class="sd">        :rtype: :class:`SAPNIProxyHandler`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Accept a client connection</span>
+        <span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">__</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">listener</span><span class="o">.</span><span class="n">ins</span><span class="o">.</span><span class="n">accept</span><span class="p">()</span>
+
+        <span class="c1"># Creates a remote socket</span>
+        <span class="n">router</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">route</span><span class="p">()</span>
+
+        <span class="c1"># Create the NI Stream Socket and handle it</span>
+        <span class="n">proxy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">handler</span><span class="p">(</span><span class="n">SAPNIStreamSocket</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_alive</span><span class="p">),</span>
+                             <span class="n">router</span><span class="p">,</span>
+                             <span class="bp">self</span><span class="o">.</span><span class="n">options</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">proxy</span></div>
+
+<div class="viewcode-block" id="SAPRouterNativeProxy.route"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouterNativeProxy.route">[docs]</a>    <span class="k">def</span> <span class="nf">route</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Requests a route to forward the traffic through the remote SAP</span>
+<span class="sd">        Router.</span>
+
+<span class="sd">        :raise SAPRouteException: if the route request is denied</span>
+<span class="sd">        :raise Exception: if an error occurred when requesting the route</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log_saprouter</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Routing to </span><span class="si">%s</span><span class="s2">:</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_address</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_port</span><span class="p">)</span>
+
+        <span class="c1"># Creates the connection with the SAP Router</span>
+        <span class="p">(</span><span class="n">remote_address</span><span class="p">,</span> <span class="n">remote_port</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_host</span>
+        <span class="n">router</span> <span class="o">=</span> <span class="n">SAPNIStreamSocket</span><span class="o">.</span><span class="n">get_nisocket</span><span class="p">(</span><span class="n">remote_address</span><span class="p">,</span> <span class="n">remote_port</span><span class="p">,</span>
+                                                <span class="n">keep_alive</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">keep_alive</span><span class="p">)</span>
+
+        <span class="c1"># Build the Route request packet</span>
+        <span class="n">router_string</span> <span class="o">=</span> <span class="p">[</span><span class="n">SAPRouterRouteHop</span><span class="p">(</span><span class="n">hostname</span><span class="o">=</span><span class="n">remote_address</span><span class="p">,</span>
+                                           <span class="n">port</span><span class="o">=</span><span class="n">remote_port</span><span class="p">),</span>
+                         <span class="n">SAPRouterRouteHop</span><span class="p">(</span><span class="n">hostname</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">target_address</span><span class="p">,</span>
+                                           <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">target_port</span><span class="p">,</span>
+                                           <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">target_pass</span><span class="p">)]</span>
+        <span class="n">router_string_lens</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">len</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">router_string</span><span class="p">))))</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">SAPRouter</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="n">SAPRouter</span><span class="o">.</span><span class="n">SAPROUTER_ROUTE</span><span class="p">,</span>
+                      <span class="n">route_entries</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">router_string</span><span class="p">),</span>
+                      <span class="n">route_talk_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">talk_mode</span><span class="p">,</span>
+                      <span class="n">route_rest_nodes</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">router_string</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+                      <span class="n">route_length</span><span class="o">=</span><span class="nb">sum</span><span class="p">(</span><span class="n">router_string_lens</span><span class="p">),</span>
+                      <span class="n">route_offset</span><span class="o">=</span><span class="n">router_string_lens</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                      <span class="n">route_string</span><span class="o">=</span><span class="n">router_string</span><span class="p">)</span>
+
+        <span class="c1"># Send the request and grab the response</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">router</span><span class="o">.</span><span class="n">sr</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">SAPRouter</span> <span class="ow">in</span> <span class="n">response</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="n">SAPRouter</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">router_is_pong</span><span class="p">(</span><span class="n">response</span><span class="p">):</span>
+                <span class="n">log_saprouter</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Route request to </span><span class="si">%s</span><span class="s2">:</span><span class="si">%d</span><span class="s2"> accepted by </span><span class="si">%s</span><span class="s2">:</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">target_address</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_port</span><span class="p">,</span>
+                                    <span class="n">remote_address</span><span class="p">,</span> <span class="n">remote_port</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">routed</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">router_is_error</span><span class="p">(</span><span class="n">response</span><span class="p">)</span> <span class="ow">and</span> <span class="n">response</span><span class="o">.</span><span class="n">return_code</span> <span class="o">==</span> <span class="o">-</span><span class="mi">94</span><span class="p">:</span>
+                <span class="n">log_saprouter</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Route request to </span><span class="si">%s</span><span class="s2">:</span><span class="si">%d</span><span class="s2"> not accepted by </span><span class="si">%s</span><span class="s2">:</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">target_address</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_port</span><span class="p">,</span>
+                                    <span class="n">remote_address</span><span class="p">,</span> <span class="n">remote_port</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">SAPRouteException</span><span class="p">(</span><span class="s2">&quot;Route request not accepted&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log_saprouter</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Router send error: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">err_text_value</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Router error: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">err_text_value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log_saprouter</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Wrong response received&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Wrong response received&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">router</span></div></div>
+
+
+<div class="viewcode-block" id="SAPRouterNativeRouterHandler"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouterNativeRouterHandler">[docs]</a><span class="k">class</span> <span class="nc">SAPRouterNativeRouterHandler</span><span class="p">(</span><span class="n">SAPNIProxyHandler</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Router Native Proxy Handler</span>
+
+<span class="sd">    Handles packets routed through a remote SAP Router. It works by bypassing</span>
+<span class="sd">    the SAP NI layer in order to allow native traffic.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">server</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">options</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mtu</span> <span class="o">=</span> <span class="mi">2048</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SAPRouterNativeRouterHandler</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">server</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SAPRouterNativeRouterHandler.recv_send"><a class="viewcode-back" href="../../api/pysap.SAPRouter.html#pysap.SAPRouter.SAPRouterNativeRouterHandler.recv_send">[docs]</a>    <span class="k">def</span> <span class="nf">recv_send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="p">,</span> <span class="n">process</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Receives data from one socket connection, process it and send to the</span>
+<span class="sd">        remote connection.</span>
+
+<span class="sd">        :param local: the local socket</span>
+<span class="sd">        :type local: :class:`SAPNIStreamSocket`</span>
+
+<span class="sd">        :param remote: the remote socket</span>
+<span class="sd">        :type remote: :class:`SAPNIStreamSocket`</span>
+
+<span class="sd">        :param process: the function that process the incoming data</span>
+<span class="sd">        :type process: function</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Receive a native packet (not SAP NI)</span>
+        <span class="n">packet</span> <span class="o">=</span> <span class="n">local</span><span class="o">.</span><span class="n">ins</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mtu</span><span class="p">)</span>
+        <span class="n">log_saprouter</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Received </span><span class="si">%d</span><span class="s2"> native bytes&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">packet</span><span class="p">))</span>
+
+        <span class="c1"># Handle close connection</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">local</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="n">SocketError</span><span class="p">((</span><span class="mi">100</span><span class="p">,</span> <span class="s2">&quot;Underlying stream socket tore down&quot;</span><span class="p">))</span>
+
+        <span class="c1"># Send the packet to the remote peer</span>
+        <span class="n">remote</span><span class="o">.</span><span class="n">ins</span><span class="o">.</span><span class="n">sendall</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+        <span class="n">log_saprouter</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Sent </span><span class="si">%d</span><span class="s2"> native bytes&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">packet</span><span class="p">))</span></div></div>
+
+
+<span class="c1"># Bind SAP NI with the SAP Router port</span>
+<span class="n">bind_layers</span><span class="p">(</span><span class="n">TCP</span><span class="p">,</span> <span class="n">SAPNI</span><span class="p">,</span> <span class="n">dport</span><span class="o">=</span><span class="mi">3299</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2012-2018, Martin Gallo, Core Security.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

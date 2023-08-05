@@ -1,0 +1,240 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pysap.SAPRFC &#8212; pysap 0.1.16 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for pysap.SAPRFC</h1><div class="highlight"><pre>
+<span></span><span class="c1"># ===========</span>
+<span class="c1"># pysap - Python library for crafting SAP&#39;s network protocols packets</span>
+<span class="c1">#</span>
+<span class="c1"># Copyright (C) 2012-2018 by Martin Gallo, Core Security</span>
+<span class="c1">#</span>
+<span class="c1"># The library was designed and developed by Martin Gallo from</span>
+<span class="c1"># Core Security&#39;s CoreLabs team.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software; you can redistribute it and/or</span>
+<span class="c1"># modify it under the terms of the GNU General Public License</span>
+<span class="c1"># as published by the Free Software Foundation; either version 2</span>
+<span class="c1"># of the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1"># ==============</span>
+
+<span class="c1"># External imports</span>
+<span class="kn">from</span> <span class="nn">scapy.layers.inet</span> <span class="k">import</span> <span class="n">TCP</span>
+<span class="kn">from</span> <span class="nn">scapy.packet</span> <span class="k">import</span> <span class="n">Packet</span><span class="p">,</span> <span class="n">bind_layers</span>
+<span class="kn">from</span> <span class="nn">scapy.fields</span> <span class="k">import</span> <span class="p">(</span><span class="n">ByteField</span><span class="p">,</span> <span class="n">ConditionalField</span><span class="p">,</span> <span class="n">IPField</span><span class="p">,</span> <span class="n">IntField</span><span class="p">,</span>
+                          <span class="n">StrFixedLenField</span><span class="p">,</span> <span class="n">SignedShortField</span><span class="p">,</span>
+                          <span class="n">ByteEnumKeysField</span><span class="p">)</span>
+<span class="c1"># External imports</span>
+<span class="kn">from</span> <span class="nn">scapy.layers.inet6</span> <span class="k">import</span> <span class="n">IP6Field</span>
+<span class="c1"># Custom imports</span>
+<span class="kn">from</span> <span class="nn">pysap.SAPNI</span> <span class="k">import</span> <span class="n">SAPNI</span>
+<span class="kn">from</span> <span class="nn">pysap.utils.fields</span> <span class="k">import</span> <span class="n">StrFixedLenPaddedField</span>
+
+
+<span class="c1"># RFC Request Type values</span>
+<span class="n">rfc_req_type_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mh">0x00</span><span class="p">:</span> <span class="s2">&quot;GW_UNDEF_TYPE&quot;</span><span class="p">,</span>
+    <span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;CHECK_GATEWAY&quot;</span><span class="p">,</span>
+    <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;GW_CONNECT_GWWP&quot;</span><span class="p">,</span>
+    <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;GW_NORMAL_CLIENT&quot;</span><span class="p">,</span>
+    <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;GW_REMOTE_GATEWAY&quot;</span><span class="p">,</span>
+    <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;STOP_GATEWAY&quot;</span><span class="p">,</span>
+    <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;GW_LOCAL_R3&quot;</span><span class="p">,</span>
+    <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;GW_SEND_INTERNAL_ERROR&quot;</span><span class="p">,</span>  <span class="c1"># Requires NiLocalCheck</span>
+    <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;GW_SEND_INFO&quot;</span><span class="p">,</span>
+    <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;GW_SEND_CMD&quot;</span><span class="p">,</span>
+    <span class="mh">0x0a</span><span class="p">:</span> <span class="s2">&quot;GW_WORKPROCESS_DIED&quot;</span><span class="p">,</span>  <span class="c1"># Requires NiLocalCheck</span>
+    <span class="mh">0x0b</span><span class="p">:</span> <span class="s2">&quot;GW_REGISTER_TP&quot;</span><span class="p">,</span>
+    <span class="mh">0x0c</span><span class="p">:</span> <span class="s2">&quot;GW_UNREGISTER_TP&quot;</span><span class="p">,</span>
+    <span class="mh">0x0d</span><span class="p">:</span> <span class="s2">&quot;GW_CONNECT_DISP&quot;</span><span class="p">,</span>  <span class="c1"># Requires NiLocalCheck</span>
+    <span class="mh">0x0e</span><span class="p">:</span> <span class="s2">&quot;GW_GET_NO_REGISTER_TP&quot;</span><span class="p">,</span>
+    <span class="mh">0x0f</span><span class="p">:</span> <span class="s2">&quot;GW_SAP_WP_CLIENT&quot;</span><span class="p">,</span>  <span class="c1"># Requires NiLocalCheck</span>
+    <span class="mh">0x10</span><span class="p">:</span> <span class="s2">&quot;GW_CANCEL_REGISTER_TP&quot;</span><span class="p">,</span>
+    <span class="mh">0x11</span><span class="p">:</span> <span class="s2">&quot;REMOTE_GATEWAY&quot;</span><span class="p">,</span>
+    <span class="mh">0x12</span><span class="p">:</span> <span class="s2">&quot;GW_CONTAINER_RECEIVED&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;RFC Request Type values&quot;&quot;&quot;</span>
+
+<span class="c1"># RFC Monitor Command values</span>
+<span class="n">rfc_monitor_cmd_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;NOOP&quot;</span><span class="p">,</span>
+    <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;DELETE_CONN&quot;</span><span class="p">,</span>
+    <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;CANCEL_CONN&quot;</span><span class="p">,</span>
+    <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;RST_SINGLE_ERR_CNT&quot;</span><span class="p">,</span>
+    <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;RST_ALL_ERR_CNT&quot;</span><span class="p">,</span>
+    <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;INCREASE_TRACE&quot;</span><span class="p">,</span>
+    <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;DECREASE_TRACE&quot;</span><span class="p">,</span>
+    <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;READ_SEC_INFO&quot;</span><span class="p">,</span>
+    <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;REFRESH_SEC_INFO&quot;</span><span class="p">,</span>
+    <span class="mh">0x0a</span><span class="p">:</span> <span class="s2">&quot;READ_GWSYS_TBL&quot;</span><span class="p">,</span>
+    <span class="mh">0x0b</span><span class="p">:</span> <span class="s2">&quot;READ_CONN_TBL&quot;</span><span class="p">,</span>
+    <span class="mh">0x0c</span><span class="p">:</span> <span class="s2">&quot;READ_PROC_TBL&quot;</span><span class="p">,</span>
+    <span class="mh">0x0d</span><span class="p">:</span> <span class="s2">&quot;READ_CONN_ATTR&quot;</span><span class="p">,</span>
+    <span class="mh">0x0e</span><span class="p">:</span> <span class="s2">&quot;READ_MEMORY&quot;</span><span class="p">,</span>
+    <span class="mh">0x0f</span><span class="p">:</span> <span class="s2">&quot;READ_REQ_BLK&quot;</span><span class="p">,</span>
+    <span class="mh">0x10</span><span class="p">:</span> <span class="s2">&quot;ACT_STATISTIC&quot;</span><span class="p">,</span>
+    <span class="mh">0x11</span><span class="p">:</span> <span class="s2">&quot;DEACT_STATISTIC&quot;</span><span class="p">,</span>
+    <span class="mh">0x12</span><span class="p">:</span> <span class="s2">&quot;READ_STATISTIC&quot;</span><span class="p">,</span>
+    <span class="mh">0x13</span><span class="p">:</span> <span class="s2">&quot;RESET_STATISTIC&quot;</span><span class="p">,</span>
+    <span class="mh">0x14</span><span class="p">:</span> <span class="s2">&quot;READ_PARAMETER&quot;</span><span class="p">,</span>
+    <span class="mh">0x19</span><span class="p">:</span> <span class="s2">&quot;DUMP_NIBUFFER&quot;</span><span class="p">,</span>
+    <span class="mh">0x20</span><span class="p">:</span> <span class="s2">&quot;RESET_NIBUFFER&quot;</span><span class="p">,</span>
+    <span class="mh">0x21</span><span class="p">:</span> <span class="s2">&quot;ACT_EXTPGM_TRACE&quot;</span><span class="p">,</span>
+    <span class="mh">0x22</span><span class="p">:</span> <span class="s2">&quot;DEACT_EXTPGM_TRACE&quot;</span><span class="p">,</span>
+    <span class="mh">0x23</span><span class="p">:</span> <span class="s2">&quot;ACT_CONN_TRACE&quot;</span><span class="p">,</span>
+    <span class="mh">0x24</span><span class="p">:</span> <span class="s2">&quot;DEACT_CONN_TRACE&quot;</span><span class="p">,</span>
+    <span class="mh">0x25</span><span class="p">:</span> <span class="s2">&quot;RESET_TRACE&quot;</span><span class="p">,</span>
+    <span class="mh">0x26</span><span class="p">:</span> <span class="s2">&quot;SUICIDE&quot;</span><span class="p">,</span>
+    <span class="mh">0x27</span><span class="p">:</span> <span class="s2">&quot;READ_SEC_INFO2&quot;</span><span class="p">,</span>
+    <span class="mh">0x28</span><span class="p">:</span> <span class="s2">&quot;CANCEL_REG_TP&quot;</span><span class="p">,</span>
+    <span class="mh">0x29</span><span class="p">:</span> <span class="s2">&quot;DUMP&quot;</span><span class="p">,</span>
+    <span class="mh">0x2a</span><span class="p">:</span> <span class="s2">&quot;READ_GWSYS_TBL2&quot;</span><span class="p">,</span>
+    <span class="mh">0x2b</span><span class="p">:</span> <span class="s2">&quot;CHANGE_PARAMETER&quot;</span><span class="p">,</span>
+    <span class="mh">0x2c</span><span class="p">:</span> <span class="s2">&quot;GET_CONN_PARTNER&quot;</span><span class="p">,</span>
+    <span class="mh">0x2d</span><span class="p">:</span> <span class="s2">&quot;DELETE_CLIENT&quot;</span><span class="p">,</span>
+    <span class="mh">0x2e</span><span class="p">:</span> <span class="s2">&quot;DELETE_REMGW&quot;</span><span class="p">,</span>
+    <span class="mh">0x2f</span><span class="p">:</span> <span class="s2">&quot;DISCONNECT&quot;</span><span class="p">,</span>
+    <span class="mh">0x30</span><span class="p">:</span> <span class="s2">&quot;ENABLE_RESTART&quot;</span><span class="p">,</span>
+    <span class="mh">0x31</span><span class="p">:</span> <span class="s2">&quot;DISABLE_RESTART&quot;</span><span class="p">,</span>
+    <span class="mh">0x32</span><span class="p">:</span> <span class="s2">&quot;NI_TRACE&quot;</span><span class="p">,</span>
+    <span class="mh">0x33</span><span class="p">:</span> <span class="s2">&quot;CLI_INFO&quot;</span><span class="p">,</span>
+    <span class="mh">0x34</span><span class="p">:</span> <span class="s2">&quot;GW_INFO&quot;</span><span class="p">,</span>
+    <span class="mh">0x35</span><span class="p">:</span> <span class="s2">&quot;CONVID_INFO&quot;</span><span class="p">,</span>
+    <span class="mh">0x36</span><span class="p">:</span> <span class="s2">&quot;GET_NO_REG_TP&quot;</span><span class="p">,</span>
+    <span class="mh">0x37</span><span class="p">:</span> <span class="s2">&quot;CV_INFO&quot;</span><span class="p">,</span>
+    <span class="mh">0x38</span><span class="p">:</span> <span class="s2">&quot;SO_KEEPALIVE&quot;</span><span class="p">,</span>
+    <span class="mh">0x39</span><span class="p">:</span> <span class="s2">&quot;READ_CONN_TBL2&quot;</span><span class="p">,</span>
+    <span class="mh">0x40</span><span class="p">:</span> <span class="s2">&quot;READ_GWSYS_TBL3&quot;</span><span class="p">,</span>
+    <span class="mh">0x41</span><span class="p">:</span> <span class="s2">&quot;RELOAD_ACL&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;RFC Monitor Command values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># APPC Header versions length:</span>
+<span class="c1"># 1: 4Ch</span>
+<span class="c1"># 2/3: 64h</span>
+<span class="c1"># 4: 8Ah</span>
+<span class="c1"># 5: 4Eh</span>
+<span class="c1"># 6: 50h</span>
+
+<div class="viewcode-block" id="SAPRFC"><a class="viewcode-back" href="../../api/pysap.SAPRFC.html#pysap.SAPRFC.SAPRFC">[docs]</a><span class="k">class</span> <span class="nc">SAPRFC</span><span class="p">(</span><span class="n">Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Remote Function Call packet</span>
+
+<span class="sd">    This packet is used for the Remote Function Call (RFC) protocol.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Remote Function Call&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>  <span class="c1"># If the version is 3, the packet has a size &gt; 88h, versions 1 and 2 are 40h</span>
+        <span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;req_type&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">rfc_req_type_values</span><span class="p">),</span>
+
+        <span class="c1"># Normal client fields (GW_NORMAL_CLIENT)</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IPField</span><span class="p">(</span><span class="s2">&quot;address&quot;</span><span class="p">,</span> <span class="s2">&quot;0.0.0.0&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;padd1&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenPaddedField</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">10</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;codepage&quot;</span><span class="p">,</span> <span class="s2">&quot;1100&quot;</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">4</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;padd2&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">6</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">6</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenPaddedField</span><span class="p">(</span><span class="s2">&quot;lu&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">8</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenPaddedField</span><span class="p">(</span><span class="s2">&quot;tp&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">8</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenPaddedField</span><span class="p">(</span><span class="s2">&quot;conversation_id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">8</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;appc_header_version&quot;</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;accept_info&quot;</span><span class="p">,</span> <span class="mh">0xcb</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">SignedShortField</span><span class="p">(</span><span class="s2">&quot;idx&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IP6Field</span><span class="p">(</span><span class="s2">&quot;address6&quot;</span><span class="p">,</span> <span class="s2">&quot;::&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="mi">3</span><span class="p">),</span>
+
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;rc&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;echo_data&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;filler&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+
+        <span class="c1"># Monitor Command fields (GW_SEND_CMD)</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;cmd&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">rfc_monitor_cmd_values</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x09</span><span class="p">),</span>
+
+        <span class="c1"># General padding for non implemented request types</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;padd_v12&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">61</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">61</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">pkt</span><span class="o">.</span><span class="n">version</span> <span class="o">&lt;</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x09</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;padd_v12&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">62</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">62</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">pkt</span><span class="o">.</span><span class="n">version</span> <span class="o">&lt;</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x03</span><span class="p">,</span> <span class="mh">0x09</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;padd_v3&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">133</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">133</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">pkt</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="o">==</span> <span class="mh">0x09</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;padd_v3&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">134</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">134</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">pkt</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">req_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x03</span><span class="p">,</span> <span class="mh">0x09</span><span class="p">]),</span>
+    <span class="p">]</span></div>
+
+
+<span class="c1"># Bind SAP NI with the RFC port</span>
+<span class="n">bind_layers</span><span class="p">(</span><span class="n">TCP</span><span class="p">,</span> <span class="n">SAPNI</span><span class="p">,</span> <span class="n">dport</span><span class="o">=</span><span class="mi">3300</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2012-2018, Martin Gallo, Core Security.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

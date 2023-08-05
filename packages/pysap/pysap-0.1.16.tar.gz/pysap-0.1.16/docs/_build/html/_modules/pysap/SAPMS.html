@@ -1,0 +1,967 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pysap.SAPMS &#8212; pysap 0.1.16 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for pysap.SAPMS</h1><div class="highlight"><pre>
+<span></span><span class="c1"># ===========</span>
+<span class="c1"># pysap - Python library for crafting SAP&#39;s network protocols packets</span>
+<span class="c1">#</span>
+<span class="c1"># Copyright (C) 2012-2018 by Martin Gallo, Core Security</span>
+<span class="c1">#</span>
+<span class="c1"># The library was designed and developed by Martin Gallo from</span>
+<span class="c1"># Core Security&#39;s CoreLabs team.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software; you can redistribute it and/or</span>
+<span class="c1"># modify it under the terms of the GNU General Public License</span>
+<span class="c1"># as published by the Free Software Foundation; either version 2</span>
+<span class="c1"># of the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1"># ==============</span>
+
+<span class="c1"># External imports</span>
+<span class="kn">from</span> <span class="nn">scapy.layers.inet</span> <span class="k">import</span> <span class="n">TCP</span>
+<span class="kn">from</span> <span class="nn">scapy.packet</span> <span class="k">import</span> <span class="n">Packet</span><span class="p">,</span> <span class="n">bind_layers</span>
+<span class="kn">from</span> <span class="nn">scapy.fields</span> <span class="k">import</span> <span class="p">(</span><span class="n">ByteField</span><span class="p">,</span> <span class="n">ConditionalField</span><span class="p">,</span> <span class="n">StrFixedLenField</span><span class="p">,</span> <span class="n">FlagsField</span><span class="p">,</span>
+                          <span class="n">IPField</span><span class="p">,</span> <span class="n">ShortField</span><span class="p">,</span> <span class="n">IntField</span><span class="p">,</span> <span class="n">StrField</span><span class="p">,</span> <span class="n">PacketListField</span><span class="p">,</span>
+                          <span class="n">FieldLenField</span><span class="p">,</span> <span class="n">PacketField</span><span class="p">,</span> <span class="n">StrLenField</span><span class="p">,</span> <span class="n">IntEnumField</span><span class="p">,</span>
+                          <span class="n">StrNullField</span><span class="p">,</span> <span class="n">ByteEnumKeysField</span><span class="p">,</span> <span class="n">ShortEnumKeysField</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">scapy.layers.inet6</span> <span class="k">import</span> <span class="n">IP6Field</span>
+<span class="c1"># Custom imports</span>
+<span class="kn">from</span> <span class="nn">pysap.SAPNI</span> <span class="k">import</span> <span class="n">SAPNI</span>
+<span class="kn">from</span> <span class="nn">pysap.utils.fields</span> <span class="k">import</span> <span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">,</span> <span class="n">IntToStrField</span><span class="p">,</span> <span class="n">StrNullFixedLenPaddedField</span><span class="p">,</span>
+                                <span class="n">StrNullFixedLenField</span><span class="p">)</span>
+
+
+<span class="c1"># Message Server Domain values</span>
+<span class="n">ms_domain_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mh">0x00</span><span class="p">:</span> <span class="s2">&quot;ABAP&quot;</span><span class="p">,</span>
+    <span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;J2EE&quot;</span><span class="p">,</span>
+    <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;JSTARTUP&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server Domain values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Inverse dictionary for obtaining the value from a given domain name</span>
+<span class="n">ms_domain_values_inv</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">ms_domain_values</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+
+<span class="c1"># Message Server Flag values</span>
+<span class="n">ms_flag_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;MS_ONE_WAY&quot;</span><span class="p">,</span>  <span class="c1"># One way messages are sent from the client to server and doesn&#39;t trigger a response</span>
+                         <span class="c1"># from the server</span>
+    <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;MS_REQUEST&quot;</span><span class="p">,</span>
+    <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;MS_REPLY&quot;</span><span class="p">,</span>
+    <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;MS_ADMIN&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server Flag values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Message Server IFlag values</span>
+<span class="n">ms_iflag_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;MS_SEND_NAME&quot;</span><span class="p">,</span>
+    <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;MS_SEND_TYPE&quot;</span><span class="p">,</span>
+    <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;MS_LOGIN&quot;</span><span class="p">,</span>
+    <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;MS_LOGOUT&quot;</span><span class="p">,</span>
+    <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;MS_ADM_OPCODES&quot;</span><span class="p">,</span>
+    <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;MS_MOD_MSGTYPES&quot;</span><span class="p">,</span>
+    <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;MS_SEND_TYPE_ONCE&quot;</span><span class="p">,</span>
+    <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;MS_LOGIN_2&quot;</span><span class="p">,</span>
+    <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;MS_MOD_STATE&quot;</span><span class="p">,</span>
+    <span class="mh">0x0a</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_LOGIN&quot;</span><span class="p">,</span>
+    <span class="mh">0x0c</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_SEND_TO_CLUSTERID&quot;</span><span class="p">,</span>
+    <span class="mh">0x0d</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_SEND_BROADCAST&quot;</span><span class="p">,</span>
+    <span class="mh">0x0e</span><span class="p">:</span> <span class="s2">&quot;MS_SEND_TYPE_ACK&quot;</span><span class="p">,</span>
+    <span class="mh">0x0f</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_LOGIN_2&quot;</span><span class="p">,</span>
+    <span class="mh">0x10</span><span class="p">:</span> <span class="s2">&quot;MS_SEND_SERVICE&quot;</span><span class="p">,</span>
+    <span class="mh">0x11</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_LOGIN_3&quot;</span><span class="p">,</span>
+    <span class="mh">0x12</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_LOGIN_4&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server IFlag values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Message Server Error values</span>
+<span class="n">ms_errorno_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">0</span><span class="p">:</span> <span class="s2">&quot;MSERECONNECTION&quot;</span><span class="p">,</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;MSENISELWRITE&quot;</span><span class="p">,</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;MSENISELREAD&quot;</span><span class="p">,</span>
+    <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;MSENIQUEUE&quot;</span><span class="p">,</span>
+    <span class="mi">4</span><span class="p">:</span> <span class="s2">&quot;MSENILAYER&quot;</span><span class="p">,</span>
+    <span class="mi">71</span><span class="p">:</span> <span class="s2">&quot;MSETESTSOFTSHUTDOWN&quot;</span><span class="p">,</span>
+    <span class="mi">72</span><span class="p">:</span> <span class="s2">&quot;MSENOTINIT&quot;</span><span class="p">,</span>
+    <span class="mi">73</span><span class="p">:</span> <span class="s2">&quot;MSEALREADYINIT&quot;</span><span class="p">,</span>
+    <span class="mi">74</span><span class="p">:</span> <span class="s2">&quot;MSEINVHDL&quot;</span><span class="p">,</span>
+    <span class="mi">75</span><span class="p">:</span> <span class="s2">&quot;MSEWRONGSERVER&quot;</span><span class="p">,</span>
+    <span class="mi">76</span><span class="p">:</span> <span class="s2">&quot;MSEMOREDATA&quot;</span><span class="p">,</span>
+    <span class="mi">77</span><span class="p">:</span> <span class="s2">&quot;MSESNDTYPEFAILED&quot;</span><span class="p">,</span>
+    <span class="mi">78</span><span class="p">:</span> <span class="s2">&quot;MSEDUPKEY&quot;</span><span class="p">,</span>
+    <span class="mi">79</span><span class="p">:</span> <span class="s2">&quot;MSESOFTSHUTDOWN&quot;</span><span class="p">,</span>
+    <span class="mi">81</span><span class="p">:</span> <span class="s2">&quot;MSENOMEM&quot;</span><span class="p">,</span>
+    <span class="mi">82</span><span class="p">:</span> <span class="s2">&quot;MSEHEADERINCOMPLETE&quot;</span><span class="p">,</span>
+    <span class="mi">83</span><span class="p">:</span> <span class="s2">&quot;MSETYPESNOTALLOWED&quot;</span><span class="p">,</span>
+    <span class="mi">84</span><span class="p">:</span> <span class="s2">&quot;MSEACCESSDENIED&quot;</span><span class="p">,</span>
+    <span class="mi">85</span><span class="p">:</span> <span class="s2">&quot;MSEWRITEINCOMPLETE&quot;</span><span class="p">,</span>
+    <span class="mi">86</span><span class="p">:</span> <span class="s2">&quot;MSEREADINCOMPLETE&quot;</span><span class="p">,</span>
+    <span class="mi">87</span><span class="p">:</span> <span class="s2">&quot;MSEADMIN&quot;</span><span class="p">,</span>
+    <span class="mi">88</span><span class="p">:</span> <span class="s2">&quot;MSESOCKTOOLARGE&quot;</span><span class="p">,</span>
+    <span class="mi">89</span><span class="p">:</span> <span class="s2">&quot;MSENOSLOTFREE&quot;</span><span class="p">,</span>
+    <span class="mi">90</span><span class="p">:</span> <span class="s2">&quot;MSESHUTDOWN&quot;</span><span class="p">,</span>
+    <span class="mi">91</span><span class="p">:</span> <span class="s2">&quot;MSEREPLYTOOLARGE&quot;</span><span class="p">,</span>
+    <span class="mi">92</span><span class="p">:</span> <span class="s2">&quot;MSEWRONGVERSION&quot;</span><span class="p">,</span>
+    <span class="mi">93</span><span class="p">:</span> <span class="s2">&quot;MSEMSGDESTROYED&quot;</span><span class="p">,</span>
+    <span class="mi">94</span><span class="p">:</span> <span class="s2">&quot;MSENOTUNIQUE&quot;</span><span class="p">,</span>
+    <span class="mi">95</span><span class="p">:</span> <span class="s2">&quot;MSEPARTNERUNKNOWN&quot;</span><span class="p">,</span>
+    <span class="mi">96</span><span class="p">:</span> <span class="s2">&quot;MSEPARTNERDIED&quot;</span><span class="p">,</span>
+    <span class="mi">97</span><span class="p">:</span> <span class="s2">&quot;MSEWRONGTYPE&quot;</span><span class="p">,</span>
+    <span class="mi">98</span><span class="p">:</span> <span class="s2">&quot;MSEWRONGNAME&quot;</span><span class="p">,</span>
+    <span class="mi">99</span><span class="p">:</span> <span class="s2">&quot;MSEWAKEUP&quot;</span><span class="p">,</span>
+    <span class="mi">100</span><span class="p">:</span> <span class="s2">&quot;MSENOTFOUND&quot;</span><span class="p">,</span>
+    <span class="mi">101</span><span class="p">:</span> <span class="s2">&quot;MSEINVAL&quot;</span><span class="p">,</span>
+    <span class="mi">102</span><span class="p">:</span> <span class="s2">&quot;MSENOMSG&quot;</span><span class="p">,</span>
+    <span class="mi">103</span><span class="p">:</span> <span class="s2">&quot;MSEINTERN&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server Error values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Message Server Administration messages type values</span>
+<span class="n">ms_adm_type_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;ADM_REQUEST&quot;</span><span class="p">,</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;ADM_REPLY&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server Administration messages type values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Message Server Administration messages opcode values</span>
+<span class="n">ms_adm_opcode_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mh">0x00</span><span class="p">:</span> <span class="s2">&quot;AD_GENERAL&quot;</span><span class="p">,</span>
+    <span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;AD_PROFILE&quot;</span><span class="p">,</span>  <span class="c1"># *</span>
+    <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;AD_WPSTAT&quot;</span><span class="p">,</span>
+    <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;AD_QUEUE&quot;</span><span class="p">,</span>
+    <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;AD_STARTSTOP&quot;</span><span class="p">,</span>
+    <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;AD_WPCONF&quot;</span><span class="p">,</span>
+    <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;AD_USRLST&quot;</span><span class="p">,</span>
+    <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;AD_WPKILL&quot;</span><span class="p">,</span>
+    <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;AD_TIMEINFO&quot;</span><span class="p">,</span>  <span class="c1"># *</span>
+    <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;AD_TM_RECONNECT&quot;</span><span class="p">,</span>
+    <span class="mh">0x0a</span><span class="p">:</span> <span class="s2">&quot;AD_ALRT_GET_STATE&quot;</span><span class="p">,</span>
+    <span class="mh">0x0b</span><span class="p">:</span> <span class="s2">&quot;AD_ALRT_OPERATION&quot;</span><span class="p">,</span>
+    <span class="mh">0x0c</span><span class="p">:</span> <span class="s2">&quot;AD_ALRT_SET_PARAM&quot;</span><span class="p">,</span>
+    <span class="mh">0x0d</span><span class="p">:</span> <span class="s2">&quot;AD_DB_RECONNECT&quot;</span><span class="p">,</span>
+    <span class="mh">0x0e</span><span class="p">:</span> <span class="s2">&quot;AD_ECHO&quot;</span><span class="p">,</span>  <span class="c1"># *</span>
+    <span class="mh">0x0f</span><span class="p">:</span> <span class="s2">&quot;AD_MSGSERVER&quot;</span><span class="p">,</span>  <span class="c1"># *</span>
+    <span class="mh">0x10</span><span class="p">:</span> <span class="s2">&quot;AD_WPCONF2&quot;</span><span class="p">,</span>
+    <span class="mh">0x11</span><span class="p">:</span> <span class="s2">&quot;AD_GENERAL2&quot;</span><span class="p">,</span>
+    <span class="mh">0x12</span><span class="p">:</span> <span class="s2">&quot;AD_SET_LIST_PARAM&quot;</span><span class="p">,</span>
+    <span class="mh">0x13</span><span class="p">:</span> <span class="s2">&quot;AD_DUMP_STATUS&quot;</span><span class="p">,</span>
+    <span class="mh">0x14</span><span class="p">:</span> <span class="s2">&quot;AD_RZL&quot;</span><span class="p">,</span>
+    <span class="mh">0x15</span><span class="p">:</span> <span class="s2">&quot;AD_RZL_STRG&quot;</span><span class="p">,</span>  <span class="c1"># *</span>
+    <span class="mh">0x16</span><span class="p">:</span> <span class="s2">&quot;AD_COUNT_WPS&quot;</span><span class="p">,</span>
+    <span class="mh">0x17</span><span class="p">:</span> <span class="s2">&quot;AD_QUEUE2&quot;</span><span class="p">,</span>
+    <span class="mh">0x19</span><span class="p">:</span> <span class="s2">&quot;AD_EM&quot;</span><span class="p">,</span>
+    <span class="mh">0x1a</span><span class="p">:</span> <span class="s2">&quot;AD_ES&quot;</span><span class="p">,</span>
+    <span class="mh">0x1b</span><span class="p">:</span> <span class="s2">&quot;AD_SHUTDOWN_STATE&quot;</span><span class="p">,</span>
+    <span class="mh">0x1c</span><span class="p">:</span> <span class="s2">&quot;AD_SHUTDOWN_INFO&quot;</span><span class="p">,</span>
+    <span class="mh">0x1d</span><span class="p">:</span> <span class="s2">&quot;AD_SHUTDOWN_ERROR&quot;</span><span class="p">,</span>
+    <span class="mh">0x1f</span><span class="p">:</span> <span class="s2">&quot;AD_DISPLACE&quot;</span><span class="p">,</span>
+    <span class="mh">0x20</span><span class="p">:</span> <span class="s2">&quot;AD_GET_TIMETAB&quot;</span><span class="p">,</span>
+    <span class="mh">0x21</span><span class="p">:</span> <span class="s2">&quot;AD_SET_TIMETAB&quot;</span><span class="p">,</span>
+    <span class="mh">0x28</span><span class="p">:</span> <span class="s2">&quot;AD_MSBUF&quot;</span><span class="p">,</span>
+    <span class="mh">0x29</span><span class="p">:</span> <span class="s2">&quot;AD_ARFC_NOREQ&quot;</span><span class="p">,</span>
+    <span class="mh">0x2a</span><span class="p">:</span> <span class="s2">&quot;AD_ENQID_INFO&quot;</span><span class="p">,</span>
+    <span class="mh">0x2b</span><span class="p">:</span> <span class="s2">&quot;AD_DEL_USER&quot;</span><span class="p">,</span>
+    <span class="mh">0x2c</span><span class="p">:</span> <span class="s2">&quot;AD_SPO_ADM&quot;</span><span class="p">,</span>
+    <span class="mh">0x2d</span><span class="p">:</span> <span class="s2">&quot;AD_NTAB_SYNC&quot;</span><span class="p">,</span>
+    <span class="mh">0x2e</span><span class="p">:</span> <span class="s2">&quot;AD_SHARED_PARAMETER&quot;</span><span class="p">,</span>  <span class="c1"># *</span>
+    <span class="mh">0x2f</span><span class="p">:</span> <span class="s2">&quot;AD_RESET_TRACE&quot;</span><span class="p">,</span>
+    <span class="mh">0x30</span><span class="p">:</span> <span class="s2">&quot;AD_RESET_USR02&quot;</span><span class="p">,</span>
+    <span class="mh">0x31</span><span class="p">:</span> <span class="s2">&quot;AD_WALL_CREATE&quot;</span><span class="p">,</span>
+    <span class="mh">0x32</span><span class="p">:</span> <span class="s2">&quot;AD_WALL_DELETE&quot;</span><span class="p">,</span>
+    <span class="mh">0x33</span><span class="p">:</span> <span class="s2">&quot;AD_WALL_MODIFY&quot;</span><span class="p">,</span>
+    <span class="mh">0x34</span><span class="p">:</span> <span class="s2">&quot;AD_SERVER_STATE&quot;</span><span class="p">,</span>
+    <span class="mh">0x3c</span><span class="p">:</span> <span class="s2">&quot;AD_SELFIDENT&quot;</span><span class="p">,</span>  <span class="c1"># *</span>
+    <span class="mh">0x3d</span><span class="p">:</span> <span class="s2">&quot;AD_DP_TRACE_CHANGE&quot;</span><span class="p">,</span>
+    <span class="mh">0x3e</span><span class="p">:</span> <span class="s2">&quot;AD_DP_DUMP_NIHDL&quot;</span><span class="p">,</span>
+    <span class="mh">0x3f</span><span class="p">:</span> <span class="s2">&quot;AD_DP_CALL_DELAYED&quot;</span><span class="p">,</span>
+    <span class="mh">0x40</span><span class="p">:</span> <span class="s2">&quot;AD_GW_ADM&quot;</span><span class="p">,</span>
+    <span class="mh">0x41</span><span class="p">:</span> <span class="s2">&quot;AD_DP_WAKEUP_MODE&quot;</span><span class="p">,</span>
+    <span class="mh">0x42</span><span class="p">:</span> <span class="s2">&quot;AD_VMC_SYS_EVENT&quot;</span><span class="p">,</span>
+    <span class="mh">0x43</span><span class="p">:</span> <span class="s2">&quot;AD_SHARED_PARAM_ALL_WPS&quot;</span><span class="p">,</span>
+    <span class="mh">0x44</span><span class="p">:</span> <span class="s2">&quot;AD_SECSESSION_UPDATE&quot;</span><span class="p">,</span>
+    <span class="mh">0x45</span><span class="p">:</span> <span class="s2">&quot;AD_SECSESSION_TERMINATE&quot;</span><span class="p">,</span>
+    <span class="mh">0x46</span><span class="p">:</span> <span class="s2">&quot;AD_ASRF_REQUEST&quot;</span><span class="p">,</span>
+    <span class="mh">0x47</span><span class="p">:</span> <span class="s2">&quot;AD_GET_NILIST&quot;</span><span class="p">,</span>
+    <span class="mh">0x48</span><span class="p">:</span> <span class="s2">&quot;AD_LOAD_INFO&quot;</span><span class="p">,</span>
+    <span class="mh">0x49</span><span class="p">:</span> <span class="s2">&quot;AD_TEST&quot;</span><span class="p">,</span>
+    <span class="mh">0x4a</span><span class="p">:</span> <span class="s2">&quot;AD_HANDLE_ACL&quot;</span><span class="p">,</span>
+    <span class="mh">0x4b</span><span class="p">:</span> <span class="s2">&quot;AD_ENQ_LOG_RESET&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server Administration messages opcode values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Message Server Administration Messages AD_RZL_STRG string types values</span>
+<span class="n">ms_adm_rzl_strg_type_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">10</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_READALL&quot;</span><span class="p">,</span>
+    <span class="mi">11</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_READALL_I&quot;</span><span class="p">,</span>
+    <span class="mi">12</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_READALL_C&quot;</span><span class="p">,</span>
+    <span class="mi">13</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_READALL_LC&quot;</span><span class="p">,</span>
+    <span class="mi">15</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_READALL_OFFSET_I&quot;</span><span class="p">,</span>
+    <span class="mi">16</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_READALL_OFFSET_C&quot;</span><span class="p">,</span>
+    <span class="mi">17</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_READALL_OFFSET_LC&quot;</span><span class="p">,</span>
+    <span class="mi">20</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_READALL_OFFSET&quot;</span><span class="p">,</span>
+    <span class="mi">21</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_READ_I&quot;</span><span class="p">,</span>
+    <span class="mi">22</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_READ_C&quot;</span><span class="p">,</span>
+    <span class="mi">23</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_READ_LC&quot;</span><span class="p">,</span>
+    <span class="mi">31</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_WRITE_I&quot;</span><span class="p">,</span>
+    <span class="mi">32</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_WRITE_C&quot;</span><span class="p">,</span>
+    <span class="mi">33</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_WRITE_LC&quot;</span><span class="p">,</span>
+    <span class="mi">41</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_DEL_I&quot;</span><span class="p">,</span>
+    <span class="mi">42</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_DEL_C&quot;</span><span class="p">,</span>
+    <span class="mi">43</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_DEL_LC&quot;</span><span class="p">,</span>
+    <span class="mi">51</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_CREATE_I&quot;</span><span class="p">,</span>
+    <span class="mi">52</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_CREATE_C&quot;</span><span class="p">,</span>
+    <span class="mi">53</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_CREATE_LC&quot;</span><span class="p">,</span>
+    <span class="mi">90</span><span class="p">:</span> <span class="s2">&quot;STRG_TYPE_DUMP&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server Administration Messages AD_RZL_STRG string types values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Message Server OpCode values</span>
+<span class="n">ms_opcode_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;MS_SERVER_CHG&quot;</span><span class="p">,</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;MS_SERVER_ADD&quot;</span><span class="p">,</span>
+    <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;MS_SERVER_SUB&quot;</span><span class="p">,</span>
+    <span class="mi">4</span><span class="p">:</span> <span class="s2">&quot;MS_SERVER_MOD&quot;</span><span class="p">,</span>
+    <span class="mi">5</span><span class="p">:</span> <span class="s2">&quot;MS_SERVER_LST&quot;</span><span class="p">,</span>
+    <span class="mi">6</span><span class="p">:</span> <span class="s2">&quot;MS_CHANGE_IP&quot;</span><span class="p">,</span>
+    <span class="mi">7</span><span class="p">:</span> <span class="s2">&quot;MS_SET_SECURITY_KEY&quot;</span><span class="p">,</span>
+    <span class="mi">8</span><span class="p">:</span> <span class="s2">&quot;MS_GET_SECURITY_KEY&quot;</span><span class="p">,</span>
+    <span class="mi">9</span><span class="p">:</span> <span class="s2">&quot;MS_GET_SECURITY_KEY2&quot;</span><span class="p">,</span>
+    <span class="mi">10</span><span class="p">:</span> <span class="s2">&quot;MS_GET_HWID&quot;</span><span class="p">,</span>
+    <span class="mi">11</span><span class="p">:</span> <span class="s2">&quot;MS_INCRE_TRACE&quot;</span><span class="p">,</span>
+    <span class="mi">12</span><span class="p">:</span> <span class="s2">&quot;MS_DECRE_TRACE&quot;</span><span class="p">,</span>
+    <span class="mi">13</span><span class="p">:</span> <span class="s2">&quot;MS_RESET_TRACE&quot;</span><span class="p">,</span>
+    <span class="mi">14</span><span class="p">:</span> <span class="s2">&quot;MS_ACT_STATISTIC&quot;</span><span class="p">,</span>
+    <span class="mi">15</span><span class="p">:</span> <span class="s2">&quot;MS_DEACT_STATISTIC&quot;</span><span class="p">,</span>
+    <span class="mi">16</span><span class="p">:</span> <span class="s2">&quot;MS_RESET_STATISTIC&quot;</span><span class="p">,</span>
+    <span class="mi">17</span><span class="p">:</span> <span class="s2">&quot;MS_GET_STATISTIC&quot;</span><span class="p">,</span>
+    <span class="mi">18</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_NIBUFFER&quot;</span><span class="p">,</span>
+    <span class="mi">19</span><span class="p">:</span> <span class="s2">&quot;MS_RESET_NIBUFFER&quot;</span><span class="p">,</span>
+    <span class="mi">20</span><span class="p">:</span> <span class="s2">&quot;MS_OPEN_REQ_LST&quot;</span><span class="p">,</span>
+    <span class="mi">21</span><span class="p">:</span> <span class="s2">&quot;MS_SERVER_INFO&quot;</span><span class="p">,</span>
+    <span class="mi">22</span><span class="p">:</span> <span class="s2">&quot;MS_SERVER_LIST&quot;</span><span class="p">,</span>
+    <span class="mi">23</span><span class="p">:</span> <span class="s2">&quot;MS_SERVER_ENTRY&quot;</span><span class="p">,</span>
+    <span class="mi">24</span><span class="p">:</span> <span class="s2">&quot;MS_DOMAIN_INFO&quot;</span><span class="p">,</span>
+    <span class="mi">25</span><span class="p">:</span> <span class="s2">&quot;MS_DOMAIN_LIST&quot;</span><span class="p">,</span>
+    <span class="mi">26</span><span class="p">:</span> <span class="s2">&quot;MS_DOMAIN_ENTRY&quot;</span><span class="p">,</span>
+    <span class="mi">27</span><span class="p">:</span> <span class="s2">&quot;MS_MAP_URL_TO_ADDR&quot;</span><span class="p">,</span>
+    <span class="mi">28</span><span class="p">:</span> <span class="s2">&quot;MS_GET_CODEPAGE&quot;</span><span class="p">,</span>
+    <span class="mi">29</span><span class="p">:</span> <span class="s2">&quot;MS_SOFT_SHUTDOWN&quot;</span><span class="p">,</span>
+    <span class="mi">30</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_INFO&quot;</span><span class="p">,</span>
+    <span class="mi">31</span><span class="p">:</span> <span class="s2">&quot;MS_FILE_RELOAD&quot;</span><span class="p">,</span>
+    <span class="mi">32</span><span class="p">:</span> <span class="s2">&quot;MS_RESET_DOMAIN_CONN&quot;</span><span class="p">,</span>
+    <span class="mi">33</span><span class="p">:</span> <span class="s2">&quot;MS_NOOP&quot;</span><span class="p">,</span>
+    <span class="mi">34</span><span class="p">:</span> <span class="s2">&quot;MS_SET_TXT&quot;</span><span class="p">,</span>
+    <span class="mi">35</span><span class="p">:</span> <span class="s2">&quot;MS_GET_TXT&quot;</span><span class="p">,</span>
+    <span class="mi">36</span><span class="p">:</span> <span class="s2">&quot;MS_COUNTER_CREATE&quot;</span><span class="p">,</span>
+    <span class="mi">37</span><span class="p">:</span> <span class="s2">&quot;MS_COUNTER_DELETE&quot;</span><span class="p">,</span>
+    <span class="mi">38</span><span class="p">:</span> <span class="s2">&quot;MS_COUNTER_INCREMENT&quot;</span><span class="p">,</span>
+    <span class="mi">39</span><span class="p">:</span> <span class="s2">&quot;MS_COUNTER_DECREMENT&quot;</span><span class="p">,</span>
+    <span class="mi">40</span><span class="p">:</span> <span class="s2">&quot;MS_COUNTER_REGISTER&quot;</span><span class="p">,</span>
+    <span class="mi">41</span><span class="p">:</span> <span class="s2">&quot;MS_COUNTER_GET&quot;</span><span class="p">,</span>
+    <span class="mi">42</span><span class="p">:</span> <span class="s2">&quot;MS_COUNTER_LST&quot;</span><span class="p">,</span>
+    <span class="mi">43</span><span class="p">:</span> <span class="s2">&quot;MS_SET_LOGON&quot;</span><span class="p">,</span>
+    <span class="mi">44</span><span class="p">:</span> <span class="s2">&quot;MS_GET_LOGON&quot;</span><span class="p">,</span>
+    <span class="mi">45</span><span class="p">:</span> <span class="s2">&quot;MS_DEL_LOGON&quot;</span><span class="p">,</span>
+    <span class="mi">46</span><span class="p">:</span> <span class="s2">&quot;MS_SERVER_DISC&quot;</span><span class="p">,</span>
+    <span class="mi">47</span><span class="p">:</span> <span class="s2">&quot;MS_SERVER_SHUTDOWN&quot;</span><span class="p">,</span>
+    <span class="mi">48</span><span class="p">:</span> <span class="s2">&quot;MS_SERVER_SOFT_SHUTDOWN&quot;</span><span class="p">,</span>
+    <span class="mi">49</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_CLUSTERNODE_CHG&quot;</span><span class="p">,</span>
+    <span class="mi">50</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_CLUSTERNODE_ADD&quot;</span><span class="p">,</span>
+    <span class="mi">51</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_CLUSTERNODE_SUB&quot;</span><span class="p">,</span>
+    <span class="mi">52</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_CLUSTERNODE_MOD&quot;</span><span class="p">,</span>
+    <span class="mi">53</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_CLUSTERNODE_LST&quot;</span><span class="p">,</span>
+    <span class="mi">54</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_SERVICE_REG&quot;</span><span class="p">,</span>
+    <span class="mi">55</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_SERVICE_UNREG&quot;</span><span class="p">,</span>
+    <span class="mi">56</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_SERVICE_LST&quot;</span><span class="p">,</span>
+    <span class="mi">57</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_SERVICE_ADD&quot;</span><span class="p">,</span>
+    <span class="mi">58</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_SERVICE_SUB&quot;</span><span class="p">,</span>
+    <span class="mi">59</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_SERVICE_MOD&quot;</span><span class="p">,</span>
+    <span class="mi">60</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_MOD_STATE&quot;</span><span class="p">,</span>
+    <span class="mi">61</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_SERVICE_GET&quot;</span><span class="p">,</span>
+    <span class="mi">62</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_SERVICE_REG2&quot;</span><span class="p">,</span>
+    <span class="mi">63</span><span class="p">:</span> <span class="s2">&quot;MS_NITRACE_SETGET&quot;</span><span class="p">,</span>
+    <span class="mi">64</span><span class="p">:</span> <span class="s2">&quot;MS_SERVER_LONG_LIST&quot;</span><span class="p">,</span>
+    <span class="mi">65</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_DEBUG_ENABLE&quot;</span><span class="p">,</span>
+    <span class="mi">66</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_DEBUG_DISABLE&quot;</span><span class="p">,</span>
+    <span class="mi">67</span><span class="p">:</span> <span class="s2">&quot;MS_SET_PROPERTY&quot;</span><span class="p">,</span>
+    <span class="mi">68</span><span class="p">:</span> <span class="s2">&quot;MS_GET_PROPERTY&quot;</span><span class="p">,</span>
+    <span class="mi">69</span><span class="p">:</span> <span class="s2">&quot;MS_DEL_PROPERTY&quot;</span><span class="p">,</span>
+    <span class="mi">70</span><span class="p">:</span> <span class="s2">&quot;MS_IP_PORT_TO_NAME&quot;</span><span class="p">,</span>
+    <span class="mi">71</span><span class="p">:</span> <span class="s2">&quot;MS_CHECK_ACL&quot;</span><span class="p">,</span>
+    <span class="mi">72</span><span class="p">:</span> <span class="s2">&quot;MS_LICENSE_SRV&quot;</span><span class="p">,</span>
+    <span class="mi">74</span><span class="p">:</span> <span class="s2">&quot;MS_SERVER_TEST_SOFT_SHUTDOWN&quot;</span><span class="p">,</span>
+    <span class="mi">75</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_RECONNECT_P1&quot;</span><span class="p">,</span>
+    <span class="mi">76</span><span class="p">:</span> <span class="s2">&quot;MS_J2EE_RECONNECT_P2&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server OpCode values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Message Server OpCode Error Values</span>
+<span class="n">ms_opcode_error_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">0</span><span class="p">:</span> <span class="s2">&quot;MSOP_OK&quot;</span><span class="p">,</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;MSOP_UNKNOWN_OPCODE&quot;</span><span class="p">,</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;MSOP_NOMEM&quot;</span><span class="p">,</span>
+    <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;MSOP_SECURITY_KEY_NOTSET&quot;</span><span class="p">,</span>
+    <span class="mi">4</span><span class="p">:</span> <span class="s2">&quot;MSOP_UNKNOWN_CLIENT&quot;</span><span class="p">,</span>
+    <span class="mi">5</span><span class="p">:</span> <span class="s2">&quot;MSOP_ACCESS_DENIED&quot;</span><span class="p">,</span>
+    <span class="mi">6</span><span class="p">:</span> <span class="s2">&quot;MSOP_REQUEST_REQUIRED&quot;</span><span class="p">,</span>
+    <span class="mi">7</span><span class="p">:</span> <span class="s2">&quot;MSOP_NAME_REQUIRED&quot;</span><span class="p">,</span>
+    <span class="mi">8</span><span class="p">:</span> <span class="s2">&quot;MSOP_GET_HWID_FAILED&quot;</span><span class="p">,</span>
+    <span class="mi">9</span><span class="p">:</span> <span class="s2">&quot;MSOP_SEND_FAILED&quot;</span><span class="p">,</span>
+    <span class="mi">10</span><span class="p">:</span> <span class="s2">&quot;MSOP_UNKNOWN_DOMAIN&quot;</span><span class="p">,</span>
+    <span class="mi">11</span><span class="p">:</span> <span class="s2">&quot;MSOP_UNKNOWN_SERVER&quot;</span><span class="p">,</span>
+    <span class="mi">12</span><span class="p">:</span> <span class="s2">&quot;MSOP_NO_DOMAIN_SERVER&quot;</span><span class="p">,</span>
+    <span class="mi">13</span><span class="p">:</span> <span class="s2">&quot;MSOP_INVALID_URL&quot;</span><span class="p">,</span>
+    <span class="mi">14</span><span class="p">:</span> <span class="s2">&quot;MSOP_UNKNOWN_DUMP_REQ&quot;</span><span class="p">,</span>
+    <span class="mi">15</span><span class="p">:</span> <span class="s2">&quot;MSOP_FILENOTFOUND&quot;</span><span class="p">,</span>
+    <span class="mi">16</span><span class="p">:</span> <span class="s2">&quot;MSOP_UNKNOWN_RELOAD_REQ&quot;</span><span class="p">,</span>
+    <span class="mi">17</span><span class="p">:</span> <span class="s2">&quot;MSOP_FILENOTDEFINED&quot;</span><span class="p">,</span>
+    <span class="mi">18</span><span class="p">:</span> <span class="s2">&quot;MSOP_CONVERT_FAILED&quot;</span><span class="p">,</span>
+    <span class="mi">19</span><span class="p">:</span> <span class="s2">&quot;MSOP_NOTSET&quot;</span><span class="p">,</span>
+    <span class="mi">20</span><span class="p">:</span> <span class="s2">&quot;MSOP_COUNTER_EXCEEDED&quot;</span><span class="p">,</span>
+    <span class="mi">21</span><span class="p">:</span> <span class="s2">&quot;MSOP_COUNTER_NOTFOUND&quot;</span><span class="p">,</span>
+    <span class="mi">22</span><span class="p">:</span> <span class="s2">&quot;MSOP_COUNTER_DELETED&quot;</span><span class="p">,</span>
+    <span class="mi">23</span><span class="p">:</span> <span class="s2">&quot;MSOP_COUNTER_EXISTS&quot;</span><span class="p">,</span>
+    <span class="mi">24</span><span class="p">:</span> <span class="s2">&quot;MSOP_EINVAL&quot;</span><span class="p">,</span>
+    <span class="mi">25</span><span class="p">:</span> <span class="s2">&quot;MSOP_NO_J2EE_CLUSTERNODE&quot;</span><span class="p">,</span>
+    <span class="mi">26</span><span class="p">:</span> <span class="s2">&quot;MSOP_UNKNOWN_PROPERTY&quot;</span><span class="p">,</span>
+    <span class="mi">27</span><span class="p">:</span> <span class="s2">&quot;MSOP_UNKNOWN_VERSION&quot;</span><span class="p">,</span>
+    <span class="mi">28</span><span class="p">:</span> <span class="s2">&quot;MSOP_ICTERROR&quot;</span><span class="p">,</span>
+    <span class="mi">29</span><span class="p">:</span> <span class="s2">&quot;MSOP_KERNEL_INCOMPATIBLE&quot;</span><span class="p">,</span>
+    <span class="mi">30</span><span class="p">:</span> <span class="s2">&quot;MSOP_NIACLCREATE_FAILED&quot;</span><span class="p">,</span>
+    <span class="mi">31</span><span class="p">:</span> <span class="s2">&quot;MSOP_NIACLSYNTAX_ERROR&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server OpCode Error Values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Message Server Property ID Values</span>
+<span class="n">ms_property_id_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;MS_PROPERTY_TEXT&quot;</span><span class="p">,</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;MS_PROPERTY_VHOST&quot;</span><span class="p">,</span>
+    <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;MS_PROPERTY_IPADR&quot;</span><span class="p">,</span>
+    <span class="mi">4</span><span class="p">:</span> <span class="s2">&quot;MS_PROPERTY_PARAM&quot;</span><span class="p">,</span>  <span class="c1"># ZDI Bugs are here</span>
+    <span class="mi">5</span><span class="p">:</span> <span class="s2">&quot;MS_PROPERTY_SERVICE&quot;</span><span class="p">,</span>
+    <span class="mi">6</span><span class="p">:</span> <span class="s2">&quot;MS_PROPERTY_DELALT&quot;</span><span class="p">,</span>
+    <span class="mi">7</span><span class="p">:</span> <span class="s2">&quot;Release information&quot;</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server Property ID Values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Message Server Dump Info ID Values</span>
+<span class="n">ms_dump_command_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_MSADM&quot;</span><span class="p">,</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_CON&quot;</span><span class="p">,</span>
+    <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_PARAMS&quot;</span><span class="p">,</span>
+    <span class="mi">4</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_ALL_CLIENTS&quot;</span><span class="p">,</span>
+    <span class="mi">5</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_ALL_SERVER&quot;</span><span class="p">,</span>
+    <span class="mi">6</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_ALL_DOMAIN&quot;</span><span class="p">,</span>
+    <span class="mi">7</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_DOMAIN_CONN&quot;</span><span class="p">,</span>
+    <span class="mi">8</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_RELEASE&quot;</span><span class="p">,</span>
+    <span class="mi">9</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_SIZEOF&quot;</span><span class="p">,</span>
+    <span class="mi">10</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_FIADM&quot;</span><span class="p">,</span>
+    <span class="mi">11</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_FICON&quot;</span><span class="p">,</span>
+    <span class="mi">12</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_COUNTER&quot;</span><span class="p">,</span>
+    <span class="mi">13</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_STATISTIC&quot;</span><span class="p">,</span>
+    <span class="mi">14</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_NIBUF&quot;</span><span class="p">,</span>
+    <span class="mi">15</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_URLMAP&quot;</span><span class="p">,</span>
+    <span class="mi">16</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_URLPREFIX&quot;</span><span class="p">,</span>
+    <span class="mi">17</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_URLHANDLER&quot;</span><span class="p">,</span>
+    <span class="mi">18</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_NOSERVER&quot;</span><span class="p">,</span>
+    <span class="mi">19</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_ACLINFO&quot;</span><span class="p">,</span>
+    <span class="mi">20</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_PERMISSION_TABLE&quot;</span><span class="p">,</span>
+    <span class="mi">21</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_J2EE_CLUSTER_STAT&quot;</span><span class="p">,</span>
+    <span class="mi">22</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_ACL_FILE_EXT&quot;</span><span class="p">,</span>
+    <span class="mi">23</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_ACL_FILE_INT&quot;</span><span class="p">,</span>
+    <span class="mi">24</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_ACL_FILE_ADMIN&quot;</span><span class="p">,</span>
+    <span class="mi">25</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_ACL_FILE_EXTBND&quot;</span><span class="p">,</span>
+    <span class="mi">26</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_ACL_FILE_HTTP&quot;</span><span class="p">,</span>
+    <span class="mi">27</span><span class="p">:</span> <span class="s2">&quot;MS_DUMP_ACL_FILE_HTTPS&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server Dump Info ID Values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Message Server File Reload values</span>
+<span class="n">ms_file_reload_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_CLIENT_TAB&quot;</span><span class="p">,</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_SERVER_TAB&quot;</span><span class="p">,</span>
+    <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_DOMAIN_TAB&quot;</span><span class="p">,</span>
+    <span class="mi">4</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_URLMAP&quot;</span><span class="p">,</span>
+    <span class="mi">5</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_URLPREFIX&quot;</span><span class="p">,</span>
+    <span class="mi">6</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_ACL_INFO&quot;</span><span class="p">,</span>
+    <span class="mi">7</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_PERMISSION_TABLE&quot;</span><span class="p">,</span>
+    <span class="mi">8</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_STOC&quot;</span><span class="p">,</span>
+    <span class="mi">9</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_ACL_FILE_EXT&quot;</span><span class="p">,</span>
+    <span class="mi">10</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_ACL_FILE_INT&quot;</span><span class="p">,</span>
+    <span class="mi">11</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_ACL_FILE_ADMIN&quot;</span><span class="p">,</span>
+    <span class="mi">12</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_ACL_FILE_EXTBND&quot;</span><span class="p">,</span>
+    <span class="mi">13</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_ACL_FILE_HTTP&quot;</span><span class="p">,</span>
+    <span class="mi">14</span><span class="p">:</span> <span class="s2">&quot;MS_RELOAD_ACL_FILE_HTTPS&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server File Reload values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Message Server Logon type values</span>
+<span class="n">ms_logon_type_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">0</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_DIAG_LB&quot;</span><span class="p">,</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_DIAG_LBS&quot;</span><span class="p">,</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_DIAG&quot;</span><span class="p">,</span>
+    <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_DIAGS&quot;</span><span class="p">,</span>
+    <span class="mi">4</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_RFC&quot;</span><span class="p">,</span>
+    <span class="mi">5</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_RFCS&quot;</span><span class="p">,</span>
+    <span class="mi">6</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_HTTP&quot;</span><span class="p">,</span>
+    <span class="mi">7</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_HTTPS&quot;</span><span class="p">,</span>
+    <span class="mi">8</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_FTP&quot;</span><span class="p">,</span>
+    <span class="mi">9</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_SMTP&quot;</span><span class="p">,</span>
+    <span class="mi">10</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_NNTP&quot;</span><span class="p">,</span>
+    <span class="mi">11</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_DIAG_E&quot;</span><span class="p">,</span>
+    <span class="mi">12</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_DIAGS_E&quot;</span><span class="p">,</span>
+    <span class="mi">13</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_RFC_E&quot;</span><span class="p">,</span>
+    <span class="mi">14</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_RFCS_E&quot;</span><span class="p">,</span>
+    <span class="mi">15</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_HTTP_E&quot;</span><span class="p">,</span>
+    <span class="mi">16</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_HTTPS_E&quot;</span><span class="p">,</span>
+    <span class="mi">17</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_FTP_E&quot;</span><span class="p">,</span>
+    <span class="mi">18</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_SMTP_E&quot;</span><span class="p">,</span>
+    <span class="mi">19</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_NNTP_E&quot;</span><span class="p">,</span>
+    <span class="mi">20</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_J2EE&quot;</span><span class="p">,</span>
+    <span class="mi">21</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_J2EES&quot;</span><span class="p">,</span>
+    <span class="mi">22</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_J2EE_E&quot;</span><span class="p">,</span>
+    <span class="mi">23</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_J2EES_E&quot;</span><span class="p">,</span>
+    <span class="mi">24</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_P4&quot;</span><span class="p">,</span>
+    <span class="mi">25</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_P4S&quot;</span><span class="p">,</span>
+    <span class="mi">26</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_IIOP&quot;</span><span class="p">,</span>
+    <span class="mi">27</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_IIOPS&quot;</span><span class="p">,</span>
+    <span class="mi">28</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_SDM&quot;</span><span class="p">,</span>
+    <span class="mi">29</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_TELNET&quot;</span><span class="p">,</span>
+    <span class="mi">30</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_DEBUG&quot;</span><span class="p">,</span>
+    <span class="mi">31</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_DPROXY&quot;</span><span class="p">,</span>
+    <span class="mi">32</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_P4HTTP&quot;</span><span class="p">,</span>
+    <span class="mi">33</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_HTTPRI&quot;</span><span class="p">,</span>
+    <span class="mi">34</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_HTTPSRI&quot;</span><span class="p">,</span>
+    <span class="mi">35</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_J2EERI&quot;</span><span class="p">,</span>
+    <span class="mi">36</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_J2EESRI&quot;</span><span class="p">,</span>
+    <span class="mi">37</span><span class="p">:</span> <span class="s2">&quot;MS_LOGON_TRXNS&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server Logon type values&quot;&quot;&quot;</span>
+
+
+<span class="n">ms_client_status_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">0</span><span class="p">:</span> <span class="s2">&quot;MS_STATE_UNKNOWN&quot;</span><span class="p">,</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;ACTIVE&quot;</span><span class="p">,</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;INACTIVE&quot;</span><span class="p">,</span>
+    <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;MS_STATE_SHUTDOWN&quot;</span><span class="p">,</span>
+    <span class="mi">4</span><span class="p">:</span> <span class="s2">&quot;MS_STATE_STOP&quot;</span><span class="p">,</span>
+    <span class="mi">5</span><span class="p">:</span> <span class="s2">&quot;MS_STATE_STARTING&quot;</span><span class="p">,</span>
+    <span class="mi">6</span><span class="p">:</span> <span class="s2">&quot;MS_STATE_INIT&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Message Server Client status values&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="SAPMSAdmRecord"><a class="viewcode-back" href="../../api/pysap.SAPMS.html#pysap.SAPMS.SAPMSAdmRecord">[docs]</a><span class="k">class</span> <span class="nc">SAPMSAdmRecord</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Message Server Administration Record packet</span>
+
+<span class="sd">    Packet for Message Server administration records. Each administration</span>
+<span class="sd">    package has a variable number of records, each one specifies an operation</span>
+<span class="sd">    to execute.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Message Server Adm Record&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;opcode&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="n">ms_adm_opcode_values</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;serial_number&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;executed&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;errorno&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>  <span class="c1"># TODO: Look for error names</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;record&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x01</span><span class="p">,</span> <span class="mh">0x15</span><span class="p">,</span> <span class="mh">0x2e</span><span class="p">]),</span>
+
+        <span class="c1"># TODO: Add more opcodes fields</span>
+
+        <span class="c1"># AD_PROFILE and AD_SHARED_PARAMETER fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrNullFixedLenPaddedField</span><span class="p">(</span><span class="s2">&quot;parameter&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x01</span><span class="p">,</span> <span class="mh">0x2e</span><span class="p">]),</span>
+
+        <span class="c1"># AD_RZL_STRG opcode</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_type&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ms_adm_rzl_strg_type_values</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_name_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_value_offset&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_value_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_integer0&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">rzl_strg_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">11</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">51</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_integer1&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">rzl_strg_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">11</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">51</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_integer2&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">rzl_strg_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">11</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">51</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_integer3&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">rzl_strg_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">11</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">51</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_integer4&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">rzl_strg_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">11</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">51</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_integer5&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">rzl_strg_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">11</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">51</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_integer6&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">rzl_strg_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">11</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">51</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_integer7&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">rzl_strg_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">11</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">51</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_integer8&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">rzl_strg_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">11</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">51</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_integer9&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">rzl_strg_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">11</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">51</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_value&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">40</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">rzl_strg_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">11</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">51</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;rzl_strg_padd2&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">36</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x15</span><span class="p">]),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPMSClient1"><a class="viewcode-back" href="../../api/pysap.SAPMS.html#pysap.SAPMS.SAPMSClient1">[docs]</a><span class="k">class</span> <span class="nc">SAPMSClient1</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Message Server Client packet version 1</span>
+
+<span class="sd">    Packet that contains information about a client of the Message Server</span>
+<span class="sd">    service. This packet is for version 1, which has been seen only on old</span>
+<span class="sd">    releases (SAP NW 2004s).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Message Server Client version 1&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;client&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;host&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+        <span class="n">FlagsField</span><span class="p">(</span><span class="s2">&quot;msgtype&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;ICM&quot;</span><span class="p">,</span> <span class="s2">&quot;ATP&quot;</span><span class="p">,</span> <span class="s2">&quot;UP2&quot;</span><span class="p">,</span> <span class="s2">&quot;SPO&quot;</span><span class="p">,</span> <span class="s2">&quot;BTC&quot;</span><span class="p">,</span> <span class="s2">&quot;ENQ&quot;</span><span class="p">,</span> <span class="s2">&quot;UPD&quot;</span><span class="p">,</span> <span class="s2">&quot;DIA&quot;</span><span class="p">]),</span>
+        <span class="n">IPField</span><span class="p">(</span><span class="s2">&quot;hostaddrv4&quot;</span><span class="p">,</span> <span class="s2">&quot;0.0.0.0&quot;</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;servno&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPMSClient2"><a class="viewcode-back" href="../../api/pysap.SAPMS.html#pysap.SAPMS.SAPMSClient2">[docs]</a><span class="k">class</span> <span class="nc">SAPMSClient2</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Message Server Client packet version 2</span>
+
+<span class="sd">    Packet that contains information about a client of the Message Server</span>
+<span class="sd">    service. This packet is for version 2, which has been seen only on old</span>
+<span class="sd">    releases (SAP NW 2004s).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Message Server Client version 2&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;client&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">40</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;host&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+        <span class="n">FlagsField</span><span class="p">(</span><span class="s2">&quot;msgtype&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;ICM&quot;</span><span class="p">,</span> <span class="s2">&quot;ATP&quot;</span><span class="p">,</span> <span class="s2">&quot;UP2&quot;</span><span class="p">,</span> <span class="s2">&quot;SPO&quot;</span><span class="p">,</span> <span class="s2">&quot;BTC&quot;</span><span class="p">,</span> <span class="s2">&quot;ENQ&quot;</span><span class="p">,</span> <span class="s2">&quot;UPD&quot;</span><span class="p">,</span> <span class="s2">&quot;DIA&quot;</span><span class="p">]),</span>
+        <span class="n">IPField</span><span class="p">(</span><span class="s2">&quot;hostaddrv4&quot;</span><span class="p">,</span> <span class="s2">&quot;0.0.0.0&quot;</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;servno&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="n">ms_client_status_values</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;nitrace&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;padd&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">14</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPMSClient3"><a class="viewcode-back" href="../../api/pysap.SAPMS.html#pysap.SAPMS.SAPMSClient3">[docs]</a><span class="k">class</span> <span class="nc">SAPMSClient3</span><span class="p">(</span><span class="n">Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Message Server Client packet version 3</span>
+
+<span class="sd">    Packet that contains information about a client of the Message Server</span>
+<span class="sd">    service. This packet is for version 3.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Message Server Client version 3&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;client&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">40</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;host&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">64</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+        <span class="n">FlagsField</span><span class="p">(</span><span class="s2">&quot;msgtype&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;ICM&quot;</span><span class="p">,</span> <span class="s2">&quot;ATP&quot;</span><span class="p">,</span> <span class="s2">&quot;UP2&quot;</span><span class="p">,</span> <span class="s2">&quot;SPO&quot;</span><span class="p">,</span> <span class="s2">&quot;BTC&quot;</span><span class="p">,</span> <span class="s2">&quot;ENQ&quot;</span><span class="p">,</span> <span class="s2">&quot;UPD&quot;</span><span class="p">,</span> <span class="s2">&quot;DIA&quot;</span><span class="p">]),</span>
+        <span class="n">IP6Field</span><span class="p">(</span><span class="s2">&quot;hostaddrv6&quot;</span><span class="p">,</span> <span class="s2">&quot;::1&quot;</span><span class="p">),</span>
+        <span class="n">IPField</span><span class="p">(</span><span class="s2">&quot;hostaddrv4&quot;</span><span class="p">,</span> <span class="s2">&quot;0.0.0.0&quot;</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;servno&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="n">ms_client_status_values</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;nitrace&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;padd&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPMSClient4"><a class="viewcode-back" href="../../api/pysap.SAPMS.html#pysap.SAPMS.SAPMSClient4">[docs]</a><span class="k">class</span> <span class="nc">SAPMSClient4</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Message Server Client packet version 4</span>
+
+<span class="sd">    Packet that contains information about a client of the Message Server</span>
+<span class="sd">    service. This packet is for version 4.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Message Server Client version 4&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;client&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">40</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;host&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">64</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+        <span class="n">FlagsField</span><span class="p">(</span><span class="s2">&quot;msgtype&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;ICM&quot;</span><span class="p">,</span> <span class="s2">&quot;ATP&quot;</span><span class="p">,</span> <span class="s2">&quot;UP2&quot;</span><span class="p">,</span> <span class="s2">&quot;SPO&quot;</span><span class="p">,</span> <span class="s2">&quot;BTC&quot;</span><span class="p">,</span> <span class="s2">&quot;ENQ&quot;</span><span class="p">,</span> <span class="s2">&quot;UPD&quot;</span><span class="p">,</span> <span class="s2">&quot;DIA&quot;</span><span class="p">]),</span>
+        <span class="n">IP6Field</span><span class="p">(</span><span class="s2">&quot;hostaddrv6&quot;</span><span class="p">,</span> <span class="s2">&quot;::1&quot;</span><span class="p">),</span>
+        <span class="n">IPField</span><span class="p">(</span><span class="s2">&quot;hostaddrv4&quot;</span><span class="p">,</span> <span class="s2">&quot;0.0.0.0&quot;</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;servno&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="n">ms_client_status_values</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;nitrace&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;sys_service&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;padd&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPMSStat3"><a class="viewcode-back" href="../../api/pysap.SAPMS.html#pysap.SAPMS.SAPMSStat3">[docs]</a><span class="k">class</span> <span class="nc">SAPMSStat3</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Message Server Statistics version 3</span>
+
+<span class="sd">    Packet that contains statistics information of the Message Server service.</span>
+<span class="sd">    This packet is for version 3.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO: The fields on this packet are not correctly defined</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Message Server Statistics version 3&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;active&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;unused1&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_requests&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_requests_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_error&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_error_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_login&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_login_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_logout&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_logout_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_send_by_name&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_send_by_name_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_send_by_type&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_send_by_type_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_adm_messages&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_adm_messages_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_adms&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_amds_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_adm_type&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">648</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_mod_types&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_mod_types_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_opcodes_rcvd&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_opcodes_rcvd_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_opcodes_send&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_opcodes_send_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_opcodes&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_opcode_type&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">408</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_keepalive_send&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_keepalive_send_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_keepalive_rcvd&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_keepalive_rcvd_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_keepalive_disc&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_keepalive_disc_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_bytes_read&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_bytes_read_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_bytes_written&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;no_bytes_written_padd&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no_clients&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;sta_time&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">30</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;act_time&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">30</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPMSCounter"><a class="viewcode-back" href="../../api/pysap.SAPMS.html#pysap.SAPMS.SAPMSCounter">[docs]</a><span class="k">class</span> <span class="nc">SAPMSCounter</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Message Server Counter packet.</span>
+
+<span class="sd">    Packet containing information about a Counter.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Message Server Counter&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;uuid&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">40</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;count&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;no&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPMSLogon"><a class="viewcode-back" href="../../api/pysap.SAPMS.html#pysap.SAPMS.SAPMSLogon">[docs]</a><span class="k">class</span> <span class="nc">SAPMSLogon</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Message Server Logon packet.</span>
+
+<span class="sd">    Packet containing logon data.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Message Server Logon&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ShortEnumKeysField</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ms_logon_type_values</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;port&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">IPField</span><span class="p">(</span><span class="s2">&quot;address&quot;</span><span class="p">,</span> <span class="s2">&quot;0.0.0.0&quot;</span><span class="p">),</span>
+        <span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;logonname_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;logonname&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;!H&quot;</span><span class="p">),</span>  <span class="c1"># &lt;= 80h bytes</span>
+        <span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;logonname&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">logonname_length</span><span class="p">),</span>
+        <span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;prot_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;prot&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;!H&quot;</span><span class="p">),</span>  <span class="c1"># &lt;= 80h bytes</span>
+        <span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;prot&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">prot_length</span><span class="p">),</span>
+        <span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;host_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;host&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;!H&quot;</span><span class="p">),</span>  <span class="c1"># &lt;= 100h bytes</span>
+        <span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;host&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">host_length</span><span class="p">),</span>
+        <span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;misc_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;misc&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;!H&quot;</span><span class="p">),</span>  <span class="c1"># &lt;= 100h bytes</span>
+        <span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;misc&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">misc_length</span><span class="p">),</span>
+        <span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;address6_length&quot;</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;address6&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;!H&quot;</span><span class="p">),</span>  <span class="c1"># == 16 bytes</span>
+        <span class="n">IP6Field</span><span class="p">(</span><span class="s2">&quot;address6&quot;</span><span class="p">,</span> <span class="s2">&quot;::&quot;</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPMSProperty"><a class="viewcode-back" href="../../api/pysap.SAPMS.html#pysap.SAPMS.SAPMSProperty">[docs]</a><span class="k">class</span> <span class="nc">SAPMSProperty</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Message Server Property packet.</span>
+
+<span class="sd">    Packet containing information about properties.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Message Server Property&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrNullFixedLenField</span><span class="p">(</span><span class="s2">&quot;client&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">39</span><span class="p">),</span>
+        <span class="n">IntEnumField</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="n">ms_property_id_values</span><span class="p">),</span>
+
+        <span class="c1"># MS_PROPERTY_VHOST</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ShortEnumKeysField</span><span class="p">(</span><span class="s2">&quot;logon&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ms_logon_type_values</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x02</span><span class="p">]),</span>
+
+        <span class="c1"># MS_PROPERTY_IPADR</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IPField</span><span class="p">(</span><span class="s2">&quot;address&quot;</span><span class="p">,</span> <span class="s2">&quot;0.0.0.0&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x03</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IP6Field</span><span class="p">(</span><span class="s2">&quot;address6&quot;</span><span class="p">,</span> <span class="s2">&quot;::&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x03</span><span class="p">]),</span>
+
+        <span class="c1"># MS_PROPERTY_PARAM</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;param&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x04</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrNullField</span><span class="p">(</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x04</span><span class="p">]),</span>
+
+        <span class="c1"># MS_PROPERTY_SERVICE</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;service&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x05</span><span class="p">]),</span>
+
+        <span class="c1"># Release Information fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrNullFixedLenField</span><span class="p">(</span><span class="s2">&quot;release&quot;</span><span class="p">,</span> <span class="s2">&quot;720&quot;</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">9</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x07</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;patchno&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x07</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;supplvl&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x07</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;platform&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x07</span><span class="p">]),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPMSJ2EECluster"><a class="viewcode-back" href="../../api/pysap.SAPMS.html#pysap.SAPMS.SAPMSJ2EECluster">[docs]</a><span class="k">class</span> <span class="nc">SAPMSJ2EECluster</span><span class="p">(</span><span class="n">Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Message Server J2EE Cluster packet</span>
+
+<span class="sd">    This packet is used for the Message Server protocol for J2EE cluster nodes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Message Server J2EE Cluster&quot;</span>
+    <span class="n">cluster_no</span> <span class="o">=</span> <span class="mi">68199</span>
+    <span class="n">node_no</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">cluster_no_id</span> <span class="o">=</span> <span class="n">cluster_no</span> <span class="o">+</span> <span class="mi">100</span> <span class="o">+</span> <span class="mi">50</span> <span class="o">+</span> <span class="n">node_no</span>
+    <span class="n">icm_port</span> <span class="o">=</span> <span class="mi">5020</span>
+
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;cluster_id&quot;</span><span class="p">,</span> <span class="n">cluster_no_id</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;group_id&quot;</span><span class="p">,</span> <span class="n">cluster_no</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;join_port&quot;</span><span class="p">,</span> <span class="n">icm_port</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;J2EE</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cluster_no_id</span><span class="p">),</span> <span class="mi">32</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;host&quot;</span><span class="p">,</span> <span class="s2">&quot;localhost&quot;</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span>
+        <span class="n">IPField</span><span class="p">(</span><span class="s2">&quot;hostaddrv4&quot;</span><span class="p">,</span> <span class="s2">&quot;127.0.0.1&quot;</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="mh">0x02</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;state&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;service_mask&quot;</span><span class="p">,</span> <span class="mi">32</span> <span class="o">*</span> <span class="s2">&quot;</span><span class="se">\xff</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">32</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="mh">0x02</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;modifiers&quot;</span><span class="p">,</span> <span class="mh">0x02</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;reserved&quot;</span><span class="p">,</span> <span class="mi">4</span> <span class="o">*</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="n">IP6Field</span><span class="p">(</span><span class="s2">&quot;hostaddrv6&quot;</span><span class="p">,</span> <span class="s2">&quot;::1&quot;</span><span class="p">)</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPMSJ2EEHeader"><a class="viewcode-back" href="../../api/pysap.SAPMS.html#pysap.SAPMS.SAPMSJ2EEHeader">[docs]</a><span class="k">class</span> <span class="nc">SAPMSJ2EEHeader</span><span class="p">(</span><span class="n">Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Message Server J2EE Header packet</span>
+
+<span class="sd">    This packet is used for the Message Server protocol for J2EE nodes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Message Server J2EE Header&quot;</span>
+    <span class="n">cluster_no</span> <span class="o">=</span> <span class="mi">68199</span>
+
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;sender_cluster_id&quot;</span><span class="p">,</span> <span class="n">cluster_no</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;cluster_id&quot;</span><span class="p">,</span> <span class="n">cluster_no</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;service_id&quot;</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;group_id&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;node_type&quot;</span><span class="p">,</span> <span class="mh">0x02</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;total_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;current_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;current_offset&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;total_blocks&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;current_block&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;message_type&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPMSJ2EEService"><a class="viewcode-back" href="../../api/pysap.SAPMS.html#pysap.SAPMS.SAPMSJ2EEService">[docs]</a><span class="k">class</span> <span class="nc">SAPMSJ2EEService</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Message Server J2EE Service packet</span>
+
+<span class="sd">    This packet is used to describe a J2EE service.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Message Server J2EE Service&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;service_id&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;attached_nodes&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">50</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SAPMS"><a class="viewcode-back" href="../../api/pysap.SAPMS.html#pysap.SAPMS.SAPMS">[docs]</a><span class="k">class</span> <span class="nc">SAPMS</span><span class="p">(</span><span class="n">Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Message Server packet</span>
+
+<span class="sd">    This packet is used for the Message Server protocol.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Message Server&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;eyecatcher&quot;</span><span class="p">,</span> <span class="s2">&quot;**MESSAGE**</span><span class="se">\x00</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="mh">0x04</span><span class="p">),</span>
+        <span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;errorno&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="n">ms_errorno_values</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;toname&quot;</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">*</span> <span class="mi">39</span><span class="p">,</span> <span class="mi">40</span><span class="p">),</span>
+        <span class="n">FlagsField</span><span class="p">(</span><span class="s2">&quot;msgtype&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;DIA&quot;</span><span class="p">,</span> <span class="s2">&quot;UPD&quot;</span><span class="p">,</span> <span class="s2">&quot;ENQ&quot;</span><span class="p">,</span> <span class="s2">&quot;BTC&quot;</span><span class="p">,</span> <span class="s2">&quot;SPO&quot;</span><span class="p">,</span> <span class="s2">&quot;UP2&quot;</span><span class="p">,</span> <span class="s2">&quot;ATP&quot;</span><span class="p">,</span> <span class="s2">&quot;ICM&quot;</span><span class="p">]),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;reserved&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;domain&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="n">ms_domain_values</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;reserved&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;key&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span>
+        <span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;flag&quot;</span><span class="p">,</span> <span class="mh">0x01</span><span class="p">,</span> <span class="n">ms_flag_values</span><span class="p">),</span>
+        <span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;iflag&quot;</span><span class="p">,</span> <span class="mh">0x01</span><span class="p">,</span> <span class="n">ms_iflag_values</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;fromname&quot;</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">*</span> <span class="mi">39</span><span class="p">,</span> <span class="mi">40</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;padd&quot;</span><span class="p">,</span> <span class="mh">0x0000</span><span class="p">),</span>
+
+        <span class="c1"># OpCode fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;opcode&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="n">ms_opcode_values</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">iflag</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x01</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;opcode_error&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="n">ms_opcode_error_values</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">iflag</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x01</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;opcode_version&quot;</span><span class="p">,</span> <span class="mh">0x01</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">iflag</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x01</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;opcode_charset&quot;</span><span class="p">,</span> <span class="mh">0x03</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">iflag</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x01</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrField</span><span class="p">(</span><span class="s2">&quot;opcode_value&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">iflag</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x01</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x01</span><span class="p">,</span> <span class="mh">0x02</span><span class="p">,</span> <span class="mh">0x03</span><span class="p">,</span> <span class="mh">0x04</span><span class="p">,</span> <span class="mh">0x05</span><span class="p">,</span> <span class="mh">0x06</span><span class="p">,</span> <span class="mh">0x07</span><span class="p">,</span> <span class="mh">0x08</span><span class="p">,</span> <span class="mh">0x09</span><span class="p">,</span> <span class="mh">0x0a</span><span class="p">,</span> <span class="mh">0x11</span><span class="p">,</span> <span class="mh">0x1c</span><span class="p">,</span> <span class="mh">0x22</span><span class="p">,</span> <span class="mh">0x23</span><span class="p">,</span> <span class="mh">0x24</span><span class="p">,</span> <span class="mh">0x25</span><span class="p">,</span> <span class="mh">0x26</span><span class="p">,</span> <span class="mh">0x27</span><span class="p">,</span> <span class="mh">0x28</span><span class="p">,</span> <span class="mh">0x29</span><span class="p">,</span> <span class="mh">0x2a</span><span class="p">,</span> <span class="mh">0x2b</span><span class="p">,</span> <span class="mh">0x2c</span><span class="p">,</span> <span class="mh">0x2d</span><span class="p">,</span> <span class="mh">0x2f</span><span class="p">,</span> <span class="mh">0x43</span><span class="p">,</span> <span class="mh">0x44</span><span class="p">,</span> <span class="mh">0x45</span><span class="p">,</span> <span class="mh">0x46</span><span class="p">,</span> <span class="mh">0x47</span><span class="p">,</span> <span class="mh">0x4a</span><span class="p">]),</span>
+
+        <span class="c1"># Adm OpCode fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;adm_eyecatcher&quot;</span><span class="p">,</span> <span class="s2">&quot;AD-EYECATCH</span><span class="se">\x00</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">iflag</span> <span class="o">==</span> <span class="mh">0x05</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;adm_version&quot;</span><span class="p">,</span> <span class="mh">0x01</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">iflag</span> <span class="o">==</span> <span class="mh">0x05</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;adm_type&quot;</span><span class="p">,</span> <span class="mh">0x01</span><span class="p">,</span> <span class="n">ms_adm_type_values</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">iflag</span> <span class="o">==</span> <span class="mh">0x05</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntToStrField</span><span class="p">(</span><span class="s2">&quot;adm_recsize&quot;</span><span class="p">,</span> <span class="mi">104</span><span class="p">,</span> <span class="mi">11</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">iflag</span> <span class="o">==</span> <span class="mh">0x05</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntToStrField</span><span class="p">(</span><span class="s2">&quot;adm_recno&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">11</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">iflag</span> <span class="o">==</span> <span class="mh">0x05</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketListField</span><span class="p">(</span><span class="s2">&quot;adm_records&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPMSAdmRecord</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">iflag</span> <span class="o">==</span> <span class="mh">0x05</span><span class="p">),</span>
+
+        <span class="c1"># Server List fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketListField</span><span class="p">(</span><span class="s2">&quot;clients&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPMSClient1</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x02</span><span class="p">,</span> <span class="mh">0x03</span><span class="p">,</span> <span class="mh">0x04</span><span class="p">,</span> <span class="mh">0x05</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode_version</span> <span class="o">==</span> <span class="mh">0x01</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketListField</span><span class="p">(</span><span class="s2">&quot;clients&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPMSClient2</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x02</span><span class="p">,</span> <span class="mh">0x03</span><span class="p">,</span> <span class="mh">0x04</span><span class="p">,</span> <span class="mh">0x05</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode_version</span> <span class="o">==</span> <span class="mh">0x02</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketListField</span><span class="p">(</span><span class="s2">&quot;clients&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPMSClient3</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x02</span><span class="p">,</span> <span class="mh">0x03</span><span class="p">,</span> <span class="mh">0x04</span><span class="p">,</span> <span class="mh">0x05</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode_version</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketListField</span><span class="p">(</span><span class="s2">&quot;clients&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPMSClient4</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x02</span><span class="p">,</span> <span class="mh">0x03</span><span class="p">,</span> <span class="mh">0x04</span><span class="p">,</span> <span class="mh">0x05</span><span class="p">]</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode_version</span> <span class="o">==</span> <span class="mh">0x04</span><span class="p">),</span>
+
+        <span class="c1"># Change IP fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IPField</span><span class="p">(</span><span class="s2">&quot;change_ip_addressv4&quot;</span><span class="p">,</span> <span class="s2">&quot;0.0.0.0&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x06</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IP6Field</span><span class="p">(</span><span class="s2">&quot;change_ip_addressv6&quot;</span><span class="p">,</span> <span class="s2">&quot;::&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x06</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode_version</span> <span class="o">==</span> <span class="mh">0x02</span><span class="p">),</span>
+
+        <span class="c1"># Get/Set Text fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;text_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">40</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x22</span><span class="p">,</span> <span class="mh">0x23</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;text_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;text_value&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;!I&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x22</span><span class="p">,</span> <span class="mh">0x23</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;text_value&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">text_length</span> <span class="ow">or</span> <span class="mi">80</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x22</span><span class="p">,</span> <span class="mh">0x23</span><span class="p">]),</span>
+
+        <span class="c1"># Counter fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketField</span><span class="p">(</span><span class="s2">&quot;counter&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPMSCounter</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x24</span><span class="p">,</span> <span class="mh">0x25</span><span class="p">,</span> <span class="mh">0x26</span><span class="p">,</span> <span class="mh">0x27</span><span class="p">,</span> <span class="mh">0x28</span><span class="p">,</span> <span class="mh">0x29</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketListField</span><span class="p">(</span><span class="s2">&quot;counters&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPMSCounter</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x2a</span><span class="p">]),</span>
+
+        <span class="c1"># Security Key 1 fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;security_name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">40</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x07</span><span class="p">,</span> <span class="mh">0x08</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;security_key&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">256</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x07</span><span class="p">,</span> <span class="mh">0x08</span><span class="p">]),</span>
+
+        <span class="c1"># Security Key 2 fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IPField</span><span class="p">(</span><span class="s2">&quot;security2_addressv4&quot;</span><span class="p">,</span> <span class="s2">&quot;0.0.0.0&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x09</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;security2_port&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x09</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;security2_key&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">256</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x09</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IP6Field</span><span class="p">(</span><span class="s2">&quot;security2_addressv6&quot;</span><span class="p">,</span> <span class="s2">&quot;::&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x09</span><span class="p">),</span>
+
+        <span class="c1"># Hardware ID field</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrNullFixedLenField</span><span class="p">(</span><span class="s2">&quot;hwid&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">99</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x0a</span><span class="p">),</span>
+
+        <span class="c1"># Statistics</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketField</span><span class="p">(</span><span class="s2">&quot;stats&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPMSStat3</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x11</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">flag</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+
+        <span class="c1"># Codepage</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;codepage&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x1c</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">flag</span> <span class="o">==</span> <span class="mh">0x03</span><span class="p">),</span>
+
+        <span class="c1"># Dump Info Request fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;dump_dest&quot;</span><span class="p">,</span> <span class="mh">0x02</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x1E</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">flag</span> <span class="o">==</span> <span class="mh">0x02</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;dump_filler&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x00\x00\x00</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x1E</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">flag</span> <span class="o">==</span> <span class="mh">0x02</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;dump_index&quot;</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x1E</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">flag</span> <span class="o">==</span> <span class="mh">0x02</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ShortEnumKeysField</span><span class="p">(</span><span class="s2">&quot;dump_command&quot;</span><span class="p">,</span> <span class="mh">0x01</span><span class="p">,</span> <span class="n">ms_dump_command_values</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x1E</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">flag</span> <span class="o">==</span> <span class="mh">0x02</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;dump_name&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">40</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x1E</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">flag</span> <span class="o">==</span> <span class="mh">0x02</span><span class="p">),</span>
+
+        <span class="c1"># File Reload fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;file_reload&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ms_file_reload_values</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x1f</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;file_filler&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x00\x00\x00</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x1f</span><span class="p">),</span>
+
+        <span class="c1"># Get/Set/Del Logon fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketField</span><span class="p">(</span><span class="s2">&quot;logon&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPMSLogon</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x2b</span><span class="p">,</span> <span class="mh">0x2c</span><span class="p">,</span> <span class="mh">0x2d</span><span class="p">]),</span>
+
+        <span class="c1"># Server Disconnect/Shutdown fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketField</span><span class="p">(</span><span class="s2">&quot;shutdown_client&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPMSClient3</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x2e</span><span class="p">,</span> <span class="mh">0x2f</span><span class="p">,</span> <span class="mh">0x30</span><span class="p">,</span> <span class="mh">0x4a</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;shutdown_reason_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;shutdown_reason&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;!H&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x2e</span><span class="p">,</span> <span class="mh">0x2f</span><span class="p">,</span> <span class="mh">0x30</span><span class="p">,</span> <span class="mh">0x4a</span><span class="p">]),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;shutdown_reason&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">shutdown_reason_length</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x2e</span><span class="p">,</span> <span class="mh">0x2f</span><span class="p">,</span> <span class="mh">0x30</span><span class="p">,</span> <span class="mh">0x4a</span><span class="p">]),</span>
+
+        <span class="c1"># Get/Set Property fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketField</span><span class="p">(</span><span class="s2">&quot;property&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPMSProperty</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x43</span><span class="p">,</span> <span class="mh">0x44</span><span class="p">,</span> <span class="mh">0x45</span><span class="p">]),</span>
+
+        <span class="c1"># IP/Port to name fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IPField</span><span class="p">(</span><span class="s2">&quot;ip_to_name_address4&quot;</span><span class="p">,</span> <span class="s2">&quot;0.0.0.0&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x46</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode_version</span> <span class="o">==</span> <span class="mh">0x01</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IP6Field</span><span class="p">(</span><span class="s2">&quot;ip_to_name_address6&quot;</span><span class="p">,</span> <span class="s2">&quot;::&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x46</span> <span class="ow">and</span> <span class="n">pkt</span><span class="o">.</span><span class="n">opcode_version</span> <span class="o">==</span> <span class="mh">0x02</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;ip_to_name_port&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x46</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;ip_to_name_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;ip_to_name&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;!I&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x46</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;ip_to_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">logonname_length</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x46</span><span class="p">),</span>
+
+        <span class="c1"># Check ACL fields</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;error_code&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x47</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;acl&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">46</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">opcode</span> <span class="o">==</span> <span class="mh">0x47</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<span class="c1"># Bind SAP NI with the MS ports (both internal &amp; external)</span>
+<span class="n">bind_layers</span><span class="p">(</span><span class="n">TCP</span><span class="p">,</span> <span class="n">SAPNI</span><span class="p">,</span> <span class="n">dport</span><span class="o">=</span><span class="mi">3600</span><span class="p">)</span>
+<span class="n">bind_layers</span><span class="p">(</span><span class="n">TCP</span><span class="p">,</span> <span class="n">SAPNI</span><span class="p">,</span> <span class="n">dport</span><span class="o">=</span><span class="mi">3900</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2012-2018, Martin Gallo, Core Security.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

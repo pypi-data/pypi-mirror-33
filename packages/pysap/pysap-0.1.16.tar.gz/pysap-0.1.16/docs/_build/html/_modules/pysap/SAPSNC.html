@@ -1,0 +1,226 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pysap.SAPSNC &#8212; pysap 0.1.16 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for pysap.SAPSNC</h1><div class="highlight"><pre>
+<span></span><span class="c1"># ===========</span>
+<span class="c1"># pysap - Python library for crafting SAP&#39;s network protocols packets</span>
+<span class="c1">#</span>
+<span class="c1"># Copyright (C) 2012-2018 by Martin Gallo, Core Security</span>
+<span class="c1">#</span>
+<span class="c1"># The library was designed and developed by Martin Gallo from</span>
+<span class="c1"># Core Security&#39;s CoreLabs team.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software; you can redistribute it and/or</span>
+<span class="c1"># modify it under the terms of the GNU General Public License</span>
+<span class="c1"># as published by the Free Software Foundation; either version 2</span>
+<span class="c1"># of the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1"># ==============</span>
+
+<span class="c1"># External imports</span>
+<span class="kn">from</span> <span class="nn">scapy.fields</span> <span class="k">import</span> <span class="p">(</span><span class="n">ByteField</span><span class="p">,</span> <span class="n">ShortField</span><span class="p">,</span> <span class="n">IntField</span><span class="p">,</span> <span class="n">StrFixedLenField</span><span class="p">,</span> <span class="n">FieldLenField</span><span class="p">,</span> <span class="n">StrLenField</span><span class="p">,</span>
+                          <span class="n">ConditionalField</span><span class="p">,</span> <span class="n">ByteEnumKeysField</span><span class="p">,</span> <span class="n">ShortEnumKeysField</span><span class="p">)</span>
+<span class="c1"># Custom imports</span>
+<span class="kn">from</span> <span class="nn">pysap.utils.fields</span> <span class="k">import</span> <span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">)</span>
+
+
+<span class="c1"># SNC Frame Types</span>
+<span class="n">snc_frame_type</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mh">0x00</span><span class="p">:</span> <span class="s2">&quot;REVERSE_REQ&quot;</span><span class="p">,</span>
+    <span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;INIT_REQ&quot;</span><span class="p">,</span>
+    <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;INIT&quot;</span><span class="p">,</span>
+    <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;INIT_ACK&quot;</span><span class="p">,</span>
+    <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;ACCEPT&quot;</span><span class="p">,</span>
+    <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;ACCEPT_ACK&quot;</span><span class="p">,</span>
+    <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;ACCEPT_FAILED&quot;</span><span class="p">,</span>
+    <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;DATA_OPEN&quot;</span><span class="p">,</span>
+    <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;DATA_MIC/DATA_SIGNED&quot;</span><span class="p">,</span>
+    <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;DATA_WRAP/DATA_SEALED&quot;</span><span class="p">,</span>
+    <span class="mh">0x0a</span><span class="p">:</span> <span class="s2">&quot;SHUTDOWN&quot;</span><span class="p">,</span>
+    <span class="mh">0x0b</span><span class="p">:</span> <span class="s2">&quot;SHUTDOWN_MSG&quot;</span><span class="p">,</span>
+    <span class="mh">0x0c</span><span class="p">:</span> <span class="s2">&quot;REJECTED&quot;</span><span class="p">,</span>
+    <span class="mh">0x0d</span><span class="p">:</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">,</span>
+    <span class="mh">0x0e</span><span class="p">:</span> <span class="s2">&quot;UNKNOWN&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1"># SNC Mech ID values</span>
+<span class="n">snc_mech_id_values</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mh">0x00</span><span class="p">:</span> <span class="s2">&quot;No security&quot;</span><span class="p">,</span>
+    <span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;Generic GSS-API v2 Mechanism&quot;</span><span class="p">,</span>
+    <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;Kerberos 5/GSS-API v2&quot;</span><span class="p">,</span>
+    <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;Secude 5 GSS-API v2&quot;</span><span class="p">,</span>
+    <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;SAP&#39;s GSS-API v2 over NTLM(SSPI)&quot;</span><span class="p">,</span>
+    <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;SPKM1 GSS-API v2 library&quot;</span><span class="p">,</span>
+    <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;SPKM2 GSS-API v2 library&quot;</span><span class="p">,</span>
+    <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;reserved ID&quot;</span><span class="p">,</span>
+    <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;itsec&quot;</span><span class="p">,</span>
+    <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;SDTI Connect Agent&quot;</span><span class="p">,</span>
+    <span class="mh">0x0a</span><span class="p">:</span> <span class="s2">&quot;AccessMaster DCE&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1"># SNC Quality of protection values</span>
+<span class="n">snc_qop</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mh">0x00</span><span class="p">:</span> <span class="s2">&quot;INVALID&quot;</span><span class="p">,</span>
+    <span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;OPEN&quot;</span><span class="p">,</span>
+    <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;INTEGRITY/SIGNED&quot;</span><span class="p">,</span>
+    <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;PRIVACY/SEALED&quot;</span><span class="p">,</span>
+    <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;MIN&quot;</span><span class="p">,</span>
+    <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;DEFAULT&quot;</span><span class="p">,</span>
+    <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;MAX&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="SAPSNCFrame"><a class="viewcode-back" href="../../api/pysap.SAPSNC.html#pysap.SAPSNC.SAPSNCFrame">[docs]</a><span class="k">class</span> <span class="nc">SAPSNCFrame</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP SNC Frame packet</span>
+
+<span class="sd">    This packet is used to contain and wrap SNC Frames.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP SNC Frame&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;eye_catcher&quot;</span><span class="p">,</span> <span class="s2">&quot;SNCFRAME&quot;</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span>
+        <span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;frame_type&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">snc_frame_type</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;protocol_version&quot;</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;header_length&quot;</span><span class="p">,</span> <span class="mi">24</span><span class="p">),</span>
+        <span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;token_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;token&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;I&quot;</span><span class="p">),</span>
+        <span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;data_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;I&quot;</span><span class="p">),</span>
+        <span class="n">ShortEnumKeysField</span><span class="p">(</span><span class="s2">&quot;mech_id&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">snc_mech_id_values</span><span class="p">),</span>
+        <span class="n">ShortField</span><span class="p">(</span><span class="s2">&quot;flags&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;ext_flags&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">pkt</span><span class="o">.</span><span class="n">header_length</span> <span class="o">&gt;</span> <span class="mi">24</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;ext_field_length&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;ext_fields&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;!H&quot;</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">pkt</span><span class="o">.</span><span class="n">header_length</span> <span class="o">&gt;</span> <span class="mi">24</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;ext_fields&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">ext_field_length</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">pkt</span><span class="o">.</span><span class="n">header_length</span> <span class="o">&gt;</span> <span class="mi">24</span><span class="p">),</span>
+        <span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;token&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">token_length</span><span class="p">),</span>
+        <span class="n">StrLenField</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">length_from</span><span class="o">=</span><span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">data_length</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="unwrap_snc"><a class="viewcode-back" href="../../api/pysap.SAPSNC.html#pysap.SAPSNC.unwrap_snc">[docs]</a><span class="k">def</span> <span class="nf">unwrap_snc</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">offset</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Unwraps an SNC frame if it&#39;s possible. This is, if the frame type is</span>
+<span class="sd">    data open or signed but not encrypted. Appends the unwrapped data to the</span>
+<span class="sd">    end of the string being dissected and adjust the offset properly to skip</span>
+<span class="sd">    the SNC frame.</span>
+
+<span class="sd">    :param s: string to dissect</span>
+<span class="sd">    :type s: C{string}</span>
+
+<span class="sd">    :param offset: offset where the SNC frame starts</span>
+<span class="sd">    :type offset: int</span>
+
+<span class="sd">    :return: tuple of string with the SNC frame wrapped, adjusted offset</span>
+<span class="sd">    :rtype: tuple of C{string}, int</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">snc_frame</span> <span class="o">=</span> <span class="n">SAPSNCFrame</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">offset</span><span class="p">:])</span>
+    <span class="k">if</span> <span class="n">snc_frame</span><span class="o">.</span><span class="n">frame_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x07</span><span class="p">,</span> <span class="mh">0x08</span><span class="p">]</span> <span class="ow">and</span> <span class="n">snc_frame</span><span class="o">.</span><span class="n">data_length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">s</span> <span class="o">+</span> <span class="n">snc_frame</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">offset</span> <span class="o">+=</span> <span class="n">snc_frame</span><span class="o">.</span><span class="n">header_length</span> <span class="o">+</span> <span class="n">snc_frame</span><span class="o">.</span><span class="n">token_length</span> <span class="o">+</span> <span class="n">snc_frame</span><span class="o">.</span><span class="n">data_length</span>
+
+    <span class="k">return</span> <span class="n">s</span><span class="p">,</span> <span class="n">offset</span></div>
+
+
+<div class="viewcode-block" id="wrap_snc"><a class="viewcode-back" href="../../api/pysap.SAPSNC.html#pysap.SAPSNC.wrap_snc">[docs]</a><span class="k">def</span> <span class="nf">wrap_snc</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Wraps an SNC frame if it&#39;s possible. This is, if the frame type is</span>
+<span class="sd">    data open. Adds the data to the frame and properly updates the length</span>
+<span class="sd">    field on the SNC frame.</span>
+
+<span class="sd">    :param s: string to dissect</span>
+<span class="sd">    :type s: string</span>
+
+<span class="sd">    :param offset: offset where the SNC frame starts</span>
+<span class="sd">    :type offset: int</span>
+
+<span class="sd">    :param data: data to wrap</span>
+<span class="sd">    :type data: string</span>
+
+<span class="sd">    :return: string with the SNC frame wrapped</span>
+<span class="sd">    :rtype: string</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">snc_frame</span> <span class="o">=</span> <span class="n">SAPSNCFrame</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">offset</span><span class="p">:])</span>
+    <span class="k">if</span> <span class="n">snc_frame</span><span class="o">.</span><span class="n">frame_type</span> <span class="o">==</span> <span class="mh">0x07</span><span class="p">:</span>
+        <span class="n">snc_frame</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="n">snc_frame</span><span class="o">.</span><span class="n">data_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">snc_frame_length</span> <span class="o">=</span> <span class="n">snc_frame</span><span class="o">.</span><span class="n">header_length</span> <span class="o">+</span> <span class="n">snc_frame</span><span class="o">.</span><span class="n">token_length</span> <span class="o">+</span> <span class="n">snc_frame</span><span class="o">.</span><span class="n">data_length</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="p">[:</span><span class="n">offset</span><span class="p">]</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">snc_frame</span><span class="p">)[:</span><span class="n">snc_frame_length</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">s</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2012-2018, Martin Gallo, Core Security.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

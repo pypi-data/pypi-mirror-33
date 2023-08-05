@@ -1,0 +1,741 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>pysap.SAPDiag &#8212; pysap 0.1.16 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for pysap.SAPDiag</h1><div class="highlight"><pre>
+<span></span><span class="c1"># ===========</span>
+<span class="c1"># pysap - Python library for crafting SAP&#39;s network protocols packets</span>
+<span class="c1">#</span>
+<span class="c1"># Copyright (C) 2012-2018 by Martin Gallo, Core Security</span>
+<span class="c1">#</span>
+<span class="c1"># The library was designed and developed by Martin Gallo from</span>
+<span class="c1"># Core Security&#39;s CoreLabs team.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software; you can redistribute it and/or</span>
+<span class="c1"># modify it under the terms of the GNU General Public License</span>
+<span class="c1"># as published by the Free Software Foundation; either version 2</span>
+<span class="c1"># of the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1"># ==============</span>
+
+<span class="c1"># Standard imports</span>
+<span class="kn">from</span> <span class="nn">struct</span> <span class="k">import</span> <span class="n">unpack</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">defaultdict</span>
+<span class="c1"># External imports</span>
+<span class="kn">from</span> <span class="nn">scapy.layers.inet</span> <span class="k">import</span> <span class="n">TCP</span>
+<span class="kn">from</span> <span class="nn">scapy.packet</span> <span class="k">import</span> <span class="n">Packet</span><span class="p">,</span> <span class="n">bind_layers</span>
+<span class="kn">from</span> <span class="nn">scapy.fields</span> <span class="k">import</span> <span class="p">(</span><span class="n">ByteEnumField</span><span class="p">,</span> <span class="n">IntField</span><span class="p">,</span> <span class="n">ByteField</span><span class="p">,</span> <span class="n">LenField</span><span class="p">,</span>
+                          <span class="n">StrFixedLenField</span><span class="p">,</span> <span class="n">ConditionalField</span><span class="p">,</span> <span class="n">FieldLenField</span><span class="p">,</span>
+                          <span class="n">PacketListField</span><span class="p">,</span> <span class="n">BitField</span><span class="p">,</span> <span class="n">LEIntField</span><span class="p">,</span> <span class="n">PacketField</span><span class="p">,</span>
+                          <span class="n">SignedIntField</span><span class="p">,</span> <span class="n">StrField</span><span class="p">,</span> <span class="n">SignedShortField</span><span class="p">,</span>
+                          <span class="n">ByteEnumKeysField</span><span class="p">)</span>
+<span class="c1"># Custom imports</span>
+<span class="kn">import</span> <span class="nn">pysapcompress</span>
+<span class="kn">from</span> <span class="nn">pysap.SAPNI</span> <span class="k">import</span> <span class="n">SAPNI</span>
+<span class="kn">from</span> <span class="nn">pysap.SAPSNC</span> <span class="k">import</span> <span class="n">SAPSNCFrame</span>
+<span class="kn">from</span> <span class="nn">pysap.utils.fields</span> <span class="k">import</span> <span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">,</span> <span class="n">ByteMultiEnumKeysField</span><span class="p">,</span> <span class="n">MutablePacketField</span><span class="p">,</span>
+                                <span class="n">StrNullFixedLenField</span><span class="p">,</span> <span class="n">StrEncodedPaddedField</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">pysapcompress</span> <span class="k">import</span> <span class="n">DecompressError</span><span class="p">,</span> <span class="n">CompressError</span>
+
+
+<div class="viewcode-block" id="SAPDiagDP"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.SAPDiagDP">[docs]</a><span class="k">class</span> <span class="nc">SAPDiagDP</span><span class="p">(</span><span class="n">Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Diag DP Header packet</span>
+
+<span class="sd">    This packet is used for initialization of Diag connections. Usually</span>
+<span class="sd">    there&#39;s no need to change any value more that the terminal.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Diag DP Header&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>  <span class="c1"># DP Header</span>
+        <span class="n">SignedIntField</span><span class="p">(</span><span class="s2">&quot;request_id&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;retcode&quot;</span><span class="p">,</span> <span class="mh">0x0a</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;sender_id&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;action_type&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;req_info&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">SignedIntField</span><span class="p">(</span><span class="s2">&quot;tid&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+        <span class="n">SignedShortField</span><span class="p">(</span><span class="s2">&quot;uid&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">,</span> <span class="mh">0xff</span><span class="p">),</span>
+        <span class="n">SignedIntField</span><span class="p">(</span><span class="s2">&quot;wp_id&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+        <span class="n">SignedIntField</span><span class="p">(</span><span class="s2">&quot;wp_ca_blk&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+        <span class="n">SignedIntField</span><span class="p">(</span><span class="s2">&quot;appc_ca_blk&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+        <span class="n">LenField</span><span class="p">(</span><span class="s2">&quot;length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;&lt;I&quot;</span><span class="p">),</span>  <span class="c1"># The length in the DP Header is the length of the Diag Header (8 bytes)</span>
+                                             <span class="c1"># plus the Diag Message (54 bytes for user_connect+support_data). As the</span>
+                                             <span class="c1"># DP Header is the layer after NI during initialization, a LenField works</span>
+                                             <span class="c1"># fine.</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;new_stat&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">SignedIntField</span><span class="p">(</span><span class="s2">&quot;unused1&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+        <span class="n">SignedShortField</span><span class="p">(</span><span class="s2">&quot;rq_id&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;unused2&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x20</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">40</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;terminal&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">15</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;unused3&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;unused4&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x20</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;unused5&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;unused6&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">SignedIntField</span><span class="p">(</span><span class="s2">&quot;unused7&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+        <span class="n">IntField</span><span class="p">(</span><span class="s2">&quot;unused8&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;unused9&quot;</span><span class="p">,</span> <span class="mh">0x01</span><span class="p">),</span>
+        <span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;unused10&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x00</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">57</span><span class="p">,</span> <span class="mi">57</span><span class="p">)]</span></div>
+
+<span class="c1"># Diag Item Types</span>
+<span class="n">diag_item_types</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;SES&quot;</span><span class="p">,</span>
+    <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;ICO&quot;</span><span class="p">,</span>
+    <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;TIT&quot;</span><span class="p">,</span>
+    <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;DiagMessage&quot;</span><span class="p">,</span>
+    <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;OKC&quot;</span><span class="p">,</span>
+    <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;CHL&quot;</span><span class="p">,</span>
+    <span class="mh">0x0a</span><span class="p">:</span> <span class="s2">&quot;SFE&quot;</span><span class="p">,</span>
+    <span class="mh">0x0b</span><span class="p">:</span> <span class="s2">&quot;SBA&quot;</span><span class="p">,</span>
+    <span class="mh">0x0c</span><span class="p">:</span> <span class="s2">&quot;EOM&quot;</span><span class="p">,</span>
+    <span class="mh">0x10</span><span class="p">:</span> <span class="s2">&quot;APPL&quot;</span><span class="p">,</span>
+    <span class="mh">0x11</span><span class="p">:</span> <span class="s2">&quot;DIAG_XMLBLOB&quot;</span><span class="p">,</span>
+    <span class="mh">0x12</span><span class="p">:</span> <span class="s2">&quot;APPL4&quot;</span><span class="p">,</span>
+    <span class="mh">0x13</span><span class="p">:</span> <span class="s2">&quot;SLC&quot;</span><span class="p">,</span>
+    <span class="mh">0x15</span><span class="p">:</span> <span class="s2">&quot;SBA2&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Diag Item Types&quot;&quot;&quot;</span>
+
+<span class="c1"># Diag APPL/APPL4 IDs</span>
+<span class="n">diag_appl_ids</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;SCRIPT&quot;</span><span class="p">,</span>
+    <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;GRAPH&quot;</span><span class="p">,</span>
+    <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;IXOS&quot;</span><span class="p">,</span>
+    <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;ST_USER&quot;</span><span class="p">,</span>
+    <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;DYNN&quot;</span><span class="p">,</span>
+    <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;ST_R3INFO&quot;</span><span class="p">,</span>
+    <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;POPU&quot;</span><span class="p">,</span>
+    <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;RFC_TR&quot;</span><span class="p">,</span>
+    <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;DYNT&quot;</span><span class="p">,</span>
+    <span class="mh">0x0a</span><span class="p">:</span> <span class="s2">&quot;CONTAINER&quot;</span><span class="p">,</span>
+    <span class="mh">0x0b</span><span class="p">:</span> <span class="s2">&quot;MNUENTRY&quot;</span><span class="p">,</span>
+    <span class="mh">0x0c</span><span class="p">:</span> <span class="s2">&quot;VARINFO&quot;</span><span class="p">,</span>
+    <span class="mh">0x0e</span><span class="p">:</span> <span class="s2">&quot;CONTROL&quot;</span><span class="p">,</span>
+    <span class="mh">0x0f</span><span class="p">:</span> <span class="s2">&quot;UI_EVENT&quot;</span><span class="p">,</span>
+    <span class="mh">0x12</span><span class="p">:</span> <span class="s2">&quot;ACC_LIST&quot;</span><span class="p">,</span>
+    <span class="mh">0x13</span><span class="p">:</span> <span class="s2">&quot;RCUI&quot;</span><span class="p">,</span>
+    <span class="mh">0x14</span><span class="p">:</span> <span class="s2">&quot;GUI_PACKET&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Diag APPL/APPL4 IDs&quot;&quot;&quot;</span>
+
+<span class="c1"># Diag APPL/APPL4 SIDs</span>
+<span class="n">diag_appl_sids</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mh">0x01</span><span class="p">:</span>    <span class="c1"># SCRIPT</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;SCRIPT_OTF&quot;</span><span class="p">,</span>
+     <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;SCRIPT_SCREEN&quot;</span><span class="p">,</span>
+     <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;SCRIPT_POSTSCRIPT&quot;</span><span class="p">,</span>
+     <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;SCRIPT_ITF&quot;</span><span class="p">},</span>
+    <span class="mh">0x02</span><span class="p">:</span>     <span class="c1"># GRAPH</span>
+    <span class="p">{</span><span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;GRAPH RELEASE 3&quot;</span><span class="p">,</span>
+     <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;GRAPH RELEASE 5&quot;</span><span class="p">},</span>
+    <span class="mh">0x03</span><span class="p">:</span>    <span class="c1"># IXOS</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;ABLAGE&quot;</span><span class="p">,</span>
+     <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;ANZEIGE&quot;</span><span class="p">,</span>
+     <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;IXOS_COMMAND&quot;</span><span class="p">},</span>
+    <span class="mh">0x04</span><span class="p">:</span>     <span class="c1"># ST_USER</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;V1&quot;</span><span class="p">,</span>
+     <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;CONNECT&quot;</span><span class="p">,</span>
+     <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;SELECTEDRECT&quot;</span><span class="p">,</span>
+     <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;FONTMETRIC&quot;</span><span class="p">,</span>
+     <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;TABLEMETRIC&quot;</span><span class="p">,</span>
+     <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;GUITIME&quot;</span><span class="p">,</span>
+     <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;GUITIMEZONE&quot;</span><span class="p">,</span>
+     <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;TURNTIME&quot;</span><span class="p">,</span>
+     <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;GUIVERSION&quot;</span><span class="p">,</span>
+     <span class="mh">0x0b</span><span class="p">:</span> <span class="s2">&quot;SUPPORTDATA&quot;</span><span class="p">,</span>
+     <span class="mh">0x0c</span><span class="p">:</span> <span class="s2">&quot;RFC_CONNECT&quot;</span><span class="p">,</span>
+     <span class="mh">0x0d</span><span class="p">:</span> <span class="s2">&quot;WSIZE&quot;</span><span class="p">,</span>
+     <span class="mh">0x0e</span><span class="p">:</span> <span class="s2">&quot;V2&quot;</span><span class="p">,</span>
+     <span class="mh">0x0f</span><span class="p">:</span> <span class="s2">&quot;TURNTIME2&quot;</span><span class="p">,</span>
+     <span class="mh">0x10</span><span class="p">:</span> <span class="s2">&quot;RFC_PARENT_UUID&quot;</span><span class="p">,</span>
+     <span class="mh">0x11</span><span class="p">:</span> <span class="s2">&quot;RFC_NEW_UUID&quot;</span><span class="p">,</span>
+     <span class="mh">0x12</span><span class="p">:</span> <span class="s2">&quot;RFC_UUIDS&quot;</span><span class="p">,</span>
+     <span class="mh">0x13</span><span class="p">:</span> <span class="s2">&quot;RFC_UUIDS2&quot;</span><span class="p">,</span>
+     <span class="mh">0x14</span><span class="p">:</span> <span class="s2">&quot;XML_LOGIN&quot;</span><span class="p">,</span>
+     <span class="mh">0x15</span><span class="p">:</span> <span class="s2">&quot;XML_TRANSACTION&quot;</span><span class="p">,</span>
+     <span class="mh">0x16</span><span class="p">:</span> <span class="s2">&quot;SCROLLBAR_WIDTH&quot;</span><span class="p">,</span>
+     <span class="mh">0x17</span><span class="p">:</span> <span class="s2">&quot;TOOLBAR_HEIGHT&quot;</span><span class="p">,</span>
+     <span class="mh">0x18</span><span class="p">:</span> <span class="s2">&quot;PASSPORT_DATA&quot;</span><span class="p">,</span>
+     <span class="mh">0x19</span><span class="p">:</span> <span class="s2">&quot;GUI_STATE&quot;</span><span class="p">,</span>
+     <span class="mh">0x1a</span><span class="p">:</span> <span class="s2">&quot;DECIMALPOINT&quot;</span><span class="p">,</span>
+     <span class="mh">0x1b</span><span class="p">:</span> <span class="s2">&quot;LANGUAGE&quot;</span><span class="p">,</span>
+     <span class="mh">0x1c</span><span class="p">:</span> <span class="s2">&quot;USERNAME&quot;</span><span class="p">,</span>
+     <span class="mh">0x1d</span><span class="p">:</span> <span class="s2">&quot;GUIPATCHLEVEL&quot;</span><span class="p">,</span>
+     <span class="mh">0x1e</span><span class="p">:</span> <span class="s2">&quot;WSIZE_PIXEL&quot;</span><span class="p">,</span>
+     <span class="mh">0x1f</span><span class="p">:</span> <span class="s2">&quot;GUI_OS_VERSION&quot;</span><span class="p">,</span>
+     <span class="mh">0x20</span><span class="p">:</span> <span class="s2">&quot;BROWSER_VERSION&quot;</span><span class="p">,</span>
+     <span class="mh">0x21</span><span class="p">:</span> <span class="s2">&quot;OFFICE_VERSION&quot;</span><span class="p">,</span>
+     <span class="mh">0x22</span><span class="p">:</span> <span class="s2">&quot;JDK_VERSION&quot;</span><span class="p">,</span>
+     <span class="mh">0x23</span><span class="p">:</span> <span class="s2">&quot;GUIXT_VERSION&quot;</span><span class="p">,</span>
+     <span class="mh">0x24</span><span class="p">:</span> <span class="s2">&quot;DISPLAY_SIZE&quot;</span><span class="p">,</span>
+     <span class="mh">0x25</span><span class="p">:</span> <span class="s2">&quot;GUI_TYPE&quot;</span><span class="p">,</span>
+     <span class="mh">0x26</span><span class="p">:</span> <span class="s2">&quot;DIALOG_STEP_NUMBER&quot;</span><span class="p">},</span>
+    <span class="mh">0x05</span><span class="p">:</span>    <span class="c1"># DYNN</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;CHL&quot;</span><span class="p">,</span>
+     <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;XMLPROP DYNPRO&quot;</span><span class="p">},</span>
+    <span class="mh">0x06</span><span class="p">:</span>    <span class="c1"># ST_R3INFO</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;MODENUMBER&quot;</span><span class="p">,</span>
+     <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;DBNAME&quot;</span><span class="p">,</span>
+     <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;CPUNAME&quot;</span><span class="p">,</span>
+     <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;RFC_TRIGGER&quot;</span><span class="p">,</span>
+     <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;GUI_LABEL&quot;</span><span class="p">,</span>
+     <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;DIAGVERSION&quot;</span><span class="p">,</span>
+     <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;TCODE&quot;</span><span class="p">,</span>
+     <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;RFC_WAITING&quot;</span><span class="p">,</span>
+     <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;RFC_REFRESH&quot;</span><span class="p">,</span>
+     <span class="mh">0x0a</span><span class="p">:</span> <span class="s2">&quot;IMODENUMBER&quot;</span><span class="p">,</span>
+     <span class="mh">0x0b</span><span class="p">:</span> <span class="s2">&quot;MESSAGE&quot;</span><span class="p">,</span>
+     <span class="mh">0x0c</span><span class="p">:</span> <span class="s2">&quot;CLIENT&quot;</span><span class="p">,</span>
+     <span class="mh">0x0d</span><span class="p">:</span> <span class="s2">&quot;DYNPRONAME&quot;</span><span class="p">,</span>
+     <span class="mh">0x0e</span><span class="p">:</span> <span class="s2">&quot;DYNPRONUMBER&quot;</span><span class="p">,</span>
+     <span class="mh">0x0f</span><span class="p">:</span> <span class="s2">&quot;CUANAME&quot;</span><span class="p">,</span>
+     <span class="mh">0x10</span><span class="p">:</span> <span class="s2">&quot;CUASTATUS&quot;</span><span class="p">,</span>
+     <span class="mh">0x11</span><span class="p">:</span> <span class="s2">&quot;SUPPORTDATA&quot;</span><span class="p">,</span>
+     <span class="mh">0x12</span><span class="p">:</span> <span class="s2">&quot;RFC_CONNECT_OK&quot;</span><span class="p">,</span>
+     <span class="mh">0x13</span><span class="p">:</span> <span class="s2">&quot;GUI_FKEY&quot;</span><span class="p">,</span>
+     <span class="mh">0x14</span><span class="p">:</span> <span class="s2">&quot;GUI_FKEYT&quot;</span><span class="p">,</span>
+     <span class="mh">0x15</span><span class="p">:</span> <span class="s2">&quot;STOP_TRANS&quot;</span><span class="p">,</span>
+     <span class="mh">0x16</span><span class="p">:</span> <span class="s2">&quot;RFC_DIAG_BLOCK_SIZE&quot;</span><span class="p">,</span>
+     <span class="mh">0x17</span><span class="p">:</span> <span class="s2">&quot;USER_CHECKED&quot;</span><span class="p">,</span>
+     <span class="mh">0x18</span><span class="p">:</span> <span class="s2">&quot;FLAGS&quot;</span><span class="p">,</span>
+     <span class="mh">0x19</span><span class="p">:</span> <span class="s2">&quot;USERID&quot;</span><span class="p">,</span>
+     <span class="mh">0x1a</span><span class="p">:</span> <span class="s2">&quot;ROLLCOUNT&quot;</span><span class="p">,</span>
+     <span class="mh">0x1b</span><span class="p">:</span> <span class="s2">&quot;GUI_XT_VAR&quot;</span><span class="p">,</span>
+     <span class="mh">0x1c</span><span class="p">:</span> <span class="s2">&quot;IMODEUUID&quot;</span><span class="p">,</span>
+     <span class="mh">0x1d</span><span class="p">:</span> <span class="s2">&quot;IMODEUUID_INVALIDATE&quot;</span><span class="p">,</span>
+     <span class="mh">0x1e</span><span class="p">:</span> <span class="s2">&quot;IMODEUUIDS&quot;</span><span class="p">,</span>
+     <span class="mh">0x1f</span><span class="p">:</span> <span class="s2">&quot;IMODEUUIDS2&quot;</span><span class="p">,</span>
+     <span class="mh">0x20</span><span class="p">:</span> <span class="s2">&quot;CODEPAGE&quot;</span><span class="p">,</span>
+     <span class="mh">0x21</span><span class="p">:</span> <span class="s2">&quot;CONTEXTID&quot;</span><span class="p">,</span>
+     <span class="mh">0x22</span><span class="p">:</span> <span class="s2">&quot;AUTOLOGOUT_TIME&quot;</span><span class="p">,</span>
+     <span class="mh">0x23</span><span class="p">:</span> <span class="s2">&quot;CODEPAGE_DIAG_GUI&quot;</span><span class="p">,</span>
+     <span class="mh">0x24</span><span class="p">:</span> <span class="s2">&quot;CODEPAGE_APP_SERVER&quot;</span><span class="p">,</span>
+     <span class="mh">0x25</span><span class="p">:</span> <span class="s2">&quot;GUI_THEME&quot;</span><span class="p">,</span>
+     <span class="mh">0x26</span><span class="p">:</span> <span class="s2">&quot;GUI_USER_SCRIPTING&quot;</span><span class="p">,</span>
+     <span class="mh">0x27</span><span class="p">:</span> <span class="s2">&quot;CODEPAGE_APP_SERVER_1&quot;</span><span class="p">,</span>
+     <span class="mh">0x28</span><span class="p">:</span> <span class="s2">&quot;TICKET4GUI&quot;</span><span class="p">,</span>
+     <span class="mh">0x29</span><span class="p">:</span> <span class="s2">&quot;KERNEL_VERSION&quot;</span><span class="p">,</span>
+     <span class="mh">0x2a</span><span class="p">:</span> <span class="s2">&quot;STD_TOOLBAR_ITEMS&quot;</span><span class="p">,</span> <span class="p">},</span>
+    <span class="mh">0x07</span><span class="p">:</span>    <span class="c1"># POPU</span>
+    <span class="p">{</span><span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;DEST&quot;</span><span class="p">},</span>
+    <span class="mh">0x08</span><span class="p">:</span>    <span class="c1"># RFC_TR</span>
+    <span class="p">{</span><span class="mh">0x00</span><span class="p">:</span> <span class="s2">&quot;RFC_TR_REQ&quot;</span><span class="p">,</span>
+     <span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;RFC_TR_RET&quot;</span><span class="p">,</span>
+     <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;RFC_TR_ERR&quot;</span><span class="p">,</span>
+     <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;RFC_TR_RQT&quot;</span><span class="p">,</span>
+     <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;RFC_TR_MOR&quot;</span><span class="p">,</span>
+     <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;RFC_TR_MOB&quot;</span><span class="p">,</span>
+     <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;RFC_TR_RNB&quot;</span><span class="p">,</span>
+     <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;RFC_TR_RNT&quot;</span><span class="p">,</span>
+     <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;RFC_TR_DIS&quot;</span><span class="p">,</span>
+     <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;RFC_TR_CALL&quot;</span><span class="p">,</span>
+     <span class="mh">0x0a</span><span class="p">:</span> <span class="s2">&quot;RFC_TR_CALL_END&quot;</span><span class="p">,</span>
+     <span class="mh">0x0b</span><span class="p">:</span> <span class="s2">&quot;RFC_TR_RES&quot;</span><span class="p">},</span>
+    <span class="mh">0x09</span><span class="p">:</span>    <span class="c1"># DYNT</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;DYNT_FOCUS&quot;</span><span class="p">,</span>
+     <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;DYNT_ATOM&quot;</span><span class="p">,</span>
+     <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;DYNT_EVENT_UNUSED&quot;</span><span class="p">,</span>
+     <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;TABLE_ROW_REFERENCE&quot;</span><span class="p">,</span>
+     <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;TABLE_ROW_DAT_INPUT_DUMMY&quot;</span><span class="p">,</span>
+     <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;TABLE_INPUT_HEADER&quot;</span><span class="p">,</span>
+     <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;TABLE_OUTPUT_HEADER&quot;</span><span class="p">,</span>
+     <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;TABLE_ROW_DATA_INPUT&quot;</span><span class="p">,</span>
+     <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;TABLE_ROW_DATA_OUTPUT&quot;</span><span class="p">,</span>
+     <span class="mh">0x0a</span><span class="p">:</span> <span class="s2">&quot;DYNT_NOFOCUS&quot;</span><span class="p">,</span>
+     <span class="mh">0x0b</span><span class="p">:</span> <span class="s2">&quot;DYNT_FOCUS_1&quot;</span><span class="p">,</span>
+     <span class="mh">0x0c</span><span class="p">:</span> <span class="s2">&quot;TABLE_ROW_REFERENCE_1&quot;</span><span class="p">,</span>
+     <span class="mh">0x0d</span><span class="p">:</span> <span class="s2">&quot;TABLE_FIELD_NAMES&quot;</span><span class="p">,</span>
+     <span class="mh">0x0e</span><span class="p">:</span> <span class="s2">&quot;TABLE_HEADER&quot;</span><span class="p">,</span>
+     <span class="mh">0x0f</span><span class="p">:</span> <span class="s2">&quot;DYNT_TABSTRIP_HEADER&quot;</span><span class="p">,</span>
+     <span class="mh">0x10</span><span class="p">:</span> <span class="s2">&quot;DYNT_TABSTRIP_BUTTONS&quot;</span><span class="p">,</span>
+     <span class="mh">0x11</span><span class="p">:</span> <span class="s2">&quot;TABLE_ROW_REFERENCE_2&quot;</span><span class="p">,</span>
+     <span class="mh">0x12</span><span class="p">:</span> <span class="s2">&quot;DYNT_CONTROL_FOCUS&quot;</span><span class="p">,</span>
+     <span class="mh">0x15</span><span class="p">:</span> <span class="s2">&quot;DYNT_TC_COLUMN_TITLE_XMLP&quot;</span><span class="p">,</span>
+     <span class="mh">0x16</span><span class="p">:</span> <span class="s2">&quot;DYNT_TC_ROW_SELECTOR_NAME&quot;</span><span class="p">,</span>
+     <span class="mh">0x17</span><span class="p">:</span> <span class="s2">&quot;DYNT_FOCUS_FRAME&quot;</span><span class="p">},</span>
+    <span class="mh">0x0a</span><span class="p">:</span>    <span class="c1"># CONTAINER</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;RESET&quot;</span><span class="p">,</span>
+     <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;DEFAULT&quot;</span><span class="p">,</span>
+     <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;SUBSCREEN&quot;</span><span class="p">,</span>
+     <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;LOOP&quot;</span><span class="p">,</span>
+     <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;TABLE&quot;</span><span class="p">,</span>
+     <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;NAME&quot;</span><span class="p">,</span>
+     <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;TABSTRIP&quot;</span><span class="p">,</span>
+     <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;TABSTRIP_PAGE&quot;</span><span class="p">,</span>
+     <span class="mh">0x0a</span><span class="p">:</span> <span class="s2">&quot;CONTROL&quot;</span><span class="p">,</span>
+     <span class="mh">0x0c</span><span class="p">:</span> <span class="s2">&quot;XMLPROP&quot;</span><span class="p">,</span>
+     <span class="mh">0x0d</span><span class="p">:</span> <span class="s2">&quot;SPLITTER&quot;</span><span class="p">,</span>
+     <span class="mh">0x0e</span><span class="p">:</span> <span class="s2">&quot;SPLITTER_CELL&quot;</span><span class="p">},</span>
+    <span class="mh">0x0b</span><span class="p">:</span>    <span class="c1"># MNUENTRY</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;MENU_ACT&quot;</span><span class="p">,</span>
+     <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;MENU_MNU&quot;</span><span class="p">,</span>
+     <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;MENU_PFK&quot;</span><span class="p">,</span>
+     <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;MENU_KYB&quot;</span><span class="p">},</span>
+    <span class="mh">0x0c</span><span class="p">:</span>    <span class="c1"># VARINFO</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;MESTYPE&quot;</span><span class="p">,</span>
+     <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;SCROLL_INFOS&quot;</span><span class="p">,</span>
+     <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;MESTYPE2&quot;</span><span class="p">,</span>
+     <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;OKCODE&quot;</span><span class="p">,</span>
+     <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;CONTAINER&quot;</span><span class="p">,</span>
+     <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;SCROLL_INFOS2&quot;</span><span class="p">,</span>
+     <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;AREASIZE&quot;</span><span class="p">,</span>
+     <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;AREA_PIXELSIZE&quot;</span><span class="p">,</span>
+     <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;SESSION_TITLE&quot;</span><span class="p">,</span>
+     <span class="mh">0x0a</span><span class="p">:</span> <span class="s2">&quot;SESSION_ICON&quot;</span><span class="p">,</span>
+     <span class="mh">0x0b</span><span class="p">:</span> <span class="s2">&quot;LIST_CELL_TEXT&quot;</span><span class="p">,</span>
+     <span class="mh">0x0c</span><span class="p">:</span> <span class="s2">&quot;CONTAINER_LOOP&quot;</span><span class="p">,</span>
+     <span class="mh">0x0d</span><span class="p">:</span> <span class="s2">&quot;LIST_FOCUS&quot;</span><span class="p">,</span>
+     <span class="mh">0x0e</span><span class="p">:</span> <span class="s2">&quot;MAINAREA_PIXELSIZE&quot;</span><span class="p">,</span>
+     <span class="mh">0x0f</span><span class="p">:</span> <span class="s2">&quot;SERVICE_REQUEST&quot;</span><span class="p">},</span>
+    <span class="mh">0x0e</span><span class="p">:</span>    <span class="c1"># CONTROL</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;CONTROL_PROPERTIES&quot;</span><span class="p">},</span>
+    <span class="mh">0x0f</span><span class="p">:</span>    <span class="c1"># UI_EVENT</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;UI_EVENT_SOURCE&quot;</span><span class="p">},</span>
+    <span class="mh">0x12</span><span class="p">:</span>    <span class="c1"># ACC_LIST</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;ACC_LIST_INFO4FIELD&quot;</span><span class="p">,</span>
+     <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;ACC_LIST_CONTAINER&quot;</span><span class="p">},</span>
+    <span class="mh">0x13</span><span class="p">:</span>    <span class="c1"># RCUI</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;RCUI_STREAM&quot;</span><span class="p">,</span>
+     <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;RCUI_SYSTEM_ERROR&quot;</span><span class="p">,</span>
+     <span class="mh">0x03</span><span class="p">:</span> <span class="s2">&quot;RCUI_SPAGPA&quot;</span><span class="p">,</span>
+     <span class="mh">0x04</span><span class="p">:</span> <span class="s2">&quot;RCUI_MEMORYID&quot;</span><span class="p">,</span>
+     <span class="mh">0x05</span><span class="p">:</span> <span class="s2">&quot;RCUI_TXOPTION&quot;</span><span class="p">,</span>
+     <span class="mh">0x06</span><span class="p">:</span> <span class="s2">&quot;RCUI_VALUE&quot;</span><span class="p">,</span>
+     <span class="mh">0x07</span><span class="p">:</span> <span class="s2">&quot;RCUI_COMMAND&quot;</span><span class="p">,</span>
+     <span class="mh">0x08</span><span class="p">:</span> <span class="s2">&quot;RCUI_BDCMSG&quot;</span><span class="p">,</span>
+     <span class="mh">0x09</span><span class="p">:</span> <span class="s2">&quot;RCUI_CONNECT_DATA&quot;</span><span class="p">},</span>
+    <span class="mh">0x14</span><span class="p">:</span>    <span class="c1"># GUI_PACKET</span>
+    <span class="p">{</span><span class="mh">0x01</span><span class="p">:</span> <span class="s2">&quot;GUI_PACKET_STATE&quot;</span><span class="p">,</span>
+     <span class="mh">0x02</span><span class="p">:</span> <span class="s2">&quot;GUI_PACKET_DATA&quot;</span><span class="p">}</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Diag APPL/APPL4 SIDs&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="diag_item_is_short"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.diag_item_is_short">[docs]</a><span class="k">def</span> <span class="nf">diag_item_is_short</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns if the item has a short length field</span>
+
+<span class="sd">    :param item: item to look at</span>
+<span class="sd">    :type item: :class:`SAPDiagItem`</span>
+
+<span class="sd">    :return: if the item has a short length field (2 bytes)</span>
+<span class="sd">    :rtype: ``bool``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">item</span><span class="o">.</span><span class="n">item_type</span> <span class="o">==</span> <span class="mh">0x10</span>  <span class="c1"># APPL</span></div>
+
+
+<div class="viewcode-block" id="diag_item_is_long"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.diag_item_is_long">[docs]</a><span class="k">def</span> <span class="nf">diag_item_is_long</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns if the item has a long length field</span>
+
+<span class="sd">    :param item: item to look at</span>
+<span class="sd">    :type item: :class:`SAPDiagItem`</span>
+
+<span class="sd">    :return: if the item has a long length field (4 bytes)</span>
+<span class="sd">    :rtype: ``bool``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">item</span><span class="o">.</span><span class="n">item_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x11</span><span class="p">,</span> <span class="mh">0x12</span><span class="p">]</span>    <span class="c1"># DIAG_XMLBLOB or APPL4</span></div>
+
+
+<div class="viewcode-block" id="diag_item_is_appl_appl4"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.diag_item_is_appl_appl4">[docs]</a><span class="k">def</span> <span class="nf">diag_item_is_appl_appl4</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns if an item is APPL or APPL4</span>
+
+<span class="sd">    :param item: item to look a</span>
+<span class="sd">    :type item: :class:`SAPDiagItem`</span>
+
+<span class="sd">    :return: whether the item is a APPL or APPL4 item</span>
+<span class="sd">    :rtype: ``bool``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">item</span><span class="o">.</span><span class="n">item_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x10</span><span class="p">,</span> <span class="mh">0x12</span><span class="p">]</span>    <span class="c1"># APPL or APPL4</span></div>
+
+
+<div class="viewcode-block" id="diag_item_get_length"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.diag_item_get_length">[docs]</a><span class="k">def</span> <span class="nf">diag_item_get_length</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the item length according to the item_type</span>
+
+<span class="sd">    :param item: item to look at</span>
+<span class="sd">    :type item: :class:`SAPDiagItem`</span>
+
+<span class="sd">    :return: the item length</span>
+<span class="sd">    :rtype: ``int``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">diag_item_sizes</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="mh">0x01</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span>                   <span class="c1"># SES</span>
+        <span class="mh">0x02</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>                   <span class="c1"># ICO</span>
+        <span class="mh">0x03</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>                    <span class="c1"># TIT</span>
+        <span class="mh">0x07</span><span class="p">:</span> <span class="mi">76</span><span class="p">,</span>                   <span class="c1"># DiagMessage (old format)</span>
+        <span class="mh">0x08</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>                    <span class="c1"># OKC XXX: Never seen this, check proper size</span>
+        <span class="mh">0x09</span><span class="p">:</span> <span class="mi">22</span><span class="p">,</span>                   <span class="c1"># CHL</span>
+        <span class="mh">0x0a</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>                    <span class="c1"># SFE</span>
+        <span class="mh">0x0b</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>                    <span class="c1"># SBA</span>
+        <span class="mh">0x0c</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>                    <span class="c1"># EOM</span>
+        <span class="mh">0x10</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">item_length</span><span class="p">,</span>     <span class="c1"># APPL</span>
+        <span class="mh">0x11</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">item_length4</span><span class="p">,</span>    <span class="c1"># DIAG_XMLBLOB</span>
+        <span class="mh">0x12</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">item_length4</span><span class="p">,</span>    <span class="c1"># APPL4</span>
+        <span class="mh">0x13</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>                    <span class="c1"># SLC</span>
+        <span class="mh">0x15</span><span class="p">:</span> <span class="mi">36</span><span class="p">,</span>                   <span class="c1"># SBA2</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">diag_item_sizes</span><span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">item_type</span><span class="p">]</span></div>
+
+
+<span class="n">diag_item_classes</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="sd">&quot;&quot;&quot;Dictionary for registering Diag item classes &quot;&quot;&quot;</span>
+
+
+<span class="n">diag_item_appl_classes</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="n">defaultdict</span><span class="p">)</span>
+<span class="sd">&quot;&quot;&quot;Dictionary for registering Diag APPL/APPL4 item classes &quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="bind_diagitem"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.bind_diagitem">[docs]</a><span class="k">def</span> <span class="nf">bind_diagitem</span><span class="p">(</span><span class="n">item_class</span><span class="p">,</span> <span class="n">item_type</span><span class="p">,</span> <span class="n">item_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">item_sid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Registers a Diag item class associated to a given type, ID and SID.</span>
+
+<span class="sd">    :param item_class: item class to associate</span>
+<span class="sd">    :type item_class: :class:`SAPDiagItem` class</span>
+
+<span class="sd">    :param item_type: item type to associate</span>
+<span class="sd">    :type item_type: ``int`` or ``string``</span>
+
+<span class="sd">    :param item_id: item ID to associate</span>
+<span class="sd">    :type item_id: ``int``</span>
+
+<span class="sd">    :param item_sid: item SID to associate</span>
+<span class="sd">    :type item_sid: ``int``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">item_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x10</span><span class="p">,</span> <span class="mh">0x12</span><span class="p">,</span> <span class="s2">&quot;APPL&quot;</span><span class="p">,</span> <span class="s2">&quot;APPL4&quot;</span><span class="p">]:</span>
+        <span class="n">diag_item_appl_classes</span><span class="p">[</span><span class="n">item_id</span><span class="p">][</span><span class="n">item_sid</span><span class="p">]</span> <span class="o">=</span> <span class="n">item_class</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">diag_item_classes</span><span class="p">[</span><span class="n">item_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">item_class</span></div>
+
+
+<div class="viewcode-block" id="diag_item_get_class"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.diag_item_get_class">[docs]</a><span class="k">def</span> <span class="nf">diag_item_get_class</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">item_type</span><span class="p">,</span> <span class="n">item_id</span><span class="p">,</span> <span class="n">item_sid</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Obtains the Diag item class according to the type, ID and SID of the packet.</span>
+<span class="sd">    If the Type/ID/SID is not registered, returns None.</span>
+
+<span class="sd">    :param pkt: the item to look at</span>
+<span class="sd">    :type pkt: :class:`SAPDiagItem`</span>
+
+<span class="sd">    :param item_type: function that returns the item type</span>
+<span class="sd">    :type item_type: ``int``</span>
+
+<span class="sd">    :param item_id: function that returns the item ID</span>
+<span class="sd">    :type item_id: ``int``</span>
+
+<span class="sd">    :param item_sid: functions that returns the item SID</span>
+<span class="sd">    :type item_sid: ``int``</span>
+
+<span class="sd">    :return: the associated :class:`SAPDiagItem` class if registered or None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">item_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mh">0x10</span><span class="p">,</span> <span class="mh">0x12</span><span class="p">,</span> <span class="s2">&quot;APPL&quot;</span><span class="p">,</span> <span class="s2">&quot;APPL4&quot;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">item_id</span> <span class="ow">in</span> <span class="n">diag_item_appl_classes</span> <span class="ow">and</span> <span class="n">item_sid</span> <span class="ow">in</span> <span class="n">diag_item_appl_classes</span><span class="p">[</span><span class="n">item_id</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="n">diag_item_appl_classes</span><span class="p">[</span><span class="n">item_id</span><span class="p">][</span><span class="n">item_sid</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">diag_item_classes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">item_type</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SAPDiagItem"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.SAPDiagItem">[docs]</a><span class="k">class</span> <span class="nc">SAPDiagItem</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Diag Item packet</span>
+
+<span class="sd">    This packet holds the different types of Diag items. The value field is</span>
+<span class="sd">    interpreted according to the Type/ID/SID specified for the item.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Diag Item&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span><span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;item_type&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">diag_item_types</span><span class="p">),</span>
+                   <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;item_id&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">diag_appl_ids</span><span class="p">),</span> <span class="n">diag_item_is_appl_appl4</span><span class="p">),</span>
+                   <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteMultiEnumKeysField</span><span class="p">(</span><span class="s2">&quot;item_sid&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">diag_appl_sids</span><span class="p">,</span> <span class="n">depends_on</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span><span class="n">item</span><span class="o">.</span><span class="n">item_id</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;B&quot;</span><span class="p">),</span> <span class="n">diag_item_is_appl_appl4</span><span class="p">),</span>
+                   <span class="n">ConditionalField</span><span class="p">(</span><span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;item_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;item_value&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;!H&quot;</span><span class="p">),</span> <span class="n">diag_item_is_short</span><span class="p">),</span>
+                   <span class="n">ConditionalField</span><span class="p">(</span><span class="n">FieldLenField</span><span class="p">(</span><span class="s2">&quot;item_length4&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">length_of</span><span class="o">=</span><span class="s2">&quot;item_value&quot;</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s2">&quot;!I&quot;</span><span class="p">),</span> <span class="n">diag_item_is_long</span><span class="p">),</span>
+                   <span class="n">MutablePacketField</span><span class="p">(</span><span class="s2">&quot;item_value&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
+                                      <span class="n">length_from</span><span class="o">=</span><span class="n">diag_item_get_length</span><span class="p">,</span>
+                                      <span class="n">get_class</span><span class="o">=</span><span class="n">diag_item_get_class</span><span class="p">,</span>
+                                      <span class="n">evaluators</span><span class="o">=</span><span class="p">[</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span><span class="n">item</span><span class="o">.</span><span class="n">item_type</span><span class="p">,</span>
+                                                  <span class="k">lambda</span> <span class="n">item</span><span class="p">:</span><span class="n">item</span><span class="o">.</span><span class="n">item_id</span><span class="p">,</span>
+                                                  <span class="k">lambda</span> <span class="n">item</span><span class="p">:</span><span class="n">item</span><span class="o">.</span><span class="n">item_sid</span><span class="p">],</span>
+                                      <span class="p">)</span>
+                   <span class="p">]</span></div>
+
+
+<span class="c1"># SAP Diag Items container</span>
+<div class="viewcode-block" id="SAPDiagItems"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.SAPDiagItems">[docs]</a><span class="k">class</span> <span class="nc">SAPDiagItems</span><span class="p">(</span><span class="n">Packet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Diag Items container</span>
+
+<span class="sd">    Container for :class:`SAPDiagItem` packets.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Diag Items&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span><span class="n">PacketListField</span><span class="p">(</span><span class="s2">&quot;message&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPDiagItem</span><span class="p">)]</span></div>
+
+<span class="c1"># Compression Flag values</span>
+<span class="n">diag_compress_values</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="s2">&quot;Compression switched off&quot;</span><span class="p">,</span>
+                        <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;Compression switched on&quot;</span><span class="p">,</span>
+                        <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;Data encrypted&quot;</span><span class="p">,</span>
+                        <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;Data encrypted wrap&quot;</span><span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Compression Flag values&quot;&quot;&quot;</span>
+
+
+<span class="c1"># SAP Diag packet</span>
+<div class="viewcode-block" id="SAPDiag"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.SAPDiag">[docs]</a><span class="k">class</span> <span class="nc">SAPDiag</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Diag packet</span>
+
+<span class="sd">    This packet holds the Diag Header and serve as a container for</span>
+<span class="sd">    :class:`SAPDiagItem` items. It handles compression/decompression, adding the</span>
+<span class="sd">    appropriate Compression Header when necessary.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Diag&quot;</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+
+        <span class="c1"># Communication flags</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;com_flag_TERM_GRA&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;com_flag_TERM_NNM&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;com_flag_TERM_CAS&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;com_flag_TERM_INI&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;com_flag_TERM_EOP&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;com_flag_TERM_NOP&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;com_flag_TERM_EOC&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">BitField</span><span class="p">(</span><span class="s2">&quot;com_flag_TERM_EOS&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;mode_stat&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;err_no&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;msg_type&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;msg_info&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;msg_rc&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">ByteEnumKeysField</span><span class="p">(</span><span class="s2">&quot;compress&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">diag_compress_values</span><span class="p">),</span>
+
+        <span class="c1"># Compression Header</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">LEIntField</span><span class="p">(</span><span class="s2">&quot;uncompress_length&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span><span class="n">pkt</span><span class="o">.</span><span class="n">compress</span> <span class="o">==</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteEnumField</span><span class="p">(</span><span class="s2">&quot;algorithm&quot;</span><span class="p">,</span> <span class="mh">0x12</span><span class="p">,</span> <span class="p">{</span><span class="mh">0x12</span><span class="p">:</span> <span class="s2">&quot;LZH&quot;</span><span class="p">,</span> <span class="mh">0x10</span><span class="p">:</span> <span class="s2">&quot;LZC&quot;</span><span class="p">}),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">pkt</span><span class="o">.</span><span class="n">compress</span> <span class="o">==</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrFixedLenField</span><span class="p">(</span><span class="s2">&quot;magic_bytes&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\x1f\x9d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">pkt</span><span class="o">.</span><span class="n">compress</span> <span class="o">==</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">ByteField</span><span class="p">(</span><span class="s2">&quot;special&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">pkt</span><span class="o">.</span><span class="n">compress</span> <span class="o">==</span> <span class="mi">1</span><span class="p">),</span>
+
+        <span class="c1"># SNC Frame</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">PacketField</span><span class="p">(</span><span class="s2">&quot;snc_frame&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPSNCFrame</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">pkt</span><span class="o">.</span><span class="n">compress</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]),</span>
+
+        <span class="c1"># Message info</span>
+        <span class="n">ConditionalField</span><span class="p">(</span><span class="n">StrEncodedPaddedField</span><span class="p">(</span><span class="s2">&quot;info&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="k">lambda</span> <span class="n">pkt</span><span class="p">:</span> <span class="n">pkt</span><span class="o">.</span><span class="n">err_no</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">),</span>
+
+        <span class="c1"># Payload</span>
+        <span class="n">PacketListField</span><span class="p">(</span><span class="s2">&quot;message&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SAPDiagItem</span><span class="p">)]</span>
+
+<div class="viewcode-block" id="SAPDiag.do_compress"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.SAPDiag.do_compress">[docs]</a>    <span class="k">def</span> <span class="nf">do_compress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compress a string using SAP compression C++ extension.</span>
+
+<span class="sd">        :param s: string to compress</span>
+<span class="sd">        :type s: C{string}</span>
+
+<span class="sd">        :return: string compression header plus the compressed string</span>
+<span class="sd">        :rtype: C{string}</span>
+
+<span class="sd">        :raise pysapcompress.Error: when a compression error is raised</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Compress the payload and return the output</span>
+            <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">outbuffer</span><span class="p">)</span> <span class="o">=</span> <span class="n">pysapcompress</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">pysapcompress</span><span class="o">.</span><span class="n">ALG_LZH</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">outbuffer</span></div>
+
+<div class="viewcode-block" id="SAPDiag.do_decompress"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.SAPDiag.do_decompress">[docs]</a>    <span class="k">def</span> <span class="nf">do_decompress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">length</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decompress a string using SAP compression C++ extension.</span>
+
+<span class="sd">        :param s: compression header plus compressed string</span>
+<span class="sd">        :type s: C{string}</span>
+
+<span class="sd">        :param length: reported compressed length</span>
+<span class="sd">        :type length: ``int``</span>
+
+<span class="sd">        :return: decompressed string</span>
+<span class="sd">        :rtype: C{string}</span>
+
+<span class="sd">        :raise pysapcompress.Error: when a decompression error is raised</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Decompress the payload and return the output</span>
+            <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">outbuffer</span><span class="p">)</span> <span class="o">=</span> <span class="n">pysapcompress</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">outbuffer</span></div>
+
+<div class="viewcode-block" id="SAPDiag.pre_dissect"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.SAPDiag.pre_dissect">[docs]</a>    <span class="k">def</span> <span class="nf">pre_dissect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Prepares the packet for dissection. If the compression flag is set,</span>
+<span class="sd">        decompress the payload.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If the compression flag is set, decompress everything after the headers</span>
+        <span class="k">if</span> <span class="n">s</span><span class="p">[</span><span class="mi">7</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;</span><span class="se">\x01</span><span class="s2">&quot;</span><span class="p">:</span>
+            <span class="c1"># First need to get the reported decompressed length</span>
+            <span class="p">(</span><span class="n">reported_length</span><span class="p">,</span> <span class="p">)</span> <span class="o">=</span> <span class="n">unpack</span><span class="p">(</span><span class="s2">&quot;&lt;I&quot;</span><span class="p">,</span> <span class="n">s</span><span class="p">[</span><span class="mi">8</span><span class="p">:</span><span class="mi">12</span><span class="p">])</span>
+
+            <span class="c1"># Then return the headers (Diag and Compression) and the payload (message field)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">s</span><span class="p">[:</span><span class="mi">16</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_decompress</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="mi">8</span><span class="p">:],</span> <span class="n">reported_length</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">DecompressError</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">s</span>
+        <span class="c1"># Uncompressed packet, just return them</span>
+        <span class="k">return</span> <span class="n">s</span></div>
+
+<div class="viewcode-block" id="SAPDiag.post_build"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.SAPDiag.post_build">[docs]</a>    <span class="k">def</span> <span class="nf">post_build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">pay</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compress the payload. If the compression flag is set, compress both</span>
+<span class="sd">        the message field and the payload.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">pay</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pay</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compress</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">payload</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">])</span> <span class="o">+</span> <span class="n">pay</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">p</span><span class="p">[:</span><span class="mi">8</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_compress</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">CompressError</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">p</span> <span class="o">+</span> <span class="n">pay</span>
+        <span class="k">return</span> <span class="n">p</span> <span class="o">+</span> <span class="n">pay</span></div>
+
+<div class="viewcode-block" id="SAPDiag.get_item"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.SAPDiag.get_item">[docs]</a>    <span class="k">def</span> <span class="nf">get_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">item_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">item_sid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get an item from the packet&#39;s message. Returns None if the message</span>
+<span class="sd">        is not found, or a list if the item is found multiple times.</span>
+
+<span class="sd">        :param item_type: item type byte or string value</span>
+<span class="sd">        :type item_type: ``int`` or C{string} or ``list``</span>
+
+<span class="sd">        :param item_id: item ID byte or string value</span>
+<span class="sd">        :type item_id: ``int`` or C{string} or ``list``</span>
+
+<span class="sd">        :param item_sid: item SID byte or string value</span>
+<span class="sd">        :type item_sid: ``int`` or C{string} or ``list``</span>
+
+<span class="sd">        :return: list of items found on the packet or None</span>
+<span class="sd">        :rtype: ``list`` of :class:`SAPDiagItem`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Expand list lookups</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">item_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">item_type</span><span class="p">)</span> <span class="o">==</span> <span class="nb">list</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">itype</span> <span class="ow">in</span> <span class="n">item_type</span><span class="p">:</span>
+                <span class="n">items</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_item</span><span class="p">(</span><span class="n">itype</span><span class="p">,</span> <span class="n">item_id</span><span class="p">,</span> <span class="n">item_sid</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">items</span>
+        <span class="k">if</span> <span class="n">item_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">item_id</span><span class="p">)</span> <span class="o">==</span> <span class="nb">list</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">iid</span> <span class="ow">in</span> <span class="n">item_id</span><span class="p">:</span>
+                <span class="n">items</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_item</span><span class="p">(</span><span class="n">item_type</span><span class="p">,</span> <span class="n">iid</span><span class="p">,</span> <span class="n">item_sid</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">items</span>
+        <span class="k">if</span> <span class="n">item_sid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">item_sid</span><span class="p">)</span> <span class="o">==</span> <span class="nb">list</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">isid</span> <span class="ow">in</span> <span class="n">item_sid</span><span class="p">:</span>
+                <span class="n">items</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_item</span><span class="p">(</span><span class="n">item_type</span><span class="p">,</span> <span class="n">item_id</span><span class="p">,</span> <span class="n">isid</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">items</span>
+
+        <span class="c1"># Perform name lookups</span>
+        <span class="k">if</span> <span class="n">item_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item_type</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">item_type</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">diag_item_types</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="nb">list</span><span class="p">(</span><span class="n">diag_item_types</span><span class="o">.</span><span class="n">values</span><span class="p">())</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">item_type</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="n">item_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">item_id</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">diag_appl_ids</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="nb">list</span><span class="p">(</span><span class="n">diag_appl_ids</span><span class="o">.</span><span class="n">values</span><span class="p">())</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">item_id</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="n">item_sid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item_sid</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">item_sid</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">diag_appl_sids</span><span class="p">[</span><span class="n">item_id</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="nb">list</span><span class="p">(</span><span class="n">diag_appl_sids</span><span class="p">[</span><span class="n">item_id</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">())</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">item_sid</span><span class="p">)]</span>
+
+        <span class="c1"># Filter and return items</span>
+        <span class="k">if</span> <span class="n">item_sid</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">item_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">items</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="s2">&quot;item_type&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">item_type</span> <span class="o">==</span> <span class="n">item_type</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">item_sid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">items</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="s2">&quot;item_type&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">item_type</span> <span class="o">==</span> <span class="n">item_type</span> <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">item_id</span> <span class="o">==</span> <span class="n">item_id</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">items</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="s2">&quot;item_type&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">item_type</span> <span class="o">==</span> <span class="n">item_type</span> <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">item_id</span> <span class="o">==</span> <span class="n">item_id</span> <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">item_sid</span> <span class="o">==</span> <span class="n">item_sid</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">items</span></div></div>
+
+
+<div class="viewcode-block" id="SAPDiagError"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.SAPDiagError">[docs]</a><span class="k">class</span> <span class="nc">SAPDiagError</span><span class="p">(</span><span class="n">PacketNoPadded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;SAP Diag Error packet</span>
+
+<span class="sd">    This packet holds Diag error packets.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;SAP Diag Error&quot;</span>
+    <span class="c1"># TODO: Need to figure out the meaning of the packets</span>
+    <span class="n">fields_desc</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">StrNullFixedLenField</span><span class="p">(</span><span class="s2">&quot;msg&quot;</span><span class="p">,</span> <span class="s2">&quot;**DPTMMSG**&quot;</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">12</span><span class="p">),</span>
+        <span class="n">StrField</span><span class="p">(</span><span class="s2">&quot;padd&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+    <span class="p">]</span></div>
+
+
+<span class="c1"># Bind SAP NI with the Diag port</span>
+<span class="n">bind_layers</span><span class="p">(</span><span class="n">TCP</span><span class="p">,</span> <span class="n">SAPNI</span><span class="p">,</span> <span class="n">dport</span><span class="o">=</span><span class="mi">3200</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="diag_guess_diagdp_header"><a class="viewcode-back" href="../../api/pysap.SAPDiag.html#pysap.SAPDiag.diag_guess_diagdp_header">[docs]</a><span class="k">def</span> <span class="nf">diag_guess_diagdp_header</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">payload</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Guess if the payload is a :class:`SAPDiag` or :class:`SAPDiagDP`, base on the mode field.</span>
+<span class="sd">    Use this function as guess_payload_class for the :class:`SAPNI` packet if need to</span>
+<span class="sd">    dissect :class:`SAPDiag` packets.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="mi">14</span> <span class="ow">and</span> <span class="n">payload</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;**DPTMMSG**</span><span class="se">\x00</span><span class="s2">&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">SAPDiagError</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="mi">17</span> <span class="ow">and</span> <span class="n">payload</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;**DPTMOPC**</span><span class="se">\x00</span><span class="s2">&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">SAPDiagError</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span> <span class="o">&gt;</span> <span class="mi">200</span> <span class="o">+</span> <span class="mi">8</span> <span class="ow">and</span> <span class="n">payload</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;</span><span class="se">\xff</span><span class="s2">&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">SAPDiagDP</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">SAPDiag</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2012-2018, Martin Gallo, Core Security.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

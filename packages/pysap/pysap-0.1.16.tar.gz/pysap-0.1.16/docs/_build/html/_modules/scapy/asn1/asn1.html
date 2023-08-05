@@ -1,0 +1,541 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>scapy.asn1.asn1 &#8212; pysap 0.1.16 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for scapy.asn1.asn1</h1><div class="highlight"><pre>
+<span></span><span class="c1">## This file is part of Scapy</span>
+<span class="c1">## See http://www.secdev.org/projects/scapy for more informations</span>
+<span class="c1">## Copyright (C) Philippe Biondi &lt;phil@secdev.org&gt;</span>
+<span class="c1">## Modified by Maxence Tury &lt;maxence.tury@ssi.gouv.fr&gt;</span>
+<span class="c1">## This program is published under a GPLv2 license</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">ASN.1 (Abstract Syntax Notation One)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">scapy.config</span> <span class="k">import</span> <span class="n">conf</span>
+<span class="kn">from</span> <span class="nn">scapy.error</span> <span class="k">import</span> <span class="n">Scapy_Exception</span><span class="p">,</span> <span class="n">warning</span>
+<span class="kn">from</span> <span class="nn">scapy.volatile</span> <span class="k">import</span> <span class="n">RandField</span><span class="p">,</span> <span class="n">RandIP</span><span class="p">,</span> <span class="n">GeneralizedTime</span>
+<span class="kn">from</span> <span class="nn">scapy.utils</span> <span class="k">import</span> <span class="n">Enum_metaclass</span><span class="p">,</span> <span class="n">EnumElement</span><span class="p">,</span> <span class="n">binrepr</span>
+<span class="kn">from</span> <span class="nn">scapy.compat</span> <span class="k">import</span> <span class="n">plain_str</span><span class="p">,</span> <span class="n">chb</span><span class="p">,</span> <span class="n">raw</span><span class="p">,</span> <span class="n">orb</span>
+<span class="kn">import</span> <span class="nn">scapy.modules.six</span> <span class="k">as</span> <span class="nn">six</span>
+<span class="kn">from</span> <span class="nn">scapy.modules.six.moves</span> <span class="k">import</span> <span class="nb">range</span>
+
+<span class="k">class</span> <span class="nc">RandASN1Object</span><span class="p">(</span><span class="n">RandField</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objlist</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">objlist</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">x</span><span class="o">.</span><span class="n">_asn1_obj</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">itervalues</span><span class="p">(</span><span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">__rdict__</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">&quot;_asn1_obj&quot;</span><span class="p">)</span>
+        <span class="p">]</span> <span class="k">if</span> <span class="n">objlist</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">objlist</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chars</span> <span class="o">=</span> <span class="s2">&quot;ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789&quot;</span>
+    <span class="k">def</span> <span class="nf">_fix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">objlist</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">ASN1_INTEGER</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">o</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">gauss</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1000</span><span class="p">)))</span>
+        <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">ASN1_IPADDRESS</span><span class="p">):</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">RandIP</span><span class="p">()</span><span class="o">.</span><span class="n">_fix</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">o</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">ASN1_GENERALIZED_TIME</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">ASN1_UTC_TIME</span><span class="p">):</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="n">GeneralizedTime</span><span class="p">()</span><span class="o">.</span><span class="n">_fix</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">o</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">ASN1_STRING</span><span class="p">):</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">expovariate</span><span class="p">(</span><span class="mf">0.05</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">o</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chars</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">z</span><span class="p">)))</span>
+        <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">ASN1_SEQUENCE</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">n</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">):</span>
+            <span class="n">z</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">expovariate</span><span class="p">(</span><span class="mf">0.08</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">o</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">(</span><span class="n">objlist</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">objlist</span><span class="p">)</span><span class="o">.</span><span class="n">_fix</span><span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                      <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">z</span><span class="p">)])</span>
+        <span class="k">return</span> <span class="n">ASN1_INTEGER</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">gauss</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1000</span><span class="p">)))</span>
+
+
+<span class="c1">##############</span>
+<span class="c1">#### ASN1 ####</span>
+<span class="c1">##############</span>
+
+<span class="k">class</span> <span class="nc">ASN1_Error</span><span class="p">(</span><span class="n">Scapy_Exception</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+<span class="k">class</span> <span class="nc">ASN1_Encoding_Error</span><span class="p">(</span><span class="n">ASN1_Error</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+<span class="k">class</span> <span class="nc">ASN1_Decoding_Error</span><span class="p">(</span><span class="n">ASN1_Error</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+<span class="k">class</span> <span class="nc">ASN1_BadTag_Decoding_Error</span><span class="p">(</span><span class="n">ASN1_Decoding_Error</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+
+<span class="k">class</span> <span class="nc">ASN1Codec</span><span class="p">(</span><span class="n">EnumElement</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">register_stem</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">stem</span><span class="p">):</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_stem</span> <span class="o">=</span> <span class="n">stem</span>
+    <span class="k">def</span> <span class="nf">dec</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_stem</span><span class="o">.</span><span class="n">dec</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">safedec</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_stem</span><span class="o">.</span><span class="n">safedec</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">get_stem</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">stem</span>
+    
+
+<span class="k">class</span> <span class="nc">ASN1_Codecs_metaclass</span><span class="p">(</span><span class="n">Enum_metaclass</span><span class="p">):</span>
+    <span class="n">element_class</span> <span class="o">=</span> <span class="n">ASN1Codec</span>
+
+<span class="k">class</span> <span class="nc">ASN1_Codecs</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">ASN1_Codecs_metaclass</span><span class="p">)):</span>
+    <span class="n">BER</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">DER</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">PER</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">CER</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">LWER</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">BACnet</span> <span class="o">=</span> <span class="mi">6</span>
+    <span class="n">OER</span> <span class="o">=</span> <span class="mi">7</span>
+    <span class="n">SER</span> <span class="o">=</span> <span class="mi">8</span>
+    <span class="n">XER</span> <span class="o">=</span> <span class="mi">9</span>
+
+<span class="k">class</span> <span class="nc">ASN1Tag</span><span class="p">(</span><span class="n">EnumElement</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">codec</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">EnumElement</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_context</span> <span class="o">=</span> <span class="n">context</span>
+        <span class="k">if</span> <span class="n">codec</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">codec</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_codec</span> <span class="o">=</span> <span class="n">codec</span>
+    <span class="k">def</span> <span class="nf">clone</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="c1"># /!\ not a real deep copy. self.codec is shared</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_codec</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">register_asn1_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">asn1obj</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_asn1_obj</span> <span class="o">=</span> <span class="n">asn1obj</span>
+    <span class="k">def</span> <span class="nf">asn1_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">&quot;_asn1_obj&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_asn1_obj</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">ASN1_Error</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%r</span><span class="s2"> does not have any assigned ASN1 object&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">register</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">codecnum</span><span class="p">,</span> <span class="n">codec</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_codec</span><span class="p">[</span><span class="n">codecnum</span><span class="p">]</span> <span class="o">=</span> <span class="n">codec</span>
+    <span class="k">def</span> <span class="nf">get_codec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">codec</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_codec</span><span class="p">[</span><span class="n">codec</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">msg</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ASN1_Error</span><span class="p">(</span><span class="s2">&quot;Codec </span><span class="si">%r</span><span class="s2"> not found for tag </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">codec</span><span class="p">,</span> <span class="bp">self</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">c</span>
+
+<span class="k">class</span> <span class="nc">ASN1_Class_metaclass</span><span class="p">(</span><span class="n">Enum_metaclass</span><span class="p">):</span>
+    <span class="n">element_class</span> <span class="o">=</span> <span class="n">ASN1Tag</span>
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">dct</span><span class="p">):</span> <span class="c1"># XXX factorise a bit with Enum_metaclass.__new__()</span>
+        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bases</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dct</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">ASN1Tag</span><span class="p">):</span>
+                    <span class="n">dct</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+
+        <span class="n">rdict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">dct</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">ASN1Tag</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">)</span> 
+                <span class="n">dct</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+                <span class="n">rdict</span><span class="p">[</span><span class="n">v</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">ASN1Tag</span><span class="p">):</span>
+                <span class="n">rdict</span><span class="p">[</span><span class="n">v</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;__rdict__&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rdict</span>
+
+        <span class="bp">cls</span> <span class="o">=</span> <span class="nb">type</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">dct</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">ASN1Tag</span><span class="p">):</span> 
+                <span class="n">v</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="bp">cls</span> <span class="c1"># overwrite ASN1Tag contexts, even cloned ones</span>
+        <span class="k">return</span> <span class="bp">cls</span>
+            
+
+<span class="k">class</span> <span class="nc">ASN1_Class</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">ASN1_Class_metaclass</span><span class="p">)):</span>
+    <span class="k">pass</span>
+
+<span class="k">class</span> <span class="nc">ASN1_Class_UNIVERSAL</span><span class="p">(</span><span class="n">ASN1_Class</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;UNIVERSAL&quot;</span>
+    <span class="n">ERROR</span> <span class="o">=</span> <span class="o">-</span><span class="mi">3</span>
+    <span class="n">RAW</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+    <span class="n">NONE</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">ANY</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">BOOLEAN</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">INTEGER</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">BIT_STRING</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">STRING</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">NULL</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">OID</span> <span class="o">=</span> <span class="mi">6</span>
+    <span class="n">OBJECT_DESCRIPTOR</span> <span class="o">=</span> <span class="mi">7</span>
+    <span class="n">EXTERNAL</span> <span class="o">=</span> <span class="mi">8</span>
+    <span class="n">REAL</span> <span class="o">=</span> <span class="mi">9</span>
+    <span class="n">ENUMERATED</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">EMBEDDED_PDF</span> <span class="o">=</span> <span class="mi">11</span>
+    <span class="n">UTF8_STRING</span> <span class="o">=</span> <span class="mi">12</span>
+    <span class="n">RELATIVE_OID</span> <span class="o">=</span> <span class="mi">13</span>
+    <span class="n">SEQUENCE</span> <span class="o">=</span> <span class="mi">16</span><span class="o">|</span><span class="mh">0x20</span>          <span class="c1"># constructed encoding</span>
+    <span class="n">SET</span> <span class="o">=</span> <span class="mi">17</span><span class="o">|</span><span class="mh">0x20</span>               <span class="c1"># constructed encoding</span>
+    <span class="n">NUMERIC_STRING</span> <span class="o">=</span> <span class="mi">18</span>
+    <span class="n">PRINTABLE_STRING</span> <span class="o">=</span> <span class="mi">19</span>
+    <span class="n">T61_STRING</span> <span class="o">=</span> <span class="mi">20</span>             <span class="c1"># aka TELETEX_STRING</span>
+    <span class="n">VIDEOTEX_STRING</span> <span class="o">=</span> <span class="mi">21</span>
+    <span class="n">IA5_STRING</span> <span class="o">=</span> <span class="mi">22</span>
+    <span class="n">UTC_TIME</span> <span class="o">=</span> <span class="mi">23</span>
+    <span class="n">GENERALIZED_TIME</span> <span class="o">=</span> <span class="mi">24</span>
+    <span class="n">GRAPHIC_STRING</span> <span class="o">=</span> <span class="mi">25</span>
+    <span class="n">ISO646_STRING</span> <span class="o">=</span> <span class="mi">26</span>          <span class="c1"># aka VISIBLE_STRING</span>
+    <span class="n">GENERAL_STRING</span> <span class="o">=</span> <span class="mi">27</span>
+    <span class="n">UNIVERSAL_STRING</span> <span class="o">=</span> <span class="mi">28</span>
+    <span class="n">CHAR_STRING</span> <span class="o">=</span> <span class="mi">29</span>
+    <span class="n">BMP_STRING</span> <span class="o">=</span> <span class="mi">30</span>
+    <span class="n">IPADDRESS</span> <span class="o">=</span> <span class="mi">0</span><span class="o">|</span><span class="mh">0x40</span>          <span class="c1"># application-specific encoding</span>
+    <span class="n">COUNTER32</span> <span class="o">=</span> <span class="mi">1</span><span class="o">|</span><span class="mh">0x40</span>          <span class="c1"># application-specific encoding</span>
+    <span class="n">GAUGE32</span> <span class="o">=</span> <span class="mi">2</span><span class="o">|</span><span class="mh">0x40</span>            <span class="c1"># application-specific encoding</span>
+    <span class="n">TIME_TICKS</span> <span class="o">=</span> <span class="mi">3</span><span class="o">|</span><span class="mh">0x40</span>         <span class="c1"># application-specific encoding</span>
+
+
+<span class="k">class</span> <span class="nc">ASN1_Object_metaclass</span><span class="p">(</span><span class="nb">type</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">dct</span><span class="p">):</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_Object_metaclass</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">dct</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">tag</span><span class="o">.</span><span class="n">register_asn1_object</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Error registering </span><span class="si">%r</span><span class="s2"> for </span><span class="si">%r</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">tag</span><span class="p">,</span> <span class="n">c</span><span class="o">.</span><span class="n">codec</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">c</span>
+
+<span class="k">class</span> <span class="nc">ASN1_Object</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">ASN1_Object_metaclass</span><span class="p">)):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">ANY</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">val</span>
+    <span class="k">def</span> <span class="nf">enc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">codec</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="o">.</span><span class="n">get_codec</span><span class="p">(</span><span class="n">codec</span><span class="p">)</span><span class="o">.</span><span class="n">enc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2">[</span><span class="si">%r</span><span class="s2">]&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">enc</span><span class="p">(</span><span class="n">conf</span><span class="o">.</span><span class="n">ASN1_default_codec</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__bytes__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">enc</span><span class="p">(</span><span class="n">conf</span><span class="o">.</span><span class="n">ASN1_default_codec</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">strshow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lvl</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s2">&quot;  &quot;</span><span class="o">*</span><span class="n">lvl</span><span class="p">)</span><span class="o">+</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lvl</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">strshow</span><span class="p">(</span><span class="n">lvl</span><span class="p">))</span>
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">==</span> <span class="n">other</span>
+    <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">&lt;</span> <span class="n">other</span>
+    <span class="k">def</span> <span class="nf">__le__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">&lt;=</span> <span class="n">other</span>
+    <span class="k">def</span> <span class="nf">__gt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">&gt;</span> <span class="n">other</span>
+    <span class="k">def</span> <span class="nf">__ge__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">&gt;=</span> <span class="n">other</span>
+    <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">!=</span> <span class="n">other</span>
+
+
+<span class="c1">#######################</span>
+<span class="c1">####  ASN1 objects ####</span>
+<span class="c1">#######################</span>
+
+<span class="c1"># on the whole, we order the classes by ASN1_Class_UNIVERSAL tag value</span>
+
+<span class="k">class</span> <span class="nc">ASN1_DECODING_ERROR</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">ERROR</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">exc</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">ASN1_Object</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exc</span> <span class="o">=</span> <span class="n">exc</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2">[</span><span class="si">%r</span><span class="s2">]{{</span><span class="si">%r</span><span class="s2">}}&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">),</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exc</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">def</span> <span class="nf">enc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">codec</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">ASN1_Object</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="o">.</span><span class="n">enc</span><span class="p">(</span><span class="n">codec</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span>
+
+<span class="k">class</span> <span class="nc">ASN1_force</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">RAW</span>
+    <span class="k">def</span> <span class="nf">enc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">codec</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="n">ASN1_Object</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="o">.</span><span class="n">enc</span><span class="p">(</span><span class="n">codec</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span>
+
+<span class="k">class</span> <span class="nc">ASN1_BADTAG</span><span class="p">(</span><span class="n">ASN1_force</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+<span class="k">class</span> <span class="nc">ASN1_INTEGER</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">INTEGER</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="nb">hex</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">h</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;L&quot;</span><span class="p">:</span>
+            <span class="n">h</span> <span class="o">=</span> <span class="n">h</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="c1"># cut at 22 because with leading &#39;0x&#39;, x509 serials should be &lt; 23</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">h</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">22</span><span class="p">:</span>
+            <span class="n">h</span> <span class="o">=</span> <span class="n">h</span><span class="p">[:</span><span class="mi">12</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;...&quot;</span> <span class="o">+</span> <span class="n">h</span><span class="p">[</span><span class="o">-</span><span class="mi">10</span><span class="p">:]</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="p">:</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">r</span><span class="p">[:</span><span class="mi">10</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;...&quot;</span> <span class="o">+</span> <span class="n">r</span><span class="p">[</span><span class="o">-</span><span class="mi">10</span><span class="p">:]</span>
+        <span class="k">return</span> <span class="n">h</span> <span class="o">+</span> <span class="s2">&quot; &lt;</span><span class="si">%s</span><span class="s2">[</span><span class="si">%s</span><span class="s2">]&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">),</span> <span class="n">r</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">ASN1_BOOLEAN</span><span class="p">(</span><span class="n">ASN1_INTEGER</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">BOOLEAN</span>
+    <span class="c1"># BER: 0 means False, anything else means True</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="o">==</span><span class="mi">0</span><span class="p">),</span> <span class="n">ASN1_Object</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+
+
+<span class="k">class</span> <span class="nc">ASN1_BIT_STRING</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    /!\ ASN1_BIT_STRING values are bit strings like &quot;011101&quot;.</span>
+<span class="sd">    /!\ A zero-bit padded readable string is provided nonetheless,</span>
+<span class="sd">    /!\ which is also output when __str__ is called.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">BIT_STRING</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">readable</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">readable</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">val</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">val_readable</span> <span class="o">=</span> <span class="n">val</span>
+    <span class="k">def</span> <span class="nf">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="n">str_value</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">str_value</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">raw</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;val_readable&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+                <span class="n">val</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">binrepr</span><span class="p">(</span><span class="n">orb</span><span class="p">(</span><span class="n">x</span><span class="p">))</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf8&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">value</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">val</span> <span class="o">=</span> <span class="s2">&quot;&lt;invalid val_readable&gt;&quot;</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="s2">&quot;val&quot;</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="s2">&quot;unused_bits&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">str_value</span><span class="p">:</span>
+                <span class="n">str_value</span> <span class="o">=</span> <span class="n">plain_str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">str_value</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;0&quot;</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">]):</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Invalid operation: &#39;val&#39; is not a valid bit string.&quot;</span><span class="p">)</span>
+                    <span class="k">return</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">%</span> <span class="mi">8</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">unused_bits</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">unused_bits</span> <span class="o">=</span> <span class="mi">8</span> <span class="o">-</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">%</span> <span class="mi">8</span><span class="p">)</span>
+                    <span class="n">padded_value</span> <span class="o">=</span> <span class="n">str_value</span> <span class="o">+</span> <span class="p">(</span><span class="s2">&quot;0&quot;</span> <span class="o">*</span> <span class="n">unused_bits</span><span class="p">)</span>
+                    <span class="n">bytes_arr</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="nb">iter</span><span class="p">(</span><span class="n">padded_value</span><span class="p">)]</span><span class="o">*</span><span class="mi">8</span><span class="p">)</span>
+                    <span class="n">val_readable</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chb</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="mi">2</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">bytes_arr</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">val_readable</span> <span class="o">=</span> <span class="s2">&quot;&lt;invalid val&gt;&quot;</span>
+                <span class="n">unused_bits</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="s2">&quot;val_readable&quot;</span><span class="p">,</span> <span class="n">val_readable</span><span class="p">)</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="s2">&quot;unused_bits&quot;</span><span class="p">,</span> <span class="n">unused_bits</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;unused_bits&quot;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Invalid operation: unused_bits rewriting is not supported.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">16</span><span class="p">:</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">plain_str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2">[</span><span class="si">%s</span><span class="s2">] (</span><span class="si">%d</span><span class="s2"> unused bit</span><span class="si">%s</span><span class="s2">)&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">),</span> <span class="n">v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unused_bits</span><span class="p">,</span> <span class="s2">&quot;s&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">unused_bits</span><span class="o">&gt;</span><span class="mi">1</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_readable</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="p">:</span>
+                <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="p">[:</span><span class="mi">10</span><span class="p">]</span> <span class="o">+</span> <span class="sa">b</span><span class="s2">&quot;...&quot;</span> <span class="o">+</span> <span class="n">s</span><span class="p">[</span><span class="o">-</span><span class="mi">10</span><span class="p">:]</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">plain_str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2">[</span><span class="si">%s</span><span class="s2">] (</span><span class="si">%d</span><span class="s2"> unused bit</span><span class="si">%s</span><span class="s2">)&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">),</span> <span class="n">v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unused_bits</span><span class="p">,</span> <span class="s2">&quot;s&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">unused_bits</span><span class="o">&gt;</span><span class="mi">1</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_readable</span>
+    <span class="k">def</span> <span class="nf">__bytes__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_readable</span>
+
+<span class="k">class</span> <span class="nc">ASN1_STRING</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1_NULL</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">NULL</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ASN1_Object</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">ASN1_OID</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">OID</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">mib</span><span class="o">.</span><span class="n">_oid</span><span class="p">(</span><span class="n">plain_str</span><span class="p">(</span><span class="n">val</span><span class="p">))</span>
+        <span class="n">ASN1_Object</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">oidname</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">mib</span><span class="o">.</span><span class="n">_oidname</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2">[</span><span class="si">%r</span><span class="s2">]&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">oidname</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">ASN1_ENUMERATED</span><span class="p">(</span><span class="n">ASN1_INTEGER</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">ENUMERATED</span>
+
+<span class="k">class</span> <span class="nc">ASN1_UTF8_STRING</span><span class="p">(</span><span class="n">ASN1_STRING</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">UTF8_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1_NUMERIC_STRING</span><span class="p">(</span><span class="n">ASN1_STRING</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">NUMERIC_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1_PRINTABLE_STRING</span><span class="p">(</span><span class="n">ASN1_STRING</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">PRINTABLE_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1_T61_STRING</span><span class="p">(</span><span class="n">ASN1_STRING</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">T61_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1_VIDEOTEX_STRING</span><span class="p">(</span><span class="n">ASN1_STRING</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">VIDEOTEX_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1_IA5_STRING</span><span class="p">(</span><span class="n">ASN1_STRING</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">IA5_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1_UTC_TIME</span><span class="p">(</span><span class="n">ASN1_STRING</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">UTC_TIME</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_UTC_TIME</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">plain_str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span>
+            <span class="n">pretty_time</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">13</span> <span class="ow">and</span> <span class="n">value</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Z&quot;</span><span class="p">):</span>
+                <span class="n">dt</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">value</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="s2">&quot;%y%m</span><span class="si">%d</span><span class="s2">%H%M%S&quot;</span><span class="p">)</span>
+                <span class="n">pretty_time</span> <span class="o">=</span> <span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%b </span><span class="si">%d</span><span class="s2"> %H:%M:%S %Y GMT&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pretty_time</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> [invalid utc_time]&quot;</span> <span class="o">%</span> <span class="n">value</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_UTC_TIME</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="s2">&quot;pretty_time&quot;</span><span class="p">,</span> <span class="n">pretty_time</span><span class="p">)</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_UTC_TIME</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;pretty_time&quot;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Invalid operation: pretty_time rewriting is not supported.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_UTC_TIME</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pretty_time</span><span class="p">,</span> <span class="n">ASN1_STRING</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+
+<span class="k">class</span> <span class="nc">ASN1_GENERALIZED_TIME</span><span class="p">(</span><span class="n">ASN1_STRING</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">GENERALIZED_TIME</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_GENERALIZED_TIME</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">plain_str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span>
+            <span class="n">pretty_time</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">15</span> <span class="ow">and</span> <span class="n">value</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Z&quot;</span><span class="p">):</span>
+                <span class="n">dt</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">value</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="s2">&quot;%Y%m</span><span class="si">%d</span><span class="s2">%H%M%S&quot;</span><span class="p">)</span>
+                <span class="n">pretty_time</span> <span class="o">=</span> <span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%b </span><span class="si">%d</span><span class="s2"> %H:%M:%S %Y GMT&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pretty_time</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> [invalid generalized_time]&quot;</span> <span class="o">%</span> <span class="n">value</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_GENERALIZED_TIME</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="s2">&quot;pretty_time&quot;</span><span class="p">,</span> <span class="n">pretty_time</span><span class="p">)</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_GENERALIZED_TIME</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;pretty_time&quot;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Invalid operation: pretty_time rewriting is not supported.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">ASN1_GENERALIZED_TIME</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pretty_time</span><span class="p">,</span> <span class="n">ASN1_STRING</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+
+<span class="k">class</span> <span class="nc">ASN1_ISO646_STRING</span><span class="p">(</span><span class="n">ASN1_STRING</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">ISO646_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1_UNIVERSAL_STRING</span><span class="p">(</span><span class="n">ASN1_STRING</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">UNIVERSAL_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1_BMP_STRING</span><span class="p">(</span><span class="n">ASN1_STRING</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">BMP_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1_SEQUENCE</span><span class="p">(</span><span class="n">ASN1_Object</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">SEQUENCE</span>
+    <span class="k">def</span> <span class="nf">strshow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lvl</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;  &quot;</span><span class="o">*</span><span class="n">lvl</span><span class="p">)</span><span class="o">+</span><span class="p">(</span><span class="s2">&quot;# </span><span class="si">%s</span><span class="s2">:&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">+=</span> <span class="n">o</span><span class="o">.</span><span class="n">strshow</span><span class="p">(</span><span class="n">lvl</span><span class="o">=</span><span class="n">lvl</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">s</span>
+    
+<span class="k">class</span> <span class="nc">ASN1_SET</span><span class="p">(</span><span class="n">ASN1_SEQUENCE</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">SET</span>
+
+<span class="k">class</span> <span class="nc">ASN1_IPADDRESS</span><span class="p">(</span><span class="n">ASN1_STRING</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">IPADDRESS</span>
+
+<span class="k">class</span> <span class="nc">ASN1_COUNTER32</span><span class="p">(</span><span class="n">ASN1_INTEGER</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">COUNTER32</span>
+
+<span class="k">class</span> <span class="nc">ASN1_GAUGE32</span><span class="p">(</span><span class="n">ASN1_INTEGER</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">GAUGE32</span>
+
+<span class="k">class</span> <span class="nc">ASN1_TIME_TICKS</span><span class="p">(</span><span class="n">ASN1_INTEGER</span><span class="p">):</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">TIME_TICKS</span>
+   
+
+<span class="n">conf</span><span class="o">.</span><span class="n">ASN1_default_codec</span> <span class="o">=</span> <span class="n">ASN1_Codecs</span><span class="o">.</span><span class="n">BER</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2012-2018, Martin Gallo, Core Security.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

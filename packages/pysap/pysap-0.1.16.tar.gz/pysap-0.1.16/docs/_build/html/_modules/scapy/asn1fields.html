@@ -1,0 +1,665 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>scapy.asn1fields &#8212; pysap 0.1.16 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for scapy.asn1fields</h1><div class="highlight"><pre>
+<span></span><span class="c1">## This file is part of Scapy</span>
+<span class="c1">## See http://www.secdev.org/projects/scapy for more informations</span>
+<span class="c1">## Copyright (C) Philippe Biondi &lt;phil@secdev.org&gt;</span>
+<span class="c1">## Enhanced by Maxence Tury &lt;maxence.tury@ssi.gouv.fr&gt;</span>
+<span class="c1">## This program is published under a GPLv2 license</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Classes that implement ASN.1 data structures.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">scapy.asn1.asn1</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">scapy.asn1.ber</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">scapy.asn1.mib</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">scapy.volatile</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">scapy.compat</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">scapy.base_classes</span> <span class="k">import</span> <span class="n">BasePacket</span>
+<span class="kn">from</span> <span class="nn">scapy.utils</span> <span class="k">import</span> <span class="n">binrepr</span>
+<span class="kn">from</span> <span class="nn">scapy</span> <span class="k">import</span> <span class="n">packet</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">reduce</span>
+<span class="kn">import</span> <span class="nn">scapy.modules.six</span> <span class="k">as</span> <span class="nn">six</span>
+<span class="kn">from</span> <span class="nn">scapy.modules.six.moves</span> <span class="k">import</span> <span class="nb">range</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_badsequence</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_element</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="c1">##########################</span>
+<span class="c1">#### Basic ASN1 Field ####</span>
+<span class="c1">##########################</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_field</span><span class="p">(</span><span class="n">ASN1F_element</span><span class="p">):</span>
+    <span class="n">holds_packets</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">islist</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">ANY</span>
+    <span class="n">context</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">implicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">flexible_tag</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="n">context</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="k">if</span> <span class="n">default</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">default</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">default</span><span class="p">,</span> <span class="n">ASN1_NULL</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">default</span> <span class="o">=</span> <span class="n">default</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">default</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ASN1_tag</span><span class="o">.</span><span class="n">asn1_object</span><span class="p">(</span><span class="n">default</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flexible_tag</span> <span class="o">=</span> <span class="n">flexible_tag</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">implicit_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">explicit_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="n">err_msg</span> <span class="o">=</span> <span class="s2">&quot;field cannot be both implicitly and explicitly tagged&quot;</span>
+            <span class="k">raise</span> <span class="n">ASN1_Error</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span> <span class="o">=</span> <span class="n">implicit_tag</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span> <span class="o">=</span> <span class="n">explicit_tag</span>
+        <span class="c1"># network_tag gets useful for ASN1F_CHOICE</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">network_tag</span> <span class="o">=</span> <span class="n">implicit_tag</span> <span class="ow">or</span> <span class="n">explicit_tag</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">ASN1_tag</span>
+
+    <span class="k">def</span> <span class="nf">i2repr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">repr</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">i2h</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span>
+    <span class="k">def</span> <span class="nf">any2i</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span>
+    <span class="k">def</span> <span class="nf">m2i</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The good thing about safedec is that it may still decode ASN1</span>
+<span class="sd">        even if there is a mismatch between the expected tag (self.ASN1_tag)</span>
+<span class="sd">        and the actual tag; the decoded ASN1 object will simply be put</span>
+<span class="sd">        into an ASN1_BADTAG object. However, safedec prevents the raising of</span>
+<span class="sd">        exceptions needed for ASN1F_optional processing.</span>
+<span class="sd">        Thus we use &#39;flexible_tag&#39;, which should be False with ASN1F_optional.</span>
+
+<span class="sd">        Regarding other fields, we might need to know whether encoding went</span>
+<span class="sd">        as expected or not. Noticeably, input methods from cert.py expect</span>
+<span class="sd">        certain exceptions to be raised. Hence default flexible_tag is False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">diff_tag</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="n">BER_tagging_dec</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">hidden_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ASN1_tag</span><span class="p">,</span>
+                                      <span class="n">implicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span><span class="p">,</span>
+                                      <span class="n">explicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span><span class="p">,</span>
+                                      <span class="n">safe</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">flexible_tag</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">diff_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># this implies that flexible_tag was True</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span> <span class="o">=</span> <span class="n">diff_tag</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span> <span class="o">=</span> <span class="n">diff_tag</span>
+        <span class="n">codec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ASN1_tag</span><span class="o">.</span><span class="n">get_codec</span><span class="p">(</span><span class="n">pkt</span><span class="o">.</span><span class="n">ASN1_codec</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">flexible_tag</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">codec</span><span class="o">.</span><span class="n">safedec</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">codec</span><span class="o">.</span><span class="n">dec</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">i2m</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">ASN1_Object</span><span class="p">):</span>
+            <span class="k">if</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">ASN1_tag</span> <span class="o">==</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">ANY</span>
+                 <span class="ow">or</span> <span class="n">x</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">RAW</span>
+                 <span class="ow">or</span> <span class="n">x</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">ERROR</span>
+                 <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">ASN1_tag</span> <span class="o">==</span> <span class="n">x</span><span class="o">.</span><span class="n">tag</span> <span class="p">):</span>
+                <span class="n">s</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">enc</span><span class="p">(</span><span class="n">pkt</span><span class="o">.</span><span class="n">ASN1_codec</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ASN1_Error</span><span class="p">(</span><span class="s2">&quot;Encoding Error: got </span><span class="si">%r</span><span class="s2"> instead of an </span><span class="si">%r</span><span class="s2"> for field [</span><span class="si">%s</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ASN1_tag</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ASN1_tag</span><span class="o">.</span><span class="n">get_codec</span><span class="p">(</span><span class="n">pkt</span><span class="o">.</span><span class="n">ASN1_codec</span><span class="p">)</span><span class="o">.</span><span class="n">enc</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">BER_tagging_enc</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">implicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span><span class="p">,</span>
+                               <span class="n">explicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">extract_packet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">c</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">ASN1F_badsequence</span><span class="p">:</span>
+                <span class="n">c</span> <span class="o">=</span> <span class="n">packet</span><span class="o">.</span><span class="n">Raw</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+            <span class="n">cpad</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">getlayer</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">Raw</span><span class="p">)</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span>
+            <span class="k">if</span> <span class="n">cpad</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">s</span> <span class="o">=</span> <span class="n">cpad</span><span class="o">.</span><span class="n">load</span>
+                <span class="k">del</span><span class="p">(</span><span class="n">cpad</span><span class="o">.</span><span class="n">underlayer</span><span class="o">.</span><span class="n">payload</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">c</span><span class="p">,</span><span class="n">s</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span><span class="n">s</span>
+ 
+    <span class="k">def</span> <span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">i2m</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+    <span class="k">def</span> <span class="nf">dissect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="n">v</span><span class="p">,</span><span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">m2i</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_val</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">s</span>
+
+    <span class="k">def</span> <span class="nf">do_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">&quot;copy&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="p">[:]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">BasePacket</span><span class="p">):</span>
+                    <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">x</span>
+    <span class="k">def</span> <span class="nf">set_val</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">is_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span>
+    <span class="k">def</span> <span class="nf">get_fields_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="p">]</span>
+    
+    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">randval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">RandInt</span><span class="p">()</span>
+
+
+<span class="c1">############################</span>
+<span class="c1">#### Simple ASN1 Fields ####</span>
+<span class="c1">############################</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_BOOLEAN</span><span class="p">(</span><span class="n">ASN1F_field</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">BOOLEAN</span>
+    <span class="k">def</span> <span class="nf">randval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">RandChoice</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_INTEGER</span><span class="p">(</span><span class="n">ASN1F_field</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">INTEGER</span>
+    <span class="k">def</span> <span class="nf">randval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">RandNum</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="o">**</span><span class="mi">64</span><span class="p">,</span> <span class="mi">2</span><span class="o">**</span><span class="mi">64</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_enum_INTEGER</span><span class="p">(</span><span class="n">ASN1F_INTEGER</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="n">enum</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">implicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">ASN1F_INTEGER</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">,</span>
+                               <span class="n">implicit_tag</span><span class="o">=</span><span class="n">implicit_tag</span><span class="p">,</span>
+                               <span class="n">explicit_tag</span><span class="o">=</span><span class="n">explicit_tag</span><span class="p">)</span>
+        <span class="n">i2s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">i2s</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">s2i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">s2i</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">enum</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">enum</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">enum</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">):</span>
+            <span class="n">i2s</span><span class="p">,</span> <span class="n">s2i</span> <span class="o">=</span> <span class="n">s2i</span><span class="p">,</span> <span class="n">i2s</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+            <span class="n">i2s</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">enum</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">s2i</span><span class="p">[</span><span class="n">enum</span><span class="p">[</span><span class="n">k</span><span class="p">]]</span> <span class="o">=</span> <span class="n">k</span>
+    <span class="k">def</span> <span class="nf">i2m</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">s2i</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">ASN1F_enum_INTEGER</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">i2m</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">i2repr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">ASN1_INTEGER</span><span class="p">):</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">i2s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">val</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">r</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s2">&quot;&#39;</span><span class="si">%s</span><span class="s2">&#39; </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">repr</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_BIT_STRING</span><span class="p">(</span><span class="n">ASN1F_field</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">BIT_STRING</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="n">default_readable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">implicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">default</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">default_readable</span><span class="p">:</span>
+            <span class="n">default</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">binrepr</span><span class="p">(</span><span class="n">orb</span><span class="p">(</span><span class="n">x</span><span class="p">))</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf8&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">default</span><span class="p">)</span>
+        <span class="n">ASN1F_field</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">,</span>
+                             <span class="n">implicit_tag</span><span class="o">=</span><span class="n">implicit_tag</span><span class="p">,</span>
+                             <span class="n">explicit_tag</span><span class="o">=</span><span class="n">explicit_tag</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">randval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">RandString</span><span class="p">(</span><span class="n">RandNum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+    
+<span class="k">class</span> <span class="nc">ASN1F_STRING</span><span class="p">(</span><span class="n">ASN1F_field</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">STRING</span>
+    <span class="k">def</span> <span class="nf">randval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">RandString</span><span class="p">(</span><span class="n">RandNum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_NULL</span><span class="p">(</span><span class="n">ASN1F_INTEGER</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">NULL</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_OID</span><span class="p">(</span><span class="n">ASN1F_field</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">OID</span>
+    <span class="k">def</span> <span class="nf">randval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">RandOID</span><span class="p">()</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_ENUMERATED</span><span class="p">(</span><span class="n">ASN1F_enum_INTEGER</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">ENUMERATED</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_UTF8_STRING</span><span class="p">(</span><span class="n">ASN1F_STRING</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">UTF8_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_NUMERIC_STRING</span><span class="p">(</span><span class="n">ASN1F_STRING</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">NUMERIC_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_PRINTABLE_STRING</span><span class="p">(</span><span class="n">ASN1F_STRING</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">PRINTABLE_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_T61_STRING</span><span class="p">(</span><span class="n">ASN1F_STRING</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">T61_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_VIDEOTEX_STRING</span><span class="p">(</span><span class="n">ASN1F_STRING</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">VIDEOTEX_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_IA5_STRING</span><span class="p">(</span><span class="n">ASN1F_STRING</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">IA5_STRING</span>
+   
+<span class="k">class</span> <span class="nc">ASN1F_UTC_TIME</span><span class="p">(</span><span class="n">ASN1F_STRING</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">UTC_TIME</span>
+    <span class="k">def</span> <span class="nf">randval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">GeneralizedTime</span><span class="p">()</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_GENERALIZED_TIME</span><span class="p">(</span><span class="n">ASN1F_STRING</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">GENERALIZED_TIME</span>
+    <span class="k">def</span> <span class="nf">randval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">GeneralizedTime</span><span class="p">()</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_ISO646_STRING</span><span class="p">(</span><span class="n">ASN1F_STRING</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">ISO646_STRING</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_UNIVERSAL_STRING</span><span class="p">(</span><span class="n">ASN1F_STRING</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">UNIVERSAL_STRING</span>
+   
+<span class="k">class</span> <span class="nc">ASN1F_BMP_STRING</span><span class="p">(</span><span class="n">ASN1F_STRING</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">BMP_STRING</span>
+   
+<span class="k">class</span> <span class="nc">ASN1F_SEQUENCE</span><span class="p">(</span><span class="n">ASN1F_field</span><span class="p">):</span>
+<span class="c1"># Here is how you could decode a SEQUENCE</span>
+<span class="c1"># with an unknown, private high-tag prefix :</span>
+<span class="c1"># class PrivSeq(ASN1_Packet):</span>
+<span class="c1">#     ASN1_codec = ASN1_Codecs.BER</span>
+<span class="c1">#     ASN1_root = ASN1F_SEQUENCE(</span>
+<span class="c1">#                       &lt;asn1 field #0&gt;,</span>
+<span class="c1">#                       ...</span>
+<span class="c1">#                       &lt;asn1 field #N&gt;,</span>
+<span class="c1">#                       explicit_tag=0,</span>
+<span class="c1">#                       flexible_tag=True)</span>
+<span class="c1"># Because we use flexible_tag, the value of the explicit_tag does not matter.</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">SEQUENCE</span>
+    <span class="n">holds_packets</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">seq</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;dummy_seq_name&quot;</span>
+        <span class="n">default</span> <span class="o">=</span> <span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">default</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">seq</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">kwarg</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="s2">&quot;implicit_tag&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;explicit_tag&quot;</span><span class="p">,</span> <span class="s2">&quot;flexible_tag&quot;</span><span class="p">]:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwarg</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">kwarg</span><span class="p">))</span>
+        <span class="n">ASN1F_field</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="p">,</span>
+                             <span class="n">implicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span><span class="p">,</span>
+                             <span class="n">explicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span><span class="p">,</span>
+                             <span class="n">flexible_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">flexible_tag</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seq</span> <span class="o">=</span> <span class="n">seq</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">islist</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;&lt;</span><span class="si">%s%r</span><span class="s2">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">is_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">is_empty</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">get_fields_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">:</span> <span class="n">x</span><span class="o">+</span><span class="n">y</span><span class="o">.</span><span class="n">get_fields_list</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">,</span> <span class="p">[])</span>
+    <span class="k">def</span> <span class="nf">m2i</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ASN1F_SEQUENCE behaves transparently, with nested ASN1_objects being</span>
+<span class="sd">        dissected one by one. Because we use obj.dissect (see loop below)</span>
+<span class="sd">        instead of obj.m2i (as we trust dissect to do the appropriate set_vals)</span>
+<span class="sd">        we do not directly retrieve the list of nested objects.</span>
+<span class="sd">        Thus m2i returns an empty list (along with the proper remainder).</span>
+<span class="sd">        It is discarded by dissect() and should not be missed elsewhere.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">diff_tag</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="n">BER_tagging_dec</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">hidden_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ASN1_tag</span><span class="p">,</span>
+                                      <span class="n">implicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span><span class="p">,</span>
+                                      <span class="n">explicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span><span class="p">,</span>
+                                      <span class="n">safe</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">flexible_tag</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">diff_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span> <span class="o">=</span> <span class="n">diff_tag</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span> <span class="o">=</span> <span class="n">diff_tag</span>
+        <span class="n">codec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ASN1_tag</span><span class="o">.</span><span class="n">get_codec</span><span class="p">(</span><span class="n">pkt</span><span class="o">.</span><span class="n">ASN1_codec</span><span class="p">)</span>
+        <span class="n">i</span><span class="p">,</span><span class="n">s</span><span class="p">,</span><span class="n">remain</span> <span class="o">=</span> <span class="n">codec</span><span class="o">.</span><span class="n">check_type_check_len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">:</span>
+                <span class="n">obj</span><span class="o">.</span><span class="n">set_val</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">s</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">dissect</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">ASN1F_badsequence</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">break</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">BER_Decoding_Error</span><span class="p">(</span><span class="s2">&quot;unexpected remainder&quot;</span><span class="p">,</span> <span class="n">remaining</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[],</span> <span class="n">remain</span>
+    <span class="k">def</span> <span class="nf">dissect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="n">_</span><span class="p">,</span><span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">m2i</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+    <span class="k">def</span> <span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">:</span> <span class="n">x</span><span class="o">+</span><span class="n">y</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">pkt</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">,</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">i2m</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_SET</span><span class="p">(</span><span class="n">ASN1F_SEQUENCE</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">SET</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_SEQUENCE_OF</span><span class="p">(</span><span class="n">ASN1F_field</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">SEQUENCE</span>
+    <span class="n">holds_packets</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">islist</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">implicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span> <span class="o">=</span> <span class="bp">cls</span>
+        <span class="n">ASN1F_field</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">,</span>
+                        <span class="n">implicit_tag</span><span class="o">=</span><span class="n">implicit_tag</span><span class="p">,</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="n">explicit_tag</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default</span> <span class="o">=</span> <span class="n">default</span>
+    <span class="k">def</span> <span class="nf">is_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ASN1F_field</span><span class="o">.</span><span class="n">is_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">m2i</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="n">diff_tag</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="n">BER_tagging_dec</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">hidden_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ASN1_tag</span><span class="p">,</span>
+                                      <span class="n">implicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span><span class="p">,</span>
+                                      <span class="n">explicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span><span class="p">,</span>
+                                      <span class="n">safe</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">flexible_tag</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">diff_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span> <span class="o">=</span> <span class="n">diff_tag</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span> <span class="o">=</span> <span class="n">diff_tag</span>
+        <span class="n">codec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ASN1_tag</span><span class="o">.</span><span class="n">get_codec</span><span class="p">(</span><span class="n">pkt</span><span class="o">.</span><span class="n">ASN1_codec</span><span class="p">)</span>
+        <span class="n">i</span><span class="p">,</span><span class="n">s</span><span class="p">,</span><span class="n">remain</span> <span class="o">=</span> <span class="n">codec</span><span class="o">.</span><span class="n">check_type_check_len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">lst</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">while</span> <span class="n">s</span><span class="p">:</span>
+            <span class="n">c</span><span class="p">,</span><span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_packet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+            <span class="n">lst</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BER_Decoding_Error</span><span class="p">(</span><span class="s2">&quot;unexpected remainder&quot;</span><span class="p">,</span> <span class="n">remaining</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">lst</span><span class="p">,</span> <span class="n">remain</span>
+    <span class="k">def</span> <span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">):</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">ASN1_Object</span><span class="p">)</span> <span class="ow">and</span> <span class="n">val</span><span class="o">.</span><span class="n">tag</span><span class="o">==</span><span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">RAW</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="k">elif</span> <span class="n">val</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">raw</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">val</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">i2m</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">randval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">packet</span><span class="o">.</span><span class="n">fuzz</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="p">())</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;&lt;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_SET_OF</span><span class="p">(</span><span class="n">ASN1F_SEQUENCE_OF</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">SET</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_IPADDRESS</span><span class="p">(</span><span class="n">ASN1F_STRING</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">IPADDRESS</span>    
+
+<span class="k">class</span> <span class="nc">ASN1F_TIME_TICKS</span><span class="p">(</span><span class="n">ASN1F_INTEGER</span><span class="p">):</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">TIME_TICKS</span>
+
+
+<span class="c1">#############################</span>
+<span class="c1">#### Complex ASN1 Fields ####</span>
+<span class="c1">#############################</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_optional</span><span class="p">(</span><span class="n">ASN1F_element</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
+        <span class="n">field</span><span class="o">.</span><span class="n">flexible_tag</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_field</span> <span class="o">=</span> <span class="n">field</span>
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_field</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">m2i</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field</span><span class="o">.</span><span class="n">m2i</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">ASN1_Error</span><span class="p">,</span> <span class="n">ASN1F_badsequence</span><span class="p">,</span> <span class="n">BER_Decoding_Error</span><span class="p">):</span>
+            <span class="c1"># ASN1_Error may be raised by ASN1F_CHOICE</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">s</span>
+    <span class="k">def</span> <span class="nf">dissect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field</span><span class="o">.</span><span class="n">dissect</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">ASN1_Error</span><span class="p">,</span> <span class="n">ASN1F_badsequence</span><span class="p">,</span> <span class="n">BER_Decoding_Error</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_field</span><span class="o">.</span><span class="n">set_val</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">s</span>
+    <span class="k">def</span> <span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field</span><span class="o">.</span><span class="n">is_empty</span><span class="p">(</span><span class="n">pkt</span><span class="p">):</span>
+            <span class="k">return</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">pkt</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">any2i</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field</span><span class="o">.</span><span class="n">any2i</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">i2repr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field</span><span class="o">.</span><span class="n">i2repr</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_CHOICE</span><span class="p">(</span><span class="n">ASN1F_field</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Multiple types are allowed: ASN1_Packet, ASN1F_field and ASN1F_PACKET(),</span>
+<span class="sd">    See layers/x509.py for examples.</span>
+<span class="sd">    Other ASN1F_field instances than ASN1F_PACKET instances must not be used.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">holds_packets</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">ASN1_tag</span> <span class="o">=</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">ANY</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;implicit_tag&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">err_msg</span> <span class="o">=</span> <span class="s2">&quot;ASN1F_CHOICE has been called with an implicit_tag&quot;</span>
+            <span class="k">raise</span> <span class="n">ASN1_Error</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">kwarg</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="s2">&quot;explicit_tag&quot;</span><span class="p">]:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwarg</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">kwarg</span><span class="p">))</span>
+        <span class="n">ASN1F_field</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="p">,</span>
+                             <span class="n">explicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default</span> <span class="o">=</span> <span class="n">default</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_choice</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">choices</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pktchoices</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s2">&quot;ASN1_root&quot;</span><span class="p">):</span>     <span class="c1"># should be ASN1_Packet</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">ASN1_root</span><span class="p">,</span> <span class="s2">&quot;choices&quot;</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">ASN1_root</span><span class="o">.</span><span class="n">choices</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>         <span class="c1"># ASN1F_CHOICE recursion</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">ASN1_root</span><span class="o">.</span><span class="n">network_tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s2">&quot;ASN1_tag&quot;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>         <span class="c1"># should be ASN1F_field class</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">ASN1_tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span>
+                <span class="k">else</span><span class="p">:</span>                       <span class="c1"># should be ASN1F_PACKET instance</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">network_tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">pktchoices</span><span class="p">[</span><span class="nb">hash</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">cls</span><span class="p">)]</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">implicit_tag</span><span class="p">,</span> <span class="n">p</span><span class="o">.</span><span class="n">explicit_tag</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ASN1_Error</span><span class="p">(</span><span class="s2">&quot;ASN1F_CHOICE: no tag found for one field&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">m2i</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        First we have to retrieve the appropriate choice.</span>
+<span class="sd">        Then we extract the field/packet, according to this choice.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ASN1_Error</span><span class="p">(</span><span class="s2">&quot;ASN1F_CHOICE: got empty string&quot;</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span><span class="n">s</span> <span class="o">=</span> <span class="n">BER_tagging_dec</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">hidden_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ASN1_tag</span><span class="p">,</span>
+                              <span class="n">explicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span><span class="p">)</span>
+        <span class="n">tag</span><span class="p">,</span><span class="n">_</span> <span class="o">=</span> <span class="n">BER_id_dec</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">tag</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">flexible_tag</span><span class="p">:</span>
+                <span class="n">choice</span> <span class="o">=</span> <span class="n">ASN1F_field</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ASN1_Error</span><span class="p">(</span><span class="s2">&quot;ASN1F_CHOICE: unexpected field&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">choice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">choice</span><span class="p">,</span> <span class="s2">&quot;ASN1_root&quot;</span><span class="p">):</span>
+            <span class="c1"># we don&#39;t want to import ASN1_Packet in this module...</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_packet</span><span class="p">(</span><span class="n">choice</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">choice</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
+            <span class="c1">#XXX find a way not to instantiate the ASN1F_field</span>
+            <span class="k">return</span> <span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">m2i</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1">#XXX check properly if this is an ASN1F_PACKET</span>
+            <span class="k">return</span> <span class="n">choice</span><span class="o">.</span><span class="n">m2i</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">i2m</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">raw</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pktchoices</span><span class="p">:</span>
+                <span class="n">imp</span><span class="p">,</span> <span class="n">exp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pktchoices</span><span class="p">[</span><span class="nb">hash</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">x</span><span class="p">))]</span>
+                <span class="n">s</span> <span class="o">=</span> <span class="n">BER_tagging_enc</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">implicit_tag</span><span class="o">=</span><span class="n">imp</span><span class="p">,</span>
+                                    <span class="n">explicit_tag</span><span class="o">=</span><span class="n">exp</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">BER_tagging_enc</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">randval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">randchoices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">itervalues</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">choices</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s2">&quot;ASN1_root&quot;</span><span class="p">):</span>   <span class="c1"># should be ASN1_Packet class</span>
+                <span class="n">randchoices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">fuzz</span><span class="p">(</span><span class="n">p</span><span class="p">()))</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s2">&quot;ASN1_tag&quot;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>       <span class="c1"># should be (basic) ASN1F_field class</span>
+                    <span class="n">randchoices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">(</span><span class="s2">&quot;dummy&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span><span class="o">.</span><span class="n">randval</span><span class="p">())</span>
+                <span class="k">else</span><span class="p">:</span>                     <span class="c1"># should be ASN1F_PACKET instance</span>
+                    <span class="n">randchoices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">randval</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">RandChoice</span><span class="p">(</span><span class="o">*</span><span class="n">randchoices</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_PACKET</span><span class="p">(</span><span class="n">ASN1F_field</span><span class="p">):</span>
+    <span class="n">holds_packets</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">implicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span> <span class="o">=</span> <span class="bp">cls</span>
+        <span class="n">ASN1F_field</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">,</span>
+                        <span class="n">implicit_tag</span><span class="o">=</span><span class="n">implicit_tag</span><span class="p">,</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="n">explicit_tag</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">ASN1_root</span><span class="o">.</span><span class="n">ASN1_tag</span> <span class="o">==</span> <span class="n">ASN1_Class_UNIVERSAL</span><span class="o">.</span><span class="n">SEQUENCE</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">implicit_tag</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">explicit_tag</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_tag</span> <span class="o">=</span> <span class="mi">16</span><span class="o">|</span><span class="mh">0x20</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default</span> <span class="o">=</span> <span class="n">default</span>
+    <span class="k">def</span> <span class="nf">m2i</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="n">diff_tag</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="n">BER_tagging_dec</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">hidden_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">ASN1_root</span><span class="o">.</span><span class="n">ASN1_tag</span><span class="p">,</span>
+                                      <span class="n">implicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span><span class="p">,</span>
+                                      <span class="n">explicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span><span class="p">,</span>
+                                      <span class="n">safe</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">flexible_tag</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">diff_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span> <span class="o">=</span> <span class="n">diff_tag</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span> <span class="o">=</span> <span class="n">diff_tag</span>
+        <span class="n">p</span><span class="p">,</span><span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_packet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">p</span><span class="p">,</span><span class="n">s</span>
+    <span class="k">def</span> <span class="nf">i2m</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">raw</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">BER_tagging_enc</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">implicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">implicit_tag</span><span class="p">,</span>
+                               <span class="n">explicit_tag</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">explicit_tag</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">randval</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">packet</span><span class="o">.</span><span class="n">fuzz</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="p">())</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_BIT_STRING_ENCAPS</span><span class="p">(</span><span class="n">ASN1F_BIT_STRING</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    We may emulate simple string encapsulation with explicit_tag=0x04,</span>
+<span class="sd">    but we need a specific class for bit strings because of unused bits, etc.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">holds_packets</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="bp">cls</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">implicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span> <span class="o">=</span> <span class="bp">cls</span>
+        <span class="n">ASN1F_BIT_STRING</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">,</span>
+                                  <span class="n">implicit_tag</span><span class="o">=</span><span class="n">implicit_tag</span><span class="p">,</span>
+                                  <span class="n">explicit_tag</span><span class="o">=</span><span class="n">explicit_tag</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default</span> <span class="o">=</span> <span class="n">default</span>
+    <span class="k">def</span> <span class="nf">m2i</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="n">bit_string</span><span class="p">,</span> <span class="n">remain</span> <span class="o">=</span> <span class="n">ASN1F_BIT_STRING</span><span class="o">.</span><span class="n">m2i</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bit_string</span><span class="o">.</span><span class="n">val</span><span class="p">)</span> <span class="o">%</span> <span class="mi">8</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BER_Decoding_Error</span><span class="p">(</span><span class="s2">&quot;wrong bit string&quot;</span><span class="p">,</span> <span class="n">remaining</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">p</span><span class="p">,</span><span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_packet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="p">,</span> <span class="n">bit_string</span><span class="o">.</span><span class="n">val_readable</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BER_Decoding_Error</span><span class="p">(</span><span class="s2">&quot;unexpected remainder&quot;</span><span class="p">,</span> <span class="n">remaining</span><span class="o">=</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">p</span><span class="p">,</span> <span class="n">remain</span>
+    <span class="k">def</span> <span class="nf">i2m</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">raw</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">binrepr</span><span class="p">(</span><span class="n">orb</span><span class="p">(</span><span class="n">x</span><span class="p">))</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf8&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">s</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ASN1F_BIT_STRING</span><span class="o">.</span><span class="n">i2m</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">ASN1F_FLAGS</span><span class="p">(</span><span class="n">ASN1F_BIT_STRING</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="n">mapping</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">implicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">explicit_tag</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mapping</span> <span class="o">=</span> <span class="n">mapping</span>
+        <span class="n">ASN1F_BIT_STRING</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span>
+                                  <span class="n">default_readable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                  <span class="n">context</span><span class="o">=</span><span class="n">context</span><span class="p">,</span>
+                                  <span class="n">implicit_tag</span><span class="o">=</span><span class="n">implicit_tag</span><span class="p">,</span>
+                                  <span class="n">explicit_tag</span><span class="o">=</span><span class="n">explicit_tag</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">get_flags</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">):</span>
+        <span class="n">fbytes</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">pkt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">val</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mapping</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">positional</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">fbytes</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">positional</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mapping</span><span class="p">)]</span>
+    <span class="k">def</span> <span class="nf">i2repr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkt</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pretty_s</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_flags</span><span class="p">(</span><span class="n">pkt</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">pretty_s</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">repr</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2012-2018, Martin Gallo, Core Security.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
