@@ -1,0 +1,156 @@
+################################################
+## This playbook has 2 steps:
+##  1) Create Droplet on DigitalOcean & Update inventory / ssh config
+##  2) Create new User account on Droplet
+##
+##
+## These steps are run on different machines w/ different users:
+##  1) Create Droplet ...
+##     -> Runs on: Localhost
+##     ->      as: Current user
+##  2) Create new User account ...
+##     -> Runs on: Newly Created Droplet
+##     ->      as: root
+
+
+#####################################################################
+###                           STEP 1                               ##
+### Create Droplet on DigitalOcean & Update inventory / ssh config ##
+###                                                                ##
+###      Host: Localhost                                           ##
+###  SSH User: Current user                                        ##
+#####################################################################
+# `droplet_name`      need to be passed as `--extra-var` !!
+# `droplet_spec_name` need to be passed as `--extra-var` !!
+- hosts: localhost
+  remote_user: root
+
+  tasks:
+    - name: "Ensure required parameters - via config"
+      assert:
+        that: 
+          - do_token != ""
+          - ssh_pub_key_name_on_digitalocean != ""
+          - ssh_pub_key_to_load_on_droplet != ""
+          - do_token != ""
+          - user_to_create_username != ""
+          - user_to_create_default_password != ""
+        msg: "'do_token', 'ssh_pub_key_name_on_digitalocean', 'ssh_pub_key_to_load_on_droplet', 'do_token', 'user_to_create_username' and 'user_to_create_default_password' must be set in the configuration"
+    - name: "Ensure required parameters - via --extra-vars"
+      assert:
+        that: 
+          - droplet_name != ""
+          - droplet_spec_name != ""
+        msg: "'droplet_name' and 'droplet_spec_name' must be passed as parameters with '--extra-vars'"
+
+    - name: "Load the specs of the droplet to create"
+      include_role:
+        name: load-droplet-specs
+      vars:
+        droplet_spec_name: droplet_spec_name
+
+    - name: "Ensure SSH Key exists at DigitalOcean"
+      digital_ocean:
+        command: ssh
+        state: present
+        name: "{{ ssh_pub_key_name_on_digitalocean }}"
+        ssh_pub_key: "{{ ssh_pub_key_to_load_on_droplet }}"
+        api_token: "{{ do_token }}"
+      register: ssh_key_on_do
+
+    - name: "Create Droplet: \"{{ droplet_name }}\""
+      digital_ocean:
+        api_token: "{{ do_token }}"
+        command: droplet
+        ssh_key_ids: "{{ ssh_key_on_do.ssh_key.id }}"
+        unique_name: yes
+        state: present
+        name: "{{ droplet_name }}"
+        size_id: "{{ droplet_specs.size }}"
+        region_id: "{{ droplet_specs.region }}"
+        image_id: "{{ droplet_specs.image }}"
+      register: created
+
+    - name: "Add Host in `.ssh/config`. For SSH Quick-Access ==> `ssh {{ droplet_name }}`"
+      blockinfile:
+        path: "{{ ansible_env.HOME }}/.ssh/config"
+        state: present
+        marker: "### ANSIBLE MANAGED - DigitalOcean Droplet: '{{ droplet_name }}' - {mark} #######################"
+        block: |
+          Host {{ droplet_name }}
+            Hostname {{ created.droplet.ip_address }}
+            User {{ user_to_create_username }}
+
+    - name: "Add Droplet as Ansible Host in `~/.ansible-droplet-inventory`"
+      blockinfile:
+        path: "{{ ansible_env.HOME }}/.ansible-droplet-inventory"
+        state: present
+        create: yes
+        marker: "### ANSIBLE MANAGED - DigitalOcean Droplet: '{{ droplet_name }}' - {mark} #######################"
+        block: "{{ droplet_name }} ansible_host={{ created.droplet.ip_address }} ansible_user={{ user_to_create_username }} ansible_python_interpreter=/usr/bin/python3"
+
+    - name: "Refresh inventory"
+      meta: refresh_inventory
+
+
+
+#####################################################################
+###                           STEP 2                               ##
+###              Create new User account on Droplet                ##
+###                                                                ##
+###      Host: Newly Created Droplet                               ##
+###  SSH User: root                                                ##
+#####################################################################
+- hosts: "{{ droplet_name }}"
+  gather_facts: False
+  vars:
+    # If using `remote_user` at the same level as `hosts`, it would 
+    # not override the `ansible_user` variable from the inventory
+    ansible_user: root
+
+  tasks:
+    - name: "Wait for Droplet available"
+      wait_for_connection:
+        timeout: 60
+
+    - name: "Gather Facts"
+      setup: 
+
+    - name: "Load Swap size from specs of the droplet to create"
+      include_role:
+        name: load-droplet-specs
+      vars:
+        droplet_spec_name: droplet_spec_name
+
+    - name: "Add Swap"
+      include_role:
+        name: kamaln7.swapfile
+      vars:
+        swapfile_size: "{{ droplet_specs.swap }}"
+
+    - name: "Install Glances Webserver as a service"
+      include_role:
+        name: glances
+
+    - name: "Enable advanced metrics on DigitalOcean"
+      shell: "curl -sSL https://agent.digitalocean.com/install.sh | sh"
+
+    - name: "Create new sudo user w/ default password"
+      include_role:
+        name: create-new-sudo-user
+      vars:
+        username: "{{ user_to_create_username }}"
+        default_password: "{{ user_to_create_default_password }}"
+        authorized_ssh_key: "{{ ssh_pub_key_to_load_on_droplet }}"
+
+    - debug:
+        msg:
+        - "Droplet '{{ droplet_name }}' succesfuly created"
+        - ""
+        - "IP = {{ ansible_default_ipv4.address }}"
+        - "User = {{ user_to_create_username }}"
+        - "Password = {{ user_to_create_default_password }}"
+        - "Glance server running at: http://{{ ansible_default_ipv4.address }}:61208"
+        - ""
+        - "You can now ssh to the droplet with `ssh {{ droplet_name }}`"
+        - "Don't forget to change the default password!"
