@@ -1,0 +1,55 @@
+---
+outputs:
+    {% if s3_bucket_name or has_s3_trigger or s3_trigger_prefix or s3_trigger_suffix %}
+    BucketName:
+        Description: The name of the S3 bucket associated to the batch job
+        Value:
+            Ref: Bucket
+    {% endif %}
+
+    JobDefinitionArn:
+        Description:
+            The ARN of the job definition
+        Value: {Ref: JobDefinition}
+
+    {% if not docker_image %}
+    EcrRepositoryName:
+        Description: the name of the ECR repository
+        Value: {Ref: EcrRepository}
+
+    EcrRepositoryArn:
+        Description: the ARN of the ECR repository
+        Value:
+            "Fn::Join":
+                - ""
+                -
+                    - { "Ref" : "AWS::AccountId" }
+                    - ".dkr.ecr."
+                    - { "Ref" : "AWS::Region" }
+                    - ".amazonaws.com/"
+                    - { "Ref" : "EcrRepository" }
+                    - ":"
+                    - {{__context.stage}}
+    {% endif %}
+
+    {% if schedule_expression %}
+    LambdaFunctionArn:
+        Description:
+            The ARN of the Lambda function triggering the job on a schedule
+        Value:
+            "Fn::GetAtt":
+                - LambdaFunction
+                - Arn
+
+    LambdaExecutionRoleArn:
+        Description: The ARN of the Lambda execution role
+        Value:
+            "Fn::GetAtt":
+                - LambdaExecutionRole
+                - Arn
+    {% endif %}
+
+    ContainerRoleArn:
+        Description: The ARN of the IAM role associated to the container
+        Value:
+            "Fn::GetAtt" : ["ContainerRole", "Arn"]

@@ -1,0 +1,240 @@
+---
+resources:
+    {% if s3_bucket_name or has_s3_trigger or s3_trigger_prefix or s3_trigger_suffix %}
+    {% if schedule_expression %}
+    S3LambdaPermission:
+      Type : "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName:
+          "Fn::GetAtt":
+              - LambdaFunction
+              - Arn
+        Principal: s3.amazonaws.com
+        SourceAccount:
+            Ref: "AWS::AccountId"
+    {% endif %}
+
+    Bucket:
+      Type: "AWS::S3::Bucket"
+      {% if s3_bucket_name %}
+      Properties:
+        BucketName: {{s3_bucket_name}}
+      {% endif %}
+    {% endif %}
+
+    LambdaFunction:
+      Type: "AWS::Lambda::Function"
+      Properties:
+        FunctionName: "{{__context.environment.name}}-{{__context.layer.name}}-{{__context.stage}}"
+        Code:
+            ZipFile:
+                "Fn::Join":
+                    - ""
+                    -
+                        - "import json\n"
+                        - "import boto3\n"
+                        - "def handler(event, context): \n"
+                        - "    print('Received event: ' + json.dumps(event, indent=4))\n"
+                        - "    client = boto3.client('batch')\n"
+                        - "    recs = event.get('Records')\n"
+                        - "    if recs:\n"
+                        - "        s3_bucket = recs[0].get('s3', {}).get('bucket', {}).get('name')\n"
+                        - "        s3_prefix = recs[0].get('s3', {}).get('object', {}).get('key')\n"
+                        - "    else:\n"
+                        - "        s3_bucket = None\n"
+                        - "        s3_prefix = None\n"
+                        - "    return client.submit_job(\n"
+                        - "        jobName='"
+                        - "{{__context.environment.name}}-{{__context.layer.name}}-{{__context.stage}}-{{''|timestamp|int}}"
+                        - "',\n"
+                        - "        jobQueue='{{job_queue}}',\n"
+                        - "        containerOverrides={'environment': [\n"
+                        - "            {'name': 'EVENT', 'value': json.dumps(event)},\n"
+                        - "            {'name': 'S3_BUCKET', 'value': s3_bucket or ''},\n"
+                        - "            {'name': 'S3_PREFIX', 'value': s3_prefix or ''}\n"
+                        - "        ]},\n"
+                        - "        jobDefinition='"
+                        - {Ref: JobDefinition}
+                        - "')\n"
+        Runtime: "python3.6"
+        MemorySize: "128"
+        Description: "Lambda trigger for Batch job {{description or __context.environment.name + "-" + __context.layer.name + "-" + __context.stage}}"
+        Handler: "index.handler"
+        Role:
+          "Fn::GetAtt":
+              - LambdaExecutionRole
+              - Arn
+
+    {% if schedule_expression %}
+    ScheduledRule:
+      Type: "AWS::Events::Rule"
+      Properties:
+        Description: "ScheduledRule"
+        ScheduleExpression: "{{schedule_expression}}"
+        State: "ENABLED"
+        Targets:
+            - "Arn": { "Fn::GetAtt": ["LambdaFunction", "Arn"] }
+              "Id": "BatchJobTrigger"
+
+    PermissionForCwEventsToInvokeLambda:
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        FunctionName: { "Ref": "LambdaFunction" }
+        Action: "lambda:InvokeFunction"
+        Principal: "events.amazonaws.com"
+        SourceArn: { "Fn::GetAtt": ["ScheduledRule", "Arn"] }
+    {% endif %}
+
+    {% if has_s3_trigger or s3_trigger_prefix or s3_trigger_suffix %}
+    PermissionForS3EventsToInvokeLambda:
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        FunctionName: { "Ref": "LambdaFunction" }
+        Action: "lambda:InvokeFunction"
+        Principal: "events.amazonaws.com"
+        SourceArn: { "Fn::GetAtt": ["Bucket", "Arn"] }
+    {% endif %}
+
+    LambdaExecutionRole:
+        Type: "AWS::IAM::Role"
+        Properties:
+          Path: {{ "/{}/".format(__context.environment.name) }}
+          AssumeRolePolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+            - Effect: "Allow"
+              Principal: {"Service": "lambda.amazonaws.com"}
+              Action: [ "sts:AssumeRole" ]
+          Policies:
+          - PolicyName: "LogsAccessPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+              - Sid: "ManageLambdaLogs"
+                Effect: "Allow"
+                Action:
+                - "logs:CreateLogGroup"
+                - "logs:CreateLogStream"
+                - "logs:PutLogEvents"
+                - "logs:PutRetentionPolicy"
+                - "logs:PutSubscriptionFilter"
+                - "logs:DescribeLogStreams"
+                - "logs:DeleteLogGroup"
+                - "logs:DeleteRetentionPolicy"
+                - "logs:DeleteSubscriptionFilter"
+                Resource:
+                  Fn::Sub: "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/{{__context.environment.name}}-{{__context.layer.name}}-{{__context.stage}}:*:*"
+          - PolicyName: "BatchAccessPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+              - Sid: "SubmitBatchJobs"
+                Effect: "Allow"
+                Action:
+                - "batch:SubmitJob"
+                Resource: "*"
+
+    ContainerRole:
+        Type: "AWS::IAM::Role"
+        Properties:
+            AssumeRolePolicyDocument: 
+                Version: "2012-10-17"
+                Statement:
+                  -
+                    Effect: "Allow"
+                    Principal: 
+                      Service: 
+                        - "ecs-tasks.amazonaws.com"
+                    Action: 
+                      - "sts:AssumeRole"
+            Path: "/"
+            {% if iam_role_policies %}
+            Policies:
+                {% for policy in iam_role_policies %}
+                - {{ policy }}
+                {% endfor %}
+            {% endif %}
+
+
+    # If the docker_image parameter is not provided then we create an ECR
+    # repository to store the job container image.
+    {% if not docker_image %}
+    EcrRepository:
+        Type: "AWS::ECR::Repository"
+        Properties:
+            RepositoryName: {{ecr_repository_name}}
+    {% endif %}
+
+    JobDefinition:
+        Type: "AWS::Batch::JobDefinition"
+        Properties:
+            Type: container
+            JobDefinitionName: {{__context.environment.name}}-{{__context.stage.lower()}}-{{__context.layer.name}}
+            {% if parameters %}
+            Parameters:
+                {% for pname, pvalue in parameters.items() %}
+                "{{pname}}": "{{pvalue}}"
+                {% endfor %}
+            {% endif %}
+            ContainerProperties:
+                {% if container_command|is_list %}
+                Command: {{container_command}}
+                {% elif container_commmand %}
+                Command: [
+                    "{{container_command}}"
+                    {% if parameters %}
+                    ,
+                    {% for pname in parameters.keys() %}
+                    "--{{pname}}",
+                    "Ref::{{pname}}"
+                    {% if not loop.last %}
+                    ,
+                    {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                ]
+                # If there is no command then assume the container has an
+                # ENTRYPOINT and no parameters
+                {% endif %}
+                Image:
+                {% if docker_image %}
+                    {{docker_image}}
+                {% else %}
+                # Point to the ECR repo that is part of this stack
+                    "Fn::Join":
+                        - ""
+                        -
+                            - { "Ref" : "AWS::AccountId" }
+                            - ".dkr.ecr."
+                            - { "Ref" : "AWS::Region" }
+                            - ".amazonaws.com/"
+                            - { "Ref" : "EcrRepository" }
+                            - ":"
+                            - {{__context.stage}}
+                {% endif %}
+                Vcpus: {{vcpus}}
+                Memory: {{memory}}
+                JobRoleArn: 
+                    "Fn::GetAtt" : ["ContainerRole", "Arn"]
+                Environment: [
+                    {"Name": "AWS_REGION", "Value": {"Fn::Sub": "${AWS::Region}"}}
+                    {% if environment %}
+                    {% for varname, varvalue in environment.items() %}
+                    {% if loop.first %}
+                    ,
+                    {% endif %}
+                    {"Name": "{{varname}}", "Value": "{{varvalue}}"}
+                    {% if not loop.last %}
+                    ,
+                    {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                ]
+            RetryStrategy:
+                Attempts: {{attempts}}
+
+            {% if timeout %}
+            Timeout:
+                AttemptDurationSeconds: {{timeout}}
+            {% endif %}
