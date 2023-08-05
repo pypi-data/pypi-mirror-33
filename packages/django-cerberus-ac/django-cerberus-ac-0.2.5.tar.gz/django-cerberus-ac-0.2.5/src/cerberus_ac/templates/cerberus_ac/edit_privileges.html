@@ -1,0 +1,176 @@
+{% load static %}
+{% load i18n %}
+
+<link rel="stylesheet" type="text/css" href="{% static "cerberus_ac/datatables/datatables.min.css" %}"/>
+<link rel="stylesheet" type="text/css" href="{% static "cerberus_ac/css/edit_privileges.css" %}"/>
+
+<script type="text/javascript" src="{% static "cerberus_ac/datatables/datatables.min.js" %}"></script>
+
+<div id="notifications"></div>
+<table id="editprivtable" class="table table-bordered"></table>
+
+{% with ctx=box.context %}
+  <script type="text/javascript" language="javascript" class="init">
+    var table;
+    var roles;
+    var resources;
+
+    var set_privilege_url = '{% url "admin:cerberus:ajax_edit_privileges" ctx.role_type ctx.resource_type 'RO' 'RS' 'P' 'A' %}';
+    var load_privileges_url = '{% url "admin:cerberus:ajax_load_privileges" ctx.role_type 'ROLE_ID' ctx.resource_type %}';
+
+    function set_privilege(role_id, resource_id, privilege, action) {
+      var params = '/' + role_id + '/' + resource_id + '/' + privilege + '/' + action;
+      $.ajax({
+        url: set_privilege_url.replace('/RO/RS/P/A', params),
+        type: 'GET',
+        dataType: 'json',
+        success: function(data) {
+          var status = data.success? 'success': 'failure';
+          $("#notifications").prepend('<div class="notification ' + status + '">' + data.message + '</div>');
+          $(".notification:first").delay(5000).fadeOut("slow");
+        }
+      });
+    }
+
+    function load_privileges(row_index) {
+      var role_id = roles[row_index][0];
+      var params = '/' + role_id + '/';
+      var button = '<button onclick="set_privilege(' + role_id + ', RESOURCE_ID, ACCESS_TYPE, ACTION)" class="active btn btn-check-COLOR" type="button"></button>';
+      // TODO: record what has been loaded, don't reload when re-click?
+      $.ajax({
+        url: load_privileges_url.replace('/ROLE_ID/', params),
+        type: 'GET',
+        dataType: 'json',
+        success: function (data) {
+          var privileges, column, rlen, cell, res_button, priv_button, action_buttons, cell_data, allow_btn, forget_btn, deny_btn;
+          for (column=0, rlen=resources.length; column<rlen; column++) {
+            cell_data = '';
+            cell = table.cell(row_index, column+1);
+            privileges = data[column];
+            res_button = button.replace('RESOURCE_ID', resources[column][0]);
+            for (var p in privileges) {
+              action_buttons = '';
+              priv_button = res_button.replace('ACCESS_TYPE', "'" + p + "'");
+
+              allow_btn = priv_button.replace('ACTION', "'allow'").replace('COLOR', 'success');
+              forget_btn = priv_button.replace('ACTION', "'forget'").replace('COLOR', 'default');
+              deny_btn = priv_button.replace('ACTION', "'deny'").replace('COLOR', 'danger');
+
+              if (privileges[p] === true) {
+                forget_btn = forget_btn.replace('active ', '');
+                deny_btn = deny_btn.replace('active ', '');
+              } else if (privileges[p] === false) {
+                forget_btn = forget_btn.replace('active ', '');
+                allow_btn = allow_btn.replace('active ', '');
+              } else {
+                allow_btn = allow_btn.replace('active ', '');
+                deny_btn = deny_btn.replace('active ', '');
+              }
+
+              action_buttons = allow_btn + forget_btn + deny_btn;
+              cell_data += '<div>' + p + ' <div class="btn-group" data-toggle="buttons-radio">' + action_buttons + '</div></div>'
+            }
+            cell.data(cell_data);
+          }
+        }
+      });
+    }
+
+    function search_resource() {
+      var i, ien, input, filter, name, column;
+      input = document.getElementById('search_resource');
+      filter = input.value.toUpperCase();
+
+      if (filter.length === 0) {
+        for (i=0, ien=resources.length; i<ien; i++) {
+          table.column(i+1).visible(true, false);
+        }
+      } else {
+        for (i=0, ien=resources.length; i<ien; i++) {
+          name = resources[i][1];
+          column = table.column(i+1);
+          if (name.toUpperCase().indexOf(filter) > -1) {
+            column.visible(true, false);
+          } else {
+            column.visible(false, false);
+          }
+        }
+      }
+
+      table.draw();
+    }
+
+    $(document).ready(function() {
+      // get the roles and resources from server
+      $.ajax({
+        url: '{% url "admin:cerberus:ajax_load_roles_and_resources" ctx.role_type ctx.resource_type %}',
+        type: 'GET',
+        dataType: 'json',
+        success: function(json) {
+          var i, ien;
+
+          // save roles and resources in global variables
+          roles = json.roles;
+          resources = json.resources;
+
+          // format roles for datatable's data
+          var data = [];
+          for (i=0, ien=json.roles.length; i<ien; i++) {
+            data.push([json.roles[i][1]]);
+          }
+
+          // format resources for datatable's columns
+          var columns = [{title: '{% trans "Role" %}'}];
+          for (i=0, ien=json.resources.length; i<ien; i++) {
+            columns.push({
+              title: json.resources[i][1],
+              defaultContent: '',
+              searchable: false,
+              orderable: false
+            });
+          }
+
+          // build datatable
+          table = $('#editprivtable').DataTable({
+            paging: true,
+            scrollX: true,
+            deferRender: true,
+            data: data,
+            columns: columns,
+            columnDefs: [{
+
+            }],
+            // please see https://datatables.net/extensions/fixedcolumns/
+            // -> additional complexity
+            // fixedColumns: {
+            //   leftColumns: 1
+            // },
+            language: {
+              search: '{% trans "Search role:" %}',
+              paginate: {
+                previous: '{% trans "Previous" %}',
+                next: '{% trans "Next" %}'
+              }
+            }
+          });
+
+          // add the "filter resource" input
+          $('#editprivtable_filter').append('<label>{% trans "Search resource:" %}<input id="search_resource" onkeyup="search_resource()" type="text">');
+
+          // add event listener on rows to load/fold/unfold privileges
+          $('tbody').on('click', 'tr td:first-child', function() {
+            var i, ien;
+            for (i=0, ien=roles.length; i<ien; i++) {
+              {# FIXME: be careful: we assume here that role names are unique!! #}
+              if (roles[i][1] === $(this).text()) {
+                load_privileges(i);
+                break;
+              }
+            }
+          })
+        }
+      });
+    });
+
+  </script>
+{% endwith %}
