@@ -1,0 +1,176 @@
+{% load cms_tags menu_tags sekizai_tags %}{% load static from staticfiles %}
+{% load humanize %}
+{% load i18n %}
+{% load dj_markdownify %}
+{% load djcms_blog %}
+<!DOCTYPE html>
+<html>
+
+<head>
+	<!-- Standard Meta -->
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <meta name="robots" content="index, follow">
+    <meta name="description" content="{{ object.meta_description }}">
+    <meta name="keywords" content="{{ object.meta_title }}">
+    <meta name="author" content="{{ object.author.get_name }}">
+
+	<!-- Site Properities -->
+	<title>Carlos Martínez {% block title %}{% endblock %}</title>
+	<link href="https://fonts.googleapis.com/css?family=Lato|Montserrat|Nanum+Pen+Script" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Merriweather" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="{% static 'djcms_blog/css/semantic.min.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'djcms_blog/css/djcms_blog.css' %}">
+	{% block block_header %}{{ object.blog.block_header }}{% endblock block_header %}
+    {% markdown_code_css 'dracula' %}
+    <style>
+        .ui.primary.inverted.segment {
+            {% if object.cover %}
+            background-image: url({{ object.cover.url }}) !important;
+            {% else %}
+            background-image: url({{ object.blog.cover.url }}) !important;
+            {% endif %}
+            background-attachment: fixed;
+            background-position: 50% -20%;
+        }
+
+        .ui.footer.inverted.segment {
+            background-image: url({% static 'djcms_blog/img/index-bg.jpg' %}) !important;
+            background-position: 20% 20%;
+        }
+        .masthead {
+            {% if object.cover %}
+            height: 400px !important;
+            {% else %}
+            height: 200px !important;
+            {% endif %}
+        }
+    </style>
+    {% render_block "css" %}
+</head>
+
+<body id="top">
+	{% cms_toolbar %}
+
+	<div class="pusher">
+		<div class="ui inverted primary vertical masthead center aligned segment">
+
+			<div class="ui container">
+				<div class="ui large secondary pointing menu masterhead-nav">
+					<a class="toc item">
+						<i class="sidebar icon"></i>
+					</a>
+					<a href="/" class="item">Carlosmart.co</a>
+                    {% block navigation %} {% placeholder "navigation" %} {% endblock navigation %}
+                    <div class="right item">
+                        <a class="ui black button" href="{% blog_url %}">Blog</a>
+                    </div>
+				</div>
+			</div>
+			<div class="ui container post-masterhead">
+                {% comment %} <h1 class="blog-name">{% block blog-name %} {{ object.title }} {% endblock blog-name %}</h1> {% endcomment %}
+			</div>
+		</div>
+
+		<!-- <div class="ui borderless main menu always-top"> -->
+		<div class="ui borderless top fixed menu transition hidden secondary-nav">
+			<div class="ui container">
+				<a href="/" class="header item">
+					<img class="ui circular image logo" src="{% static 'img/carlosmart.png'%}"> Carlosmart.co
+				</a>
+				{% block nav_navigation %}{% placeholder "nav_navigation" %}{% endblock %}
+			</div>
+        </div>
+        {% include "djcms_blog/post_actions.html" %}
+		<div class="ui container blog-content" id="blog-content">
+            <h1 class="post-title">{{ object.title }}</h1>
+            <div class="post-meta">
+                <div class="post-meta__post_time">{{ post.published_date|date:"d M Y" }}</div>
+                {% trans "on" %} 
+                {% for tag in post.get_tags %}
+                <a href="/{{post.blog.slug}}/tag/{{tag.slug}}/">
+                    {{tag.name}}
+                </a>
+                {% endfor %}
+                {% include "djcms_blog/post_share.html" %}
+            </div>
+			{% block content %}{% endblock content %}
+		</div>
+		<div class="ui inverted vertical footer segment">
+			<div class="ui container">
+				<div class="ui stackable inverted divided equal height stackable grid">
+                    <div class="seven wide column">
+                        {% block footer_left %} {% placeholder "footer_left" %} {% endblock footer_left %}
+                    </div>
+                    <div class="three wide column">
+                        {% block footer_center %} {% placeholder "footer_center" %} {% endblock footer_center %}
+                    </div>
+                    <div class="three wide column">
+                        {% block footer_right %} {% placeholder "footer_right" %} {% endblock footer_right %}
+                    </div>
+				</div>
+			</div>
+		</div>
+	</div>
+	{% render_block "js" %}
+	<script src="{% static 'cms/js/libs/jquery.min.js' %}"></script>
+	<script src="{% static 'djcms_blog/js/semantic.min.js' %}"></script>
+	<script src="{% static 'djcms_blog/js/jquery-scrollspy.js' %}"></script>
+	<script src="{% static 'djcms_blog/js/jquery.easing.min.js' %}"></script>
+	<script src="https://unpkg.com/scrollreveal/dist/scrollreveal.min.js"></script>
+	<script>
+		$(document)
+			.ready(function () {
+				console.log('this is ready function');
+				// fix menu when passed
+				$('.masthead')
+					.visibility({
+						once: false,
+						onBottomPassed: function () {
+							console.log('this is onBottomPassed');
+							$('.fixed.menu').transition('fade in');
+							$('.fixed.menu').removeClass('hidden');
+                            $('.fixed.menu').addClass('visible');
+						},
+						onBottomPassedReverse: function () {
+							console.log('this is onBottomPassedReverse');
+							$('.fixed.menu').transition('fade out');
+							$('.fixed.menu').addClass('hidden');
+                            $('.fixed.menu').removeClass('visible');
+						}
+					})
+					;
+
+				// create sidebar and attach to menu open
+				$('.ui.sidebar')
+					.sidebar('attach events', '.toc.item')
+					;
+
+			});
+	</script>
+	<script type="text/javascript">
+		$('.ui.sticky')
+			.sticky();
+		;
+	</script>
+	{% markdown_code_js %}
+	{% markdown_code_js_init %}
+	<script>
+		$('.special.cards .image').dimmer({
+			on: 'hover'
+		});
+    </script>
+    {% if request.user.is_superuser %}
+    <script>
+        $('.ui.sticky')
+            .sticky({
+                context: '#blog-content'
+            });
+    </script>
+    {% endif %}
+	{% block extra_js %}{% endblock %}
+	{% block block_footer %}{{ object.blog.block_footer }}{% endblock block_footer %}
+</body>
+
+</html>
