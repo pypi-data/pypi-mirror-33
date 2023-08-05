@@ -1,0 +1,201 @@
+#!/usr/local/opt/python@2/bin/python2.7
+# -*- coding: utf-8 -*-
+from os import path, system, getcwd
+from click import group, argument, CommandCollection
+from generator import ModelGenerator, MODEL_PATH, BIND_PATH
+from urllib import urlretrieve
+
+__author__ = "Loi Nguyen <loinguyentrung@gmail.com>"
+
+
+def require_composer():
+    if not path.isfile('./composer.json'):
+        print('Error ! composer.json is missing.')
+        exit(1)
+    from distutils.spawn import find_executable
+    if find_executable('composer') is None:
+        print('Error ! Composer is require for PHP Project')
+    if not path.isdir(getcwd() + '/vendor'):
+        system('composer install --prefer-dist --no-interaction')
+
+
+def require_bootstrap():
+    if not path.isfile('./src/Bootstrap.php'):
+        print('Error ! src/Bootstrap.php is missing')
+        exit(1)
+
+
+def require_artisan():
+    if not path.isfile('./artisan'):
+        print('Error ! Missing Laravel artisan')
+        exit(1)
+
+
+@group()
+def create_cli():
+    pass
+
+
+@create_cli.command()
+@argument('name')
+def create(name):
+    """Create micro service application"""
+    if path.isdir(name):
+        print('Directory ', name, ' does not empty !')
+        confirm_override = raw_input('Would you like to override it ? y/n : ')
+        if confirm_override.lower() != 'y':
+            exit(0)
+    rest = '''{
+  "rest": "{app_name}",
+  "name": "app",
+  "config" : "api",
+  "document": "public/docs/api.json",
+  "source": "src",
+  "test": "test",
+  "interface": "../interface/src",
+  "mysql": {
+    "host": "localhost",
+    "username": "root",
+    "password": "password",
+    "database": "database"
+  }
+}'''
+    rest = rest.replace('{app_name}', name)
+    try:
+        system('rm -rf user')
+        system('rm -f app.zip')
+        system('rm -rf rest-skeleton-master')
+        urlretrieve('https://github.com/loint/rest-skeleton/archive/master.zip', 'app.zip')
+        system('unzip app.zip')
+        system('rm -f app.zip')
+        system('mv rest-skeleton-master ' + name)
+        rest_file = open(name + '/rest.json', 'w')
+        rest_file.write(rest)
+        rest_file.close()
+    except IOError:
+        print('Can not create application !')
+        raise
+
+
+@group()
+def migrate_cli():
+    pass
+
+
+@migrate_cli.command()
+def migrate():
+    """Migrate database schema"""
+    require_composer()
+    require_bootstrap()
+    require_artisan()
+    print('Start migration')
+    if not path.isdir('./src/Shared/Migration'):
+        print('Please put your migration in src/Shared/Migration')
+        exit(1)
+    system('php artisan migrate:refresh --path=src/Shared/Migration --force')
+
+
+@group()
+def sync_cli():
+    pass
+
+
+@sync_cli.command()
+def sync():
+    """
+    Synchronize model - repository - service
+    """
+    print('Synchronizing schema structure')
+    # generator = ModelGenerator()
+    # generator.set_model_path(MODEL_PATH)
+    # generator.set_bind_path(BIND_PATH)
+    # generator.set_identifier('//*************************************************')
+    # generator.scan_models()
+    # generator.scan_database()
+    # generator.generate_models()
+    # generator.scan_models()
+    # generator.scan_model_annotation()
+    # generator.generate_repositories()
+
+
+@group()
+def api_cli():
+    pass
+
+
+@api_cli.command()
+def api():
+    """Compile routes to controllers and test cases"""
+    print('Compile routes and generate controller')
+
+
+@group()
+def doc_cli():
+    pass
+
+
+@doc_cli.command()
+def doc():
+    """Generate documentation with Swagger"""
+    print('')
+
+
+@group()
+def serve_cli():
+    pass
+
+
+@serve_cli.command()
+def serve():
+    """Serve application with PHP built-in server"""
+    require_composer()
+    system('php -S localhost:8000 -t public')
+
+
+@group()
+def test_cli():
+    pass
+
+
+@test_cli.command()
+def test():
+    """Run test cases with PHPUnit"""
+    require_composer()
+    require_bootstrap()
+    system('php ./vendor/phpunit/phpunit/phpunit --bootstrap src/Bootstrap.php -c phpunit.xml')
+
+
+@group()
+def version_cli():
+    pass
+
+
+@version_cli.command()
+def version():
+    """Check current version"""
+
+
+@group()
+def upgrade_cli():
+    pass
+
+
+@upgrade_cli.command()
+def upgrade():
+    """Upgrade rest command to latest version"""
+
+
+cli = CommandCollection(sources=[
+    create_cli,
+    migrate_cli,
+    sync_cli,
+    api_cli,
+    doc_cli,
+    serve_cli,
+    test_cli,
+    version_cli,
+    upgrade_cli
+])
+
+if __name__ == '__main__':
+    cli()
