@@ -1,0 +1,444 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>implib.cutfileutils &#8212; ImpLib 1.0a3 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0a3',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">ImpLib 1.0a3 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for implib.cutfileutils</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">struct</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">.cutcmds</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">.fileutils</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">.mathext</span> <span class="k">import</span> <span class="o">*</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;read_cls_cut_file&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;read_binary_cut_file&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;read_ascii_cut_file&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;read_cut_file&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;is_cmd_list&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;make_cbf_header&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;make_goto_cmd&#39;</span><span class="p">]</span>
+
+<span class="c1"># TODO: Add documentation</span>
+
+<span class="n">float_re</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;(-?\d+\.?\d*)&#39;</span>
+<span class="n">comma_re</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39; *, *&#39;</span>
+<span class="n">vec_re</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;&lt; *&#39;</span> <span class="o">+</span> <span class="n">float_re</span> <span class="o">+</span> <span class="n">comma_re</span> <span class="o">+</span> <span class="n">float_re</span> <span class="o">+</span> <span class="n">comma_re</span> <span class="o">+</span> <span class="n">float_re</span> <span class="o">+</span> <span class="sa">r</span><span class="s1">&#39; *&gt;&#39;</span>
+
+<span class="n">ASCII_ARG_TYPE</span> <span class="o">=</span> <span class="p">{</span>
+	<span class="s1">&#39;VEC&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">vec_re</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">ASCII</span><span class="p">),</span> <span class="s1">&#39;conv_func&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">mo</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mo</span><span class="o">.</span><span class="n">groups</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))},</span>
+	<span class="s1">&#39;FLOAT&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">float_re</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">ASCII</span><span class="p">),</span> <span class="s1">&#39;conv_func&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">mo</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">mo</span><span class="o">.</span><span class="n">group</span><span class="p">()))},</span>
+	<span class="s1">&#39;STR&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\w+)&#39;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">ASCII</span><span class="p">),</span> <span class="s1">&#39;conv_func&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">mo</span><span class="p">:</span> <span class="n">mo</span><span class="o">.</span><span class="n">group</span><span class="p">())},</span>
+	<span class="s1">&#39;BYTE&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\d{1,3})&#39;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">ASCII</span><span class="p">),</span> <span class="s1">&#39;conv_func&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">mo</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">mo</span><span class="o">.</span><span class="n">group</span><span class="p">()))},</span>
+	<span class="s1">&#39;LNGINT&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\d{1,10})&#39;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">ASCII</span><span class="p">),</span> <span class="s1">&#39;conv_func&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">mo</span><span class="p">:</span> <span class="n">mo</span><span class="o">.</span><span class="n">group</span><span class="p">())},</span>
+	<span class="c1"># Should refine the character set</span>
+	<span class="s1">&#39;LNGSTR&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(.*)\n&#39;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">ASCII</span><span class="p">),</span> <span class="s1">&#39;conv_func&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">mo</span><span class="p">:</span> <span class="n">mo</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))},</span>
+<span class="p">}</span>
+
+<span class="n">ASCII_CMD_TO_CUT_CMD</span> <span class="o">=</span> <span class="p">{</span>
+		<span class="s1">&#39;header&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">HeaderCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;LNGSTR&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;header_ext&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">HeaderExtCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;LNGSTR&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;checkpoint&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">CheckpointCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;STR&#39;</span><span class="p">,</span> <span class="s1">&#39;VEC&#39;</span><span class="p">,</span> <span class="s1">&#39;FLOAT&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;cutter&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">CutterCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;STR&#39;</span><span class="p">,</span> <span class="s1">&#39;FLOAT&#39;</span><span class="p">,</span> <span class="s1">&#39;FLOAT&#39;</span><span class="p">,</span> <span class="s1">&#39;FLOAT&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;orient&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">OrientCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;VEC&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;orient5b&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">Orient5XCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;VEC&#39;</span><span class="p">,</span> <span class="s1">&#39;VEC&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;phase&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">PhaseCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;STR&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;startshape&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">StartshapeCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;STR&#39;</span><span class="p">,</span> <span class="s1">&#39;BYTE&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;endshape&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">EndshapeCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;STR&#39;</span><span class="p">,</span> <span class="s1">&#39;BYTE&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;decel_off&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">DecelOffCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+		<span class="s1">&#39;decel_on&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">DecelOnCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+		<span class="s1">&#39;point&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">PointCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;VEC&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;line&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">LineCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;VEC&#39;</span><span class="p">,</span> <span class="s1">&#39;VEC&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;line5b&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">Line5XCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;VEC&#39;</span><span class="p">,</span> <span class="s1">&#39;VEC&#39;</span><span class="p">,</span> <span class="s1">&#39;VEC&#39;</span><span class="p">,</span> <span class="s1">&#39;VEC&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;speed&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">SpeedCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;FLOAT&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;accel&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">AccelCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;FLOAT&#39;</span><span class="p">,</span> <span class="s1">&#39;FLOAT&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;cutter_on&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">CutterOnCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+		<span class="s1">&#39;cutter_off&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">CutterOffCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+		<span class="s1">&#39;fcparms&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">FCparmsCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;FLOAT&#39;</span><span class="p">,</span> <span class="s1">&#39;FLOAT&#39;</span><span class="p">,</span> <span class="s1">&#39;FLOAT&#39;</span><span class="p">,</span> <span class="s1">&#39;FLOAT&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;version&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">VersionCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;STR&#39;</span><span class="p">,</span> <span class="s1">&#39;STR&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;comment&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">CommentCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;LNGSTR&#39;</span><span class="p">]},</span>
+		<span class="s1">&#39;check_sum&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">CheckSumCmd</span><span class="p">,</span> <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;LNGINT&#39;</span><span class="p">]}</span>
+<span class="p">}</span>
+
+
+<span class="k">def</span> <span class="nf">parse_ascii_cut_line</span><span class="p">(</span><span class="n">line</span><span class="p">):</span>
+	<span class="n">split_result</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+	<span class="n">ascii_cmd</span> <span class="o">=</span> <span class="n">split_result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+	<span class="n">ascii_args</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_result</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+	<span class="k">if</span> <span class="n">ascii_cmd</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ASCII_CMD_TO_CUT_CMD</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+		<span class="k">raise</span> <span class="n">InvalidCutCmdError</span><span class="p">(</span><span class="n">ascii_cmd</span><span class="p">)</span>
+	<span class="k">elif</span> <span class="n">ASCII_CMD_TO_CUT_CMD</span><span class="p">[</span><span class="n">ascii_cmd</span><span class="p">][</span><span class="s1">&#39;args&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="k">return</span> <span class="n">ASCII_CMD_TO_CUT_CMD</span><span class="p">[</span><span class="n">ascii_cmd</span><span class="p">][</span><span class="s1">&#39;cmd&#39;</span><span class="p">]()</span>
+	<span class="k">elif</span> <span class="n">ascii_args</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="c1"># TODO: Remove [None]</span>
+		<span class="k">return</span> <span class="n">ASCII_CMD_TO_CUT_CMD</span><span class="p">[</span><span class="n">ascii_cmd</span><span class="p">][</span><span class="s1">&#39;cmd&#39;</span><span class="p">]([</span><span class="kc">None</span><span class="p">])</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="n">arg_list</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="k">for</span> <span class="n">arg_type</span> <span class="ow">in</span> <span class="n">ASCII_CMD_TO_CUT_CMD</span><span class="p">[</span><span class="n">ascii_cmd</span><span class="p">][</span><span class="s1">&#39;args&#39;</span><span class="p">]:</span>
+			<span class="n">mo</span> <span class="o">=</span> <span class="n">ASCII_ARG_TYPE</span><span class="p">[</span><span class="n">arg_type</span><span class="p">][</span><span class="s1">&#39;re&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">ascii_args</span><span class="p">)</span>
+			<span class="n">arg_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ASCII_ARG_TYPE</span><span class="p">[</span><span class="n">arg_type</span><span class="p">][</span><span class="s1">&#39;conv_func&#39;</span><span class="p">](</span><span class="n">mo</span><span class="p">))</span>
+			<span class="n">ascii_args</span> <span class="o">=</span> <span class="n">ascii_args</span><span class="p">[</span><span class="n">mo</span><span class="o">.</span><span class="n">span</span><span class="p">(</span><span class="mi">0</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:]</span>
+		<span class="k">return</span> <span class="n">ASCII_CMD_TO_CUT_CMD</span><span class="p">[</span><span class="n">ascii_cmd</span><span class="p">][</span><span class="s1">&#39;cmd&#39;</span><span class="p">](</span><span class="n">arg_list</span><span class="p">)</span>
+	<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Error parsing ASCII CUT line.&#39;</span><span class="p">)</span>
+
+
+<span class="c1"># TODO: Add try-catch</span>
+<div class="viewcode-block" id="read_ascii_cut_file"><a class="viewcode-back" href="../../implib.html#implib.cutfileutils.read_ascii_cut_file">[docs]</a><span class="k">def</span> <span class="nf">read_ascii_cut_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;Convert an ASCII cut file to a list of CutCmds.&quot;&quot;&quot;</span>
+	<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+		<span class="n">cmd_list</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="n">num_lines</span> <span class="o">=</span> <span class="mi">0</span>
+		<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+			<span class="n">num_lines</span> <span class="o">+=</span> <span class="mi">1</span>
+			<span class="n">cmd_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parse_ascii_cut_line</span><span class="p">(</span><span class="n">line</span><span class="p">))</span>
+			<span class="c1"># split_result = line.split()</span>
+			<span class="c1"># ascii_cmd = split_result[0]</span>
+			<span class="c1"># ascii_args = None if len(split_result) == 1 else line.split(&#39; &#39;, 1)[1]</span>
+			<span class="c1">#</span>
+			<span class="c1"># if ascii_cmd not in ASCII_CMD_TO_CUT_CMD.keys():</span>
+			<span class="c1"># 	raise InvalidCutCmdError(ascii_cmd)</span>
+			<span class="c1"># elif ASCII_CMD_TO_CUT_CMD[ascii_cmd][&#39;args&#39;] is None:</span>
+			<span class="c1"># 	cmd_list.append(ASCII_CMD_TO_CUT_CMD[ascii_cmd][&#39;cmd&#39;]())</span>
+			<span class="c1"># elif ascii_args is None:</span>
+			<span class="c1"># 	# TODO: Remove [None]</span>
+			<span class="c1"># 	cmd_list.append(ASCII_CMD_TO_CUT_CMD[ascii_cmd][&#39;cmd&#39;]([None]))</span>
+			<span class="c1"># else:</span>
+			<span class="c1"># 	arg_list = []</span>
+			<span class="c1"># 	for arg_type in ASCII_CMD_TO_CUT_CMD[ascii_cmd][&#39;args&#39;]:</span>
+			<span class="c1"># 		mo = ASCII_ARG_TYPE[arg_type][&#39;re&#39;].search(ascii_args)</span>
+			<span class="c1"># 		arg_list.append(ASCII_ARG_TYPE[arg_type][&#39;conv_func&#39;](mo))</span>
+			<span class="c1"># 		ascii_args = ascii_args[mo.span(0)[1]:]</span>
+			<span class="c1"># 	cmd_list.append(ASCII_CMD_TO_CUT_CMD[ascii_cmd][&#39;cmd&#39;](arg_list))</span>
+
+		<span class="k">assert</span> <span class="n">num_lines</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">cmd_list</span><span class="p">),</span> <span class="s1">&#39;ERROR: </span><span class="si">%s</span><span class="s1"> lines in CUT but only </span><span class="si">%s</span><span class="s1"> commands!&#39;</span> <span class="o">%</span> <span class="p">(</span>
+			<span class="n">num_lines</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">cmd_list</span><span class="p">))</span>
+		<span class="k">return</span> <span class="n">cmd_list</span></div>
+
+<span class="c1"># TODO: add int and unpack using struct</span>
+<span class="n">BIN_ARG_TYPE</span> <span class="o">=</span> <span class="p">{</span>
+	<span class="s1">&#39;s&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">hex_int_lst</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">chr</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">hex_int_lst</span><span class="p">])</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\x00</span><span class="s1">&#39;</span><span class="p">)),</span>
+	<span class="s1">&#39;f&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;f&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">)[</span><span class="mi">0</span><span class="p">]),</span>
+	<span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">),</span>
+	<span class="s1">&#39;v&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;f&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">[:</span><span class="mi">4</span><span class="p">])[</span><span class="mi">0</span><span class="p">],</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;f&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="mi">8</span><span class="p">])[</span><span class="mi">0</span><span class="p">],</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;f&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="mi">8</span><span class="p">:])[</span><span class="mi">0</span><span class="p">]]),</span>
+	<span class="s1">&#39;i&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;B&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">)[</span><span class="mi">0</span><span class="p">]),</span>  <span class="c1"># single Byte integer</span>
+	<span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span>  <span class="c1"># hex</span>
+	<span class="s1">&#39;h&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;H&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">)[</span><span class="mi">0</span><span class="p">]),</span>  <span class="c1"># short</span>
+	<span class="s1">&#39;r&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">)</span>  <span class="c1"># reserved byte. TODO: Should this return empty list?</span>
+<span class="p">}</span>
+
+<span class="n">BIN_CMD_TO_CUT_CMD</span> <span class="o">=</span> <span class="p">{</span>
+	<span class="mh">0x53A1B792</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">HeaderCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;h&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="mi">70</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="mi">34</span><span class="p">),</span>
+	                                            <span class="p">(</span><span class="s1">&#39;h&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">)]},</span>
+	<span class="mh">0x3C</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">CheckpointCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">)]},</span>
+	<span class="mh">0xA3</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">CutterCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">)]},</span>
+	<span class="mh">0x58</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">OrientCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">)]},</span>
+	<span class="mh">0x59</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">Orient5XCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">)]},</span>
+	<span class="mh">0x21</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">PhaseCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="mi">16</span><span class="p">)]},</span>
+	<span class="mh">0xC9</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">StartshapeCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]},</span>
+	<span class="mh">0x65</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">EndshapeCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]},</span>
+	<span class="mh">0x2B</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">DecelOffCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]},</span>
+	<span class="mh">0x4E</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">DecelOnCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]},</span>
+	<span class="mh">0x33</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">PointCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">)]},</span>
+	<span class="mh">0xB6</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">LineCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">)]},</span>
+	<span class="mh">0xB7</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">Line5XCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">)]},</span>
+	<span class="mh">0x8B</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">SpeedCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">)]},</span>
+	<span class="mh">0x47</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">AccelCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">)]},</span>
+	<span class="mh">0xBB</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">CutterOnCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]},</span>
+	<span class="mh">0x66</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">CutterOffCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]},</span>
+	<span class="mh">0xFC</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">FCparmsCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">)]},</span>
+	<span class="mh">0x55</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">VersionCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="mi">8</span><span class="p">)]},</span>
+	<span class="mh">0x5A</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="n">CommentCmd</span><span class="p">,</span> <span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="mi">40</span><span class="p">)]},</span>
+	<span class="s1">&#39;bin_cmd_hdr&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;bin_args&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)]}</span>
+<span class="p">}</span>
+
+
+<span class="c1"># TODO: Where to add cbf format checker? Add it to the parser?</span>
+<div class="viewcode-block" id="read_binary_cut_file"><a class="viewcode-back" href="../../implib.html#implib.cutfileutils.read_binary_cut_file">[docs]</a><span class="k">def</span> <span class="nf">read_binary_cut_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;Convert a binary cut file to a list of CutCmds.&quot;&quot;&quot;</span>
+
+	<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+		<span class="k">def</span> <span class="nf">bin_chunks_to_py</span><span class="p">(</span><span class="n">bin_chunks</span><span class="p">):</span>
+			<span class="n">lst</span> <span class="o">=</span> <span class="p">[]</span>
+			<span class="k">for</span> <span class="n">typ</span><span class="p">,</span> <span class="n">sz</span> <span class="ow">in</span> <span class="n">bin_chunks</span><span class="p">:</span>
+				<span class="n">lst</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">BIN_ARG_TYPE</span><span class="p">[</span><span class="n">typ</span><span class="p">](</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">sz</span><span class="p">)))</span>
+			<span class="k">return</span> <span class="n">lst</span>
+
+		<span class="n">cmd_lst</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="n">header</span> <span class="o">=</span> <span class="n">bin_chunks_to_py</span><span class="p">(</span><span class="n">BIN_CMD_TO_CUT_CMD</span><span class="p">[</span><span class="mh">0x53A1B792</span><span class="p">][</span><span class="s1">&#39;bin_args&#39;</span><span class="p">])</span>
+		<span class="c1"># TODO: process header and add it to command list</span>
+		<span class="n">cmd_lst</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">BIN_CMD_TO_CUT_CMD</span><span class="p">[</span><span class="mh">0x53A1B792</span><span class="p">][</span><span class="s1">&#39;cmd&#39;</span><span class="p">]([</span><span class="n">header</span><span class="p">[</span><span class="mi">5</span><span class="p">]]))</span>
+		<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+			<span class="n">cmd_code</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+			<span class="k">if</span> <span class="ow">not</span> <span class="n">cmd_code</span><span class="p">:</span>
+				<span class="c1"># eof</span>
+				<span class="k">break</span>
+			<span class="n">chunk</span> <span class="o">=</span> <span class="n">bin_chunks_to_py</span><span class="p">(</span><span class="n">BIN_CMD_TO_CUT_CMD</span><span class="p">[</span><span class="s1">&#39;bin_cmd_hdr&#39;</span><span class="p">][</span><span class="s1">&#39;bin_args&#39;</span><span class="p">])</span>
+			<span class="n">bin_cmd</span> <span class="o">=</span> <span class="n">chunk</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+			<span class="k">if</span> <span class="n">bin_cmd</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">BIN_CMD_TO_CUT_CMD</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+				<span class="k">raise</span> <span class="n">InvalidCutCmdError</span><span class="p">(</span><span class="n">bin_cmd</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">arg_list</span> <span class="o">=</span> <span class="n">bin_chunks_to_py</span><span class="p">(</span><span class="n">BIN_CMD_TO_CUT_CMD</span><span class="p">[</span><span class="n">bin_cmd</span><span class="p">][</span><span class="s1">&#39;bin_args&#39;</span><span class="p">])</span>
+				<span class="k">if</span> <span class="n">arg_list</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">]:</span>
+					<span class="n">arg_list</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span>
+				<span class="n">cmd_lst</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">BIN_CMD_TO_CUT_CMD</span><span class="p">[</span><span class="n">bin_cmd</span><span class="p">][</span><span class="s1">&#39;cmd&#39;</span><span class="p">](</span><span class="n">arg_list</span><span class="p">))</span>
+		<span class="k">return</span> <span class="n">cmd_lst</span></div>
+
+
+<span class="n">CLS_CMD_TO_CUT_CMD</span> <span class="o">=</span> <span class="p">{</span>
+	<span class="s1">&#39;$$ &#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+	<span class="s1">&#39;$$CUT&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cmd&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+	<span class="s1">&#39;MSYS/&#39;</span><span class="p">:</span> <span class="p">{},</span>
+	<span class="s1">&#39;TOOL PATH/&#39;</span><span class="p">:</span> <span class="p">{},</span>
+	<span class="s1">&#39;TLDATA/&#39;</span><span class="p">:</span> <span class="p">{},</span>
+	<span class="s1">&#39;LOAD/&#39;</span><span class="p">:</span> <span class="p">{},</span>
+	<span class="s1">&#39;GOTO/&#39;</span><span class="p">:</span> <span class="p">{},</span>
+	<span class="s1">&#39;FEDRAT/&#39;</span><span class="p">:</span> <span class="p">{},</span>
+	<span class="s1">&#39;PAINT/&#39;</span><span class="p">:</span> <span class="p">{},</span>
+	<span class="s1">&#39;END-OF-PATH&#39;</span><span class="p">:</span> <span class="p">{},</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="read_cls_cut_file"><a class="viewcode-back" href="../../implib.html#implib.cutfileutils.read_cls_cut_file">[docs]</a><span class="k">def</span> <span class="nf">read_cls_cut_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+	<span class="c1"># TODO: Force designers to output ISO formatted CLSs</span>
+	<span class="c1"># TODO: Force designers to output CLS in metric (mm)</span>
+	<span class="sd">&quot;&quot;&quot;Convert a cls(f) cut file to a list of CutCmds&quot;&quot;&quot;</span>
+	<span class="c1"># &quot;		CLSF		CUT					RULE</span>
+	<span class="c1"># 	Filename	header				if CLSF does not start with $$CUT header then add header as file name. header translated as $$CUT to CLSF.</span>
+	<span class="c1"># 	GOTO/GOHOME/FROM		line5b				GOTO translated to line5b based on the previous position.</span>
+	<span class="c1"># 	NOTE: GOHOME is return home, but for now handle same as GOTO.</span>
+	<span class="c1"># 	TOOL PATH	phase</span>
+	<span class="c1"># 	LOAD/TOOL	cutter</span>
+	<span class="c1"># 	FEDRAT		speed</span>
+	<span class="c1"># 	$$			comment</span>
+	<span class="c1"># 	$$CUT		all other commands</span>
+	<span class="c1"># 	other		comment CLSF</span>
+	<span class="c1"># 	END-OF-PATH	pass&quot;</span>
+	<span class="c1"># TODO: need to construct header from file name, date &amp; time</span>
+	<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+		<span class="n">cmd_list</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="n">tf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+		<span class="n">prev_pt</span><span class="p">,</span> <span class="n">prev_dir</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+
+		<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+			<span class="n">cmd</span> <span class="o">=</span> <span class="kc">None</span>
+			<span class="c1"># TODO: will the stripping  line affect comments?</span>
+			<span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+			<span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;$$ &#39;</span><span class="p">):</span>
+				<span class="n">comment</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">&#39;$$ &#39;</span><span class="p">)</span>
+				<span class="n">cmd</span> <span class="o">=</span> <span class="n">CommentCmd</span><span class="p">([</span><span class="n">comment</span><span class="p">])</span>
+			<span class="k">elif</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;$$CUT &#39;</span><span class="p">):</span>
+				<span class="n">cut_line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;$$CUT &#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+				<span class="n">cmd</span> <span class="o">=</span> <span class="n">parse_ascii_cut_line</span><span class="p">(</span><span class="n">cut_line</span><span class="p">)</span>
+			<span class="k">elif</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;MSYS/&#39;</span><span class="p">):</span>
+				<span class="n">str_vals</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;MSYS/&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+				<span class="n">vals</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">str_vals</span><span class="p">))</span>
+				<span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">vals</span><span class="p">[:</span><span class="mi">3</span><span class="p">])</span>
+				<span class="n">xr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">vals</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">])</span>
+				<span class="n">yr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">vals</span><span class="p">[</span><span class="mi">6</span><span class="p">:</span><span class="mi">9</span><span class="p">])</span>
+				<span class="n">zr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">xr</span><span class="p">,</span> <span class="n">yr</span><span class="p">)</span>
+				<span class="n">tf</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">xr</span>
+				<span class="n">tf</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">yr</span>
+				<span class="n">tf</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">zr</span>
+				<span class="n">tf</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">t</span>
+				<span class="n">comment</span> <span class="o">=</span> <span class="s1">&#39;CLSF </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">line</span>
+				<span class="n">cmd</span> <span class="o">=</span> <span class="n">CommentCmd</span><span class="p">([</span><span class="n">comment</span><span class="p">])</span>
+			<span class="k">elif</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;TOOL PATH/&#39;</span><span class="p">):</span>
+				<span class="n">line_items</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+				<span class="n">phase_name</span> <span class="o">=</span> <span class="n">line_items</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+				<span class="n">cmd</span> <span class="o">=</span> <span class="n">PhaseCmd</span><span class="p">([</span><span class="n">phase_name</span><span class="p">])</span>
+				<span class="n">cmd</span><span class="o">.</span><span class="n">set_cutter</span><span class="p">(</span><span class="n">line_items</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+			<span class="k">elif</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;LOAD/TOOL&#39;</span><span class="p">):</span>
+				<span class="n">tool</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+				<span class="n">cmd</span> <span class="o">=</span> <span class="n">CutterCmd</span><span class="p">([</span><span class="n">tool</span><span class="p">])</span>
+			<span class="k">elif</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;FEDRAT/&#39;</span><span class="p">):</span>
+				<span class="n">line_list</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+				<span class="k">if</span> <span class="n">line_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;MMPM&#39;</span><span class="p">):</span>
+					<span class="n">conv</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="mi">60000</span>
+				<span class="k">elif</span> <span class="n">line_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;IPM&#39;</span><span class="p">):</span>
+					<span class="n">conv</span> <span class="o">=</span> <span class="mf">25.4</span><span class="o">/</span><span class="mi">60000</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unrecognized FEDRAT unit&#39;</span><span class="p">)</span>
+				<span class="n">spd</span> <span class="o">=</span> <span class="n">conv</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">line_list</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+				<span class="n">cmd</span> <span class="o">=</span> <span class="n">SpeedCmd</span><span class="p">([</span><span class="n">spd</span><span class="p">])</span>
+			<span class="c1"># elif line.startswith(&#39;END-OF-PATH&#39;):</span>
+			<span class="c1"># 	continue</span>
+			<span class="k">elif</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;GOTO/&#39;</span><span class="p">):</span>
+				<span class="n">str_vals</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;GOTO/&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+				<span class="c1"># TODO: what precision to use when reading floats in?</span>
+				<span class="n">vals</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">str_vals</span><span class="p">))</span>
+				<span class="n">new_pt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">vals</span><span class="p">[:</span><span class="mi">3</span><span class="p">])</span>
+				<span class="n">new_ori</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">vals</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">])</span>  <span class="c1"># Tool direction vector must be flipped to accomodate TCAT convention</span>
+				<span class="k">if</span> <span class="n">prev_pt</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">prev_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+					<span class="n">cmd_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">OrientCmd</span><span class="p">([</span><span class="n">new_ori</span><span class="p">]))</span>
+					<span class="n">cmd_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">PointCmd</span><span class="p">([</span><span class="n">new_pt</span><span class="p">]))</span>
+				<span class="k">else</span><span class="p">:</span>
+					<span class="c1"># TODO: what if user wants line instead of line5b?</span>
+					<span class="n">cmd</span> <span class="o">=</span> <span class="n">Line5XCmd</span><span class="p">([</span><span class="n">prev_pt</span><span class="p">,</span> <span class="n">new_pt</span><span class="p">,</span> <span class="n">prev_dir</span><span class="p">,</span> <span class="n">new_ori</span><span class="p">])</span>
+				<span class="n">prev_pt</span> <span class="o">=</span> <span class="n">new_pt</span>
+				<span class="n">prev_dir</span> <span class="o">=</span> <span class="n">new_ori</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">comment</span> <span class="o">=</span> <span class="s1">&#39;CLSF </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">line</span>
+				<span class="n">cmd</span> <span class="o">=</span> <span class="n">CommentCmd</span><span class="p">([</span><span class="n">comment</span><span class="p">])</span>
+
+			<span class="k">if</span> <span class="n">cmd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+				<span class="n">cmd_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+	<span class="c1"># for cmd in cmd_list:</span>
+	<span class="c1"># 	print(cmd)</span>
+	<span class="k">return</span> <span class="n">cmd_list</span></div>
+
+
+<div class="viewcode-block" id="is_cmd_list"><a class="viewcode-back" href="../../implib.html#implib.cutfileutils.is_cmd_list">[docs]</a><span class="k">def</span> <span class="nf">is_cmd_list</span><span class="p">(</span><span class="n">lst</span><span class="p">,</span> <span class="n">raise_err</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">lst</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">raise_err</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;A command list must be a list.&#39;</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">return</span> <span class="kc">False</span>
+
+	<span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">lst</span><span class="p">:</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">CutCmd</span><span class="p">):</span>
+			<span class="k">if</span> <span class="n">raise_err</span><span class="p">:</span>
+				<span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> is not a CutCmd.&#39;</span> <span class="o">%</span> <span class="n">cmd</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="k">return</span> <span class="kc">False</span>
+
+	<span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="read_cut_file"><a class="viewcode-back" href="../../implib.html#implib.cutfileutils.read_cut_file">[docs]</a><span class="k">def</span> <span class="nf">read_cut_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+	<span class="c1"># TODO: Should Error be raised if file isn&#39;t cut file? Or just Warning?</span>
+	<span class="k">if</span> <span class="n">is_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+		<span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+
+	<span class="k">if</span> <span class="n">is_cut_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">is_cut_file_name</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+			<span class="k">return</span> <span class="n">read_ascii_cut_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+		<span class="k">elif</span> <span class="n">is_cbf_file_name</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+			<span class="k">return</span> <span class="n">read_binary_cut_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+		<span class="k">elif</span> <span class="n">is_cls_file_name</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+			<span class="k">return</span> <span class="n">read_cls_cut_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;File is a cut file but could not be read in.&#39;</span><span class="p">)</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;File </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s1"> is not a CUT/CBF/CLS file.&#39;</span> <span class="o">%</span> <span class="n">file_path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="make_cbf_header"><a class="viewcode-back" href="../../implib.html#implib.cutfileutils.make_cbf_header">[docs]</a><span class="k">def</span> <span class="nf">make_cbf_header</span><span class="p">(</span><span class="n">hdr_cmd</span><span class="p">,</span> <span class="n">file_checksum</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">num_cmds</span><span class="p">,</span> <span class="n">hdr_ext</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+	<span class="c1"># TODO: double check that file checksum is correct</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hdr_cmd</span><span class="p">,</span> <span class="n">HeaderCmd</span><span class="p">):</span>
+		<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;hdr_cmd must be a Header command.&#39;</span><span class="p">)</span>
+
+	<span class="n">hdr_ext_value</span> <span class="o">=</span> <span class="n">get_reserved_bytes</span><span class="p">(</span><span class="mi">34</span><span class="p">)</span>
+	<span class="k">if</span> <span class="n">hdr_ext</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hdr_ext</span><span class="p">,</span> <span class="n">HeaderExtCmd</span><span class="p">):</span>
+		<span class="n">hdr_ext_value</span> <span class="o">=</span> <span class="n">hdr_ext</span><span class="o">.</span><span class="n">get_cbf_value</span><span class="p">()</span>
+
+	<span class="n">start_pattern</span> <span class="o">=</span> <span class="n">hdr_cmd</span><span class="o">.</span><span class="n">get_cbf_cmd_code</span><span class="p">()</span>
+	<span class="n">end_pattern</span> <span class="o">=</span> <span class="mh">0xFFFFFFFF</span> <span class="o">-</span> <span class="n">start_pattern</span>
+
+	<span class="n">arg_bytes_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_reserved_bytes</span><span class="p">(</span><span class="mi">6</span><span class="p">),</span>
+	                   <span class="n">u_int_to_bytes</span><span class="p">(</span><span class="n">version</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+	                   <span class="n">hdr_cmd</span><span class="o">.</span><span class="n">get_cbf_value</span><span class="p">(),</span>
+	                   <span class="n">hdr_ext_value</span><span class="p">,</span>
+	                   <span class="n">u_int_to_bytes</span><span class="p">(</span><span class="n">num_cmds</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+	                   <span class="n">u_int_to_bytes</span><span class="p">(</span><span class="n">end_pattern</span><span class="p">,</span> <span class="mi">4</span><span class="p">)]</span>
+
+	<span class="n">checksum</span> <span class="o">=</span> <span class="n">compute_checksum</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">arg_bytes_list</span><span class="p">))</span>
+	<span class="n">hdr_checksum</span> <span class="o">=</span> <span class="n">u_int_to_bytes</span><span class="p">(</span><span class="n">checksum</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+	<span class="n">arg_bytes_list</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">hdr_checksum</span><span class="p">)</span>
+	<span class="n">arg_bytes</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">arg_bytes_list</span><span class="p">)</span>
+	<span class="n">file_checksum</span> <span class="o">+=</span> <span class="n">compute_checksum</span><span class="p">(</span><span class="n">arg_bytes</span><span class="p">)</span>
+	<span class="n">hdr</span> <span class="o">=</span> <span class="p">[</span><span class="n">u_int_to_bytes</span><span class="p">(</span><span class="n">start_pattern</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+	       <span class="n">u_int_to_bytes</span><span class="p">(</span><span class="n">file_checksum</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+	       <span class="n">arg_bytes</span><span class="p">]</span>
+
+	<span class="k">return</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">hdr</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="make_goto_cmd"><a class="viewcode-back" href="../../implib.html#implib.cutfileutils.make_goto_cmd">[docs]</a><span class="k">def</span> <span class="nf">make_goto_cmd</span><span class="p">(</span><span class="n">loc</span><span class="p">,</span> <span class="n">ori</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>
+	<span class="k">return</span> <span class="s1">&#39;GOTO/</span><span class="si">%s</span><span class="s1">,</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">np_vec_to_cls_vec</span><span class="p">(</span><span class="n">loc</span><span class="p">,</span> <span class="n">decimals</span><span class="p">),</span>
+	                       <span class="n">np_vec_to_cls_vec</span><span class="p">(</span><span class="n">ori</span><span class="p">,</span> <span class="n">decimals</span><span class="p">))</span></div>
+
+
+
+
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">ImpLib 1.0a3 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, C.J. Geering.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.6.
+    </div>
+  </body>
+</html>

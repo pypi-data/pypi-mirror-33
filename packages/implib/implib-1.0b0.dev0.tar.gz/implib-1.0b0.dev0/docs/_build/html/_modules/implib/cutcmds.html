@@ -1,0 +1,802 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>implib.cutcmds &#8212; ImpLib 1.0a3 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0a3',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">ImpLib 1.0a3 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for implib.cutcmds</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module is a collection of classes used to represent cut commands.</span>
+
+<span class="sd">THINK uses three cut-file types: CLS, CUT, and CBF. While each file type has its</span>
+<span class="sd">own formatting rules, they can all be used to represent the same list of commands.</span>
+<span class="sd">Equivalency issues often arise when a command has multiple representations,</span>
+<span class="sd">possibly a different model for each file type. This module ensures that there is</span>
+<span class="sd">a single model for each command, and thus should prevent equivlanecy issues.</span>
+
+<span class="sd">There are two main types of cut commands: :class:`MoveCmd` and :class:`InfoCmd`.</span>
+
+<span class="sd">Notes:</span>
+<span class="sd">	Default Units (unless specified otherwise): </span>
+<span class="sd">		- distance (mm)</span>
+<span class="sd">		- velocity (m/s)</span>
+<span class="sd">		- acceleration (m/s/s)</span>
+<span class="sd">	Cut-file Format Spec Documents:</span>
+<span class="sd">		- CBF :download:`300071, Rev03, Spec, Cutfile Binary Format (CBF) &lt;specs/300071 Rev03 Spec, Cutfile Binary Format (CBF).pdf&gt;`</span>
+<span class="sd">		- CUT :download:`300072, Rev07, Spec, Cutfile ASCII Format (CUT) &lt;specs/300072 Rev07 Spec Cutfile ASCII Format (CUT).pdf&gt;`</span>
+<span class="sd">		- CLS :download:`300319, Rev01, CLSFCUT Interface Specification &lt;specs/300319 Rev01 CLSFCUT Interface Specification.pdf&gt;`</span>
+<span class="sd">		</span>
+<span class="sd">.. moduleauthor:: C.J. Geering &lt;cgeering@thinksurgical.com&gt;</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c1"># import numpy as np  # For all numpy 3-vectors, indices [0,1,2] --&gt; [x,y,z] in R^3</span>
+<span class="kn">from</span> <span class="nn">.mathext</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">.cutter</span> <span class="k">import</span> <span class="n">CUTTERS</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;CutCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;MoveCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;InfoCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;PointCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;OrientCmd&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;Orient5XCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;LineCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;Line5XCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;HeaderCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;HeaderExtCmd&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;CheckpointCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;CutterCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;PhaseCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;StartshapeCmd&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;EndshapeCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;DecelOnCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;DecelOffCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;SpeedCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;AccelCmd&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;CutterOnCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;CutterOffCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;FCparmsCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;VersionCmd&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;CommentCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;CheckSumCmd&#39;</span><span class="p">,</span> <span class="s1">&#39;InvalidCutCmdError&#39;</span><span class="p">]</span>
+
+<span class="c1"># TODO: Add docstrings</span>
+<span class="c1"># TODO: rewrite eq method to be general by iterating through class attributes</span>
+<span class="c1"># and looking up type.</span>
+<span class="c1"># TODO: Let tol be set in a config file.</span>
+<span class="c1"># TODO: sort through class attributes and start making the proper fields private</span>
+<span class="c1"># TODO: Comparing tol is different than decimal places to write to.</span>
+<span class="c1"># TODO: Generalize _compile_cut_cmd. Particularly, get rid of &#39; &#39;.join().</span>
+<span class="c1"># TODO: specify units in docs (i.e. m/s, m, s)</span>
+
+
+<div class="viewcode-block" id="CutCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.CutCmd">[docs]</a><span class="k">class</span> <span class="nc">CutCmd</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;General cut command. </span>
+<span class="sd">	</span>
+<span class="sd">	Base-class for all cut commands -- all cut commands must extend this class. </span>
+<span class="sd">	</span>
+<span class="sd">	Args:</span>
+<span class="sd">		arg_list (List, optional): A list of argument values. Defaults to None.</span>
+<span class="sd">	</span>
+<span class="sd">	Attributes:</span>
+<span class="sd">		is_move_cmd (bool): True if this command is a MoveCmd.</span>
+<span class="sd">		is_info_cmd (bool): True if this command is an InfoCmd.</span>
+<span class="sd">		req_chkpt_before (bool): True if this command requries a checkpoint as the previous command.</span>
+<span class="sd">		req_chkpt_after (bool): True if this command requries a checkpoint as the next command.</span>
+<span class="sd">		req_stop_before (bool): True if all movement must be stopped before this command. </span>
+<span class="sd">		req_stop_after (bool): True if all movement must be stopped at the end of this command.</span>
+<span class="sd">		</span>
+<span class="sd">	Notes:</span>
+<span class="sd">		- Default tolerance for all operations is 1e-4.</span>
+<span class="sd">		</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">is_move_cmd</span> <span class="o">=</span> <span class="kc">False</span>
+	<span class="n">is_info_cmd</span> <span class="o">=</span> <span class="kc">False</span>
+	<span class="n">req_chkpt_before</span> <span class="o">=</span> <span class="kc">False</span>
+	<span class="n">req_chkpt_after</span> <span class="o">=</span> <span class="kc">False</span>
+	<span class="n">req_stop_before</span> <span class="o">=</span> <span class="kc">False</span>
+	<span class="n">req_stop_after</span> <span class="o">=</span> <span class="kc">False</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;GEN_CMD&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="bp">NotImplemented</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="bp">NotImplemented</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="bp">NotImplemented</span>
+	<span class="n">_cls_cmd_name</span> <span class="o">=</span> <span class="bp">NotImplemented</span>
+	<span class="n">_cmp_tol</span> <span class="o">=</span> <span class="mf">1e-4</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">arg_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg_list</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+				<span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;arg_list must be a List or None&#39;</span><span class="p">)</span>
+		<span class="n">arg_list</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">arg_list</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">arg_list</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_arg_list</span> <span class="o">=</span> <span class="n">arg_list</span>
+
+	<span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_title</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_arg_list</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_arg_list</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">result</span>
+		<span class="k">return</span> <span class="ow">not</span> <span class="n">result</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cut_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cbf_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+<div class="viewcode-block" id="CutCmd.get_cbf"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.CutCmd.get_cbf">[docs]</a>	<span class="k">def</span> <span class="nf">get_cbf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;Compile and retrieve the CBF byte-string for this commmand. </span>
+<span class="sd">		</span>
+<span class="sd">		The command is compiled according to the format specified in document</span>
+<span class="sd">		:download:`300071, Rev03, Spec, Cutfile Binary Format (CBF) </span>
+<span class="sd">		&lt;specs/300071 Rev03 Spec, Cutfile Binary Format (CBF).pdf&gt;`. The</span>
+<span class="sd">		returned bytearray will not include the command sequence number.</span>
+<span class="sd">		</span>
+<span class="sd">		Returns:</span>
+<span class="sd">			bytearray: [cmd code, cmd code, # arg bytes, 0, checksum, args]</span>
+<span class="sd">			</span>
+<span class="sd">		Note:</span>
+<span class="sd">			The returned bytearray will not include the command sequence number.	</span>
+
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="c1"># TODO: add version as an optional input parameter</span>
+		<span class="n">arg_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compile_cbf_args</span><span class="p">()</span>
+		<span class="n">arg_bytes</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="n">checksum</span> <span class="o">=</span> <span class="n">compute_checksum</span><span class="p">(</span><span class="n">arg_bytes</span><span class="p">)</span>
+		<span class="n">cmd_bytes</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s1">&#39;BBBBH&#39;</span><span class="p">,</span>
+		                        <span class="bp">self</span><span class="o">.</span><span class="n">_cbf_cmd_code</span><span class="p">,</span>
+		                        <span class="bp">self</span><span class="o">.</span><span class="n">_cbf_cmd_code</span><span class="p">,</span>
+		                        <span class="bp">self</span><span class="o">.</span><span class="n">_cbf_num_arg_bytes</span><span class="p">,</span>
+		                        <span class="mi">0</span><span class="p">,</span>
+		                        <span class="n">checksum</span><span class="p">)</span>
+		<span class="k">return</span> <span class="n">cmd_bytes</span> <span class="o">+</span> <span class="n">arg_bytes</span></div>
+
+<div class="viewcode-block" id="CutCmd.get_cbf_cmd_code"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.CutCmd.get_cbf_cmd_code">[docs]</a>	<span class="k">def</span> <span class="nf">get_cbf_cmd_code</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;Get the CBF command code for this command.</span>
+<span class="sd">		</span>
+<span class="sd">		The command codes are listed in document :download:`300071, Rev03, Spec,</span>
+<span class="sd">		Cutfile Binary Format (CBF) &lt;specs/300071 Rev03 Spec, Cutfile Binary Format (CBF).pdf&gt;`.</span>
+<span class="sd">		</span>
+<span class="sd">		Returns:</span>
+<span class="sd">			int: CBF command code</span>
+
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cbf_cmd_code</span></div>
+
+<div class="viewcode-block" id="CutCmd.get_cut"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.CutCmd.get_cut">[docs]</a>	<span class="k">def</span> <span class="nf">get_cut</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;Compile and retrieve the CUT command for this command.</span>
+<span class="sd">		</span>
+<span class="sd">		The command is compiled according to the format specified in document</span>
+<span class="sd">		:download:`300072, Rev07, Spec, Cutfile ASCII Format (CUT) </span>
+<span class="sd">		&lt;specs/300072 Rev07 Spec Cutfile ASCII Format (CUT).pdf&gt;`.</span>
+<span class="sd">		</span>
+<span class="sd">		Returns:</span>
+<span class="sd">			string: the CUT command (command name + command value)</span>
+
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="c1"># TODO: put &#39; &#39;.join here</span>
+		<span class="n">cmd_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compile_cut_value</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">cmd_value</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span> <span class="ow">or</span> <span class="n">cmd_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cut_cmd_name</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cut_cmd_name</span> <span class="o">+</span> <span class="s1">&#39; &#39;</span> <span class="o">+</span> <span class="n">cmd_value</span></div>
+
+<div class="viewcode-block" id="CutCmd.get_cls"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.CutCmd.get_cls">[docs]</a>	<span class="k">def</span> <span class="nf">get_cls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;Compile and retrieve the CLS command for this command.</span>
+<span class="sd">		</span>
+<span class="sd">		The command is compiled according to the format specified in document</span>
+<span class="sd">		:download:`300319, Rev01, CLSFCUT Interface Specification</span>
+<span class="sd">		&lt;specs/300319 Rev01 CLSFCUT Interface Specification.pdf&gt;`.</span>
+<span class="sd">		</span>
+<span class="sd">		Returns:</span>
+<span class="sd">			string: the CLS command (for most commands this is the CUT command</span>
+<span class="sd">			with &quot;$$CUT&quot; prepended to it)</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">return</span> <span class="s1">&#39;$$CUT </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cut</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="MoveCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.MoveCmd">[docs]</a><span class="k">class</span> <span class="nc">MoveCmd</span><span class="p">(</span><span class="n">CutCmd</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;Parent class for all Movement commands.</span>
+<span class="sd">	</span>
+<span class="sd">	Attributes:</span>
+<span class="sd">		is_move_cmd (bool): True </span>
+<span class="sd">		</span>
+<span class="sd">	Note:</span>
+<span class="sd">		Default constructor will not assign any start/end points/directions.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">is_move_cmd</span> <span class="o">=</span> <span class="kc">True</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;GEN_MOVE_CMD&#39;</span>
+	<span class="c1"># TODO: add fcparms as an attribute</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="c1"># This is to initialize all points to None.</span>
+		<span class="c1"># It wont actually set any points if MoveCmd is instantiated.</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">start_pt</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1">#: numpy 3-vec to store start point. Default is None.</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">end_pt</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1">#: numpy 3-vec to store end point. Default is None.</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">start_dir</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1">#: numpy 3-vec to store start direction. Default is None.</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">end_dir</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1">#: numpy 3-vec to store end direction. Default is None.</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="n">self_vecs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_vecs</span><span class="p">()</span>
+			<span class="n">other_vecs</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">_get_vecs</span><span class="p">()</span>
+			<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">self_vecs</span><span class="p">)):</span>
+				<span class="k">if</span> <span class="ow">not</span> <span class="n">cmp_vec</span><span class="p">(</span><span class="n">self_vecs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">other_vecs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmp_tol</span><span class="p">):</span>
+					<span class="k">return</span> <span class="kc">False</span>
+			<span class="k">return</span> <span class="kc">True</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">repr_val</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="se">\n\t</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_title</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_pt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">repr_val</span> <span class="o">+=</span> <span class="s1">&#39;start_pt: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_pt</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_pt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">repr_val</span> <span class="o">+=</span> <span class="s1">&#39;end_pt: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_pt</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">repr_val</span> <span class="o">+=</span> <span class="s1">&#39;start_dir: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_dir</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">repr_val</span> <span class="o">+=</span> <span class="s1">&#39;end_dir: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_dir</span>
+		<span class="k">return</span> <span class="n">repr_val</span>
+
+	<span class="k">def</span> <span class="nf">_get_vecs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="c1"># Order matters</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">vec</span> <span class="k">for</span> <span class="n">vec</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">start_pt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_pt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_dir</span><span class="p">,</span>
+		                        <span class="bp">self</span><span class="o">.</span><span class="n">end_dir</span><span class="p">]</span> <span class="k">if</span> <span class="n">vec</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cut_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">np_vec_to_cut_vec</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_vecs</span><span class="p">())))</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cbf_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">np_vec_to_bytes</span><span class="p">(</span><span class="n">vec</span><span class="p">)</span> <span class="k">for</span> <span class="n">vec</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_vecs</span><span class="p">()]</span>
+
+<div class="viewcode-block" id="MoveCmd.get_cls"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.MoveCmd.get_cls">[docs]</a>	<span class="k">def</span> <span class="nf">get_cls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;Over-ride CutCmd.get_cls().</span>
+<span class="sd">		</span>
+<span class="sd">		Returns:</span>
+<span class="sd">			error: NotImplemented</span>
+<span class="sd">			</span>
+<span class="sd">		Note:</span>
+<span class="sd">			This function over-rides the get_cls() function for the CutCmd class.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span></div></div>
+
+
+<div class="viewcode-block" id="PointCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.PointCmd">[docs]</a><span class="k">class</span> <span class="nc">PointCmd</span><span class="p">(</span><span class="n">MoveCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;POINT&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;point&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x33</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">12</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">start_pt</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+	<span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="se">\n\t</span><span class="s1">goal_point: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_title</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_pt</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OrientCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.OrientCmd">[docs]</a><span class="k">class</span> <span class="nc">OrientCmd</span><span class="p">(</span><span class="n">MoveCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;ORIENT&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;orient&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x58</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">24</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">start_dir</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+	<span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="se">\n\t</span><span class="s1">goal_dir: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_title</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_dir</span><span class="p">)</span>
+
+	<span class="c1"># TODO: defined for Orient because of stupid reserved bytes...</span>
+	<span class="k">def</span> <span class="nf">_compile_cbf_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">np_vec_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_dir</span><span class="p">),</span> <span class="n">get_reserved_bytes</span><span class="p">(</span><span class="mi">12</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="Orient5XCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.Orient5XCmd">[docs]</a><span class="k">class</span> <span class="nc">Orient5XCmd</span><span class="p">(</span><span class="n">MoveCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;ORIENT5X&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;orient5b&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x59</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">24</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">start_dir</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">end_dir</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="LineCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.LineCmd">[docs]</a><span class="k">class</span> <span class="nc">LineCmd</span><span class="p">(</span><span class="n">MoveCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;LINE&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;line&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0xB6</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">24</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">start_pt</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">end_pt</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span></div>
+
+<span class="c1"># TODO: Should movement commands have a length check on init args?</span>
+<span class="c1"># TODO: Should movement commands have a type check on init args?</span>
+
+
+<div class="viewcode-block" id="Line5XCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.Line5XCmd">[docs]</a><span class="k">class</span> <span class="nc">Line5XCmd</span><span class="p">(</span><span class="n">MoveCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;LINE5X&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;line5b&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0xB7</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">48</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">start_pt</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">end_pt</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">start_dir</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">end_dir</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="InfoCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.InfoCmd">[docs]</a><span class="k">class</span> <span class="nc">InfoCmd</span><span class="p">(</span><span class="n">CutCmd</span><span class="p">):</span>
+	<span class="n">is_info_cmd</span> <span class="o">=</span> <span class="kc">True</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;GEN_INFO_CMD&#39;</span></div>
+
+
+<div class="viewcode-block" id="HeaderCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.HeaderCmd">[docs]</a><span class="k">class</span> <span class="nc">HeaderCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;HEADER&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;header&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x53A1B792</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">128</span>
+
+	<span class="c1"># TODO: break up header into fields</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="n">data</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">file_name</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">info</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+	<span class="c1"># self.date = self.data[1]</span>
+	<span class="c1"># self.time = self.data[2]</span>
+
+	<span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="se">\n\t</span><span class="s1">file_name: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s1">info: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_title</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
+	<span class="c1"># return &#39;%s:\n\tfile_name: %s\n\tdate: %s\n\ttime: %s&#39; % (self._title, self.file_name, self.date, self.time)</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_name</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">file_name</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">info</span>
+		<span class="c1"># This could be problematic because this implies exact date and time are same.</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cut_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">)])</span>
+
+<div class="viewcode-block" id="HeaderCmd.get_cbf_value"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.HeaderCmd.get_cbf_value">[docs]</a>	<span class="k">def</span> <span class="nf">get_cbf_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="n">str_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_compile_cut_value</span><span class="p">(),</span> <span class="mi">70</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="HeaderExtCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.HeaderExtCmd">[docs]</a><span class="k">class</span> <span class="nc">HeaderExtCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;HEADEREXT&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;header_ext&#39;</span>
+
+<div class="viewcode-block" id="HeaderExtCmd.get_cbf_value"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.HeaderExtCmd.get_cbf_value">[docs]</a>	<span class="k">def</span> <span class="nf">get_cbf_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span></div></div>
+
+
+<div class="viewcode-block" id="CheckpointCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.CheckpointCmd">[docs]</a><span class="k">class</span> <span class="nc">CheckpointCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;CHECKPOINT&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;checkpoint&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x3C</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">32</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">recovery_pt</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+		<span class="c1"># TODO: Add check to make sure per_comp is positive? If so, add test as well.</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">per_comp</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">arg_list</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+	<span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="se">\n\t</span><span class="s1">name: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s1">recovery_pt: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s1">percent_comp: </span><span class="si">%s</span><span class="s1">&#39;</span> \
+		       <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_title</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">recovery_pt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">per_comp</span><span class="p">)</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="c1"># TODO: Should we be checking if name is equal?</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="n">result</span> <span class="o">=</span> <span class="n">cmp_vec</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">recovery_pt</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">recovery_pt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmp_tol</span><span class="p">)</span> <span class="ow">and</span> \
+			         <span class="n">cmp_flt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">per_comp</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">per_comp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmp_tol</span><span class="p">)</span> <span class="ow">and</span> \
+			         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">name</span>
+			<span class="k">return</span> <span class="n">result</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cut_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">val_list</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">np_vec_to_cut_vec</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">recovery_pt</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">4</span><span class="p">),</span>
+		            <span class="n">float_to_cut_string</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">per_comp</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">4</span><span class="p">)]</span>
+		<span class="k">return</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">val_list</span><span class="p">)</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cbf_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">str_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span> <span class="n">np_vec_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">recovery_pt</span><span class="p">),</span>
+		        <span class="n">float_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">per_comp</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="CutterCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.CutterCmd">[docs]</a><span class="k">class</span> <span class="nc">CutterCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;CUTTER&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;cutter&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0xA3</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">32</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="n">pn</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+		<span class="k">if</span> <span class="n">pn</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">CUTTERS</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Cutter </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s1"> is not a valid Cutter.&#39;</span> <span class="o">%</span> <span class="n">pn</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">cutter</span> <span class="o">=</span> <span class="n">CUTTERS</span><span class="p">[</span><span class="n">pn</span><span class="p">]</span>
+
+	<span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="se">\n\t</span><span class="s1">name: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_title</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cutter</span><span class="o">.</span><span class="n">part_number</span><span class="p">)</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cutter</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">cutter</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cut_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="c1"># TODO: should decimals be set to 4?</span>
+		<span class="n">val_list</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">cutter</span><span class="o">.</span><span class="n">part_number</span><span class="p">,</span>
+		            <span class="n">float_to_cut_string</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cutter</span><span class="o">.</span><span class="n">length</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">4</span><span class="p">),</span>
+		            <span class="n">float_to_cut_string</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cutter</span><span class="o">.</span><span class="n">radius</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">4</span><span class="p">),</span>
+		            <span class="n">float_to_cut_string</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cutter</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">4</span><span class="p">)]</span>
+		<span class="k">return</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">val_list</span><span class="p">)</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cbf_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">str_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cutter</span><span class="o">.</span><span class="n">part_number</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span>
+		        <span class="n">float_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cutter</span><span class="o">.</span><span class="n">length</span><span class="p">),</span>
+		        <span class="n">float_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cutter</span><span class="o">.</span><span class="n">radius</span><span class="p">),</span>
+		        <span class="n">float_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cutter</span><span class="o">.</span><span class="n">height</span><span class="p">),</span>
+		        <span class="n">get_reserved_bytes</span><span class="p">(</span><span class="mi">4</span><span class="p">)]</span>
+
+<div class="viewcode-block" id="CutterCmd.get_cls"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.CutterCmd.get_cls">[docs]</a>	<span class="k">def</span> <span class="nf">get_cls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39;LOAD/TOOL,</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">cutter</span><span class="o">.</span><span class="n">part_number</span></div></div>
+
+
+<div class="viewcode-block" id="PhaseCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.PhaseCmd">[docs]</a><span class="k">class</span> <span class="nc">PhaseCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;PHASE&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;phase&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x21</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">16</span>
+
+	<span class="c1"># TODO: should there be format checks on name on init?</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">cutter</span> <span class="o">=</span> <span class="kc">None</span>
+
+	<span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="se">\n\t</span><span class="s1">name: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_title</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">name</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+<div class="viewcode-block" id="PhaseCmd.set_cutter"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.PhaseCmd.set_cutter">[docs]</a>	<span class="k">def</span> <span class="nf">set_cutter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cutter_pn</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">cutter</span> <span class="o">=</span> <span class="n">CUTTERS</span><span class="p">[</span><span class="n">cutter_pn</span><span class="p">]</span></div>
+
+	<span class="k">def</span> <span class="nf">_compile_cut_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="c1"># TODO: should there be data type/format checking here?</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cbf_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">str_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="mi">16</span><span class="p">)]</span>
+
+<div class="viewcode-block" id="PhaseCmd.get_cls"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.PhaseCmd.get_cls">[docs]</a>	<span class="k">def</span> <span class="nf">get_cls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="c1"># TODO: This is a hack to make sure each &quot;TOOL PATH&quot; command has a cutter.</span>
+		<span class="n">cutter_pn</span> <span class="o">=</span> <span class="s1">&#39;123456&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cutter</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">cutter</span><span class="o">.</span><span class="n">part_number</span>
+		<span class="k">return</span> <span class="s1">&#39;TOOL PATH/</span><span class="si">%s</span><span class="s1">,TOOL,</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">cutter_pn</span><span class="p">)</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">ShapeCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">6</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">num_moves</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+	<span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="se">\n\t</span><span class="s1">name: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s1">num_moves: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_title</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_moves</span><span class="p">)</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">name</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_moves</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">num_moves</span> \
+			       <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_title</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_title</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cut_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_moves</span><span class="p">)</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cbf_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">str_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">u_int_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_moves</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
+
+
+<div class="viewcode-block" id="StartshapeCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.StartshapeCmd">[docs]</a><span class="k">class</span> <span class="nc">StartshapeCmd</span><span class="p">(</span><span class="n">ShapeCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;START_SHAPE&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;startshape&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0xC9</span></div>
+
+
+<div class="viewcode-block" id="EndshapeCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.EndshapeCmd">[docs]</a><span class="k">class</span> <span class="nc">EndshapeCmd</span><span class="p">(</span><span class="n">ShapeCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;END_SHAPE&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;endshape&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x65</span></div>
+
+
+<span class="k">class</span> <span class="nc">DecelCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">0</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">return</span> <span class="kc">True</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cut_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="kc">None</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cbf_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">[]</span>
+
+
+<div class="viewcode-block" id="DecelOnCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.DecelOnCmd">[docs]</a><span class="k">class</span> <span class="nc">DecelOnCmd</span><span class="p">(</span><span class="n">DecelCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;DECEL_ON&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;decel_on&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x4E</span></div>
+
+
+<div class="viewcode-block" id="DecelOffCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.DecelOffCmd">[docs]</a><span class="k">class</span> <span class="nc">DecelOffCmd</span><span class="p">(</span><span class="n">DecelCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;DECEL_OFF&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;decel_off&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x2B</span></div>
+
+
+<div class="viewcode-block" id="SpeedCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.SpeedCmd">[docs]</a><span class="k">class</span> <span class="nc">SpeedCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;SPEED&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;speed&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x8B</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">4</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="c1"># TODO: should arg_list[0] be cast to float?</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">speed</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+	<span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="se">\n\t</span><span class="s1">speed: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_title</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">speed</span><span class="p">)</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">return</span> <span class="n">cmp_flt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">speed</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">speed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmp_tol</span><span class="p">)</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cut_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="n">float_to_cut_string</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">speed</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cbf_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">float_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">speed</span><span class="p">)]</span>
+
+<div class="viewcode-block" id="SpeedCmd.get_cls"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.SpeedCmd.get_cls">[docs]</a>	<span class="k">def</span> <span class="nf">get_cls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="n">mps_to_mmps</span> <span class="o">=</span> <span class="mi">60000</span>
+		<span class="k">return</span> <span class="s1">&#39;FEDRAT/MMPM,</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">float_to_cut_string</span><span class="p">(</span><span class="n">mps_to_mmps</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">speed</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="AccelCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.AccelCmd">[docs]</a><span class="k">class</span> <span class="nc">AccelCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;ACCEL&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;accel&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x47</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">8</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">accel</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">decel</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+	<span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="se">\n\t</span><span class="s1">accel: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s1">decel: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_title</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">accel</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">decel</span><span class="p">)</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">return</span> <span class="n">cmp_flt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">accel</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">accel</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmp_tol</span><span class="p">)</span> <span class="ow">and</span> \
+			       <span class="n">cmp_flt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">decel</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">decel</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmp_tol</span><span class="p">)</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cut_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">float_to_cut_string</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">accel</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">4</span><span class="p">),</span>
+		                 <span class="n">float_to_cut_string</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">decel</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">4</span><span class="p">)])</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cbf_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">float_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">accel</span><span class="p">),</span> <span class="n">float_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">decel</span><span class="p">)]</span></div>
+
+
+<span class="k">class</span> <span class="nc">CutterControlCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">0</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">return</span> <span class="kc">True</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cut_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="kc">None</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cbf_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">[]</span>
+
+
+<div class="viewcode-block" id="CutterOnCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.CutterOnCmd">[docs]</a><span class="k">class</span> <span class="nc">CutterOnCmd</span><span class="p">(</span><span class="n">CutterControlCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;CUTTER_ON&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;cutter_on&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0xBB</span></div>
+
+
+<div class="viewcode-block" id="CutterOffCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.CutterOffCmd">[docs]</a><span class="k">class</span> <span class="nc">CutterOffCmd</span><span class="p">(</span><span class="n">CutterControlCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;CUTTER_OFF&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;cutter_on&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x66</span></div>
+
+
+<div class="viewcode-block" id="FCparmsCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.FCparmsCmd">[docs]</a><span class="k">class</span> <span class="nc">FCparmsCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;FC_PARMS&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;fcparms&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0xFC</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">16</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">nominal_speed</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">max_speed</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">min_speed</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">max_force</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+
+	<span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="se">\n\t</span><span class="s1">nominal_speed: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s1">max_speed: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s1">min_speed: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s1">max_force: </span><span class="si">%s</span><span class="s1">&#39;</span> \
+		       <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_title</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nominal_speed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_speed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_speed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_force</span><span class="p">)</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="n">result</span> <span class="o">=</span> <span class="n">cmp_flt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nominal_speed</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">nominal_speed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmp_tol</span><span class="p">)</span> <span class="ow">and</span> \
+			         <span class="n">cmp_flt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_speed</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">max_speed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmp_tol</span><span class="p">)</span> <span class="ow">and</span> \
+			         <span class="n">cmp_flt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_speed</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">min_speed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmp_tol</span><span class="p">)</span> <span class="ow">and</span> \
+			         <span class="n">cmp_flt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_force</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">max_force</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmp_tol</span><span class="p">)</span>
+			<span class="k">return</span> <span class="n">result</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">_get_val_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="c1"># Order matters</span>
+		<span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">nominal_speed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_speed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_speed</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_force</span><span class="p">]</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cut_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">float_to_cut_string</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">decimals</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_val_list</span><span class="p">()])</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cbf_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">float_to_bytes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_val_list</span><span class="p">()))</span></div>
+
+
+<div class="viewcode-block" id="VersionCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.VersionCmd">[docs]</a><span class="k">class</span> <span class="nc">VersionCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;VERSION&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x55</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">32</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">return</span> <span class="kc">True</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span></div>
+
+
+<div class="viewcode-block" id="CommentCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.CommentCmd">[docs]</a><span class="k">class</span> <span class="nc">CommentCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;COMMENT&#39;</span>
+	<span class="n">_cut_cmd_name</span> <span class="o">=</span> <span class="s1">&#39;comment&#39;</span>
+	<span class="n">_cbf_cmd_code</span> <span class="o">=</span> <span class="mh">0x5A</span>
+	<span class="n">_cbf_num_arg_bytes</span> <span class="o">=</span> <span class="mi">40</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arg_list</span><span class="p">):</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">arg_list</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">arg_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+	<span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="se">\n\t</span><span class="s1">text: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_title</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">text</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">text</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cut_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="c1"># TODO: set string length limit?</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">text</span>
+
+	<span class="k">def</span> <span class="nf">_compile_cbf_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="p">[</span><span class="n">str_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="mi">40</span><span class="p">)]</span>
+
+<div class="viewcode-block" id="CommentCmd.get_cls"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.CommentCmd.get_cls">[docs]</a>	<span class="k">def</span> <span class="nf">get_cls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;CLSF &#39;</span><span class="p">):</span>
+			<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;CLSF &#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">return</span> <span class="s1">&#39;$$ </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">text</span></div></div>
+
+
+<div class="viewcode-block" id="CheckSumCmd"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.CheckSumCmd">[docs]</a><span class="k">class</span> <span class="nc">CheckSumCmd</span><span class="p">(</span><span class="n">InfoCmd</span><span class="p">):</span>
+	<span class="n">_title</span> <span class="o">=</span> <span class="s1">&#39;CHECK_SUM&#39;</span>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">return</span> <span class="kc">True</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span></div>
+
+
+<span class="c1"># Cut Command Specific Exceptions</span>
+
+
+<div class="viewcode-block" id="InvalidCutCmdError"><a class="viewcode-back" href="../../implib.html#implib.cutcmds.InvalidCutCmdError">[docs]</a><span class="k">class</span> <span class="nc">InvalidCutCmdError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+		<span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> is not a valid CUT command.&#39;</span> <span class="o">%</span> <span class="n">cmd</span>
+		<span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">ImpLib 1.0a3 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, C.J. Geering.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.6.
+    </div>
+  </body>
+</html>
