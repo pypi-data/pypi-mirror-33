@@ -1,0 +1,6 @@
+# ie_2018_groupB_yahoo_ks_datareader
+This is a simple minimal set of codes to create a Python Package
+
+TEST PUSHING...
+...
+"# ie_2018_groupB_yahoo_ks_datareader" 
