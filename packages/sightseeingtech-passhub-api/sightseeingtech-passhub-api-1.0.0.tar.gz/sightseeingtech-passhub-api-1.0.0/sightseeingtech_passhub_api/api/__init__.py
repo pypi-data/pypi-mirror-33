@@ -1,0 +1,9 @@
+from __future__ import absolute_import
+
+# flake8: noqa
+
+# import apis into api package
+from sightseeingtech_passhub_api.api.order_record_resource_api import OrderRecordResourceApi
+from sightseeingtech_passhub_api.api.product_resource_api import ProductResourceApi
+from sightseeingtech_passhub_api.api.vendor_resource_api import VendorResourceApi
+from sightseeingtech_passhub_api.api.voucher_resource_api import VoucherResourceApi
