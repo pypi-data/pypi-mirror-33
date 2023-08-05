@@ -1,0 +1,37 @@
+{% load sitetree %}
+{% for item in sitetree_items %}
+    {% if item.is_right == False %}
+        {% if item.has_children %}
+            <div class="ui dropdown item" {% if item.hide %}style="display:none;"{% endif %}>{{ item.title_resolved }} <i class="dropdown icon"></i>
+                {% sitetree_children of item for menu template "cosmicdb/menu_dropdown.html" %}
+            </div>
+        {% else %}
+            <a href="{% sitetree_url for item %}" class="{% if item.is_current or item.in_current_branch %}active{% endif %} item" {% if item.hide %}style="display:none;"{% endif %}>{{ item.title_resolved }}</a>
+        {% endif %}
+    {% endif %}
+{% endfor %}
+
+<div class="right menu">
+    {% for item in sitetree_items %}
+        {% if item.url != "admin:index" %}
+            {% if item.is_right == True %}
+                {% if item.has_children %}
+                    <div class="ui dropdown item" {% if item.hide %}style="display:none;"{% endif %}>
+                        {{ item.title_resolved|safe }}
+                        {% if item.url == "notifications" and request.user.unread_notification_no > 0 %}
+                            <div class="ui label" onclick="$(this).parent().find('.dropdown.icon').click();">{{request.user.unread_notification_no}}</div>
+                        {% endif %}
+                        <i class="dropdown icon"></i>
+                        {% sitetree_children of item for menu template "cosmicdb/menu_dropdown.html" %}
+                    </div>
+                {% else %}
+                    <div class="{% if item.is_current or item.in_current_branch %}active{% endif %} item" {% if item.hide %}style="display:none;"{% endif %}><a href="{% sitetree_url for item %}" class="ui{% if item.is_button %} button{% endif %}">{{ item.title_resolved|safe }}</a></div>
+                {% endif %}
+            {% endif %}
+        {% else %}
+            {% if request.user.is_superuser %}
+                <a href="{% sitetree_url for item %}" class="ui inverted{% if item.is_button %} button{% else %} item{% endif %}">{{ item.title_resolved|safe }}</a>
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+</div>
