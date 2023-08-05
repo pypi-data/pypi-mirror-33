@@ -1,0 +1,135 @@
+Metadata-Version: 1.0
+Name: marsha
+Version: 0.2.0
+Summary: UNKNOWN
+Home-page: https://gitlab.com/deckar01/marsha
+Author: Jared Deckard
+Author-email: jared@shademaps.com
+License: MIT
+Description: # Marsha
+        
+        [![pipeline status](https://gitlab.com/deckar01/marsha/badges/master/pipeline.svg)](https://gitlab.com/deckar01/marsha/commits/master)
+        [![coverage report](https://gitlab.com/deckar01/marsha/badges/master/coverage.svg)](https://gitlab.com/deckar01/marsha/commits/master)
+        
+        A serialization and validation library for python 3 based on the typing module.
+        
+        ## Status
+        
+        ### :microscope: Experimental
+        
+        Don't put this code on servers. You can, but you probably shouldn't.
+        
+        ## Documentation
+        
+        ### :book: [https://deckar01.gitlab.io/marsha](https://deckar01.gitlab.io/marsha)
+        
+        ## Features
+        
+        ### :guardsman: Strictness
+        
+        When using python's builtin types for schema annotations, the data **must** be
+        instances of the specified types or the load operation will fail with an exception.
+        Unexpected and missing data will error by default.
+        
+        ### :spy: Clarity
+        
+        Validation errors mirror the structure of the data, provide insight into the values
+        that caused the error, and present meaningful information to help resolve the problem.
+        
+        ### :runner: Speed
+        
+        The default functionality is fast and lean. The performance degrades gracefully as
+        complex functionality is explicitly opted into by the developer.
+        
+        ### :cartwheel: Flexibility
+        
+        Custom data types are created by defining formatter classes, then transfored into
+        types compatible with the builtin typing module.
+        
+        ### :dancer: Expressiveness
+        
+        Python's builtin typing generics can be leveraged to declare complex type unions that
+        know how to automatically handle multiple types using a syntax that is explicit and concise.
+        
+        ## Installation
+        
+        ```sh
+        pip install marsha
+        ```
+        
+        ## Usage
+        
+        _Need to create database model instances from user input and expose them in serialized form?_
+        
+        Creating a schema that is separate from the model is a useful way to declare a "view" and
+        allows defining multiple schemas to control how data is exposed in different contexts.
+        
+        ```py
+        from my_app.database_models import Artist, Album
+        
+        import marsha
+        from typing import List
+        
+        @marsha.schema(Artist)
+        class ArtistSchema:
+            name: str
+        
+        @marsha.schema(Album)
+        class AlbumSchema:
+            title: str
+            artists: List[Artist]
+        
+        # dict -> Album
+        album = marsha.load(album_data, AlbumSchema)
+        # Do stuff
+        album.save()
+        # Album -> dict
+        response_data = marsha.dump(album)
+        ```
+        
+        _Just need to validate some data and convert it to the correct type?_
+        
+        You can automatically register the type annotations of any model as a schema by
+        adding the `schema` decorator.
+        
+        ```py
+        import marsha
+        from typing import List
+        
+        @marsha.schema()
+        class Artist(dict):
+            name: str
+        
+        @marsha.schema()
+        class Album(dict):
+            title: str
+            artists: List[Artist]
+        
+        # dict -> dict
+        album = marsha.load(album_data, AlbumSchema)
+        # Do stuff
+        first_artist = album['artists'][0]
+        ```
+        
+        ## Development
+        
+        ### Dependencies
+        
+        ```sh
+        # python >= 3.6
+        pip install -r dev-requirements.txt
+        ```
+        
+        ### Testing
+        
+        ```sh
+        # Quick testing.
+        flake8
+        pytest
+        # Ensure all statements and branches are covered with tests.
+        pytest --cov=marsha --cov-branch --cov-report html --cov-report term
+        # Ensure documentations changes render correctly.
+        make html
+        ```
+        
+Platform: UNKNOWN
