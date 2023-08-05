@@ -1,0 +1,231 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Что такое Spider &mdash; Grab 0.6.30 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.6.30',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="Grab 0.6.30 documentation" href="../index.html" />
+    <link rel="next" title="Способы создания заданий" href="task_building.html" />
+    <link rel="prev" title="Полезные утилиты" href="../grab/tools.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="task_building.html" title="Способы создания заданий"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../grab/tools.html" title="Полезные утилиты"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="spider">
+<span id="spider-tutorial"></span><h1>Что такое Spider<a class="headerlink" href="#spider" title="Permalink to this headline">¶</a></h1>
+<p>Модуль Spider это фреймворк, позволяющий описать парсер сайта как набор функций-обработчиков, каждый из которых отвечает за результаты обработки конкретного документа (сетевого запроса). Например, при парсинге форума у вас будут обработчики для главной страницы, страницы подфорума, страницы топика, страницы профиля участника. Изначально такая структура парсера была разработана в силу ограничений асинхронного режима, но впоследствии оказалось, что писать парсеры в таком структурированном виде (один запрос - одна функция) очень удобно.</p>
+<p>Модуль Spider работает асинхронно. Это значит, что всегда есть только один рабочий поток программы. Для множественных запросов не создаются ни треды, ни процессы. Все созданные запросы обрабатываются библиотекой multicurl. Суть асинхронного подхода в том, что программа создаёт сетевые запросы и ждёт сигналы о готовности ответа на эти запроссы. Как только готов ответ, вызывается функция-обработчик, которую мы привязали к конкретному запросу. Асинхронный подход позволяет обрабатывать большее количество одновременных соединений, чем подход, связанный с созданием множества тредов или процессов, т.к. память занята всего одним процессом и процессору не нужно постоянно переключаться между различными процессами программы.</p>
+<p>Есть один нюанс, который будет очень непривычен тем, кто привык работать в синхронном стиле. Асинхронный подход позволяет вызывать функции-обработчики при готовности сетевого ответа. Если алгоритм парсинга состоит из нескольких последовательных сетевых запросов, то нужно где-то хранить информацию о том, для чего мы создали сетевой запрос и что с ним делать. Spider позволяет достаточно удобно решать эту проблему.</p>
+<p>Каждая функция-обработчк получает два аргумента. Первый аргумент - это объект Grab, в котором хранится информация о сетевом ответе. Вся прелесть модуля Spider в том, что он сохранил знакомый вам интерфейс для работы с синхронными запросами. Второй аргумент функции-обработчика это Task объект. Task объекты создаются в Spider для того, чтобы добавить в очередь сетевых запросов новое задание. С помощью Task объекта можно сохранять промежуточные данные между множественными запросами.</p>
+<p>Рассмотрим пример простого парсера. Допустим, мы хотим зайти на сайт habrahabr.ru, считать заголовки последних новостей, далее для каждого заголовка найти картинку с помощью images.yandex.ru и сохранить полученные данные в файл:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c"># coding: utf-8</span>
+<span class="kn">import</span> <span class="nn">urllib</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">from</span> <span class="nn">grab.spider</span> <span class="kn">import</span> <span class="n">Spider</span><span class="p">,</span> <span class="n">Task</span>
+
+<span class="k">class</span> <span class="nc">ExampleSpider</span><span class="p">(</span><span class="n">Spider</span><span class="p">):</span>
+    <span class="c"># Список страниц, с которых Spider начнёт работу</span>
+    <span class="c"># для каждого адреса в этом списке будет сгенерировано</span>
+    <span class="c"># задание с именем initial</span>
+    <span class="n">initial_urls</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;http://habrahabr.ru/&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># Подготовим файл для записи результатов</span>
+        <span class="c"># Функция prepare вызываетя один раз перед началом</span>
+        <span class="c"># работы парсера</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result_file</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s">&#39;result.txt&#39;</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">))</span>
+        <span class="c"># Этот счётчик будем использовать для нумерации</span>
+        <span class="c"># найденных картинок, чтобы создавать им простые имена файлов.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result_counter</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">task_initial</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grab</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;Habrahabr home page&#39;</span>
+
+        <span class="c"># Это функция-обработчик для заданий с именем initial</span>
+        <span class="c"># т.е. для тех заданий, что были созданы для</span>
+        <span class="c"># адреов указанных в self.initial_urls</span>
+
+        <span class="c"># Как видите интерфейс работы с ответом такой же,</span>
+        <span class="c"># как и в обычном Grab</span>
+        <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">grab</span><span class="o">.</span><span class="n">xpath_list</span><span class="p">(</span><span class="s">&#39;//h1[@class=&quot;title&quot;]/a[@class=&quot;post_title&quot;]&#39;</span><span class="p">):</span>
+            <span class="c"># Для каждой ссылки-заголовка создадим новое задание</span>
+            <span class="c"># с именем habrapost</span>
+            <span class="c"># Обратите внимание, что мы создаём задания с помощью</span>
+            <span class="c"># вызова yield - это сделано исключительно ради красоты</span>
+            <span class="c"># По сути, это равносильно следующему коду:</span>
+            <span class="c"># self.add_task(Task(&#39;habrapost&#39;, url=...))</span>
+            <span class="k">yield</span> <span class="n">Task</span><span class="p">(</span><span class="s">&#39;habrapost&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">elem</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;href&#39;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">task_habrapost</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grab</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;Habrahabr topic: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">task</span><span class="o">.</span><span class="n">url</span>
+
+        <span class="c"># Эта функция, как вы уже догадываетесь,</span>
+        <span class="c"># получает результаты обработки запросов, которые</span>
+        <span class="c"># мы создали для кадого хабратопика, найденного на</span>
+        <span class="c"># главной странице хабры</span>
+
+        <span class="c"># Для начала сохраним адрес и заголовк топика в словарь</span>
+        <span class="n">post</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;url&#39;</span><span class="p">:</span> <span class="n">task</span><span class="o">.</span><span class="n">url</span><span class="p">,</span>
+            <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="n">grab</span><span class="o">.</span><span class="n">xpath_text</span><span class="p">(</span><span class="s">&#39;//h1/span[@class=&quot;post_title&quot;]&#39;</span><span class="p">),</span>
+        <span class="p">}</span>
+
+        <span class="c"># Теперь создадим поисковый запрос картинок яндекса, обратите внимание,</span>
+        <span class="c"># что мы передаём объекту Task информацию о хабрапосте. Таким образом</span>
+        <span class="c"># в функции обработки поиска картинок мы будем знать, для какого именно</span>
+        <span class="c"># хабрапоста мы получили результат поиска картинки. Дело в том, что все</span>
+        <span class="c"># нестандартные аргументы конструктора Task просто запоминаются в созданном</span>
+        <span class="c"># объекте и доступны в дальнейшем как его атрибуты</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">quote_plus</span><span class="p">(</span><span class="n">post</span><span class="p">[</span><span class="s">&#39;title&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">))</span>
+        <span class="n">search_url</span> <span class="o">=</span> <span class="s">&#39;http://images.yandex.ru/yandsearch?text=</span><span class="si">%s</span><span class="s">&amp;rpt=image&#39;</span> <span class="o">%</span> <span class="n">query</span>
+        <span class="k">yield</span> <span class="n">Task</span><span class="p">(</span><span class="s">&#39;image_search&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">search_url</span><span class="p">,</span> <span class="n">post</span><span class="o">=</span><span class="n">post</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">task_image_search</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grab</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;Images search result for </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">task</span><span class="o">.</span><span class="n">post</span><span class="p">[</span><span class="s">&#39;title&#39;</span><span class="p">]</span>
+
+        <span class="c"># В этой функции мы получили результат обработки поиска картинок, но</span>
+        <span class="c"># это ещё не сама картинка! Это только список найденных картинок,</span>
+        <span class="c"># Теперь возьмём адрес первой картинки и создадим задание для её</span>
+        <span class="c"># скачивания. Не забудем передать информацию о хабрапосте, для которого</span>
+        <span class="c"># мы ищем картинку, эта информация хранится в `task.post`.</span>
+        <span class="n">image_url</span> <span class="o">=</span> <span class="n">grab</span><span class="o">.</span><span class="n">xpath_text</span><span class="p">(</span><span class="s">&#39;//div[@class=&quot;b-image&quot;]/a/img/@src&#39;</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">Task</span><span class="p">(</span><span class="s">&#39;image&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">image_url</span><span class="p">,</span> <span class="n">post</span><span class="o">=</span><span class="n">task</span><span class="o">.</span><span class="n">post</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">task_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grab</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&#39;Image downloaded for </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">task</span><span class="o">.</span><span class="n">post</span><span class="p">[</span><span class="s">&#39;title&#39;</span><span class="p">]</span>
+
+        <span class="c"># Это последнняя функция в нашем парсере.</span>
+        <span class="c"># Картинка получена, можно сохранить результат.</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&#39;images/</span><span class="si">%s</span><span class="s">.jpg&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">result_counter</span>
+        <span class="n">grab</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result_file</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">post</span><span class="p">[</span><span class="s">&#39;url&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">),</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">post</span><span class="p">[</span><span class="s">&#39;title&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">),</span>
+            <span class="n">path</span>
+        <span class="p">])</span>
+        <span class="c"># Не забудем увеличить счётчик ответов, чтобы</span>
+        <span class="c"># следующая картинка записалась в другой файл</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+    <span class="c"># Запустим парсер в многопоточном режиме - два потока</span>
+    <span class="c"># Можно больше, только вас яндекс забанит</span>
+    <span class="c"># Он вас и с двумя то потоками забанит, если много будете его беспокоить</span>
+    <span class="n">bot</span> <span class="o">=</span> <span class="n">ExampleSpider</span><span class="p">(</span><span class="n">thread_number</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">bot</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>В примере рассмотрен простейший парсер и не затронуто очень много возможностей Spider. Читайте о них в подробной документации. Обратите внимание, что часть функций обработчиков отработают с ошибкой, например, потому что, яндекс ничего не найдёт по заданному запросу.</p>
+<p>Обо этом и многом другом читайте в <a class="reference internal" href="../index.html#spider-toc"><em>Документация Grab:Spider</em></a></p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../grab/tools.html"
+                        title="previous chapter">Полезные утилиты</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="task_building.html"
+                        title="next chapter">Способы создания заданий</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/spider/tutorial.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="task_building.html" title="Способы создания заданий"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../grab/tools.html" title="Полезные утилиты"
+             >previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Grigoriy Petukhov.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+
+<div style="margin: 0.5em; text-align: right">
+<!-- Yandex.Metrika informer --><a href="http://metrika.yandex.ru/stat/?id=13841917&amp;from=informer" target="_blank" rel="nofollow"><img src="//bs.yandex.ru/informer/13841917/1_1_FFFFFFFF_EFEFEFFF_0_pageviews" style="width:80px; height:15px; border:0;" alt="Яндекс.Метрика" title="Яндекс.Метрика: данные за сегодня (просмотры)" /></a><!-- /Yandex.Metrika informer --><!-- Yandex.Metrika counter --><script type="text/javascript">(function (d, w, c) { (w[c] = w[c] || []).push(function() { try { w.yaCounter13841917 = new Ya.Metrika({id:13841917, enableAll: true, webvisor:true}); } catch(e) {} }); var n = d.getElementsByTagName("script")[0], s = d.createElement("script"), f = function () { n.parentNode.insertBefore(s, n); }; s.type = "text/javascript"; s.async = true; s.src = (d.location.protocol == "https:" ? "https:" : "http:") + "//mc.yandex.ru/metrika/watch.js"; if (w.opera == "[object Opera]") { d.addEventListener("DOMContentLoaded", f); } else { f(); } })(document, window, "yandex_metrika_callbacks");</script><noscript><div><img src="//mc.yandex.ru/watch/13841917" style="position:absolute; left:-9999px;" alt="" /></div></noscript><!-- /Yandex.Metrika counter -->
+</div>
+
+
+  </body>
+</html>

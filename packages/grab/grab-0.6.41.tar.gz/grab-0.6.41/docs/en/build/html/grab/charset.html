@@ -1,0 +1,181 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>HTML Document Charset &#8212; Grab 0.6 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Cookie Support" href="cookies.html" />
+    <link rel="prev" title="Network Errors Handling" href="network_errors.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="cookies.html" title="Cookie Support"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="network_errors.html" title="Network Errors Handling"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Grab 0.6 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="html-document-charset">
+<span id="grab-charset"></span><h1>HTML Document Charset<a class="headerlink" href="#html-document-charset" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="why-does-charset-matter">
+<h2>Why does charset matter?<a class="headerlink" href="#why-does-charset-matter" title="Permalink to this headline">¶</a></h2>
+<p>By default, Grab automatically detects the charset of the body of the HTML document.
+It uses this detected charset to</p>
+<ul class="simple">
+<li>build a DOM tree</li>
+<li>convert the bytes from the body of the document into a unicode stream</li>
+<li>search for some unicode string in the body of the document</li>
+<li>convert unicode into bytes data, then some unicode data needs to be sent
+to the server from which the response was received.</li>
+</ul>
+<p>The original content of the network response is always accessible at <cite>response.body</cite> attribute.
+A unicode representation of the document body can be obtained by calling <cite>response.unicode_body()</cite>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">go</span><span class="p">(</span><span class="s1">&#39;http://mail.ru/&#39;</span><span class="p">)</span>
+<span class="go">&lt;grab.response.Response object at 0x7f7d38af8940&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">type</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">body</span><span class="p">)</span>
+<span class="go">&lt;type &#39;str&#39;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">type</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">unicode_body</span><span class="p">())</span>
+<span class="go">&lt;type &#39;unicode&#39;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">charset</span>
+<span class="go">&#39;utf-8&#39;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="charset-detection-algorithm">
+<h2>Charset Detection Algorithm<a class="headerlink" href="#charset-detection-algorithm" title="Permalink to this headline">¶</a></h2>
+<p>Grab checks multiple sources to find out the real charset of the document’s body. The order of sources (from most important to less):</p>
+<ul>
+<li><p class="first">HTML meta tag:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">meta</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;http-equiv&quot;</span> <span class="n">content</span><span class="o">=</span><span class="s2">&quot;text/html; charset=cp1251&quot;</span> <span class="o">&gt;</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">XML declaration (in case of XML document):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot; ?&gt;
+</pre></div>
+</div>
+</li>
+<li><p class="first">Content-Type HTTP header:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Content</span><span class="o">-</span><span class="n">Type</span><span class="p">:</span> <span class="n">text</span><span class="o">/</span><span class="n">html</span><span class="p">;</span> <span class="n">charset</span><span class="o">=</span><span class="n">koi8</span><span class="o">-</span><span class="n">r</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p>If no source indicates the charset, or if the found charset has an invalid value, then grab falls back to a default of UTF-8.</p>
+</div>
+<div class="section" id="setting-the-charset-manually">
+<h2>Setting the charset manually<a class="headerlink" href="#setting-the-charset-manually" title="Permalink to this headline">¶</a></h2>
+<p>You can bypass automatic charset detection and specify it manually with <a class="reference internal" href="settings.html#option-charset"><span class="std std-ref">charset</span></a> option.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">HTML Document Charset</a><ul>
+<li><a class="reference internal" href="#why-does-charset-matter">Why does charset matter?</a></li>
+<li><a class="reference internal" href="#charset-detection-algorithm">Charset Detection Algorithm</a></li>
+<li><a class="reference internal" href="#setting-the-charset-manually">Setting the charset manually</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="network_errors.html"
+                        title="previous chapter">Network Errors Handling</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="cookies.html"
+                        title="next chapter">Cookie Support</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/grab/charset.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="cookies.html" title="Cookie Support"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="network_errors.html" title="Network Errors Handling"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Grab 0.6 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2015, Gregory Petukhov.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.3.
+    </div>
+    <p style="margin-top: 0; text-align: center; font-size: 0.8em;">Developed by <a href="http://grablab.io">GrabLab</a> - web scraping and data mining services.</p>
+    <p style="margin-top: 0; text-align: center; font-size: 0.8em;">He also does web scraping: <a href="https://www.imscraping.ninja">www.imscraping.ninja</a>.</p>
+
+    <!-- Yandex.Metrika counter --> <script type="text/javascript" > (function (d, w, c) { (w[c] = w[c] || []).push(function() { try { w.yaCounter13841917 = new Ya.Metrika({ id:13841917, clickmap:true, trackLinks:true, accurateTrackBounce:true }); } catch(e) { } }); var n = d.getElementsByTagName("script")[0], s = d.createElement("script"), f = function () { n.parentNode.insertBefore(s, n); }; s.type = "text/javascript"; s.async = true; s.src = "https://mc.yandex.ru/metrika/watch.js"; if (w.opera == "[object Opera]") { d.addEventListener("DOMContentLoaded", f, false); } else { f(); } })(document, window, "yandex_metrika_callbacks"); </script> <noscript><div><img src="https://mc.yandex.ru/watch/13841917" style="position:absolute; left:-9999px;" alt="" /></div></noscript> <!-- /Yandex.Metrika counter -->
+
+
+  </body>
+</html>

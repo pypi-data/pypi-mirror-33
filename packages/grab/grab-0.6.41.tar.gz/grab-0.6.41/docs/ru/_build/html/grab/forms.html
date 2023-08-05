@@ -1,0 +1,169 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Работа с формами &mdash; Grab 0.6.30 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.6.30',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="Grab 0.6.30 documentation" href="../index.html" />
+    <link rel="next" title="Работа с DOM-деревом" href="dom.html" />
+    <link rel="prev" title="Технические детали устройства Grab" href="under_the_hood.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="dom.html" title="Работа с DOM-деревом"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="under_the_hood.html" title="Технические детали устройства Grab"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="forms">
+<span id="id1"></span><h1>Работа с формами<a class="headerlink" href="#forms" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="id2">
+<h2>Автоматическая обработка форм<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<p>Если запрошенный документ содержит форму, вы можете заполнить её поля с помощью метода <tt class="xref py py-meth docutils literal"><span class="pre">set_input()</span></tt> и отослать методом <tt class="xref py py-meth docutils literal"><span class="pre">submit()</span></tt>. Значения для полей, которые вы не заполнили явно, будут вычислены автоматически. В первую, очередь это касается hidden-полей, но для select, checkbox, radio полей Grab также попытается подставить какое-либо значение. Все методы работают с формой, которая выбрана по-умолчанию. Если в документе несколько форм, то будет выбрана та форма, в которой больше всего полей. В методах <cite>set_input_*</cite> автоматический выбор работает несколько по иному, выбирается та форма, которая содержит указанное поле.</p>
+<p>Простейший пример поиска на яндексе:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">g</span> <span class="o">=</span> <span class="n">Grab</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">go</span><span class="p">(</span><span class="s">&#39;http://ya.ru&#39;</span><span class="p">)</span>
+<span class="go">&lt;grab.response.Response object at 0x1a51ad0&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">set_input</span><span class="p">(</span><span class="s">&#39;text&#39;</span><span class="p">,</span> <span class="s">&#39;grab python&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
+<span class="go">&lt;grab.response.Response object at 0x1ad41d0&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">xpath</span><span class="p">(</span><span class="s">&#39;//li[@class=&quot;b-serp-item&quot;]//a/@href&#39;</span><span class="p">)</span>
+<span class="go">&#39;http://packages.python.org/grab/&#39;</span>
+</pre></div>
+</div>
+<p>Форма, выбранная по-умолчанию, доступна через аттрибут <cite>form</cite>. Это объект <cite>lxml.etree.Element</cite> с дополнительными свойствами, подробнее вы можете прочитать в <a class="reference external" href="http://lxml.de/lxmlhtml.html#forms">lxml мануале</a>.</p>
+<p>Если по какой-либо причине вы не можете использовать метод <cite>set_input</cite> для задания значения элемента по его имени, попробуйте методы: <cite>set_input_by_id</cite> или универсальный <cite>set_input_by_xpath</cite>.</p>
+<p>Смотрите полный список доступных методов в <em class="xref std std-ref">extensions_form</em>.</p>
+</div>
+<div class="section" id="id3">
+<h2>Отправка формы<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<p>Как было уже сказано выше, при отправке формы методом <cite>submit</cite> значения полей, которые в не задали явно, вычисляются автоматически. Это избавляет от рутинной обработки hidden-полей. Также автоматически вычисляется нужные метод HTTP-запроса (POST или GET), нужная кодировка данных (<cite>www/url-encoded</cite> или <cite>multipart/form-data</cite>), полный адрес формы (аттрибут <cite>action</cite>). У метода <cite>submit</cite> есть несколько полезных аргументов:</p>
+<ul class="simple">
+<li><cite>submit_name</cite> - позволяет &#8220;нажать&#8221; нужный вам submit-элементов (полезно, если их несколько)</li>
+<li><cite>make_request</cite> - передав False в этом аргументе вы отлючите автоматическую посылку данных формы. Все параметры запроса будут подготовлены в точности, как описано выше, но запрос не будет сгенерирован. Вы можете подправить его параметры по своему вкусу и уже затем отослать его на сервер.</li>
+<li><cite>url</cite> - переопределение адреса, куда будет направлен запрос с данными формы</li>
+<li><cite>extra_post</cite> - словарь с данными полей, которые переопределят автоматически вычисленные значения.</li>
+</ul>
+</div>
+<div class="section" id="id4">
+<h2>Отправка файлов<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h2>
+<p>Для отправки файлов используйте специальный класс <tt class="xref py py-class docutils literal"><span class="pre">UploadFile</span></tt>. Его конструктор принимает единственный элемент - путь к файлу. Вы можете использовать объект класса <cite>UploadFile</cite> в методе <tt class="xref py py-meth docutils literal"><span class="pre">submit()</span></tt>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">g</span><span class="o">.</span><span class="n">set_input</span><span class="p">(</span><span class="s">&#39;file&#39;</span><span class="p">,</span> <span class="n">UploadFile</span><span class="p">(</span><span class="s">&#39;/path/to/file&#39;</span><span class="p">))</span>
+<span class="n">g</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Работа с формами</a><ul>
+<li><a class="reference internal" href="#id2">Автоматическая обработка форм</a></li>
+<li><a class="reference internal" href="#id3">Отправка формы</a></li>
+<li><a class="reference internal" href="#id4">Отправка файлов</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="under_the_hood.html"
+                        title="previous chapter">Технические детали устройства Grab</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="dom.html"
+                        title="next chapter">Работа с DOM-деревом</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/grab/forms.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="dom.html" title="Работа с DOM-деревом"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="under_the_hood.html" title="Технические детали устройства Grab"
+             >previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Grigoriy Petukhov.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+
+<div style="margin: 0.5em; text-align: right">
+<!-- Yandex.Metrika informer --><a href="http://metrika.yandex.ru/stat/?id=13841917&amp;from=informer" target="_blank" rel="nofollow"><img src="//bs.yandex.ru/informer/13841917/1_1_FFFFFFFF_EFEFEFFF_0_pageviews" style="width:80px; height:15px; border:0;" alt="Яндекс.Метрика" title="Яндекс.Метрика: данные за сегодня (просмотры)" /></a><!-- /Yandex.Metrika informer --><!-- Yandex.Metrika counter --><script type="text/javascript">(function (d, w, c) { (w[c] = w[c] || []).push(function() { try { w.yaCounter13841917 = new Ya.Metrika({id:13841917, enableAll: true, webvisor:true}); } catch(e) {} }); var n = d.getElementsByTagName("script")[0], s = d.createElement("script"), f = function () { n.parentNode.insertBefore(s, n); }; s.type = "text/javascript"; s.async = true; s.src = (d.location.protocol == "https:" ? "https:" : "http:") + "//mc.yandex.ru/metrika/watch.js"; if (w.opera == "[object Opera]") { d.addEventListener("DOMContentLoaded", f); } else { f(); } })(document, window, "yandex_metrika_callbacks");</script><noscript><div><img src="//mc.yandex.ru/watch/13841917" style="position:absolute; left:-9999px;" alt="" /></div></noscript><!-- /Yandex.Metrika counter -->
+</div>
+
+
+  </body>
+</html>

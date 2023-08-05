@@ -1,0 +1,222 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Полезные утилиты &mdash; Grab 0.6.30 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.6.30',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="Grab 0.6.30 documentation" href="../index.html" />
+    <link rel="next" title="Что такое Spider" href="../spider/tutorial.html" />
+    <link rel="prev" title="Cетевые транспорты" href="transport.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../spider/tutorial.html" title="Что такое Spider"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="transport.html" title="Cетевые транспорты"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="tools">
+<span id="id1"></span><h1>Полезные утилиты<a class="headerlink" href="#tools" title="Permalink to this headline">¶</a></h1>
+<p>В пакете <em class="xref std std-ref">grab.tools</em> содержится множество различных вспомогательных утилит, которые оказываются полезными в разработке Grab и парсеров на основе Grab. Здесь приведён обзор наиболее важных утилит.</p>
+<div class="section" id="id2">
+<h2>Пул заданий<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<p>Используя функцию <tt class="xref py py-func docutils literal"><span class="pre">work.make_work()</span></tt> вы можете организовать выполнение множества заданий в параллельных тредах, причём количеством тредов можно управлять:</p>
+<div class="highlight-python"><div class="highlight"><pre>def worker(url):
+    g = Grab()
+    g.go(url)
+    return url, g.xpath_text(&#39;//title&#39;)
+
+task_iterator = open(&#39;urls.txt&#39;)
+for url, title make_work(worker, task_iterator, limit=5):
+    print url, title
+</pre></div>
+</div>
+<p>Обратите внимание, что вы можете передавать не только статический список заданий, но и итератор. Результат работы функции <tt class="xref py py-func docutils literal"><span class="pre">work.make_work()</span></tt> выполнен также в виде итератора. Если вы хотите использовать процессы, вместо тредов, вам нужна функция <tt class="xref py py-func docutils literal"><span class="pre">pwork.make_work()</span></tt>. Она аналогична вышерассмотренной, за тем исключением, что она порождает не треды (<cite>threading.Thread</cite>), но процессы (<cite>multiprocessing.Process</cite>)</p>
+</div>
+<div class="section" id="id3">
+<h2>Блокировка файла<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<p>Для того, чтобы гарантировать то, что в любой момент времени выполняется только один экземпляр вашего парсера, можно использовать функцию <tt class="xref py py-func docutils literal"><span class="pre">lock.assert_lock()</span></tt>. Её аргумент - путь до файла, который должен быть залочен. Если залочить файл не удаётся, функция генерирует исключение и программа прекращается. Естественно, в разных скриптах нужно лочить различные файлы.</p>
+</div>
+<div class="section" id="grab">
+<h2>Логирование Grab-активности в файл<a class="headerlink" href="#grab" title="Permalink to this headline">¶</a></h2>
+<p>Функция <tt class="xref py py-func docutils literal"><span class="pre">logs.default_logging()</span></tt> настраивает logging-систему так, чтобы все сообщения библиотеки Grab направлялись в файл, по-умолчанию, это &#8220;/tmp/grab.log&#8221;. Удобно вызвать эту функцию в начале программы и наблюдать за активностью парсинга с помощью команды <cite>tail -f /tmp/grab.log</cite>, оставляя себе возможность выводить в консоль, где был запущен скрипт, более важные данные.</p>
+</div>
+<div class="section" id="id4">
+<h2>Фильтрация строк в файле<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h2>
+<p>Функция <tt class="xref py py-func docutils literal"><span class="pre">files.unique_file()</span></tt> читает строки из файла, оставляет уникальные строки и записывает их обратно в файл. Функция <tt class="xref py py-func docutils literal"><span class="pre">files.unique_host()</span></tt> читайет список URL-строк из файла и оставляет только строки с уникальным hostname, далее записывает строки обратно в файл.</p>
+</div>
+<div class="section" id="html">
+<h2>Обработка HTML<a class="headerlink" href="#html" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><tt class="xref py py-func docutils literal"><span class="pre">html.decode_entities()</span></tt> - преобразовывает все &amp;XXX; и &amp;#XXX; последовательности в тексте в уникод.</li>
+<li><tt class="xref py py-func docutils literal"><span class="pre">html.strip_tags()</span></tt> - вырезает все тэги из текста простым регекспом.</li>
+<li><tt class="xref py py-func docutils literal"><span class="pre">html.escape()</span></tt> - преобразовывает ряд &#8220;небезопасных&#8221; HTML-символов в &#8220;&amp;xxx;&#8221; последовательности.</li>
+</ul>
+</div>
+<div class="section" id="lxml">
+<h2>Работа с LXML-элементами<a class="headerlink" href="#lxml" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><tt class="xref py py-func docutils literal"><span class="pre">lxml_tools.get_node_text()</span></tt> - возвращает текстовое содержимое элемента и всех его под-элементов, за ислючением элементов script и style.</li>
+<li><tt class="xref py py-func docutils literal"><span class="pre">lxml_tools.find_node_number()</span></tt> - возвращает первое найденное число в текстовом содержимом переданного элемента.</li>
+</ul>
+</div>
+<div class="section" id="id5">
+<h2>Работа с регулярными выражениями<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h2>
+<p>Функция <tt class="xref py py-func docutils literal"><span class="pre">rex.rex()</span></tt> позволяет искать регулярное выражение. Вы можете передать ей как скомпилированный объект регулярного выражения, так и просто текст из которого будет построен объект регулярного выражения. Объекты регулярных выражений кэшируются, так что вам не нужно беспокоитсья о том, что выражение будет перекомпилироваться. Если выражение не найдено, функция <tt class="xref py py-func docutils literal"><span class="pre">rex.rex()</span></tt> сгенерирует <a class="reference internal" href="../api/error.html#grab.error.DataNotFound" title="grab.error.DataNotFound"><tt class="xref py py-class docutils literal"><span class="pre">grab.error.DataNotFound</span></tt></a> исключение. Вы можете изменить это поведение, передав в аргументе <cite>default</cite> значение, которое нужно вернуть по-умолчанию:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">grab.tools</span> <span class="kn">import</span> <span class="n">rex</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">re</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rex</span><span class="o">.</span><span class="n">rex</span><span class="p">(</span><span class="s">&#39;*** foo +++&#39;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#39;\w+&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="go">&#39;foo&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rex</span><span class="o">.</span><span class="n">rex</span><span class="p">(</span><span class="s">&#39;*** foo +++&#39;</span><span class="p">,</span> <span class="s">&#39;\w+&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="go">&#39;foo&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rex</span><span class="o">.</span><span class="n">rex</span><span class="p">(</span><span class="s">&#39;***&#39;</span><span class="p">,</span> <span class="s">&#39;\w+&#39;</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;&lt;stdin&gt;&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+  File <span class="nb">&quot;/usr/local/lib/python2.6/dist-packages/grab/tools/rex.py&quot;</span>, line <span class="m">44</span>, in <span class="n">rex</span>
+    <span class="k">raise</span> <span class="n">DataNotFound</span><span class="p">(</span><span class="s">&#39;Could not find regexp: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">regexp</span><span class="p">)</span>
+<span class="gr">grab.error.DataNotFound</span>: <span class="n">Could not find regexp: &lt;_sre.SRE_Pattern object at 0xb83c10&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rex</span><span class="o">.</span><span class="n">rex</span><span class="p">(</span><span class="s">&#39;***&#39;</span><span class="p">,</span> <span class="s">&#39;\w+&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;default value&#39;</span><span class="p">)</span>
+<span class="go">&#39;default value&#39;</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;&lt;stdin&gt;&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+  File <span class="nb">&quot;/usr/local/lib/python2.6/dist-packages/grab/tools/rex.py&quot;</span>, line <span class="m">44</span>, in <span class="n">rex</span>
+    <span class="k">raise</span> <span class="n">DataNotFound</span><span class="p">(</span><span class="s">&#39;Could not find regexp: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">regexp</span><span class="p">)</span>
+<span class="gr">grab.error.DataNotFound</span>: <span class="n">Could not find regexp: &lt;_sre.SRE_Pattern object at 0xb83c10&gt;</span>
+</pre></div>
+</div>
+<p>Функция <tt class="xref py py-func docutils literal"><span class="pre">rex.rex_list()</span></tt> вернёт список всех найденных регулярных выражений. Функция <tt class="xref py py-func docutils literal"><span class="pre">rex.rex_text()</span></tt> найдёт указанный текст и затем вырежет из него все тэги. Функция <tt class="xref py py-func docutils literal"><span class="pre">rex.rex_text_list()</span></tt> вернёт список всех найденных текстовых фрагментов с вырезанными тэгами.</p>
+</div>
+<div class="section" id="id6">
+<h2>Работа с текстом<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><tt class="xref py py-func docutils literal"><span class="pre">text.find_number()</span></tt> - поиск числа в строке</li>
+<li><tt class="xref py py-func docutils literal"><span class="pre">text.drop_space()</span></tt> - удаление <em>всех</em> пробелов в строке</li>
+<li><tt class="xref py py-func docutils literal"><span class="pre">text.normalize_space()</span></tt> - удаление начальных и конечных пробелов, приведение последовательности пробелов к одному пробелу.</li>
+</ul>
+</div>
+<div class="section" id="http">
+<h2>Работа с http-заголовками<a class="headerlink" href="#http" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><tt class="xref py py-func docutils literal"><span class="pre">http.urlencode()</span></tt> - сериализация словаря или списка пар в строку, которую можно отправить в GET или POST-запросе. В отличие от стандартного <cite>urllib.urlencode</cite> может обрабатывать unicode, None и <tt class="xref py py-class docutils literal"><span class="pre">grab.upload.UploadFile</span></tt> объекты.</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Полезные утилиты</a><ul>
+<li><a class="reference internal" href="#id2">Пул заданий</a></li>
+<li><a class="reference internal" href="#id3">Блокировка файла</a></li>
+<li><a class="reference internal" href="#grab">Логирование Grab-активности в файл</a></li>
+<li><a class="reference internal" href="#id4">Фильтрация строк в файле</a></li>
+<li><a class="reference internal" href="#html">Обработка HTML</a></li>
+<li><a class="reference internal" href="#lxml">Работа с LXML-элементами</a></li>
+<li><a class="reference internal" href="#id5">Работа с регулярными выражениями</a></li>
+<li><a class="reference internal" href="#id6">Работа с текстом</a></li>
+<li><a class="reference internal" href="#http">Работа с http-заголовками</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="transport.html"
+                        title="previous chapter">Cетевые транспорты</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../spider/tutorial.html"
+                        title="next chapter">Что такое Spider</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/grab/tools.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../spider/tutorial.html" title="Что такое Spider"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="transport.html" title="Cетевые транспорты"
+             >previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Grigoriy Petukhov.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+
+<div style="margin: 0.5em; text-align: right">
+<!-- Yandex.Metrika informer --><a href="http://metrika.yandex.ru/stat/?id=13841917&amp;from=informer" target="_blank" rel="nofollow"><img src="//bs.yandex.ru/informer/13841917/1_1_FFFFFFFF_EFEFEFFF_0_pageviews" style="width:80px; height:15px; border:0;" alt="Яндекс.Метрика" title="Яндекс.Метрика: данные за сегодня (просмотры)" /></a><!-- /Yandex.Metrika informer --><!-- Yandex.Metrika counter --><script type="text/javascript">(function (d, w, c) { (w[c] = w[c] || []).push(function() { try { w.yaCounter13841917 = new Ya.Metrika({id:13841917, enableAll: true, webvisor:true}); } catch(e) {} }); var n = d.getElementsByTagName("script")[0], s = d.createElement("script"), f = function () { n.parentNode.insertBefore(s, n); }; s.type = "text/javascript"; s.async = true; s.src = (d.location.protocol == "https:" ? "https:" : "http:") + "//mc.yandex.ru/metrika/watch.js"; if (w.opera == "[object Opera]") { d.addEventListener("DOMContentLoaded", f); } else { f(); } })(document, window, "yandex_metrika_callbacks");</script><noscript><div><img src="//mc.yandex.ru/watch/13841917" style="position:absolute; left:-9999px;" alt="" /></div></noscript><!-- /Yandex.Metrika counter -->
+</div>
+
+
+  </body>
+</html>

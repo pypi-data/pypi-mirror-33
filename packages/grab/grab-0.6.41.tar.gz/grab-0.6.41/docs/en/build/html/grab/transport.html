@@ -1,0 +1,216 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Network Transport &#8212; Grab 0.6 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="What is Grab::Spider?" href="../spider/intro.html" />
+    <link rel="prev" title="Work With Network Response" href="response.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../spider/intro.html" title="What is Grab::Spider?"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="response.html" title="Work With Network Response"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Grab 0.6 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="network-transport">
+<span id="grab-transport"></span><h1>Network Transport<a class="headerlink" href="#network-transport" title="Permalink to this headline">¶</a></h1>
+<p>Grab can use two libraries to submit network requests: pycurl and urllib3. You may acess
+transport object with <cite>Grab.transport</cite> attribute. In most cases you do not need direct
+access to transport object.</p>
+<div class="section" id="pycurl-transport">
+<h2>Pycurl transport<a class="headerlink" href="#pycurl-transport" title="Permalink to this headline">¶</a></h2>
+<p>The pycurl transport is the default network transport. You can control low-level options
+of pycurl object by accessing <cite>Grab.transport.pycurl</cite> object. For example:</p>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">grab</span> <span class="k">import</span> <span class="n">Grab</span>
+<span class="kn">import</span> <span class="nn">pycurl</span>
+
+<span class="n">grab</span> <span class="o">=</span> <span class="n">Grab</span><span class="p">()</span>
+<span class="n">grab</span><span class="o">.</span><span class="n">transport</span><span class="o">.</span><span class="n">pycurl</span><span class="o">.</span><span class="n">setopt</span><span class="p">(</span><span class="n">pycurl</span><span class="o">.</span><span class="n">LOW_SPEED_LIMIT</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+<span class="n">grab</span><span class="o">.</span><span class="n">go</span><span class="p">(</span><span class="s1">&#39;http://example.com/download/porn.mpeg&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="urllib3-transport">
+<h2>Urllib3 transport<a class="headerlink" href="#urllib3-transport" title="Permalink to this headline">¶</a></h2>
+<p>If you want to use Grab in gevent environment then consider to use urllib3 transport.
+The urllib3 uses native python sockets that could be patched by <cite>gevent.monkey.patch_all</cite>.</p>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gevent</span>
+<span class="kn">import</span> <span class="nn">gevent.monkey</span>
+<span class="kn">from</span> <span class="nn">grab</span> <span class="k">import</span> <span class="n">Grab</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+
+<span class="k">def</span> <span class="nf">worker</span><span class="p">():</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">Grab</span><span class="p">(</span><span class="n">user_agent</span><span class="o">=</span><span class="s1">&#39;Medved&#39;</span><span class="p">,</span> <span class="n">transport</span><span class="o">=</span><span class="s1">&#39;urllib3&#39;</span><span class="p">)</span>
+    <span class="c1"># Request the document that is served with 1 second delay</span>
+    <span class="n">g</span><span class="o">.</span><span class="n">go</span><span class="p">(</span><span class="s1">&#39;http://httpbin.org/delay/1&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">g</span><span class="o">.</span><span class="n">doc</span><span class="o">.</span><span class="n">json</span><span class="p">[</span><span class="s1">&#39;headers&#39;</span><span class="p">][</span><span class="s1">&#39;User-Agent&#39;</span><span class="p">]</span>
+
+
+<span class="n">started</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">gevent</span><span class="o">.</span><span class="n">monkey</span><span class="o">.</span><span class="n">patch_all</span><span class="p">()</span>
+<span class="n">pool</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+    <span class="n">pool</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gevent</span><span class="o">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">worker</span><span class="p">))</span>
+<span class="k">for</span> <span class="n">th</span> <span class="ow">in</span> <span class="n">pool</span><span class="p">:</span>
+    <span class="n">th</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">th</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="s1">&#39;Medved&#39;</span>
+<span class="c1"># The total time would be less than 2 seconds</span>
+<span class="c1"># unless you have VERY bad internet connection</span>
+<span class="k">assert</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">started</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="use-your-own-transport">
+<h2>Use your own transport<a class="headerlink" href="#use-your-own-transport" title="Permalink to this headline">¶</a></h2>
+<p>You can implement you own transport class and use it. Just pass
+your transport class to <cite>transport</cite> option.</p>
+<p>Here is the crazy example of wget-powered transport. Note that this is
+VERY simple transport that understands only one option: the URL.</p>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">grab</span> <span class="k">import</span> <span class="n">Grab</span>
+<span class="kn">from</span> <span class="nn">grab.document</span> <span class="k">import</span> <span class="n">Document</span>
+<span class="kn">from</span> <span class="nn">subprocess</span> <span class="k">import</span> <span class="n">check_output</span>
+
+
+<span class="k">class</span> <span class="nc">WgetTransport</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">request_head</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">request_body</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">process_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grab</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_request_url</span> <span class="o">=</span> <span class="n">grab</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">request</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">check_output</span><span class="p">([</span><span class="s1">&#39;/usr/bin/wget&#39;</span><span class="p">,</span> <span class="s1">&#39;-O&#39;</span><span class="p">,</span> <span class="s1">&#39;-&#39;</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_request_url</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_response_body</span> <span class="o">=</span> <span class="n">out</span>
+
+    <span class="k">def</span> <span class="nf">prepare_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grab</span><span class="p">):</span>
+        <span class="n">doc</span> <span class="o">=</span> <span class="n">Document</span><span class="p">()</span>
+        <span class="n">doc</span><span class="o">.</span><span class="n">body</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_body</span>
+        <span class="k">return</span> <span class="n">doc</span>
+
+
+<span class="n">g</span> <span class="o">=</span> <span class="n">Grab</span><span class="p">(</span><span class="n">transport</span><span class="o">=</span><span class="n">WgetTransport</span><span class="p">)</span>
+<span class="n">g</span><span class="o">.</span><span class="n">go</span><span class="p">(</span><span class="s1">&#39;http://protonmail.com&#39;</span><span class="p">)</span>
+<span class="k">assert</span> <span class="s1">&#39;Secure email&#39;</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">doc</span><span class="p">(</span><span class="s1">&#39;//title&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">text</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Network Transport</a><ul>
+<li><a class="reference internal" href="#pycurl-transport">Pycurl transport</a></li>
+<li><a class="reference internal" href="#urllib3-transport">Urllib3 transport</a></li>
+<li><a class="reference internal" href="#use-your-own-transport">Use your own transport</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="response.html"
+                        title="previous chapter">Work With Network Response</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../spider/intro.html"
+                        title="next chapter">What is Grab::Spider?</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/grab/transport.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../spider/intro.html" title="What is Grab::Spider?"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="response.html" title="Work With Network Response"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Grab 0.6 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2015, Gregory Petukhov.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.3.
+    </div>
+    <p style="margin-top: 0; text-align: center; font-size: 0.8em;">Developed by <a href="http://grablab.io">GrabLab</a> - web scraping and data mining services.</p>
+    <p style="margin-top: 0; text-align: center; font-size: 0.8em;">He also does web scraping: <a href="https://www.imscraping.ninja">www.imscraping.ninja</a>.</p>
+
+    <!-- Yandex.Metrika counter --> <script type="text/javascript" > (function (d, w, c) { (w[c] = w[c] || []).push(function() { try { w.yaCounter13841917 = new Ya.Metrika({ id:13841917, clickmap:true, trackLinks:true, accurateTrackBounce:true }); } catch(e) { } }); var n = d.getElementsByTagName("script")[0], s = d.createElement("script"), f = function () { n.parentNode.insertBefore(s, n); }; s.type = "text/javascript"; s.async = true; s.src = "https://mc.yandex.ru/metrika/watch.js"; if (w.opera == "[object Opera]") { d.addEventListener("DOMContentLoaded", f, false); } else { f(); } })(document, window, "yandex_metrika_callbacks"); </script> <noscript><div><img src="https://mc.yandex.ru/watch/13841917" style="position:absolute; left:-9999px;" alt="" /></div></noscript> <!-- /Yandex.Metrika counter -->
+
+
+  </body>
+</html>

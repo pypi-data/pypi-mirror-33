@@ -1,0 +1,219 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Работа с DOM-деревом &mdash; Grab 0.6.30 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.6.30',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="Grab 0.6.30 documentation" href="../index.html" />
+    <link rel="next" title="Поиск в тексте документа" href="text_search.html" />
+    <link rel="prev" title="Работа с формами" href="forms.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="text_search.html" title="Поиск в тексте документа"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="forms.html" title="Работа с формами"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="dom">
+<span id="id1"></span><h1>Работа с DOM-деревом<a class="headerlink" href="#dom" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="lxml">
+<h2>Интерфейс к LXML библиотеке<a class="headerlink" href="#lxml" title="Permalink to this headline">¶</a></h2>
+<p>Первое, что вам нужно усвоить, это то, что Grab предоставляет всего лишь удобный интерфейс к функциям библиотеки <a class="reference external" href="http://lxml.de">lxml</a>. Крайне желательно, знать и понимать API библиотеки lxml. Grab предоставляет множество функций поиска данных в документе. Большинство этих функций представляют из себя xpath-запрос к DOM-дереву и последующую его обработку.</p>
+<p>Далее описаны основные принципы использования lxml-расширения. Полный список методов (и их описание) вы можете посмотреть в API справочнике <em class="xref std std-ref">extensions_lxml</em>.</p>
+</div>
+<div class="section" id="id3">
+<h2>DOM-дерево<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<p>DOM-дерево доступно через аттрибут <tt class="xref py py-meth docutils literal"><span class="pre">tree</span> <span class="pre">&lt;LXMLExtension.tree()</span></tt>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">go</span><span class="p">(</span><span class="s">&#39;http://vk.com&#39;</span><span class="p">)</span>
+<span class="go">&lt;grab.response.Response object at 0x1c9ae10&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">tree</span>
+<span class="go">&lt;Element html at 1c96940&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">g</span><span class="o">.</span><span class="n">tree</span><span class="o">.</span><span class="n">xpath</span><span class="p">(</span><span class="s">&#39;//title/text()&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+<span class="go">Welcome!</span>
+</pre></div>
+</div>
+<p>Вычисление DOM-дерева требует значительных ресурсов процессора, поэтому оно не вычисляется сразу после получения тела документа, а лишь только при первом вызове какого-либо xpath/css метода или обращении к аттрибуту <tt class="xref py py-meth docutils literal"><span class="pre">tree</span> <span class="pre">&lt;LXMLExtension.tree()</span></tt>. DOM-дерево вычисляется один раз и затем кэшируется.</p>
+</div>
+<div class="section" id="xpath">
+<h2>XPATH-методы<a class="headerlink" href="#xpath" title="Permalink to this headline">¶</a></h2>
+<p>Самый часто используемый метод, это <tt class="xref py py-meth docutils literal"><span class="pre">xpath()</span></tt>. В качестве аргумента он принимает xpath-выражение и возвращает найденный узел DOM-дерева. Пожалуйста, не путайте <tt class="xref py py-meth docutils literal"><span class="pre">xpath()</span></tt> метод объекта Grab и <cite>xpath</cite> метод <cite>lxml.html.etree.Element</cite> объекта. Последний возвращает список элементов, в то время как <cite>xpath</cite> метод Grab-объекта возвращает первый найденный элемент. Если вам нужен список объектов, используйте <tt class="xref py py-meth docutils literal"><span class="pre">xpath_list()</span></tt> метод. Приведу наглядный пример:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">go</span><span class="p">(</span><span class="s">&#39;http://google.com&#39;</span><span class="p">)</span>
+<span class="go">&lt;grab.response.Response object at 0x1ae73d0&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">xpath_list</span><span class="p">(</span><span class="s">&#39;//*[@type=&quot;submit&quot;]&#39;</span><span class="p">)</span>
+<span class="go">[&lt;InputElement 1a35e88 name=&#39;btnG&#39; type=&#39;submit&#39;&gt;, &lt;InputElement 1c96530 name=&#39;btnI&#39; type=&#39;submit&#39;&gt;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">xpath</span><span class="p">(</span><span class="s">&#39;//*[@type=&quot;submit&quot;]&#39;</span><span class="p">)</span>
+<span class="go">&lt;InputElement 1a35e88 name=&#39;btnG&#39; type=&#39;submit&#39;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">lxml.html</span> <span class="kn">import</span> <span class="n">fromstring</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fromstring</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">body</span><span class="p">)</span><span class="o">.</span><span class="n">xpath</span><span class="p">(</span><span class="s">&#39;//*[@type=&quot;submit&quot;]&#39;</span><span class="p">)</span>
+<span class="go">[&lt;InputElement 1c966d0 name=&#39;btnG&#39; type=&#39;submit&#39;&gt;, &lt;InputElement 1c96598 name=&#39;btnI&#39; type=&#39;submit&#39;&gt;]</span>
+</pre></div>
+</div>
+<p>Методом <cite>xpath_text</cite> вы можете извлечь текстовое содержимое из найденного DOM-элемента. Метод <cite>xpath_number</cite> извлекает в начале текстовое содержимое, затем ищет там число:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">go</span><span class="p">(</span><span class="s">&#39;http://rambler.ru&#39;</span><span class="p">)</span>
+<span class="go">&lt;grab.response.Response object at 0x1c9a650&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">g</span><span class="o">.</span><span class="n">xpath_text</span><span class="p">(</span><span class="s">&#39;//td[@class=&quot;Spine&quot;]//nobr&#39;</span><span class="p">)</span>
+<span class="go">1996—2012</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">g</span><span class="o">.</span><span class="n">xpath_number</span><span class="p">(</span><span class="s">&#39;//td[@class=&quot;Spine&quot;]//nobr&#39;</span><span class="p">)</span>
+<span class="go">1996</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="css">
+<h2>CSS-методы<a class="headerlink" href="#css" title="Permalink to this headline">¶</a></h2>
+<p>Благодаря модулю <a class="reference external" href="http://lxml.de/cssselect.html">cssselect</a>, можно искать элементы в DOM-дереве с помощью CSS-выражений. Поддерживаются основные CSS2-селекторы, не все. Список и название методов для работы с CSS аналогичен списку методов для работы с xpath.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">go</span><span class="p">(</span><span class="s">&#39;http://rambler.ru&#39;</span><span class="p">)</span>
+<span class="go">&lt;grab.response.Response object at 0x1c9a650&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">g</span><span class="o">.</span><span class="n">css_text</span><span class="p">(</span><span class="s">&#39;td.Spine nobr&#39;</span><span class="p">)</span>
+<span class="go">1996—2012</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">g</span><span class="o">.</span><span class="n">css_number</span><span class="p">(</span><span class="s">&#39;td.Spine nobr&#39;</span><span class="p">)</span>
+<span class="go">1996</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id4">
+<h2>Обработка исключений<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h2>
+<p>Если xpath/css метод не нашёл данных, то генерируется исключение <a class="reference internal" href="../api/error.html#grab.error.DataNotFound" title="grab.error.DataNotFound"><tt class="xref py py-class docutils literal"><span class="pre">DataNotFound</span></tt></a>. Класс этого ислючения унаследован от <tt class="xref py py-class docutils literal"><span class="pre">IndexError</span></tt>, так что можно просто ловить IndexError на заморачиваясь на импорт <cite>DataNotFound</cite> исключения:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">try</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">g</span><span class="o">.</span><span class="n">xpath</span><span class="p">(</span><span class="s">&#39;//foobar&#39;</span><span class="p">)</span>
+<span class="gp">... </span><span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="k">print</span> <span class="s">&#39;not found&#39;</span>
+<span class="gp">...</span>
+<span class="go">not found</span>
+</pre></div>
+</div>
+<p>Все xpath/css методы понимают аргумент <cite>default</cite>, если вы зададите его, то в случае, когда данные не были найден, вместо генерации исключения, xpath/css метод вернёт указанное значение. В качестве значения вы можете передавать даже <cite>None</cite>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">g</span><span class="o">.</span><span class="n">xpath</span><span class="p">(</span><span class="s">&#39;//foobar&#39;</span><span class="p">)</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;&lt;stdin&gt;&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+  File <span class="nb">&quot;/usr/local/lib/python2.6/dist-packages/grab/ext/lxml.py&quot;</span>, line <span class="m">134</span>, in <span class="n">xpath</span>
+    <span class="k">raise</span> <span class="n">DataNotFound</span><span class="p">(</span><span class="s">&#39;Xpath not found: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+<span class="gr">grab.error.DataNotFound</span>: <span class="n">Xpath not found: //foobar</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">g</span><span class="o">.</span><span class="n">xpath</span><span class="p">(</span><span class="s">&#39;//foobar&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+<span class="go">None</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">g</span><span class="o">.</span><span class="n">xpath</span><span class="p">(</span><span class="s">&#39;//foobar&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s">&#39;spam&#39;</span><span class="p">)</span>
+<span class="go">spam</span>
+<span class="gt">Traceback (most recent call last):</span>
+  File <span class="nb">&quot;&lt;stdin&gt;&quot;</span>, line <span class="m">1</span>, in <span class="n">&lt;module&gt;</span>
+  File <span class="nb">&quot;/usr/local/lib/python2.6/dist-packages/grab/ext/lxml.py&quot;</span>, line <span class="m">134</span>, in <span class="n">xpath</span>
+    <span class="k">raise</span> <span class="n">DataNotFound</span><span class="p">(</span><span class="s">&#39;Xpath not found: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+<span class="gr">grab.error.DataNotFound</span>: <span class="n">Xpath not found: //foobar</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Работа с DOM-деревом</a><ul>
+<li><a class="reference internal" href="#lxml">Интерфейс к LXML библиотеке</a></li>
+<li><a class="reference internal" href="#id3">DOM-дерево</a></li>
+<li><a class="reference internal" href="#xpath">XPATH-методы</a></li>
+<li><a class="reference internal" href="#css">CSS-методы</a></li>
+<li><a class="reference internal" href="#id4">Обработка исключений</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="forms.html"
+                        title="previous chapter">Работа с формами</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="text_search.html"
+                        title="next chapter">Поиск в тексте документа</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/grab/dom.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="text_search.html" title="Поиск в тексте документа"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="forms.html" title="Работа с формами"
+             >previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Grigoriy Petukhov.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+
+<div style="margin: 0.5em; text-align: right">
+<!-- Yandex.Metrika informer --><a href="http://metrika.yandex.ru/stat/?id=13841917&amp;from=informer" target="_blank" rel="nofollow"><img src="//bs.yandex.ru/informer/13841917/1_1_FFFFFFFF_EFEFEFFF_0_pageviews" style="width:80px; height:15px; border:0;" alt="Яндекс.Метрика" title="Яндекс.Метрика: данные за сегодня (просмотры)" /></a><!-- /Yandex.Metrika informer --><!-- Yandex.Metrika counter --><script type="text/javascript">(function (d, w, c) { (w[c] = w[c] || []).push(function() { try { w.yaCounter13841917 = new Ya.Metrika({id:13841917, enableAll: true, webvisor:true}); } catch(e) {} }); var n = d.getElementsByTagName("script")[0], s = d.createElement("script"), f = function () { n.parentNode.insertBefore(s, n); }; s.type = "text/javascript"; s.async = true; s.src = (d.location.protocol == "https:" ? "https:" : "http:") + "//mc.yandex.ru/metrika/watch.js"; if (w.opera == "[object Opera]") { d.addEventListener("DOMContentLoaded", f); } else { f(); } })(document, window, "yandex_metrika_callbacks");</script><noscript><div><img src="//mc.yandex.ru/watch/13841917" style="position:absolute; left:-9999px;" alt="" /></div></noscript><!-- /Yandex.Metrika counter -->
+</div>
+
+
+  </body>
+</html>

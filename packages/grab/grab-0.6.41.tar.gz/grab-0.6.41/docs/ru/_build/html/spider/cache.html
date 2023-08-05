@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Система кэширования сетевых запросов &mdash; Grab 0.6.30 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.6.30',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="Grab 0.6.30 documentation" href="../index.html" />
+    <link rel="next" title="grab.base: API базового класса" href="../api/base.html" />
+    <link rel="prev" title="Обработка ошибок" href="error_handling.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../api/base.html" title="grab.base: API базового класса"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="error_handling.html" title="Обработка ошибок"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="spider-cache">
+<span id="id1"></span><h1>Система кэширования сетевых запросов<a class="headerlink" href="#spider-cache" title="Permalink to this headline">¶</a></h1>
+<p>В целях ускорения тестирования паука в процессе разработки, а также ускорения повторного парсинга данных, была разработана система кэширования. В данный момент есть ограничение - только GET запросы могут быть закешированными. Важно понимать что кэш в Spider это не полноценный http-прокси-сервер это лишь средство для отладки. Хотя стоит заметить, что даже в таком примитивной реализации система кэширования в большинстве случаев позволяет успешно использовать закэшированные данные для повторного парсинга в случае изменения логики обработки данных.</p>
+<div class="section" id="id2">
+<h2>Бэкенды системы кэширования<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<p>Кэш в Spider разработан в виде отдельного слоя для того, чтобы можно было подключать различные базы данных. В данный момент доступна только одна реализация кэша - хранение данных в mongodb.</p>
+</div>
+<div class="section" id="id3">
+<h2>Использование кэша<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<p>Для того, чтобы паук мог искать запрашиваемые документы в кэше и сохранять в кэш полученные данные, нужно вызывать метод <cite>setup_cache</cite> до начала работы паука:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">bot</span> <span class="o">=</span> <span class="n">ExampleSpider</span><span class="p">()</span>
+<span class="n">bot</span><span class="o">.</span><span class="n">setup_cache</span><span class="p">(</span><span class="n">database</span><span class="o">=</span><span class="s">&#39;some-database&#39;</span><span class="p">)</span>
+<span class="n">bot</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Вышенаписанный код активирует кэш, документы будут искаться и сохраняться в базе данных mongodb с именем &#8216;some-database&#8217;. Имя коллекции с документами: &#8220;cache&#8221;.</p>
+<p>Есть несколько настроек для регулирования работы кэша:</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">backend:</th><td class="field-body">бэкенд кэша, сейчас ничего кроме &#8220;mongo&#8221; не работает</td>
+</tr>
+<tr class="field-even field"><th class="field-name">database:</th><td class="field-body">имя mongodb базы данных</td>
+</tr>
+<tr class="field-odd field"><th class="field-name" colspan="2">use_compression:</th></tr>
+<tr class="field-odd field"><td>&nbsp;</td><td class="field-body">использование gzip для сжатия данных перед помещением их в кэш.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="id4">
+<h2>Сжатие кэшируемых данных<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h2>
+<p>По умолчанию сжатие включено. Сжатие позволяет на порядок уменьшить размер места в базе данных, необходимого для хранения закешированных документов. Сжатие снижает скорость работы паука, но не намного.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Система кэширования сетевых запросов</a><ul>
+<li><a class="reference internal" href="#id2">Бэкенды системы кэширования</a></li>
+<li><a class="reference internal" href="#id3">Использование кэша</a></li>
+<li><a class="reference internal" href="#id4">Сжатие кэшируемых данных</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="error_handling.html"
+                        title="previous chapter">Обработка ошибок</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../api/base.html"
+                        title="next chapter">grab.base: API базового класса</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/spider/cache.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../api/base.html" title="grab.base: API базового класса"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="error_handling.html" title="Обработка ошибок"
+             >previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Grigoriy Petukhov.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+
+<div style="margin: 0.5em; text-align: right">
+<!-- Yandex.Metrika informer --><a href="http://metrika.yandex.ru/stat/?id=13841917&amp;from=informer" target="_blank" rel="nofollow"><img src="//bs.yandex.ru/informer/13841917/1_1_FFFFFFFF_EFEFEFFF_0_pageviews" style="width:80px; height:15px; border:0;" alt="Яндекс.Метрика" title="Яндекс.Метрика: данные за сегодня (просмотры)" /></a><!-- /Yandex.Metrika informer --><!-- Yandex.Metrika counter --><script type="text/javascript">(function (d, w, c) { (w[c] = w[c] || []).push(function() { try { w.yaCounter13841917 = new Ya.Metrika({id:13841917, enableAll: true, webvisor:true}); } catch(e) {} }); var n = d.getElementsByTagName("script")[0], s = d.createElement("script"), f = function () { n.parentNode.insertBefore(s, n); }; s.type = "text/javascript"; s.async = true; s.src = (d.location.protocol == "https:" ? "https:" : "http:") + "//mc.yandex.ru/metrika/watch.js"; if (w.opera == "[object Opera]") { d.addEventListener("DOMContentLoaded", f); } else { f(); } })(document, window, "yandex_metrika_callbacks");</script><noscript><div><img src="//mc.yandex.ru/watch/13841917" style="position:absolute; left:-9999px;" alt="" /></div></noscript><!-- /Yandex.Metrika counter -->
+</div>
+
+
+  </body>
+</html>

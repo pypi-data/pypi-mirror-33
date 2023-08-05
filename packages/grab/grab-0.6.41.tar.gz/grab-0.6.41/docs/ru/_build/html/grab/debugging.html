@@ -1,0 +1,189 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Отладка запросов &mdash; Grab 0.6.30 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.6.30',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="Grab 0.6.30 documentation" href="../index.html" />
+    <link rel="next" title="Полный список настроек" href="options.html" />
+    <link rel="prev" title="Настройка Grab-объекта" href="customization.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="options.html" title="Полный список настроек"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="customization.html" title="Настройка Grab-объекта"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="grab-debugging">
+<span id="id1"></span><h1>Отладка запросов<a class="headerlink" href="#grab-debugging" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="logging">
+<h2>Использование logging-системы<a class="headerlink" href="#logging" title="Permalink to this headline">¶</a></h2>
+<p>Самый простой способ увидеть информацию об отсылаемых запросах - это включить вывод
+logging-сообщений с уровнем DEBUG:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Конечно это будет выводить все logging-сообщения, не только те, что сгенерировала библиотека
+Grab. Если вам нужны только её сообщения, то настройте вывод сообщенний только от логгера &#8220;grab&#8221;:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;grab&#39;</span><span class="p">)</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">())</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Также вы можете воспользоваться функцией <cite>default_logging</cite> которая настраивает logging-систему на вывод
+всех сообщений Grab в файл:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">grab.tools.logs</span> <span class="kn">import</span> <span class="n">default_logging</span>
+<span class="n">default_logging</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>После вызова этой функции вы можете через отдельную консоль наблюдать за активностью Grab с помощью
+команды <cite>tail -f /tmp/grab.log</cite>.</p>
+<p>На каждый сетевой запрос Grab генерирует logging-сообщение следующего вида:</p>
+<div class="highlight-python"><div class="highlight"><pre>[5864] GET http://www.kino-govno.com/movies/rusichi via 188.120.244.68:8080 proxy of type http with authorization
+</pre></div>
+</div>
+<p>В начале мы видим номер запроса, далее типа запроса, затем адрес документа и в конце указана информация об используемом прокси сервере (если он используется). Если запрос был сделан не из главного thread-потока, то будет казано также имя thread-потока.</p>
+<p>Можно включить вывод дополнительных данных о POST-запросах с помощью опции <a class="reference internal" href="options.html#option-debug-post"><em>debug_post</em></a>. Тогда на каждый
+POST-запрос будет выводиться его содержимое:</p>
+<div class="highlight-python"><div class="highlight"><pre>[01] POST http://yandex.ru
+POST request:
+foo                      : bar
+name                     : Ivan
+</pre></div>
+</div>
+</div>
+<div class="section" id="id2">
+<h2>Нумерация запросов<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<p>Каждый сетевой запрос осуществлённый с помощью Grab имеет свой номер. Информация о запросе хранится на уровне модуля, так что запросы различных Grab-объектов имеют тем не менее общий счётчик. Общая нумерация сохраняется даже в случае использования тредов. Номер запроса очень удобно использовать вкупе с опцией <a class="reference internal" href="options.html#option-log-dir"><em>log_dir</em></a>, которая сохраняет содержимое сетевых ответов в файлы. Читайте об этом в следующем разделе.</p>
+</div>
+<div class="section" id="id3">
+<h2>Сохранение запросов и ответов в файлы<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<p>Обратите внимание на номер запроса, это важная составляющая системы отладки. Если мы включим сохранение содержимого запросов и ответов в файлы, по номеру запроса мы сможем найти нужный файл.</p>
+<p>Сперва рассмотрим самую простую опцию <a class="reference internal" href="options.html#option-log-file"><em>log_file</em></a>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">g</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="n">log_file</span><span class="o">=</span><span class="s">&#39;/tmp/log.html&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Она включает сохранение содержимого последнего ответа в файл. Каждый новый ответ будет перезатирать содержимое старого ответа. Если вам нужно проанализировать содержимое нескольких запросов, то вам понадобится опция <a class="reference internal" href="options.html#option-log-dir"><em>log_dir</em></a>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">g</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="n">log_dir</span><span class="o">=</span><span class="s">&#39;/tmp/some_dir&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>После включения опции <cite>log_dir</cite> Grab начинает сохранять в указанную директорию содержимое запросов и ответов. Выше я писал о номере запроса, так вот имя файла будет содержать этот номер. Например, для запроса с номером 28 будут созданы два файла: 01.log и 02.html В log файле будут сохранены HTTP-заголовки как запроса, так и соответствующего ответа. В html файле будет сохранено содержимое ответа (без заголовков).</p>
+<p>Счётчик запросов работает на уровне модуля. Это значит, что если вы создадите несколько Grab-объектов, то у них будет общий счётчик запросов и номера запросов не будут пересекаться. Это помогает отлаживать мультитредовые программы или программы, где создаётся несколько Grab объектов в разное время.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Отладка запросов</a><ul>
+<li><a class="reference internal" href="#logging">Использование logging-системы</a></li>
+<li><a class="reference internal" href="#id2">Нумерация запросов</a></li>
+<li><a class="reference internal" href="#id3">Сохранение запросов и ответов в файлы</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="customization.html"
+                        title="previous chapter">Настройка Grab-объекта</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="options.html"
+                        title="next chapter">Полный список настроек</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/grab/debugging.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="options.html" title="Полный список настроек"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="customization.html" title="Настройка Grab-объекта"
+             >previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Grigoriy Petukhov.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+
+<div style="margin: 0.5em; text-align: right">
+<!-- Yandex.Metrika informer --><a href="http://metrika.yandex.ru/stat/?id=13841917&amp;from=informer" target="_blank" rel="nofollow"><img src="//bs.yandex.ru/informer/13841917/1_1_FFFFFFFF_EFEFEFFF_0_pageviews" style="width:80px; height:15px; border:0;" alt="Яндекс.Метрика" title="Яндекс.Метрика: данные за сегодня (просмотры)" /></a><!-- /Yandex.Metrika informer --><!-- Yandex.Metrika counter --><script type="text/javascript">(function (d, w, c) { (w[c] = w[c] || []).push(function() { try { w.yaCounter13841917 = new Ya.Metrika({id:13841917, enableAll: true, webvisor:true}); } catch(e) {} }); var n = d.getElementsByTagName("script")[0], s = d.createElement("script"), f = function () { n.parentNode.insertBefore(s, n); }; s.type = "text/javascript"; s.async = true; s.src = (d.location.protocol == "https:" ? "https:" : "http:") + "//mc.yandex.ru/metrika/watch.js"; if (w.opera == "[object Opera]") { d.addEventListener("DOMContentLoaded", f); } else { f(); } })(document, window, "yandex_metrika_callbacks");</script><noscript><div><img src="//mc.yandex.ru/watch/13841917" style="position:absolute; left:-9999px;" alt="" /></div></noscript><!-- /Yandex.Metrika counter -->
+</div>
+
+
+  </body>
+</html>

@@ -1,0 +1,183 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Pycurl Tips &#8212; Grab 0.6 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Work With Network Response" href="response.html" />
+    <link rel="prev" title="Searching the response body" href="response_search.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="response.html" title="Work With Network Response"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="response_search.html" title="Searching the response body"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Grab 0.6 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="pycurl-tips">
+<span id="pycurl"></span><h1>Pycurl Tips<a class="headerlink" href="#pycurl-tips" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="asynchronous-dns-resolving">
+<h2>Asynchronous DNS Resolving<a class="headerlink" href="#asynchronous-dns-resolving" title="Permalink to this headline">¶</a></h2>
+<p>Pycurl allows you to drive network requests asynchronously with the multicurl interface.
+Unfortunately, by default multicurl do not handle DNS requests asynchronously. Than means that every DNS request blocks other network activity.
+You can manage it by building curl from source and configuring it to use the ares library, which knows how to do asynchronous DNS requests.</p>
+<p>First, you need to download curl sources from <a class="reference external" href="http://curl.haxx.se/download.html">http://curl.haxx.se/download.html</a>. Then unpack source code and run the command:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ ./configure --prefix=/opt/curl --enable-ares
+</pre></div>
+</div>
+<p>We use a custom prefix because we do not want to mix up our custom curl with the curl lib that could be already installed in your system.
+Do not forget to install cares packages before configuring curl with ares:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ apt-get install libc-ares-dev
+</pre></div>
+</div>
+<p>If ./configure command has finished successfully, then run:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ make
+$ make install
+</pre></div>
+</div>
+<p>Now you have customized the curl library files at /opt/curl/lib.</p>
+<p>To let your python script know that you want to use this custom curl lib, use the following feature:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ LD_LIBRARY_PATH=&quot;/opt/curl/lib&quot; python your_script.py
+</pre></div>
+</div>
+<p>You can manually check that you used a curl compiled with ares support:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">pycurl</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pycurl</span><span class="o">.</span><span class="n">version</span>
+<span class="go">&#39;libcurl/7.32.0 OpenSSL/1.0.1e zlib/1.2.7 c-ares/1.10.0 libidn/1.25&#39;</span>
+</pre></div>
+</div>
+<p>You should see something like “c-ares/1.10.0” if everything was correct.</p>
+</div>
+<div class="section" id="supported-protocols">
+<h2>Supported Protocols<a class="headerlink" href="#supported-protocols" title="Permalink to this headline">¶</a></h2>
+<p>By default, pycurl supports a ton of protocols including SMTP, POP3, SSH, media streams, and FTP.
+If you do not need all this crap, you can disable it at the configure stage. Here is example of what you can do:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">configure</span> <span class="o">--</span><span class="n">without</span><span class="o">-</span><span class="n">libssh2</span> <span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="n">ipv6</span> <span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="n">ldap</span> <span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="n">ldaps</span>\
+            <span class="o">--</span><span class="n">without</span><span class="o">-</span><span class="n">librtmp</span> <span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="n">rtsp</span> <span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="n">ftp</span> <span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="nb">dict</span>\
+            <span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="n">telnet</span> <span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="n">tftp</span> <span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="n">pop3</span> <span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="n">imap</span>\
+            <span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="n">smtp</span> <span class="o">--</span><span class="n">disable</span><span class="o">-</span><span class="n">gopher</span> <span class="o">--</span><span class="n">without</span><span class="o">-</span><span class="n">winssl</span> <span class="o">--</span><span class="n">without</span><span class="o">-</span><span class="n">darwinssl</span>\
+            <span class="o">--</span><span class="n">without</span><span class="o">-</span><span class="n">winidn</span>
+</pre></div>
+</div>
+<p>To see all available options, just run the command:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">configure</span> <span class="o">--</span><span class="n">help</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="multicurl-and-socks-proxy">
+<h2>Multicurl and SOCKS proxy<a class="headerlink" href="#multicurl-and-socks-proxy" title="Permalink to this headline">¶</a></h2>
+<p>This combination just does not work. Use HTTP proxies with multicurl.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Pycurl Tips</a><ul>
+<li><a class="reference internal" href="#asynchronous-dns-resolving">Asynchronous DNS Resolving</a></li>
+<li><a class="reference internal" href="#supported-protocols">Supported Protocols</a></li>
+<li><a class="reference internal" href="#multicurl-and-socks-proxy">Multicurl and SOCKS proxy</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="response_search.html"
+                        title="previous chapter">Searching the response body</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="response.html"
+                        title="next chapter">Work With Network Response</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/grab/pycurl.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="response.html" title="Work With Network Response"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="response_search.html" title="Searching the response body"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Grab 0.6 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2015, Gregory Petukhov.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.3.
+    </div>
+    <p style="margin-top: 0; text-align: center; font-size: 0.8em;">Developed by <a href="http://grablab.io">GrabLab</a> - web scraping and data mining services.</p>
+    <p style="margin-top: 0; text-align: center; font-size: 0.8em;">He also does web scraping: <a href="https://www.imscraping.ninja">www.imscraping.ninja</a>.</p>
+
+    <!-- Yandex.Metrika counter --> <script type="text/javascript" > (function (d, w, c) { (w[c] = w[c] || []).push(function() { try { w.yaCounter13841917 = new Ya.Metrika({ id:13841917, clickmap:true, trackLinks:true, accurateTrackBounce:true }); } catch(e) { } }); var n = d.getElementsByTagName("script")[0], s = d.createElement("script"), f = function () { n.parentNode.insertBefore(s, n); }; s.type = "text/javascript"; s.async = true; s.src = "https://mc.yandex.ru/metrika/watch.js"; if (w.opera == "[object Opera]") { d.addEventListener("DOMContentLoaded", f, false); } else { f(); } })(document, window, "yandex_metrika_callbacks"); </script> <noscript><div><img src="https://mc.yandex.ru/watch/13841917" style="position:absolute; left:-9999px;" alt="" /></div></noscript> <!-- /Yandex.Metrika counter -->
+
+
+  </body>
+</html>

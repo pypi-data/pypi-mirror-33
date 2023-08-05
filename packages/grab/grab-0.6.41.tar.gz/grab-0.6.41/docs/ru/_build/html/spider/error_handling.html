@@ -1,0 +1,175 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Обработка ошибок &mdash; Grab 0.6.30 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.6.30',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="Grab 0.6.30 documentation" href="../index.html" />
+    <link rel="next" title="Система кэширования сетевых запросов" href="cache.html" />
+    <link rel="prev" title="Очередь заданий" href="task_queue.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="cache.html" title="Система кэширования сетевых запросов"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="task_queue.html" title="Очередь заданий"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="spider-error-handling">
+<span id="id1"></span><h1>Обработка ошибок<a class="headerlink" href="#spider-error-handling" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="id2">
+<h2>Правила обработки запросов<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>Если запрос выполнен успешно, то вызывается метод-обработчик, связанный с заданием по его имени.</li>
+<li>Если запрос был нарушен из-за сетевой ошибки, то задание снова отправляется в очередь заданий.</li>
+<li>Если произошла непредвиденная ошибка в обработчике задания, то обработка задания прекращается немедленно. Ошибка в обработчике не фатальна: она не влияет на работу обработчиков других заданий.</li>
+</ul>
+</div>
+<div class="section" id="id3">
+<h2>Сетевые ошибки<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h2>
+<p>Сетевой ошибокй считаются следующие случаи:
+* произошла ошибка во время передачи данных, например, сервер отверг запрос на соеденине или оборвал связь до того, как данные были переданы или данные передавались слишком долго
+* данные были переданы, но HTTP-статус ответа отличен от 2xx или 404</p>
+<p>Cуществует ряд настроек, для задания критериев, по которым сетеовой запрос помечается как ошибочный.</p>
+<p>Вы можете управлять таймаутами: <a class="reference internal" href="../grab/options.html#option-timeout"><em>timeout</em></a> и <a class="reference internal" href="../grab/options.html#option-connect-timeout"><em>connect_timeout</em></a>. Для задания этих настроек вам нужно конструировать Task-обеъкт с помощью настроенного Grab-объекта:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">g</span> <span class="o">=</span> <span class="n">Grab</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">connect_timeout</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="s">&#39;http://example.com&#39;</span><span class="p">)</span>
+<span class="n">t</span> <span class="o">=</span> <span class="n">Task</span><span class="p">(</span><span class="s">&#39;example&#39;</span><span class="p">,</span> <span class="n">grab</span><span class="o">=</span><span class="n">g</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Вы можете указывать дополнительный список HTTP-статусов, которые будут считаться успешными:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">t</span> <span class="o">=</span> <span class="n">Task</span><span class="p">(</span><span class="s">&#39;example&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="s">&#39;http://example.com&#39;</span><span class="p">,</span> <span class="n">valid_status</span><span class="o">=</span><span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="mi">501</span><span class="p">,</span> <span class="mi">502</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id4">
+<h2>Повторно выполнение заданий<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h2>
+<p>Завершившееся сетевой ошибкой задание повторно отправляется в очередь заданий. Количество попыток зависит от атрибута <cite>Spider.network_try_limit</cite> и по умолчанию равно десяти. Номер попытки хранится в атрибуте <cite>Task.network_try_count</cite>. Если все попытки исчерпаны, то задание больше не добавляетя в очередь. Кроме того, если в пауке определён метод <cite>task_&lt;имя задания&gt;_fallback</cite>, то он вызывается и получает в качестве единственного аргумента Task-объект, невыполненного задания.</p>
+<p>Также бывает, что хотя HTTP-статус не содержит ошибки, но данные ответа являются неверными, например, когда отправленная форма отображается ещё раз из-за неверно заполненного поля или когда сайт показывает каптчу или сообщение о том, что ваш IP забанен. В таких случаях нужно вручную (из метода-обработчика) отправить это задание ещё раз в очередь. Дабы избежать бесконечного добавления такого задания в очередь существует ещё один счётчик: <cite>Task.task_try_count</cite> и соответсвующее ему ограничение в пауке <cite>Spider.task_try_limit</cite>. Важное замечание, в случае использования <cite>task_try_count</cite> вы должны самостоятельно увеличивать его значение при повторной отправке задания в очередь:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">task_google</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grab</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">captcha_found</span><span class="p">(</span><span class="n">grab</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">Task</span><span class="p">(</span><span class="s">&#39;google&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">grab</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s">&#39;url&#39;</span><span class="p">],</span> <span class="n">task_try_count</span><span class="o">=</span><span class="n">task</span><span class="o">.</span><span class="n">task_try_count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">task_google_fallback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
+    <span class="k">print</span> <span class="s">&#39;Google is not happy with you IP address&#39;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id5">
+<h2>Статистика ошибок<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h2>
+<p>После завершения работы паука, или даже во время его работы, вы можете получить суммарную информацию о количестве сделанных запросов и количестве различных ошибок с помощью метода <cite>Spider.render_stats</cite>.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Обработка ошибок</a><ul>
+<li><a class="reference internal" href="#id2">Правила обработки запросов</a></li>
+<li><a class="reference internal" href="#id3">Сетевые ошибки</a></li>
+<li><a class="reference internal" href="#id4">Повторно выполнение заданий</a></li>
+<li><a class="reference internal" href="#id5">Статистика ошибок</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="task_queue.html"
+                        title="previous chapter">Очередь заданий</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="cache.html"
+                        title="next chapter">Система кэширования сетевых запросов</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/spider/error_handling.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="cache.html" title="Система кэширования сетевых запросов"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="task_queue.html" title="Очередь заданий"
+             >previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Grigoriy Petukhov.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+
+<div style="margin: 0.5em; text-align: right">
+<!-- Yandex.Metrika informer --><a href="http://metrika.yandex.ru/stat/?id=13841917&amp;from=informer" target="_blank" rel="nofollow"><img src="//bs.yandex.ru/informer/13841917/1_1_FFFFFFFF_EFEFEFFF_0_pageviews" style="width:80px; height:15px; border:0;" alt="Яндекс.Метрика" title="Яндекс.Метрика: данные за сегодня (просмотры)" /></a><!-- /Yandex.Metrika informer --><!-- Yandex.Metrika counter --><script type="text/javascript">(function (d, w, c) { (w[c] = w[c] || []).push(function() { try { w.yaCounter13841917 = new Ya.Metrika({id:13841917, enableAll: true, webvisor:true}); } catch(e) {} }); var n = d.getElementsByTagName("script")[0], s = d.createElement("script"), f = function () { n.parentNode.insertBefore(s, n); }; s.type = "text/javascript"; s.async = true; s.src = (d.location.protocol == "https:" ? "https:" : "http:") + "//mc.yandex.ru/metrika/watch.js"; if (w.opera == "[object Opera]") { d.addEventListener("DOMContentLoaded", f); } else { f(); } })(document, window, "yandex_metrika_callbacks");</script><noscript><div><img src="//mc.yandex.ru/watch/13841917" style="position:absolute; left:-9999px;" alt="" /></div></noscript><!-- /Yandex.Metrika counter -->
+</div>
+
+
+  </body>
+</html>

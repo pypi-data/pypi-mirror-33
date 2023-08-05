@@ -1,0 +1,197 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Способы создания заданий &mdash; Grab 0.6.30 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.6.30',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="Grab 0.6.30 documentation" href="../index.html" />
+    <link rel="next" title="Задания" href="task.html" />
+    <link rel="prev" title="Что такое Spider" href="tutorial.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="task.html" title="Задания"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="Что такое Spider"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="spider-task-building">
+<span id="id1"></span><h1>Способы создания заданий<a class="headerlink" href="#spider-task-building" title="Permalink to this headline">¶</a></h1>
+<p>Spider это по сути набор функций-обработчиков сетевых запросов. Каждый обработчик в свою очередь может создать новые запросы или просто сохранить куда-либо данные. Каждый запрос описывается Task-объектом. Паук добавляет каждый новый запрос в очередь и выполняет его по мере освобождения сетевых ресурсов. Каждому Task-объекту присваиваетя имя. Когда становится доступен результат сетевого запроса, то с помощью этого имени определяется имя функции-обработчика и вызывается эта функция.</p>
+<p>Например, если мы создадим задание с именем &#8220;contact_page&#8221;, то мы должны будем объявить в нашем классе паука метод c именем &#8220;task_contact_page&#8221;:</p>
+<div class="highlight-python"><div class="highlight"><pre>    ...
+    self.add_task(Task(&#39;contact_page&#39;, url=&#39;http://domain.com/contact.html&#39;))
+    ...
+
+def task_contact_page(self, grab, task):
+    ...
+</pre></div>
+</div>
+<p>Имя функции-обработчика определяется так: берётся имя задания и добавляется префикс &#8220;<a href="#id3"><span class="problematic" id="id4">task_</span></a>&#8221;.</p>
+<p>Рассмотрим различные способы создания Task-заданий.</p>
+<div class="section" id="initial-urls">
+<h2>initial_urls<a class="headerlink" href="#initial-urls" title="Permalink to this headline">¶</a></h2>
+<p>В атрибуте паука <cite>initial_urls</cite> Можно указать список адресов, с обработки которых паук должен начать свою работу:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">ExampleSpider</span><span class="p">(</span><span class="n">Spider</span><span class="p">):</span>
+    <span class="n">initial_urls</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;http://google.com/&#39;</span><span class="p">,</span> <span class="s">&#39;http://yahoo.com/&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Для всех адресов, перечисленных в <cite>initial_urls</cite> будет создано задание с именем &#8216;initial&#8217;. Это самый простой способ создания заданий, вы не можете управлять ничем кроме адресов запрашиваемых документов.</p>
+</div>
+<div class="section" id="task-generator">
+<span id="spider-task-generator"></span><h2>task_generator<a class="headerlink" href="#task-generator" title="Permalink to this headline">¶</a></h2>
+<p>Более сложный способ создания начальных заданий. Метод с именем <cite>task_generator</cite> должен являться python-генератором т.е. функцией выдающей множество значений с помощью инструкции yield. Spider будет обращаться к новым задания из <cite>task_generator</cite> каждый раз, когда его очередь будет опустошаться. Это позволяет не опасаться того, что вы создадите слишком много заданий. Выглядит это так: в начале работы паук извлекает некоторое количество заданий с помощью <cite>task_generator</cite> и помещает их в очередь, далее он выполняет запросы и следит за количеством заданий в очереди. Как только их становится слишком мало, паук обращется ещё раз к <cite>task_generator</cite> и добавляет новые задания.</p>
+<p>К примеру, вы можете открыть файл с миллионом записей и последовательно читать строки из него, создавая всё новые и новые задания:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">ExampleSpider</span><span class="p">(</span><span class="n">Spider</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">task_generator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;var/urls.txt&#39;</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="n">Task</span><span class="p">(</span><span class="s">&#39;download&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="add-task">
+<h2>add_task<a class="headerlink" href="#add-task" title="Permalink to this headline">¶</a></h2>
+<p>Независимо от того, каким способом вы создали новое задание, в очередь заданий оно попадёт с помощью метода <cite>add_task</cite>. В случае использования <cite>intial_urls</cite> или <cite>task_generator</cite> метод <cite>add_task</cite> будет вызван неявно, но вы, конечно, можете использовать его напрямую, чтобы добавить новое задание в любом месте выполнения программы. Это можно делать даже до начала работы паука. Например:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">bot</span> <span class="o">=</span> <span class="n">ExampleSpider</span><span class="p">()</span>
+<span class="n">bot</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="s">&#39;google&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="s">&#39;http://google.com&#39;</span><span class="p">)</span>
+<span class="n">bot</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="yield">
+<h2>yield<a class="headerlink" href="#yield" title="Permalink to this headline">¶</a></h2>
+<p>Инструкцию yield для создания заданий вы можете использовать в двух местах, во-первых, в методе <cite>task_generator</cite>, о чём уже писалось выше, во-вторых, в любой функции-обработчике результата. При вызове функции-обработчика Spider ловит все задания, которые она генерирует и складывает в очередь заданий. Создание заданий с помощью yield ничем не отличается от использования метода <cite>add_task</cite>, разве что запись получается более короткая:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">ExampleSpider</span><span class="p">(</span><span class="n">Spider</span><span class="p">):</span>
+    <span class="n">initial_urls</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;http://google.com&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">task_initial</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grab</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
+        <span class="c"># Google page was fetched</span>
+        <span class="c"># Now let&#39;s download yahoo page</span>
+        <span class="k">yield</span> <span class="n">Task</span><span class="p">(</span><span class="s">&#39;yahoo&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="s">&#39;yahoo.com&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">task_yahoo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grab</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
+        <span class="k">pass</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id2">
+<h2>Резюме<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<p>Для задания начальных заданий используйте атрибут <cite>initial_urls</cite>, если вам нужна более сложная логика создания начальных заданий, используйте метод <cite>task_generator</cite>. Для создания заданий внутри функций-обработчиков используйте инструкцию yield. Использовать метод <cite>add_task</cite> напрямую вам практически никога не понадобится.</p>
+<p>Есть также ряд методов для типичных случаев генерации новых заданий: обработка пагинации, обработка списка ссылок. Смотрите модуль <cite>grab.spider.pattern</cite>.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Способы создания заданий</a><ul>
+<li><a class="reference internal" href="#initial-urls">initial_urls</a></li>
+<li><a class="reference internal" href="#task-generator">task_generator</a></li>
+<li><a class="reference internal" href="#add-task">add_task</a></li>
+<li><a class="reference internal" href="#yield">yield</a></li>
+<li><a class="reference internal" href="#id2">Резюме</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="tutorial.html"
+                        title="previous chapter">Что такое Spider</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="task.html"
+                        title="next chapter">Задания</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/spider/task_building.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="task.html" title="Задания"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="Что такое Spider"
+             >previous</a> |</li>
+        <li><a href="../index.html">Grab 0.6.30 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Grigoriy Petukhov.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+
+<div style="margin: 0.5em; text-align: right">
+<!-- Yandex.Metrika informer --><a href="http://metrika.yandex.ru/stat/?id=13841917&amp;from=informer" target="_blank" rel="nofollow"><img src="//bs.yandex.ru/informer/13841917/1_1_FFFFFFFF_EFEFEFFF_0_pageviews" style="width:80px; height:15px; border:0;" alt="Яндекс.Метрика" title="Яндекс.Метрика: данные за сегодня (просмотры)" /></a><!-- /Yandex.Metrika informer --><!-- Yandex.Metrika counter --><script type="text/javascript">(function (d, w, c) { (w[c] = w[c] || []).push(function() { try { w.yaCounter13841917 = new Ya.Metrika({id:13841917, enableAll: true, webvisor:true}); } catch(e) {} }); var n = d.getElementsByTagName("script")[0], s = d.createElement("script"), f = function () { n.parentNode.insertBefore(s, n); }; s.type = "text/javascript"; s.async = true; s.src = (d.location.protocol == "https:" ? "https:" : "http:") + "//mc.yandex.ru/metrika/watch.js"; if (w.opera == "[object Opera]") { d.addEventListener("DOMContentLoaded", f); } else { f(); } })(document, window, "yandex_metrika_callbacks");</script><noscript><div><img src="//mc.yandex.ru/watch/13841917" style="position:absolute; left:-9999px;" alt="" /></div></noscript><!-- /Yandex.Metrika counter -->
+</div>
+
+
+  </body>
+</html>
