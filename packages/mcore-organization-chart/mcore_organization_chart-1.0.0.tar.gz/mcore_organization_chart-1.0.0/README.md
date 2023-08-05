@@ -1,0 +1,63 @@
+Migacore Organization Chart
+---------------------------
+
+This package provides a cli to calculate and display organization chart of a given set of employees.
+
+Install
+------------
+
+You can install it via pip:
+```bash
+$ python3.6 -m venv env
+$ pip install mcore-organization-chart
+```
+Or you can clone this repo and install it via setuptools:
+
+```bash
+$ python3.6 -m venv env
+$ pip install -r requirements_dev.txt
+$ git clone https://github.com/Spin14/mcore-organization-chart.git
+$ make install
+```
+
+You can also run the tests, coverage, static type checker (mypy) and linters (flake8) using the available make commands.
+
+```bash
+$ make help
+(...)
+lint                 check style with flake8
+test                 run tests quickly with the default Python
+mypy                 run mypy vs the codebase
+coverage             check code coverage quickly with the default Python
+```
+
+Build Organization Chart
+--------
+
+Once the package is installed you can feed the ```build-org-chart``` command with the target employees list to calculate their organization chart. There is a ```example.txt``` input file you can use to give it a try:
+
+```bash
+$ cat example.txt
+    Sarah Watson
+    Owen Taylor
+    Ellie Ross
+    Isaiah Martin
+
+$ build-org-chart example.txt
+
+|--- Sarah Watson
+          |--- Owen Taylor
+          |--- Ellie Ross
+                    |--- Isaiah Martin
+
+```
+
+
+
+Credits
+-------
+
+This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
+
+.. _Cookiecutter: https://github.com/audreyr/cookiecutter
+.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
