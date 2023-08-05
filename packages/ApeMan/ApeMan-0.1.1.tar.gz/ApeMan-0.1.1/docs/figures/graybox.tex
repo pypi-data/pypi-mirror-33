@@ -1,0 +1,222 @@
+\documentclass[tikz]{standalone}
+% To convert from pdf to png use the following :
+%
+% C:\cygwin64\bin\convert.exe -density 600 file.pdf file.png
+
+
+\usepackage{listings}
+
+\usetikzlibrary{shapes.multipart}
+\usetikzlibrary{matrix}
+\usetikzlibrary{positioning}
+\usetikzlibrary{fit}
+\usetikzlibrary{chains}
+\usetikzlibrary{graphs}
+\usetikzlibrary{calc}
+\usetikzlibrary{backgrounds}
+
+\tikzset{
+%  abc
+ deprecated/.style={draw, gray!90!black}
+}
+
+\tikzset{
+ class/.style={draw, rectangle split, rounded corners, 
+  rectangle split parts=3, 
+  % Currently one must explicitly specify the colours for each 
+  % cell as is shown below, but it ought to be possible to use 
+  %
+  %   rectangle split use custom fill=true,
+  %   every PART nodepart/.style={red},
+  %
+  % It should further be possible to specify the parts colour 
+  % in the \nodepart macro as in
+  %
+  %   \node[rectangle split] {First \nodepart[fill=red]{second} Second};
+  %
+  % As I have not managed to get either method to work I use 
+  % the following key, which sets 
+  %
+  %   rectangle split use custom fill
+  %
+  rectangle split part fill ={{gray!50!white}, gray!15!white, gray!15!white},
+  rectangle split part align={center, left, left},
+  % One may either explicitly ignore empty parts as follows or
+  % manipulate their dimensions using the keys :
+  %
+  % rectangle split empty part height = 0.1em,
+  % rectangle split empty part depth  = 0.1em,
+  rectangle split ignore empty parts=true,
+  }
+}
+
+\begin{document}
+
+% Trinity.pdf : Creates the Trinity
+%
+% Note : The finder returns a \lstinline|ModuleSpec| in python 3.4 and onwards.
+%
+\begin{tikzpicture}[]
+\coordinate (ctr) {}; % Used as an anchor for later nodes
+% Import Mechanism
+\node (imp) at ($(ctr) + ( 90:6em)$)                                 {\lstinline|import|};
+\node (ldr) at ($(ctr) + (210:6em)$)                                 {\lstinline|Loader|};
+\node (fdr) at ($(ctr) + (-30:6em)$)                                 {\lstinline|Finder|};
+\node (int) at (ctr)                 [draw, circle, inner sep = 1em, align=center] {\\ Machinery};
+% Internal Structure
+\draw[->, shorten >=0.5em, shorten <=0.5em, gray, dashed]  (int.60) to [out = 240, in = 180]   (int.0);
+\draw[->, shorten >=0.5em, shorten <=0.5em, gray, dashed] (int.180) to [out =   0, in = -60] (int.120);
+\draw[->, shorten >=0.5em, shorten <=0.5em, gray, dashed] (int.300) to [out = 120, in =  60] (int.240);
+% External Structure   
+\draw[->] (int) to [in =  60, out =   0] (fdr);
+\draw[->] (fdr) to [in = 300, out = 240] (int);
+\draw[->] (int) to [in = 180, out = 120] (imp);
+\draw[->] (imp) to [in =  60, out =   0] (int);
+\draw[->] (int) to [in = 300, out = 240] (ldr);
+\draw[->] (ldr) to [in = 180, out = 120] (int);
+% Importer
+% \node (Imp) at ($(ctr) + (270:6em)$)                                 {\lstinline|Importer|};
+% \begin{scope}[on background layer]
+% \draw[fill = gray] let \n{radius}={1.75em} in 
+%   ($(fdr) + ( 30:\n{radius})$) 
+%    arc( 30:210:\n{radius})     -- ($(fdr) + (210:\n{radius})$)
+%    arc(210:330:6em+\n{radius}) -- ($(ldr) + (-30:\n{radius})$)
+%    arc(-30:150:\n{radius})     -- ($(ldr) + (150:\n{radius})$)
+%    arc(330:210:6em-\n{radius}) -- cycle;
+% \end{scope}
+% Importer
+% \node (Imp) at ($(ctr) + (270:6em)$)                                 {\lstinline|Importer|};
+% \begin{scope}[on background layer]
+% \draw[fill=gray, even odd rule] let \n{radius}={1.75em} in 
+%    circle (6em+\n{radius}) circle (6em-\n{radius});
+% \end{scope}
+% Importer
+% \node[above = of imp] (Imp) at ($(ctr) + (90:6em)$) {\lstinline|Importer|};
+% \begin{scope}[on background layer]
+% \draw[fill=gray, even odd rule] let \n{radius}={1.75em} in 
+%    (imp) circle (\n{radius});
+% \end{scope}
+% \path[use as bounding box] circle (8.5em);
+\end{tikzpicture}
+
+% OverlayImporter.X.X.pdf : The OverlayImporter that wraps __import__ in Python 3.4
+%
+% One calls importlib.import_module if there isn't a from list
+% and  the builtins.__import__ for all other cases
+% 
+% \begin{tikzpicture}
+% \coordinate (ctr) {}; 
+% \node (soc) at ($(ctr) + ( 90:6em)$) [text width = 16em, align=center]  {\lstinline|import package.module|\\ or \\\lstinline|from package import module|}; % Simple implies just name is given, complex implies globals/locals/fromlist and level are known
+% \node (lib) at ($(ctr) + (180:6em)$) %[label=above:overlay.MODULE]       
+%                                                                         {\lstinline|importlib.import_module|};
+% \node (imp) at ($(ctr) + (  0:6em)$) %[label=above:overlay.MODULE]       
+%                                                                         {\lstinline|self.import|};
+% \node (gcd) at ($(ctr) + (270:6em)$)                                    {\lstinline|_gcd_import|};
+% \graph {(soc) -> {(imp), (lib)} -> (gcd)};
+% \end{tikzpicture}
+
+% PEP 420 - Name Spaced Packages
+% PEP 302 - sys.Meta_Path implementation
+
+% The \href{https://docs.python.org/3/reference/import.html}{import system} roughly follows the following scheme.
+% section 5.4.2 Submodules explains binding of submodules by a parent during imports.
+
+% During an import the parts of module name are traversed in sequence \nixpath{first.second}
+
+
+% \begin{tikzpicture}[
+%  start chain, 
+%  %deprecated/.style = {top color = grey}
+% ]
+% \node[on chain, class, deprecated] {\lstinline|importlib.abc.Finder|};
+% \node[on chain, class, deprecated] {\lstinline|importlib.abc.MetaPathFinder| \nodepart{second} Attributes \nodepart[fill= green]{third} Methods with very long names off setting the alignment};
+% \end{tikzpicture}
+
+% \begin{tikzpicture}[
+%  start chain, 
+%  %deprecated/.style = {top color = grey}
+% ]
+% \node[text width = 12em, class] (ploader) at (0em,24em) {\lstinline|importlib.abc.Loader| \nodepart{third} \lstinline|create_module| \\ \lstinline|exec_module|}; % Python >= 3.4
+% % \node[text width = 12em, class] (ploader) at (0em,24em) {\lstinline|importlib.abc.Loader| \nodepart{third} \lstinline|load_module| \\ \lstinline|module_repr|};   % Python <= 3.4
+% \node[text width = 14em, class] (rloader) at ( 9em,18em) {\lstinline|importlib.abc.ResourceLoader| \nodepart{third} \lstinline|load_module|};
+% \node[class] (iloader) at (-9em,18em) {\lstinline|importlib.abc.InspectLoader|};
+% \node[class] (eloader) at (-9em,12em) {\lstinline|importlib.abc.ExecutionLoader|};
+% \node[class] (floader) at ( 9em,12em) {\lstinline|importlib.abc.FileLoader|};
+% \node[class] (sloader) at ( 9em,18em) {\lstinline|importlib.abc.SourceLoader|};
+% \graph {(ploader) -> {(rloader), {(iloader) -> (eloader)}} -> (floader); 
+% %         {(rloader), (eloader)} -> (sloader); 
+%         
+%         };
+% % Note that one may use the _register function to tak on a MetaPath finder
+% \end{tikzpicture}
+
+% \begin{tikzpicture}[
+%  object/.style   = {draw, rounded corners},
+%  alternatives/.style = {object, rectangle split, rectangle split parts=#1, anchor=center},
+% ]
+% \node[alternatives=3, label=below:Entry Point, label=above:Fully Qualified Module Name (FQMN)] (ep) at (-10em,10em) {\lstinline|import| \nodepart{two} \lstinline|__import__()| \nodepart{three} \lstinline|importlib.import_module()|};
+% \node[object, label=below:Module Cache]    (sm) at ( 10em, 10em) {\lstinline|sys.modules|};
+% % \node[label=below:]                     at ( 10em,-10em) {\lstinline|sys.path|};
+% \node[alternatives=3, label=above:\lstinline|sys.MetaPath|, label=below:Importers] (mp) at ( 10em,0em) {Builtins \nodepart{two} Frozen \nodepart{three} importlib.machinery.PathFinder (URI/URLs)};
+% \node[alternatives=3, label={[above, text width = 8em, align=center] \\ }, label=below:Finders] (finders) at ( 10em,-10em) {\lstinline|find_spec()| \nodepart{two} \lstinline|find_module()| \nodepart{three}};
+% \node[alternatives=2, label=above:Module,label=below:Loaders] (loaders) at (-10em,-10em) {\lstinline|load_module| \nodepart{two} \lstinline|exec_module|};
+% \node[object,         label=above:Importers, rotate fit = 0, fit = (finders) (loaders), inner sep = 2em] {};
+% \draw[->] (ep) to[out=0, in=180]   (sm);
+% \draw[->] (sm) to[out=0, in=  0] (mp);
+% \draw[->]  (finders) --node[above] {Mod. Spec.} node[below] {Loader ($\le$ 3.4)} (loaders);
+% \end{tikzpicture}
+
+% \begin{tikzpicture}
+% \node {import}; 
+% \node {search \lstinline|sys.modules|};
+% \node {search \lstinline|sys.meta_path|};
+% \end{tikzpicture}
+
+% \begin{tikzpicture}[inner sep = 0, outer sep=0]
+% %  subclass/.style = {rectangle split, rectangle split parts=#1, draw, anchor=center, rounded corners}
+% % ]
+% % \node {\lstinline|fing_spec|};
+% % \node[subclass=3, label=above:, label=below:] {\lstinline|first.second.third| \nodepart{two} \lstinline|first| \lstinline|second.third| \nodepart{three} \lstinline|importlib.import_module|};
+% \coordinate                (lvl1) {};
+% \coordinate[below=of lvl1] (lvl2) {};
+% \coordinate[below=of lvl2] (lvl3) {};
+% \coordinate[below=of lvl3] (lvl4) {};
+% \node[right = of lvl1] (fqmn) {\lstinline|first.second.third|};
+% \node[right = of lvl2] (f)    {\lstinline|first|};              % \node[node distance =0.5em,right = of  f] (st) {\lstinline|second.third|};
+% \node[right = of lvl3] (fs)   {\lstinline|first.second|};       % \node[node distance =0.5em,right = of fs]  (t) {\lstinline|third|};
+% \node[right = of lvl4] (fst)  {\lstinline|first.second.third|};
+% \end{tikzpicture}
+
+% The idea here is to return None or a spec. 
+% If None is returned the system proceeds to investigate other sources (MetaPath and Path based \empg{importers}) 
+% Otherwise a spec must be created. 
+% This follows one of two routes, create a loader and generate a spec from this or create a spec directly from a file.
+% The former is more flexable as it allows one to select between various loader classes.
+% \begin{tikzpicture}
+% \node (loader) {\lstinline|loader|};
+% \node (lspec)  {\lstinline|spec_from_loader|};
+% \node (fspec)  {\lstinline|spec_from_file|};
+% \node[fit = (fspec) (lspec) ] {};
+% \end{tikzpicture}
+
+% The following is a flow chart of the importlib (and I believe the builtins) __import__ function it maps the internal procedures used to perform an import
+% \begin{tikzpicture}
+% \coordinate (imp) {};
+% \node (soc) [above       = of imp]  {simple or complex ?}; % Simple implies just name is given, complex implies globals/locals/fromlist and level are known
+% \node (gcd) [right       = of imp]  {\lstinline|_gcd_import|};
+% \node (clc) [left        = of imp]  {\lstinline|_calc__package__|};
+% % \node (mod) [below       = of imp]  {\lstinline||};
+% % In a way this occurs first : For now this is simply commented out
+% % \node (mul) [below       = of imp]  {From list ?};
+% % \node (aaa) [below right = of mul]  {\lstinline||};
+% % \node (bbb) [below left  = of mul]  {\lstinline||};
+% \graph {(soc) -> {(clc), (gcd)};
+%         (clc) -> (gcd);
+% %         {(gcd)} -> (mul);
+%        };
+% % \node [draw, rounded corners, fit = (gcd) (clc), label=\lstinline|builtins.__import__|/\lstinline|importlib.__import__|] {};
+% % \node [draw, rounded corners, fit = (gcd), label=\lstinline|importlib.import_module|] {};
+% \end{tikzpicture}
+
+
+\end{document}

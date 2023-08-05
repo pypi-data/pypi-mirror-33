@@ -1,0 +1,377 @@
+Metadata-Version: 2.1
+Name: ApeMan
+Version: 0.1.1
+Summary: Overlays for Python
+Home-page: http://www.manaikan.com/
+Author: Carel van Dam
+Author-email: carelvdam@gmail.com
+License: GNU Affero General Public License v3 or later (AGPLv3+)
+Description: ------------
+        Introduction
+        ------------
+        
+        This package provides a form of layer management for Python.
+        It transparently substitutes an existing module with ones patch thereof.
+        This `normalizes` or `standardizes` the original modules across ones code base.
+        
+        ApeMan intercepts ones ``import`` calls to substitute the desired module with a patched variant provided in an overlay.
+        An overlay\ [#gentoo]_ is simply a python package containing ones patches for other packages.
+        Additionally the overlays :file:`__init__.py` file must invoke ApeMan.
+        
+        Overlays make ones patches available across multiple projects; consistently exposing the additional API features provided by them.
+        Similarly a set of patches may quickly be substituted for another by simply importing a different overlay.
+        
+        This formalizes monkey patching where the Ape in question has an affection for books, dislikes their readers and discourages, quite aggressively one might say, the use of the m... word\ [#librarian]_.
+        
+        .. rubric:: Footnotes
+        
+        .. [#gentoo]    The term overlay is taken from Portage the package manager for Gentoo Linux.
+        .. [#librarian] Someone out there was about to find out their worst nightmare was a maddened librarian. With a Badge.
+        
+        .. Suppose...
+        .. ----------
+        .. 
+        .. One is writing a script that imports a :class:`CLASS` from a :mod:`MODULE` in ones Python installation,
+        .. ::
+        .. 
+        ..   from MODULE import CLASS
+        ..   
+        ..   print(CLASS())
+        ..   
+        .. and one desperately wished that the class had a certain feature, say a nicer string representation.
+        .. One implements the following 
+        .. ::
+        ..   from MODULE import CLASS
+        .. 
+        ..   class CLASS(CLASS) :
+        ..    def __str__(self):
+        ..     return "Nicer {} representation ".format(str(self))
+        .. 
+        .. while in their original script they would now import the patch
+        .. ::
+        .. 
+        ..   from .MODULE import CLASS
+        ..   
+        ..   print(CLASS())
+        .. 
+        .. This proves so useful that one wishes to make their patched implementation of :class:`CLASS` available to all of their projects.
+        .. ApeMan allows one to package their patch into an overlay so that
+        .. ::
+        .. 
+        ..   import OVERLAY
+        ..   from MODULE import CLASS
+        ..   
+        ..   print(CLASS())
+        
+        -------
+        Problem
+        -------
+        
+        Occasionally one wants to patch the functions and/or classes provided by some other package; when it lacks features or to normalize the provided |API|.
+        A naive implementation relying upon the following structure;
+        ::
+        
+         PROJECT/       # The root folder for ones project
+          PACKAGE/      # The root folder of ones package.
+           PATCH.py     # The module containing ones patches.
+           ...          # The other modules in the package.
+           __main__.py  # The main script importing and using the patched module.
+        
+        would patch the features from the `SOURCE` module by importing and overloading it's `FUNCTION`\ s and `CLASS`\ es.
+        ::
+         
+         from SOURCE import *
+         
+         _FUNCTION_ = FUNCTION
+         def FUNCTION(*args, **kvps):
+          ...
+          _FUNCTION_(*args, **kvps)
+          ...
+         
+         class CLASS(CLASS):
+          ...
+         
+        Ones modules would then the `PATCH` in favour of the original package; pulling in the modifications.
+        ::
+        
+         from .PATCH import *
+         ...
+        
+        This works well for once off patches in standalone projects.
+        
+        Now, should a particular patch be especially useful, one might wish to use it across multiple projects.
+        At this point, one might copy the patch across to the other project(s) creating copies; copies that diverge from one another over time as features are added.
+        
+        Should the original patch grow over time may become necessary to duplicate more of the structure of the original package; creating more files and exacerbating the problem.
+        Eventually one ends up with multiple `PATCH` files, spread across various projects, whose contents deviate further from one another to increasingly varied degrees.
+        
+        --------
+        Solution
+        --------
+        
+        ApeMan offers, a hopefully better strategy, that consistently manages these patches.
+        It resolves this by placing ones patches into an overlay; a package dedicated to ones patches.
+        This may be done locally, within a sub-package, for one shot usage; or globally, within a separate package, for repeated usage by multiple packages.
+        
+        .. . If the following represents ones package structure
+        .. . ::
+        .. . 
+        .. .  PACKAGE/        # The root folder of ones package.
+        .. .   overlay/       # The overlay containing the patches.
+        .. .    SOURCE        # The target package one is wrapping or patching.
+        .. .    __init__.py   # The __init__.py script importing ApeMan.
+        .. .   __main__.py    # The packages main script, executed when invoked as a module.
+        
+        .. The packages main file makes it's usual calls to import the `SOURCE` modules but by importing the overlay first ApeMan redirects later imports to use ones patched modules instead.
+        .. ::
+        .. 
+        ..  import overlay
+        ..  from SOURCE import *
+        ..  
+        ..  ...
+        
+        Overlay Structure
+        =================
+        
+        Whether it is made available globally or locally ones structures their overlay(s) as follows::
+        
+          OVERLAY/        # The root folder of the ApeMan overlay
+           _PACKAGE_.py   # The module containing ones patches, renamed after the source module or package
+           ...            # Further patches provided by the overlay
+           __init__.py    # The file invoking ApeMan; identifying it as an overlay
+        
+        The overlays' :file:`__init__.py` file then imports and registers the :class:`ApeMan` instance;
+        ::
+        
+          from apeman import ApeMan; 
+          apeman = ApeMan()
+        
+        which intercepts later imports, substituting ones patches for the original modules.
+        
+        Local Overlay(s)
+        ================
+        
+        Locally one may create an overlay at any level within their package by including a sibling package along side it's modules.
+        ::
+        
+         PROJECT/         # The root folder for ones project
+          PACKAGE/        # The root folder of ones package.
+           OVERLAY/       # The ApeMan overlay
+            ...           # The contents of the overlay
+           ...            # The other modules in the package.
+           __main__.py    # The main script importing and using the patched module.
+        
+        Other modules within ones package may then invoke the overlay via relative import.
+        ::
+        
+         import .OVERLAY
+         from SOURCE import *
+         
+         ...
+        
+        Global Overlay(s)
+        =================
+        
+        Globally, an overlay, is provided as a separate, standalone package.
+        ::
+        
+         PROJECT/         # The root folder for ones project
+          OVERLAY/        # The root folder of the ApeMan Overlay
+            ...           # The contents of the overlay
+          PACKAGE/        # The root folder of ones package.
+           ...            # The other modules in the package.
+           __main__.py    # The main script importing and using the patched module.
+        
+        In this case the modules in ones package must invoke the overlay using an absolute import.
+        ::
+        
+         import OVERLAY
+         from SOURCE import *
+         
+         ...
+        
+        .. One must explicitly import the features they need as the `OverlayImporter` actually blocks further imports.
+        
+        .. Note that an overlay package is meant to reside alongside its sibling module to afford the most flexibility. 
+        .. Whether or not this is possible at every level within a package depends upon how python enforces scoping.
+        
+        -------
+        Example
+        -------
+        
+        Consider patching the :class:`Decimal` class from the :mod:`decimal` module.
+        
+        Monkey Patching
+        ===============
+        
+        The following structure is the simplest to implement.
+        ::
+        
+         PACKAGE/        # The root folder of ones package.
+          _decimal_.py   # The module containing ones patches to the decimal module.
+          __main__.py    # The packages main script, executed when invoked as a module.
+        
+        Within :file:`_decimal_.py` import everything from the :mod:`decimal` module then subclass and monkey patch the `Decimal` class; modifying it's string representation.
+        ::
+         
+         from decimal import *
+         
+         class Decimal(Decimal): 
+          def __str__(self) :
+           return super().__str__().split("'")[1]
+         
+        Then within the :file:`__main__.py` file one would import and use the patch as follows::
+        
+         import ._decimal_ as decimal
+         from decimal import Decimal
+         
+         print(Decimal(42))
+        
+        This should output `42` instead of `Decimal('42')` when we invoke the package using :code:`python -m PACKAGE`.
+        
+        Ape Patching
+        ============
+        
+        Using ApeMan we would move the `_decimal_.py` file into a sub-folder called `overlay`, with the resulting structure;
+        ::
+        
+         PACKAGE/        # The root folder of ones package.
+          overlay/       # The overlay containing the patches.
+           _decimal_.py  # The module containing ones patches to the decimal module.
+           __init__.py   # The __init__.py script importing ApeMan.
+          __main__.py    # The packages main script, executed when invoked as a module.
+        
+        accordingly the :file:`__init__.py` file should contain ::
+         
+         from apeman import ApeMan
+         apeman = ApeMan
+        
+        The main file is then adapted to reflect the following.
+        ::
+        
+         import .overlay
+         from decimal import Decimal
+         
+         print(Decimal(42))
+        
+        Without ...
+        ===========
+        
+        One might argue that a cleaner structure still, is as follows
+        ::
+        
+         PACKAGE/        # The root folder of ones package.
+          decimal.py     # The module containing ones patches to the decimal module.
+          __main__.py    # The packages main script, executed when invoked as a module.
+        
+        but this results in a whole series of clashes and the following error
+        ::
+        
+         AttributeError: 'module' object has no attribute 'Decimal'
+         
+        .. Other related errors include : 
+        .. SystemError: Parent module '' not loaded, cannot perform relative import
+         
+        .. Essentially the :file:`decimal.py` module gets installed within the  decimal  name space preventing the import of the original library.
+        
+        Essentially the :file:`PACKAGE/decimal.py` file gets loaded as the :mod:`decimal` module and is assigned under :attr:`sys.modules` reserving the `decimal` key; preventing the subsequent import of the actual :mod:`decimal` module.
+        
+        .. note ::
+        
+           This method actually works if one tells python it's executing a module using the `-m` switch,  :code:`python -m PACKAGE`, but only I found this out after creating the package.
+        
+        -------------
+        Compatability
+        -------------
+        
+        The machinery underlying :meth:`import` has undergone some radical changes over the lastest releases of Python (Particularly versions 3.3-3.5 and next in 3.7).
+        In light of this ApeMan aims to support a minimal set of features; namely explicit and implicit overlays providing patches whose structure matches their intended source packages.
+        Any functionality offered beyond these base features is considered sugar e.g. repeated imports, stacked overlays, restructured patches and substructured patches;
+        
+        .. tested by the :mod:`*Explcit` :mod:`*Implcit` and  :mod:`*Init` tests (See :ref:`Testing`).
+        
+        .. table :: Set of features supported by the Python import system in the different Python implementations
+           :align: center
+           :widths: auto
+           
+           ====================== === === === ===
+           Python                 2.7 3.3 3.4 3.7
+           ====================== === === === ===
+           explicit packages       X   X   X   X 
+           implicit packages           X   X   X 
+           lazy loading                        X 
+           C implementation        X   X      
+           Python implementation           X   X
+           ====================== === === === ===
+        
+        It should be noted that Apeman has only been developed and tested in Python 2.7, 3.4 and 3.6.
+        The Python 3.4 implementation was last tested when the author still had it installed, before switching to 3.6. 
+        The author also maintains a flaky build of Python 3.5 but this is not a good testing envvironment as a result ApeMan in 3.5 is flaky.
+        Generally speaking if you're using ApeMan in anything other then Python 2.7 or 3.6 you're on your own.
+        
+        .. table :: Set of features supported ApeMan under the different Python implementations
+           :align: center
+           :widths: 4,1,1,1,1
+           
+           ======================= === === === ===
+           Python                  2.7 3.4 3.5 3.6
+           ======================= === === === ===
+           explicit packages        X   X   ?   X 
+           implicit packages       N/A  X   ?   X 
+           repeated imports         ?   ?   ?   X
+           Substructured overlays                
+           Restructured overlays                 
+           Stacking overlays                     
+           ======================= === === === ===
+        
+        .. There are tworules for success ...
+        ..  1) Never reveal everything that you know
+        
+         -a       command line option   
+         -b path  command line option   
+           
+           
+        Having said that the 2.7 implementation ought to work in Python 2.7-3.3.
+        Python 3.4 saw a big overhaul from 3.3 but one did develop ApeMan against this version and, unless one is grossly mistaken, the implementation should still work.
+        Python 3.5 included a few leftovers that were forgotten for Python 3.4. 
+        The 3.4 implementation ought to work in 3.5 but the current 3.5 implementation diverges from the one for 3.4 and appears broken upon the authors machine.
+        The Python 3.6 implementation is presently the most tested and stable while Python 3.7 has not been attempted just yet.
+        
+           
+        ------------------
+        Live and Let Die !
+        ------------------
+        
+        This is largely inspired by Portage, the package manager for Gentoo Linux and the tutorial by David Beasley.
+        However it is only possible through the contributions of Brett Cannon, who ported the Python import machinery from C/C++ to Python.  
+        
+        In general a big thank you is also made to the developers of Python and all the other third party packages that come withit.
+        
+        .. .. tikz:: Title
+        ..   :libs: calc
+        ..   
+        ..   \draw (0,0) circle (3em) circle (4em)  circle (5em);
+        
+        ---------
+        Licencing
+        ---------
+        
+        This software is licenced under a GPL v3 licence.
+        One requests that anyone hosting a fork of this code inform the author accordingly so that any useful modifications one has made may periodically be merged into the code base.
+        
+        
+Platform: any
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)
+Classifier: Natural Language :: English
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Topic :: Utilities
+Description-Content-Type: text/x-rst

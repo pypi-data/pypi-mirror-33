@@ -1,0 +1,298 @@
+\documentclass[tikz]{standalone}
+% 
+% This produces the Apeman logo from the Ape.jpg file. This is
+% done as follows :
+%
+% * Create a Gray Scale image of the original using either
+%     convert ape.jpg -colorspace grayscale ape_bw.bmp 
+%   or
+%     convert ape.jpg -type grayscale ape_bw.bmp 
+% * Convert from Gray Scale to Monochrome 
+%     convert ape_bw.jpg -threshold 35% ape_mo.bmp 
+% * Next compile this PDF and convert the output file to the logo.png file
+%     convert -density 600 logo.pdf logo.png
+% * To create an Icon use the following line
+%     convert logo.png -define icon:auto-resize=64,48,32,16 logo.ico
+%
+% Note that the last step produced the final pixelated image 
+% that is used for the logo.
+%
+% I actually attempted drawing this logo by two means the first
+% tries targeting clean lines for the images, the second went 
+% with image mangling and gave a more rugged look which I rather
+% like. There was actually a third with just a shower head as 
+% our head of state is commonly depicted with this.
+%
+% While creating this document the following rsources were usefull. 
+%
+% * Fractal based logo's
+%     http://tex.stackexchange.com/a/10017/14593
+% * Dimensions in TikZ (I think I've already linked this somewhere)
+%     http://tex.stackexchange.com/q/14901/14593
+% * Line caps (See line join=round)
+%     http://tex.stackexchange.com/q/317945
+%     http://tex.stackexchange.com/a/130401
+% * Monochromatic and Gray Scale images
+%     http://www.imagemagick.org/discourse-server/viewtopic.php?t=11279
+%
+\usepackage{graphicx}
+
+\usetikzlibrary{calc}
+\usetikzlibrary{chemeng} % note : the functionality used here should be migrated to TikZkiT
+\usetikzlibrary{decorations}
+\usetikzlibrary{positioning}
+\usetikzlibrary{fadings}
+
+\makeatletter
+\tikzset{%
+ arc over/.style={ % Create two variants of this say `arc above', `arc below'
+  to path={%
+   \pgfextra{%
+    % Retrieve and assign the source co-ordinate
+    \tikz@scan@one@point\pgf@process(\tikztostart)%
+    \pgf@xa=\pgf@x\pgf@ya=\pgf@y%
+    % Retrieve and assign the target co-ordinate
+    \tikz@scan@one@point\pgf@process(\tikztotarget)%
+    \pgf@xb=\pgf@x\pgf@yb=\pgf@y
+    % Determine the slope of the chord connecting the co-ordinates
+%    \pgfmathanglebetweenpoints{\tikztostart}{\tikztotarget}
+    \advance\pgf@x by-\pgf@xa%
+    \advance\pgf@y by-\pgf@ya%
+    \pgfmathatantwo{\the\pgf@y}{\the\pgf@x}%
+%     \pgfmathparse{\pgfmathresult + pi/2}% This behaves wierdly
+    \pgfmathMod@{\pgfmathresult}{360}%
+    \pgfmathparse{\pgfmathresult + 90}% Perhaps one should account for sign e.g. +/- 90.
+    \let\tikz@angle@c=\pgfmathresult%
+    % Determine the center of the chord connecting the co-ordinates
+    \pgfmathsetmacro{\ctr@x}{(\pgf@xa+\pgf@xb)/2}
+    \pgfmathsetmacro{\ctr@y}{(\pgf@ya+\pgf@yb)/2}
+    \pgf@xc=-\ctr@x\pgf@yc=-\ctr@y%
+    % Offset the center by the assigned amount
+    \pgfmathsetmacro{\ctr@x}{#1*sin(\tikz@angle@c)}
+    \pgfmathsetmacro{\ctr@y}{#1*cos(\tikz@angle@c)}
+    \advance\pgf@xc by\ctr@x pt%
+    \advance\pgf@yc by\ctr@y pt%
+    % Normalize the co-ordinates
+    \advance\pgf@xa by-\pgf@xc%
+    \advance\pgf@ya by-\pgf@yc%
+    \advance\pgf@xb by-\pgf@xc%
+    \advance\pgf@yb by-\pgf@yc%
+    % Determine the start and end angles
+    \pgfmathatantwo{\the\pgf@ya}{\the\pgf@xa}%
+    \pgfmathMod@{\pgfmathresult}{360}%
+    \let\tikz@angle@a=\pgfmathresult%
+    \pgfmathatantwo{\the\pgf@yb}{\the\pgf@xb}%
+    \pgfmathMod@{\pgfmathresult}{360}%
+    \let\tikz@angle@b=\pgfmathresult%
+    % Determine the radius of the arc to be drawn
+    \pgfmathveclen{\pgf@xa}{\pgf@ya}%
+    \let\tikz@radius=\pgfmathresult%
+    % Define the arc that is to be drawn
+    \edef\tikz@to@arc@path{ arc(\tikz@angle@a:\tikz@angle@b:\tikz@radius pt) }%\show\tikz@to@arc@path
+   }%
+   \tikz@to@arc@path
+  }
+ }
+}
+\pgfdeclaredecoration{example}{initial}
+ {
+  \state{initial}[width=10pt]
+   {
+  \foreach \f in {0,0.2,...,0.3}
+   {
+   \pgfsetstrokeopacity{\f}
+   \pgfsetlinewidth{1mm}
+   \pgfpathlineto{\pgfpoint{10pt}{0pt}}
+%    \pgfusepath{stroke}
+   }
+% %     \pgfsetstrokecolor{yellow!0.5!red}
+% %     \pgfsetlinewidth{0.1pt}% Use \pgflinewidth to access the current line width i.e. factor*\pgflinewidth will draw lines with reference to the active line with
+% %     \pgfusepath{draw}% One may need to "draw" instead of "stroke" the path
+% %    }
+   }
+  \state{final}
+   {
+   \pgfpathlineto{\pgfpointdecoratedpathlast}
+   }
+}
+\makeatother
+
+% The following creates grduated lines usefull for things like
+% soft edges and highlights, originally I was going to use this
+% to highlight the monkey (Sorry Ape, .. uh oh !).
+\pgfdeclaredecoration{diffuse}{initial}{
+ % See Section 98 : Decorations
+ % See Section 99 : Using Paths 
+ % See Section 109 : Fadings - This was not really relevant
+ \state{initial}[width=1pt]
+ {
+% %   \pgfmathparse{round(rnd*100)}
+% %   \pgfsetfillcolor{yellow!\pgfmathresult!orange}
+% %   \pgfnode{star}{center}{}{}{\pgfusepath{stroke,fill}}
+%   \foreach \f in {0,0.2,...,1}
+%    {
+%     \pgfsetstrokecolor{yellow!\pgfmathresult!red}
+%     \pgfsetlinewidth{0.1pt}% Use \pgflinewidth to access the current line width i.e. factor*\pgflinewidth will draw lines with reference to the active line with
+% %     \pgfsetstrokeopacity{line width}% Use \pgflinewidth to access the current line width i.e. factor*\pgflinewidth will draw lines with reference to the active line with
+%     \pgfusepath{stroke}% One may need to "draw" instead of "stroke" the path
+%    } 
+%
+% Clean Attempt
+%   \foreach \f in {0,0.2,...,1}
+%    {
+%     \pgfsetstrokecolor{yellow!0.5!red}
+%     \pgfsetlinewidth{0.1pt}% Use \pgflinewidth to access the current line width i.e. factor*\pgflinewidth will draw lines with reference to the active line with
+%     \pgfusepath{draw}% One may need to "draw" instead of "stroke" the path
+%    }
+  \pgfsetlinewidth{1mm}
+  \pgfpathmoveto{\pgfpoint{0mm}{0mm}}
+  \pgfpathlineto{\pgfpoint{2cm}{0mm}}
+  \pgfusepath{stroke}
+  \pgfsetlinewidth{2\pgflinewidth} % double in size
+  \pgfpathmoveto{\pgfpoint{0mm}{5mm}}
+  \pgfpathlineto{\pgfpoint{2cm}{5mm}}
+  \pgfusepath{stroke}
+ }
+ \state{final}
+ {
+  \pgfpathmoveto{\pgfpointdecoratedpathlast}
+ }
+}
+
+\tikzset{
+ diffuse color/.initial = black,                       % (1) The color value does not carry through to the pre- and post- actions
+}
+% The decoration is used as follows if one tries this again :
+%
+%   \tikz[decoration=example]
+%   {
+%   \draw [decorate] (0,0) -- (3,0);
+%   \draw [red,decorate] (0,0) to [out=45,in=135] (3,0);
+%   }
+%   \tikz[decorate, decoration=glimly]\draw (-0.1em,0.1em) arc( 90:270:0.1em) -- ++ (0.2em,0) arc(-90: 90:0.1em) --cycle;
+%
+% I could not get the decoration to work entirely as expected 
+% and switch to using post actions on the active path to get 
+% the desired effect. At some later date the decoration should
+% be fixed up or could serve as an example.
+\tikzset{
+ linear opacity/.initial=0.5,                          %     Initial value must be defined here to define the next key
+ linear stroke/.style = {                              %     Define a style to draw a diffused sstroke
+   preaction={                                         %     This uses preactions to draw the gradiens
+     draw=\pgfkeysvalueof{/tikz/diffuse color},        %     Draw and colour the path (See 1). This is disabled by `/tikz/diffuse gradient' (See 2)
+     line width = (2.0-#1)*\pgflinewidth,              %     Vary the Line width for each stroke, change 2.0 to 1.0 to normalize scaling
+     opacity=\pgfkeysvalueof{/tikz/linear opacity}}},  %     Keep resetting the opacity for each line, there is probably a cleaner means of setting this (See 3)
+ diffuse gradient/.style={                             %     This style executes `/tikz/diffuse' stroke multiple times to achieve the gradient effect
+   draw = none,                                        % (2) Disable the default draw operation
+   linear opacity=#1,                                  % (3) Set a consistent value for opacity. In retrospect one could have simply assigned this to /tikz/opacity
+   linear stroke/.list={0.0,#1,...,1.0}},              %     Draw the line multiple times. Ideally we would use (1.0-1/#1) as the final value and (1/#1) as the stepsize
+ diffuse gradient/.default=1,                          %     Set an initial step size
+}
+
+\tikzset{
+ non-linear stroke/.style = {                          %     Define a style to draw a diffused sstroke
+   preaction={                                         %     This uses preactions to draw the gradiens
+     draw=\pgfkeysvalueof{/tikz/diffuse color},        %     Draw and colour the path (See 1). This is disabled by `/tikz/diffuse falloff' (See 4)
+     line width = (2.0-#1)*\pgflinewidth,              %     Vary the Line width for each stroke, change 2.0 to 1.0 to normalize scaling
+     opacity=#1}},                                     %     Vary the opacity for each stroke
+ diffuse falloff/.style={                              %     This style executes `/tikz/diffuse' stroke multiple times to achieve the gradient effect
+   draw = none,                                        % (4) Disable the default draw operation
+   non-linear stroke/.list={0.0,#1,...,1.0}},          %     Draw the line multiple times. Ideally we would use (1.0-1/#1) as the final value and (1/#1) as the stepsize
+ diffuse falloff/.default=1,                           %     Set an initial step size
+}
+
+% This creates a fading from an image file which one may use 
+% to create a coloured figure or whatever.
+\begin{tikzfadingfrompicture}[name=Ape2,inner sep=0]
+  \node [fill=transparent!0] % Apparently one may perform thresholding with decodearray={0.2 0.5}
+  {\includegraphics[scale=0.095]{Ape_mo}};
+\end{tikzfadingfrompicture}
+
+\begin{document}
+%
+%% Cleaner representation of the Ape
+%
+% \begin{tikzpicture}
+% %% Selfie Ape
+% % Source
+% \node[inner sep=0] at (0.017em,-0.25em) {\includegraphics[scale=0.095]{ape.jpg}}; 
+% % Logo
+% \draw [even odd rule, ultra thin, red, line cap=rounded] 
+%  let 
+%   \p{chin}              = (270:0.675em),
+%   \p{chin-left }        = (250:0.65em),
+%   \p{chin-right}        = (290:0.65em),
+%   \p{cheek-lower-left}  = (210:0.45em),
+%   \p{cheek-lower-right} = (-30:0.45em),
+%   \p{cheek-upper-left}  = (150:0.45em), 
+%   \p{cheek-upper-right} = ( 30:0.45em),
+%   \p{mouth}             = (270:0.35em),
+%   \p{mouth-left}        = ($(\p{mouth}) + (15:0.295em)$),
+%   \p{mouth-right}       = ($(\p{mouth}) + (165:0.295em)$),
+%   \p{mouth-upper}       = ($(\p{mouth}) + ( 90:0.075em)$),
+%   \p{mouth-lower}       = ($(\p{mouth}) + (270:0.05em)$),
+%   \p{left-eye}          = ( 55:0.35em),
+%   \p{left-eye-inner}    = ($(\p{left-eye}) + (170:0.09em)$),
+%   \p{left-eye-outer}    = ($(\p{left-eye}) + (  0:0.09em)$),
+%   \p{left-eye-upper}    = ($(\p{left-eye-inner})!0.5!(\p{left-eye-outer}) + ( 85:0.008)$), % ($(\p{right-eye-inner})!90:(\p{right-eye-outer})$),
+%   \p{left-eye-lower}    = ($(\p{left-eye-inner})!0.5!(\p{left-eye-outer}) + (265:0.024)$),
+%   \p{right-eye}         = (125:0.35em),
+%   \p{right-eye-inner}   = ($(\p{right-eye}) + ( 10:0.09em)$),
+%   \p{right-eye-outer}   = ($(\p{right-eye}) + (180:0.09em)$),
+%   \p{right-eye-upper}   = ($(\p{right-eye-inner})!0.5!(\p{right-eye-outer}) + ( 95:0.008)$), % ($(\p{right-eye-inner})!90:(\p{right-eye-outer})$),
+%   \p{right-eye-lower}   = ($(\p{right-eye-inner})!0.5!(\p{right-eye-outer}) + (275:0.024)$)
+%  in 
+%  % Outer Border
+%  circle (1em)
+%  % Outer Profile
+%  (-30:0.8em) to [ in = -30, out = 110] ( 35:0.5em) to [ in =   0, out = 100] ( 70:0.6em) to [ in =   0, out = 100] 
+%  ( 90:0.7em) to [ in =  80, out = 180] (110:0.6em) to [ in =  90, out = 180] (145:0.5em) to [ in =  70, out = 210] 
+%  (210:0.8em) arc (210:-30:0.8em) -- cycle
+%  %% Inner Profile
+%  % Eyes
+% %  (\p{right-eye-inner}) -- (\p{right-eye-lower}) -- (\p{right-eye-outer}) % Used to co-ordinate upper eyelid movement
+% %  (\p{right-eye-outer}) -- (\p{right-eye-lower}) -- (\p{right-eye-inner}) % Used to co-ordinate lower eyelid movement
+%  (\p{right-eye-inner}) to[circular arc around=(\p{right-eye-upper})] (\p{right-eye-outer}) to[circular arc around=(\p{right-eye-lower})] (\p{right-eye-inner}) -- cycle
+%  (\p{left-eye-inner})  to[circular arc around=(\p{left-eye-upper})]  (\p{left-eye-outer})  to[circular arc around=(\p{left-eye-lower})]  (\p{left-eye-inner})  -- cycle
+%  % Teeth
+%  ($(\p{mouth-left})$) to[out = 170, in =   0] (\p{mouth-upper}) to[out=180, in = 10] (\p{mouth-right}) % in@1 = out@2 + 180
+%                       to[out = -80, in = 180] (\p{mouth-lower}) to[out=  0, in = 260] cycle
+%  % Chin
+%  (\p{cheek-upper-left}) -- (\p{cheek-lower-left}) -- (\p{chin-left }) -- (\p{chin}) -- (\p{chin-right}) -- (\p{cheek-lower-right}) -- (\p{cheek-upper-right})
+%  
+%  ;
+% \draw  (0,-0.5em) to[arc over=10pt] (0,0.5em); 
+% 
+% \end{tikzpicture}
+
+%% More rugged version relying upon image fiddling
+%
+% While developing the image below the following was noted. It
+% is infact possible to adjust the colour of an image being 
+% imported into LaTeX using the following commands
+%
+% \includegraphics[decodearray={0 0 0 0.5 0 0 0 0.5}]{ape2}
+% \includegraphics{ape2}
+%
+% Note the clean circular perimeter in the output of this image
+% is rasterized by convert, which is convenient.
+\begin{tikzpicture}[inner sep=0]
+% \node[fill=red,minimum size=8em](a){};
+\draw [even odd rule, ultra thin, fill] (0,0.25em) circle (1em) circle (0.8em);
+\begin{scope}
+\path [clip] % [fill=red]
+ let 
+  \n{y} = {0.25em}
+ in 
+ % Outer Profile
+ ($(0,\n{y}) + (-25:0.775em)$) to [ in = -30, out = 110] ($(0,\n{y}) + ( 35:0.5em)$) to [ in =   0, out = 100] ($(0,\n{y}) + ( 70:0.6em)$) to [ in =   0, out = 100] 
+ ($(0,\n{y}) + ( 90:0.7em)$) to [ in =  80, out = 180] ($(0,\n{y}) + (110:0.6em)$) to [ in =  90, out = 180] ($(0,\n{y}) + (145:0.5em)$) to [ in =  70, out = 210] 
+ ($(0,\n{y}) + (205:0.775em)$) arc (205:335:0.775em) -- cycle
+ ;
+\fill[fill=black] (0,0.25em) circle (0.8em);
+\path[scope fading=Ape2,fit fading=false];
+% \node[fill=yellow,minimum width=43mm,minimum height=32.8mm]{};
+\fill[fill=white] (0,0.25em) circle (0.8em);
+\end{scope}
+\end{tikzpicture}
+\end{document}
