@@ -1,0 +1,3 @@
+==========================collective.immediatecreate
+==========================
+User documentation

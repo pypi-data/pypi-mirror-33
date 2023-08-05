@@ -1,0 +1,80 @@
+<configure
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:browser="http://namespaces.zope.org/browser"
+    xmlns:genericsetup="http://namespaces.zope.org/genericsetup"
+    xmlns:i18n="http://namespaces.zope.org/i18n"
+    xmlns:plone="http://namespaces.plone.org/plone"
+    i18n_domain="collective.immediatecreate"
+>
+
+  <i18n:registerTranslations directory="locales" />
+
+  <!--
+    Be careful if you use general includeDependencies, it can have sideffects!
+    Better import explicite packages or configurations ;)
+  -->
+  <!--<includeDependencies package="." />-->
+
+  <include file="upgrades.zcml" />
+
+  <genericsetup:registerProfile
+      name="default"
+      title="Immediate Create"
+      directory="profiles/default"
+      description="Installs the collective.immediatecreate add-on."
+      provides="Products.GenericSetup.interfaces.EXTENSION"
+      post_handler=".setuphandlers.post_install"
+      />
+
+  <genericsetup:registerProfile
+      name="uninstall"
+      title="Immediate Create (uninstall)"
+      directory="profiles/uninstall"
+      description="Uninstalls the collective.immediatecreate add-on."
+      provides="Products.GenericSetup.interfaces.EXTENSION"
+      post_handler=".setuphandlers.uninstall"
+      />
+
+  <utility
+      factory=".setuphandlers.HiddenProfiles"
+      name="collective.immediatecreate-hiddenprofiles"
+      />
+
+  <!-- behavior and indexer -->
+  <plone:behavior
+      name="collective.immediatecreate"
+      provides=".behaviors.ICollectiveImmediateCreate"
+      title="Immediate Create"
+      description="Creates item immediatly and skip add form. Needs changes in Factory Type Information (ZMI) for this type too!"
+  />
+  <adapter
+      factory=".indexer.index_in_immediate_creation"
+      name="in_immediate_creation"
+  />
+
+  <!-- traverser -->
+  <adapter
+      name="addimmediate"
+      for="Products.CMFCore.interfaces.IFolderish .interfaces.ICollectiveImmediatecreateLayer"
+      factory=".adding.ImmediateAddViewTraverser"
+  />
+
+  <!-- edit immediate -->
+  <browser:page
+      for="plone.dexterity.interfaces.IDexterityContent"
+      layer=".interfaces.ICollectiveImmediatecreateLayer"
+      name="editimmediate"
+      class=".editing.ImmediateEditView"
+      permission="cmf.AddPortalContent"
+  />
+
+  <!-- cleanup -->
+  <browser:page
+      for="*"
+      layer=".interfaces.ICollectiveImmediatecreateLayer"
+      name="immediatecreate-cleanup-leftovers"
+      class=".cleanup.CleanupImmediateLeftovers"
+      permission="cmf.ManagePortal"
+  />
+
+</configure>
