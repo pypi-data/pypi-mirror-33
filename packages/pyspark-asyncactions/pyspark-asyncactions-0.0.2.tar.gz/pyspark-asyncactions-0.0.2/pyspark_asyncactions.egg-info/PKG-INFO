@@ -1,0 +1,201 @@
+Metadata-Version: 1.1
+Name: pyspark-asyncactions
+Version: 0.0.2
+Summary: A proof of concept asynchronous actions for PySpark using concurent.futures
+Home-page: https://github.com/zero323/pyspark-asyncactions
+Author: zero323
+Author-email: UNKNOWN
+License: Apache 2.0
+Description: pyspark-asyncactions
+        ====================
+        
+        |Build Status| |PyPI version|
+        
+        A proof of concept asynchronous actions for PySpark using
+        `concurent.futures <https://docs.python.org/3/library/concurrent.futures.html#module-concurrent.futures>`__.
+        Originally developed as proof-of-concept solution for
+        `SPARK-20347 <https://issues.apache.org/jira/browse/SPARK-20347>`__.
+        
+        How does it work?
+        -----------------
+        
+        The package patches `RDD <https://spark.apache.org/docs/latest/api/python/pyspark.html#pyspark.RDD>`__,
+        `Estimator <https://spark.apache.org/docs/latest/api/python/pyspark.ml.html#pyspark.ml.Estimator>`__,
+        `DataFrame <https://spark.apache.org/docs/latest/api/python/pyspark.sql.html#pyspark.sql.DataFrame>`__ and
+        `DataFrameWriter <https://spark.apache.org/docs/latest/api/python/pyspark.sql.html#pyspark.sql.DataFrameWriter>`__
+        classes by adding thin wrappers to the commonly used action methods.
+        
+        
+        Methods are patched by retrieving shared
+        `ThreadPoolExecutor <https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.ThreadPoolExecutor>`__
+        (attached to ``SparkContext``) and applying its ``submit`` method:
+        
+        .. code:: python
+        
+            def async_action(f):
+                def async_action_(self, *args, **kwargs):
+                    executor = get_context(self)._get_executor()
+                    return executor.submit(f, self, *args, **kwargs)
+                return async_action_
+        
+        The naming convention for the patched methods is ``methodNameAsync``,
+        for example:
+        
+        -  ``RDD.count`` ⇒ ``RDD.countAsync``
+        -  ``DataFrame.take`` ⇒ ``RDD.takeAsync``
+        -  ``DataFrameWriter.save`` ⇒ ``DataFrameWriter.saveAsync``
+        
+        Number of threads is determined as follows:
+        
+        -  ``spark.driver.cores`` if is set.
+        -  2 otherwise.
+        
+        Usage
+        -----
+        
+        To patch existing classes just import the package:
+        
+        .. code:: python
+        
+            >>> import asyncactions
+            >>> from pyspark.sql import SparkSession
+            >>>
+            >>> spark = SparkSession.builder.getOrCreate()
+        
+        All ``*Async`` methods return `concurrent.futures.Future <https://docs.python.org/3/library/concurrent.futures.html#future-objects>`__:
+        
+        .. code:: python
+        
+            >>> rdd = spark.sparkContext.range(100)
+            >>> f = rdd.countAsync()
+            >>> f
+            <Future at ... state=running>
+            >>> type(f)
+            concurrent.futures._base.Future
+            >>> f.add_done_callback(lambda f: print(f.result()))
+            100
+        
+        
+        and the result can be used whenever ``Future`` is expected.
+        
+        Installation
+        ------------
+        
+        The package is available on PYPI:
+        
+        .. code:: bash
+        
+            pip install pyspark-asyncactions
+        
+        Installation is required only on the driver node.
+        
+        
+        Dependencies
+        ------------
+        
+        The package supports Python 3.5 or later with a common codebase and
+        requires no external dependencies.
+        
+        It is also possible, but not supported, to use it with Python 2.7, using
+        `concurrent.futures backport <https://pypi.org/project/futures/>`__.
+        
+        
+        Do it yourself
+        --------------
+        
+        Define actions dictionary which maps from the method name to the docstring:
+        
+        .. code:: python
+        
+            >>> actions = {"evaluate": """Asynchronously evaluates the output with optional parameters.
+            ...         :param dataset: a dataset that contains labels/observations and
+            ...                         predictions
+            ...         :param params: an optional param map that overrides embedded
+            ...                        params
+            ...         :return: :py:class:`concurrent.futures.Future` of metric
+            ...         """}
+        
+        Call asyncactions.utils.patch_all method with class and actions as the arguments
+        
+        .. code:: Python
+        
+            >>> import asyncactions.utils
+            >>> from pyspark.ml.evaluation import Evaluator, RegressionEvaluator
+            >>> asyncactions.utils.patch_all(Evaluator, actions)
+        
+        Enjoy your new asynchronous method
+        
+        .. code:: python
+        
+            >>> import asyncactions
+            >>> df = spark.createDataFrame([(1.0, 1.0), (1.0, -1.0), (0.0, 1.0)], ("label", "prediction"))
+            >>> metrics = RegressionEvaluator().evaluateAsync(df)
+            >>> metrics.result()  # Note that result is blocking
+            1.2909944487358058
+        
+        FAQ
+        ---
+        
+        - **Why would I need that? Processing in Spark is already distributed.**
+        
+          As explained in the `Job Scheduling documentation`_
+        
+            (...) within each Spark application, multiple “jobs” (Spark actions) may be running concurrently if they were submitted by different threads.
+        
+          However all PySpark actions are blocking. This means that, even if there are free resources on the cluster, each jobs will be executed sequentially
+          (paraphrasing `XKCD <https://www.xkcd.com/303/>`__, I am not slacking off, just fitting a ``Pipeline``).
+        
+          It is perfectly possible `to achieve the same result using threads <https://stackoverflow.com/q/38048068/1560062>`__ or ``concurrent.futures``
+          directly, but the resulting code but resulting can be quite verbose, especially when used in an interactive environment.
+          The goal of this package is to make this process as streamlined as possible by hiding all the details (creating and stopping thread pool, job submission).
+        
+        - **What about** `GIL`_?
+        
+          The goal of the package is to enable non-blocking submission of jobs (see above) while the actual processing is handled by the Spark cluster.
+          Since heavy lifting is performed by JVM or Python workers as standalone processes, interpreter lock is of lesser concern.
+        
+          Because final merging process is applied on the driver, GIL might affect jobs  depending heavily on computationally expensive ``Accumulators`` or reduce-like
+          (``reduce``, ``fold``, ``aggregate``) jobs with computationally expensive function.
+          The latter problem can be partially addressed using `treeReduce`_.
+        
+        
+        - **Why not merge this into PySpark?**
+        
+          **TL;DR** There was not enough consensus if the feature is essential enough,
+          and if it is, what implementation should be used (piggyback onto JVM `AsyncRDDActions`_ vs. native Python implementation).
+          For details see `corresponding PR <https://github.com/apache/spark/pull/18052>`_.
+        
+          Keeping a separate package gives more freedom (we can add a number of methods not present in the Scala API)
+          and better integration with plain Python code, at expense of some more advanced features
+          (most notably support for canceling running Spark jobs).
+        
+        - **When not to use this package?**
+        
+          This package is intended primarily to achieve small scale concurrent job execution
+          when working with interactive environments. While theoretically it should be possible
+          to use it to submit hundreds of independent jobs, it will is likely to stress driver process
+          and Py4j gateway and crash the application.
+        
+          Therefore I strongly recommend against using it as substitute for a workflow management software.
+        
+        Disclaimer
+        ----------
+        
+        Apache Spark, Spark, PySpark, Apache, and the Spark logo are `trademarks <https://www.apache.org/foundation/marks/>`__ of `The
+        Apache Software Foundation <http://www.apache.org/>`__. This project is not owned, endorsed, or
+        sponsored by The Apache Software Foundation.
+        
+        .. |Build Status| image:: https://travis-ci.org/zero323/pyspark-asyncactions.svg?branch=master
+           :target: https://travis-ci.org/zero323/pyspark-asyncactions
+        .. |PyPI version| image:: https://badge.fury.io/py/pyspark-asyncactions.svg
+           :target: https://badge.fury.io/py/pyspark-asyncactions
+        .. _Job Scheduling documentation: https://spark.apache.org/docs/latest/job-scheduling.html#overview
+        .. _GIL: https://wiki.python.org/moin/GlobalInterpreterLock
+        .. _AsyncRDDActions: https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.rdd.AsyncRDDActions
+        .. _treeReduce: https://stackoverflow.com/q/32281417/1560062
+        
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 3
+Classifier: Development Status :: 3 - Alpha
+Classifier: License :: OSI Approved :: Apache Software License
