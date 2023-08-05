@@ -1,0 +1,201 @@
+-*- org -*-
+
+<2018-03-22 tor>
+
+Definitions of strings with possibility of output from program.
+
+NOTE <2018-03-23 fre>:
+Program def with an associated transformation:
+There might be a problem with allowing instructions to use
+either stdin or stdout when a transformation is associated
+with a program - since the transformation might only
+be applied to stdout, i.e. will the program-value know
+which of stdout/err to transform?  Or, if it is possible,
+will it be difficult to understand the behaviour for a user?
+
+TODO: Think about how it will be possible to
+add specification of stdin for arbitrary programs,
+as part of the program definition.
+Currently it feels like it will be impossible to
+restrict def of such a stdin to be defined only once.
+(at least in terms of grammar).  If this proves to be true,
+it might be easiest to allow multiple definitions of stdin,
+and that the final stdin would then be the concatenation of
+all these defined stdin:s.
+
+* Examples
+** dbupgrade
+----------------------------------------
+def program MYSQL_EXECUTE = --system mysql @[MYSQL_DB_ARGS]@ --execute
+
+stdout --from @[MYSQL_EXECUTE]@ "SELECT * from db_upgrade_exe_files ORDER BY file_name"
+       equals <<eof
+@[DDL_FILE_NAME]@
+eof
+----------------------------------------
+** git-hook
+Version 1, with need for explicit transformation:
+----------------------------------------
+def program GET_LOGS = --system git log
+<alt>
+def program GET_LOGS = $ git log
+
+stdout --from @[GET_LOGS]@
+       --transformed-by EXTRACT_FIRST_LOG_MESSAGE
+       equals <<eof
+Expected log message
+eof
+----------------------------------------
+
+Version 2, with "builtin" transformation into the program:
+----------------------------------------
+def program GET_FIRST_LOG_MESSAGE = --system git log
+                                    --transformed-by EXTRACT_FIRST_LOG_MESSAGE
+
+stdout --from @[GET_FIRST_LOG_MESSAGE]@
+       equals <<eof
+Expected log message
+eof
+----------------------------------------
+* Usages
+** File creation (StringProducer)
+
+file PATH = STRING-PRODUCER
+
+** EXPECTED in File contents comparison (StringProducer)
+
+contents FILE [TRANSFORMATION] COMPARISON
+
+COMPARISON        ::= EQUALS-COMPARISON|...
+EQUALS-COMPARISON ::= equals STRING-PRODUCER
+
+** Actual in program result assertions (exitcode, stdout, stderr) (Program)
+
+stdout   [--from PROGRAM] [TRANSFORMATION] FILE-CONTENTS-MATCHER
+
+stderr   [--from PROGRAM] [TRANSFORMATION] FILE-CONTENTS-MATCHER
+
+exitcode [--from PROGRAM] [!] INTEGER-COMPARISON
+
+** run (Program)
+
+run PROGRAM-AND-ARGS-LINE [STDIN]
+
+*** Notes
+If argument is an PROGRAM-SYM-REF then a transformation
+may be included in the definition.
+But for "run", this transformation is irrelevant(?).
+So it would be good (perhaps for performance) to be able
+to ignore the transformation.  On the other hand, such a
+transformation will do no harm since in this context it is
+only the exit code, and sideeffects that are relevant
+(stdout and stderr are ignored).
+** $ (CommandAndStdin)
+
+$ SHELL-CMD-LINE [STDIN]
+
+** system (CommandAndStdin)
+
+> SYSTEM-CMD-LINE [STDIN]
+
+** def (Program)
+
+def program SYMBOL-NAME ::= PROGRAM
+
+* Syntax elements
+
+STRING-PRODUCER <=> StringProducer
+STRING-PRODUCER ::= STRING
+                ::| HERE-DOCUMENT
+                ::| --file              FILE    [TRANSFORMATION]
+                ::| (--stdout|--stderr) PROGRAM (do not need TRANS, since part of PROGRAM)
+
+PROGRAM               <=> Program
+PROGRAM               ::= PROGRAM-AND-ARGS-LINE [STDIN] [TRANSFORMATION]
+
+PROGRAM-AND-ARGS-LINE <=> Program
+PROGRAM-AND-ARGS-LINE ::= $        SHELL-CMD-LINE
+                      ::| %        SYSTEM-CMD-LINE
+                      ::| --system SYSTEM-CMD-LINE
+                      ::| @        PROGRAM-REF
+
+PROGRAM-REF-OR-EXECUTABLE-FILE-LINE <=> Program
+PROGRAM-REF-OR-EXECUTABLE-FILE-LINE ::= PROGRAM-REF-OR-EXECUTABLE-FILE [ARGUMENT...] <until end of line>
+
+
+SYSTEM-CMD-LINE       <=> Command
+SYSTEM-CMD-LINE       ::= STRING [ARGUMENT]... <until end of line>
+
+
+SHELL-CMD-LINE        <=> Command
+SHELL-CMD-LINE        ::= <everything until end of line>
+
+
+PROGRAM-REF-OR-EXECUTABLE-FILE <=> Program
+PROGRAM-REF-OR-EXECUTABLE-FILE
+                      ::= CMD-FOR-EXECUTABLE [--]
+                      ::| CMD-FOR-EXECUTABLE --source    SOURCE  (syntax for rest of line is single arg  that becomes single arg)
+                      ::| CMD-FOR-EXECUTABLE --interpret PATH    (syntax for rest of line is single file that becomes single arg)
+(later)               ::| SYM-REF/program                        (the program to execute)
+
+
+CMD-FOR-EXECUTABLE     <=> Program
+CMD-FOR-EXECUTABLE     ::= CMD-FOR-EXECUTABLE
+
+
+CMD-FOR-EXECUTABLE'    <=> Command
+CMD-FOR-EXECUTABLE'    ::= CMD-DRV-FOR-EXECUTABLE
+                       ::| ( CMD-DRV-FOR-EXECUTABLE [ARGUMENT...] )
+
+
+CMD-DRV-FOR-EXECUTABLE <=> CommandDriver
+CMD-DRV-FOR-EXECUTABLE ::= PATH                 (CommandDriverForExeFile)
+                       ::| --python             (CommandDriverForExeFile)
+                       ::| --system SRING       (CommandDriverForSystemExecutable)
+                       ::| --shell  PATH        (CommandDriverForShellSourceFile)
+
+* Implementation
+
+COMMAND-DRIVER  <=> CommandDriverForNonShellSdv        + Validator = CommandDriver
+EXECUTABLE      <=> CommandDriverForNonShellSdv + Args + Validator = Command
+COMMAND         <=> CommandDriverSdv            + Args + Validator = Command
+
+SHELL-COMMAND-LINE                    <=> CommandAndStdin (with args, so higher elems may accumulate args)
+
+NON-EXPLICIT-SHELL-CMD-LINE-WITH-ARGS <=> CommandAndStdin
+
+PROGRAMg-VALUE   <=> ProgramSdv (Command + StdinSetup + transformer)
+
+STRING-PRODUCER <=> StringProducer
+
+
+* Execution via python
+
+** --shell PATH
+
+*** Windows: aka --shell BAT-FILE
+
+subprocess.call(['C:\\Users\\emilk\\pgm\\lng\\py\\testing\\script.bat', 'hoho hi'])
+
+* Documentation
+** Properties
+*** can be accumulated (via symbol references)
+*** arguments handling
+*** shell
+**** single string passed to shell
+**** list of arguments are separated by space, not quoted
+*** executable fil
+**** sequence of args passed as separate elements to the program
+**** must exist as an exe file
+**** variants for 
+*** symbol name
+**** must be program symbol
+**** arguments are appended
+**** transformation is appended
+*** transformation
+**** applied to either stdout or stderr, depending on the invokation context
+**** must appear on separate line
+** Contents structure
+*** perhaps good to have explanation after forms, but before "where"
+this could mention common properties of all variants
+*** Maybe introduce an "Examples" section

@@ -1,0 +1,197 @@
+-*- org -*-
+
+* Make "copy" instruction available in all phases
+<2018-05-12 Sat>
+* "copy" instruction should be able to copy files from sandbox
+<2018-05-12 Sat>
+Currently, the SOURCE argument must be in the HDS.
+* dir-contents: make FILE-MATCHER able to check contents
+<2017-11-20 mån>
+Dagens E kan inte testa ett scenario från ETI: (<2017-11-25 Sat> FEL!)
+Test av sql-scripten: test att alla script har korrekt filnamn.
+Problem: testet ska validera filnamn - men inte på alla filer, utan enbart på dem
+som heter "*.sql" - ty det är dessa som anses vara SQL-script. Utöver SQL-scripten
+finns fler filer, och dessa måste filtreras bort.
+Vad som behövs är möjligheten att validera fil-namn på ett urval av filer:
+alla-som-heter-.sql-ska-också-heta-valid-ddl-el-dml
+
+--------------------
+dir-contents @[SCRIPT_DIR]@ --selection IS_SQL_SCRIPT every file : HAS_VALID_FILE_NAME
+
+where
+def file-matcher HAS_VALID_FILE_NAME = name ...
+--------------------
+
+Det enklaste ser ut att vara att en FILE-MATCHER även kan kika på innehållet
+i en fil.  Därmed kan vi köra FILE-MATCHER istället för FILE-CONTENTS-ASSERTION
+för "(any|every) file ..."
+
+--------------------
+dir-contents PATH [--selection FILE-MATCHER] [!] FILES-ASSERTION
+
+FILE-MATCHER == name ...
+             =| type ...
+             =| contents [TRANSFORMATION] [!] FILE-CONTENTS-ASSERTION
+
+FILES-ASSERTION == empty
+                =| num-files
+                =| (any|every) file : FILE-MATCHER
+--------------------
+
+* null actor: features to set it explicitly
+<2017-08-17 tor>
+** actor intruction
+
+[conf]
+
+actor --null
+
+** command line option
+
+--null-actor
+
+** ge varning om act-fasen innehåller sånt som kan vara avsett för annan actor
+speciellt icke-kommentarer o icke-tom-rader
+ev använda nån form av loggning
+* new line-matcher for line numbers: range INT|INT:[INT]|:INT
+* Make suites run in a hierarchical way, à la make
+<2016-12-22 tor>
+* Specify python actor executable via --python
+<2016-12-22 tor>
+same functionality as for the "run" instruction.
+
+Is this useful?
+It might be useful when the test tests properties of the os-environment,
+rather than a program under development.
+In such cases, the "python actor" may be used to implement a tool that
+gathers the information to check.
+* env: Assign the output from a shell command to an env var
+<2016-12-22 tor>
+A way to allow more complex expressions.
+* "fixture" as an alternative to "setup" + "cleanup"
+<2016-03-22 tis>
+Ett "fixture" består av en setup-action och en cleanup-action.
+
+setup-action:en körs på liknande sättt som "setup", och
+cleanup-actionen:en körs liknande "cleanup".
+
+Fördelen skulle vara problemet med att synka setup och cleanup:
+Om det är flera saker som ska sättas upp m setup, och någon av dessa
+misslyckas så körs "cleanup" för att rensa upp.  Problemet är att veta hur
+många saker "setup"-fasen hunnit sätta upp - och alltså vad som behöver
+städas.
+
+Iom att en "fixture" är en enhet som innehåller båda delarna så vet man att
+det är de fixture vars setup exekverats som behöver cleanup.
+
+Typ lyckad exekvering av en fixtures setup-sak registrerar dess cleanup-sak
+för senare exekvering.  fixtures som inte "hinner" exekveras därför att
+tidigare fixtures misslyckas med setup kommer då inte att registrera någon
+cleanup-sak.
+
+Skulle t ex kunna implementeras i testfall genom att fixturen är ett program
+som användaren anger.  Under setup-fasen (el motsvarande) så körs programmet
+med argumentet "setup".  Och under cleanup-fasen (el motsvarande) så körs
+programmet m argumentet "cleanup".
+
+"fixture" skulle kunna komplettera "setup" + "cleanup".
+* Multiple case-files on the command line should run implicit suite
+Möjlighet att ange "anonym" testsvit genom att ange de testfall som ska ingå
+på kommandoraden.
+Argumenten som ger inställningar för testfall (t ex preprocessor,
+act-program-executor) kan hanteras som inställningar för sviten.
+
+Programmet ska köra, och rapportera, som om en svit angivits som innehöll de
+givna fallen.
+* Instruction for dir+file strucuture
+<2015-11-04 ons>
+
+It would be nice to be make it easy to make a file structure.
+
+The question is what format is best.
+One way is to use the "dir" instruction, and make it include "dir" and "file"
+instructions that follows and are indented:
+
+dir my-dir
+  file a-file
+  dir sub-dir
+    file with-content.txt <<EOF
+contents
+EOF
+    file empty-file.txt
+  dir empty-dir
+
+
+På liknande sätt som jag gör i Python:
+DirContents([File('f','contents'], Dir('d', [...]))
+
+Vore ju bekvämt om det fanns en liknande notation för filer att installera.
+Då skulle man slippa ha dem i filsystemet, i de fall det inte är nödvändigt av
+andra orsaker.
+
+Kruxet är bra syntax.
+Alternativ:
+ - egendefinierad
+ - JSON
+ - XML
+
+T ex
+----------------------------------------
+[setup]
+file-structure --xml <<EOF
+<contents>
+  <file name="empty-file"/>
+  <file name="g" timestamp="2015-11-03 10:20:30"/>
+  <file name="non-empty">contents of file</file>
+  <dir name="empty-dir"/>
+  <dir name="non-empty-dir">
+    <file name="f"/>
+  </dir>
+<contents>
+EOF
+----------------------------------------
+
+Ev kunde ett antal xml entities sättas så att de fanns att tillgå, på ung
+samma sätt som med omgivningsvariabler.
+
+
+assert/JÄMFÖRELSE
+Vore naturligtvis även användbart att kunna asserta att innehållet i en
+katalog är identiskt (el innehåller som minst) en sådan hårdkodad filstruktur.
+* Have setup in test suites
+<2016-12-22 tor>
+Both variants are usefull:
+  1 setup that is executed once for each test case (thus included in each tc)
+  2 setup that is executed once for the whole suite:
+    [setup] and [cleanup] of the suite
+
+Option (1) may be difficult to implement, since each test is run in its
+own sandbox.
+
+** Implementation
+Setup instructions should be parsed and prepended to instructions from
+the test case file.
+This constitutes a kind of file inclusion.  Perhaps the easiest way to
+get some file inclusion mechanism.
+* suite: default values for configuration parameters
+<2016-12-22 tor>
+Any instruction in the test case "conf" phase could be possible to use in test
+suites, and would provide defaults to test cases.
+* non-assertions in [assert]
+<2017-09-24 Sun>
+shall they be specified using a special instruction "do" to make
+it clear that they are not assertions?
+----------------------------------------
+do transform src dst T
+do def string x = y
+do cd D
+
+do dir my-dir
+do file my-file.txt
+
+exitcode 0
+----------------------------------------
+Maybe this would make the integration into [assert]
+easer - would only need to transform non-assertion result
+to assertion result in a single place
+
