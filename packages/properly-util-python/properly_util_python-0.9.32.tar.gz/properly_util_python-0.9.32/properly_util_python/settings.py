@@ -1,0 +1,1 @@
+#avoid settings.py in libraries, pass configuration into utilities instead
