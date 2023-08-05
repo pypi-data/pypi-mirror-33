@@ -1,0 +1,37 @@
+language: python
+
+sudo: false
+
+cache:
+  directories:
+    - eggs
+    - downloads
+
+python:
+  - 2.7
+
+env:
+  - PLONE_VERSION=4
+  - PLONE_VERSION=5.0
+#  - PLONE_VERSION=5.1
+
+install:
+  - sed -ie "s#plone-5#plone-$PLONE_VERSION#" buildout.cfg
+  - sed -ie "s#travis-5#travis-$PLONE_VERSION#" travis.cfg
+  - python bootstrap.py --version=2.10.0 -c travis.cfg
+  - bin/buildout -Nc travis.cfg buildout:download-cache=downloads buildout:eggs-directory=eggs annotate
+  - bin/buildout -Nc travis.cfg buildout:download-cache=downloads buildout:eggs-directory=eggs
+
+script:
+  - bin/test
+
+after_success:
+  - bin/coverage run bin/test
+  - pip install coverage
+  - python -m coverage.pickle2json
+  - pip install coveralls
+  - coveralls
+
+notifications:
+  email:
+    - devs@imio.be
