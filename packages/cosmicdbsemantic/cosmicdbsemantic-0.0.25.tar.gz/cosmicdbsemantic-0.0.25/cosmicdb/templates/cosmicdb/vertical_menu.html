@@ -1,0 +1,42 @@
+{% load sitetree cosmic_tags %}
+<div class="ui vertical inverted sidebar menu">
+    <div class="header item">
+        {% get_site_title %}
+    </div>
+    {% for item in sitetree_items %}
+        {% if item.is_right == False %}
+            {% if item.has_children %}
+                <div class="item" {% if item.hide %}style="display:none;"{% endif %}>
+                    {{ item.title_resolved|safe }}
+                    {% if item.url == "notifications" and request.user.unread_notification_no > 0 %}
+                        <div class="ui label">{{request.user.unread_notification_no}}</div>
+                    {% endif %}
+                    {% sitetree_children of item for menu template "cosmicdb/menu_dropdown.html" %}
+                </div>
+            {% else %}
+                <a href="{% sitetree_url for item %}" class="{% if item.is_current or item.in_current_branch %}active{% endif %} item" {% if item.hide %}style="display:none;"{% endif %}>{{ item.title_resolved|safe }}</a>
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+    {% for item in sitetree_items %}
+        {% if item.is_right == True %}
+            {% if item.url != "admin:index" %}
+                {% if item.has_children %}
+                    <div class="item" {% if item.hide %}style="display:none;"{% endif %}>
+                        {{ item.title_resolved|safe }}
+                        {% if item.url == "notifications" and request.user.unread_notification_no > 0 %}
+                            <div class="ui label">{{request.user.unread_notification_no}}</div>
+                        {% endif %}
+                        {% sitetree_children of item for menu template "cosmicdb/menu_dropdown.html" %}
+                    </div>
+                {% else %}
+                    <a href="{% sitetree_url for item %}" class="{% if item.is_current or item.in_current_branch %}active{% endif %} item" {% if item.hide %}style="display:none;"{% endif %}>{{ item.title_resolved|safe }}</a>
+                {% endif %}
+            {% else %}
+                {% if request.user.is_superuser %}
+                <a href="{% sitetree_url for item %}" class="{% if item.is_current or item.in_current_branch %}active{% endif %} item" {% if item.hide %}style="display:none;"{% endif %}>{{ item.title_resolved|safe }}</a>
+                {% endif %}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+</div>

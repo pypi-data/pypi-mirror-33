@@ -1,0 +1,54 @@
+{% load crispy_forms_tags %}
+{% load crispy_forms_utils %}
+{% load crispy_forms_field %}
+{% load cosmic_tags %}
+
+{% specialspaceless %}
+{% if formset_tag %}
+<form {{ flat_attrs|safe }} method="{{ form_method }}" {% if formset.is_multipart %} enctype="multipart/form-data"{% endif %}>
+{% endif %}
+    {% if formset_method|lower == 'post' and not disable_csrf %}
+        {% csrf_token %}
+    {% endif %}
+
+    <div>
+        {{ formset.management_form }}
+    </div>
+
+    {% get_formset_label formset.get_default_prefix %}
+    <div class="ui segment">
+        {% for form in formset %}
+            <div class="ui form equal width {{ formset.get_default_prefix }}_table_container">
+                <div class="fields">
+                
+                    {% for field in form %}
+                        {% include 'semanticui/field.html' %}
+                    {% endfor %}
+
+                    {% if form.media %}{{ form.media }}{% endif %}
+
+                    {% include "semanticui/errors.html" %}
+                    
+                </div>
+            </div>
+            {% if not forloop.last %}<div class="ui divider"></div>{% endif %}
+        {% endfor %}
+    </div>
+
+    <div class="add-another-container"><a class="add-another" onclick="addAnother('{{ formset.get_default_prefix }}');">Add another <i class="plus icon"></i></a></div>
+
+    {% if inputs %}
+        {% for input in inputs %}
+        <input type="{{ input.input_type }}"
+        name="{% if input.name|wordcount > 1 %}{{ input.name|slugify }}{% else %}{{ input.name }}{% endif %}"
+        value="{{ input.value }}"
+        {% if input.input_type != "hidden" %} 
+        class="{{ input.field_classes }}" 
+        id="{% if input.id %}{{ input.id }}{% else %}{{ input.input_type }}-id-{{ input.name|slugify }}{% endif %}"{% endif %}
+        {{ input.flat_attrs|safe }}
+        />
+        {% endfor %}
+    {% endif %}
+
+{% if formset_tag %}</form>{% endif %}
+{% endspecialspaceless %}
