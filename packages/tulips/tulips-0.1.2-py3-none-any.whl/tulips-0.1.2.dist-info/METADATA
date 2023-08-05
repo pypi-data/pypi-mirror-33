@@ -1,0 +1,92 @@
+Metadata-Version: 2.1
+Name: tulips
+Version: 0.1.2
+Summary: Wrapper around kubernetes-clients/python
+Home-page: https://github.com/dz0ny/tulips
+License: MIT
+Author: Janez Troha
+Author-email: dz0ny@ubuntu.si
+Requires-Python: >=3.6,<4.0
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Requires-Dist: PyYAML (>=3.12,<4.0)
+Requires-Dist: black (>=18.4-alpha.0,<19.0)
+Requires-Dist: click (>=6.7,<7.0)
+Requires-Dist: kubernetes (>=6.0,<7.0)
+Requires-Dist: passlib (>=1.7,<2.0)
+Requires-Dist: structlog (>=18.1,<19.0)
+Description-Content-Type: text/markdown
+
+[![Build Status](https://travis-ci.com/dz0ny/tulips.svg?branch=master)](https://travis-ci.com/dz0ny/tulips)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
+[![Type checker: mypy](https://img.shields.io/badge/type%20checker-mypy-1F5082.svg)](https://github.com/python/mypy)
+[![Packaging: poetry](https://img.shields.io/badge/packaging-poetry-C2CAFD.svg)](https://poetry.eustace.io/)
+
+# Tulips
+
+A small wrapper around https://github.com/kubernetes-client/python which understands Kubernetes charts.
+
+## Why
+
+I needed something simple that would read Kubernetes charts and push them to the Kubernetes cluster and
+be extensible. So something like helm+kubectl with ability to write you own tools around them.
+
+## Supported CRDS aka Kubernetes objects
+
+- Deployment
+- Service
+- Ingress
+- Secret
+- Issuer (cert-manager)
+- PersistentVolumeClaim
+
+## Example
+
+```python
+
+import yaml
+from tulips import class_for_kind
+from kubernetes import client as k8s
+
+
+spec = yaml.load('ingress.yaml')
+
+ingress_cls = class_for_kind(spec['kind'])
+ingress = ingress_cls(config.client)
+ingress.create(namespace='default')
+print ingress.status(namespace='default')
+ingress.delete(namespace='default')
+```
+
+## Tulip
+
+Tulip is a sample client that emulates Helm but without `Tiller`.
+
+```shell
+$ python tulips push --help                                    06/25/18 -  9:49
+Usage: tulips push [OPTIONS] CHART
+
+  You can pass chart variables via foo=bar, for example '$ tulip push
+  app.yaml foo=bar'
+
+Options:
+  --namespace TEXT   Kubernetes namespace
+  --release TEXT     Name of the release
+  --kubeconfig PATH  Path to kubernetes config
+  --help             Show this message and exit.
+
+```
+
+
+### Example
+
+
+
+
+## TODO
+
+- [ ] Custom container for yaml(eliminates class_for_kind function)
+
+
