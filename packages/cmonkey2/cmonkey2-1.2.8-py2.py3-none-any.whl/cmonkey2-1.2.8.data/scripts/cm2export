@@ -1,0 +1,49 @@
+#!python
+
+import os
+import argparse
+
+import cmonkey.tools.export as export
+import cmonkey.database as cm2db
+
+
+DESCRIPTION = """cm2json - export cmonkey2 results as JSON"""
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    parser.add_argument('--output_dir', default=None,
+                        help='directory to store the generated plots in')
+    parser.add_argument('--dburl', default=None, help='database URL')
+    parser.add_argument('resultdir',
+                        help='cmonkey2 result directory')
+    parser.add_argument('command', choices=['expressions', 'microformats' , 'motif_evalues'],
+                        help='command')
+    args = parser.parse_args()
+    if not os.path.exists(args.resultdir):
+        raise Exception("cmonkey2 result directory '%s' does not exist" % args.resultdir)
+
+    if args.output_dir is None:
+        output_dir = args.resultdir
+    else:
+        output_dir = args.output_dir
+
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+
+    if args.dburl is None:
+        dburl = cm2db.make_sqlite_url(os.path.join(args.resultdir, 'cmonkey_run.db'))
+    else:
+        dburl = args.dburl
+    session = cm2db.make_session(dburl)
+
+    try:
+        if args.command == 'expressions':
+            export.cluster_expressions_to_json_file(session, args.resultdir, output_dir)
+        elif args.command == 'microformats':
+            export.export_to_gaggle_microformats(session, args.resultdir, output_dir)
+        elif args.command == 'motif_evalues':
+            export.export_motif_evalues_tsv(session, args.resultdir, output_dir)
+    finally:
+        if session is not None:
+            session.close()
