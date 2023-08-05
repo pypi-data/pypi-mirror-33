@@ -1,0 +1,84 @@
+{% extends "bee_django_course/base.html" %}
+{% load bee_django_course_filter %}
+{% block content %}
+    <div class="col-md-12">
+        <h4>课程详情</h4>
+
+        <a href="{% url 'bee_django_course:course_update'  course.id %}">修改课程</a>
+
+        <table class="table">
+            <tr>
+                <td>显示状态</td>
+                <td>{% course_status course.status %}</td>
+            </tr>
+            <tr>
+                <td class="col-xs-3">名称</td>
+                <td>{{ course.name }}</td>
+            </tr>
+            <tr>
+                <td>副标题</td>
+                <td>{{ course.subtitle|default:"" }}</td>
+            </tr>
+            <tr>
+                <td>level</td>
+                <td>{{ course.level }}</td>
+            </tr>
+
+            <tr>
+                <td>配图</td>
+                <td>
+                    {% if course.image %}
+                        <img src="{{ course.image.url }}" class="img-thumbnail img-responsive" style="height:200px;"/>
+                    {% else %}
+                        无
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="col-md-6">
+        <h4>添加课件</h4>
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div {% if message.tags == 'success' %} class="bg-success"
+                                                            {% elif message.tags == 'error' %}class='bg-danger'{% endif %}>{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'bee_django_course:course_section_mid_add' course.id %}">
+            {% csrf_token %}
+            {% load bootstrap3 %}
+            {% bootstrap_form form layout='horizontal' %}
+            {% bootstrap_button '添加' %}
+        </form>
+    </div>
+
+    <div class="col-md-12">
+        <h4>包含的课件</h4>
+        <table class="table" id="section-list">
+            <thead>
+            <tr>
+                <th>顺序</th>
+                <th>课件</th>
+                <th>编辑</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for mid in mid_list %}
+                <tr>
+                    <td>{{ mid.order_by }}</td>
+                    <td>{{ mid.section.name }}</td>
+                    <td>
+                        <a href="{% url 'bee_django_course:update_coursesectionmid' mid.id %}" class="btn btn-default">修改</a>
+                        {#                        <a href="#" class="btn btn-default">删除</a>#}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
+
