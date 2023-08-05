@@ -1,0 +1,766 @@
+# Copyright 2017 StreamSets Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# This YAML file is used by STE to determine each environment's start and stop execution.
+
+# Following are various inbuilt defaults which can be used by environments:
+# {docker-network} - The docker network used
+# {testenvironments-config-directory} - Testenvironments config directory
+# {environment} - The environment name which is being used
+# {random-name} - A random name
+
+# Notes:
+# 1. A dictionary key suffixed with + or multiples of it signifies merging with other key(s) with same name.
+# The order of merge is based on ascending number of pluses (+) in the suffix.
+# E.g., The 'start' keys will be merged in the order as: start, start+, start++, start+++
+# 2. YAML values starting with { needs to be quoted (single or double).
+# 3. YAML values within which need single quotes needs to be enclosed in double quotes or vice-versa.
+# 4. Any value which needs explicit start and end braces (e.g., {something}),
+# needs them to be enclosed again in braces (e.g., {{something}})
+
+defaults:
+    # Uncomment the below to add args which can be exposed via argsparse and can be used as defaults for environments.
+    # args:
+
+    SUPER_COMMAND: docker run --rm -v {testenvironments-config-directory}:{testenvironments-config-directory} busybox
+
+    CLUSTERDOCK_START_ARGS: '{testenvironments-config-directory}/{environment}/workspace/venv/bin/clusterdock -v
+        --clusterdock-config-directory {testenvironments-config-directory}/{environment} start'
+
+    CLUSTERDOCK_START_ARGS_SS: '{testenvironments-config-directory}/{environment}/workspace/venv/bin/clusterdock -v
+        --clusterdock-config-directory {testenvironments-config-directory}/{environment} start --namespace streamsets'
+
+    CLUSTERDOCK_CDH_ARGS: '{testenvironments-config-directory}/{environment}/workspace/topology_cdh --java jdk1.8.0_131'
+
+    CLUSTERDOCK_HDP_ARGS: '{testenvironments-config-directory}/{environment}/workspace/topology_hdp'
+
+    CLUSTERDOCK_KAFKA_ARGS: '{testenvironments-config-directory}/{environment}/workspace/topology_apache_kafka
+        --brokers node-1 node-2 node-3'
+    CLUSTERDOCK_SCHEMA_REGISTRY_ARGS:
+        '{testenvironments-config-directory}/{environment}/workspace/topology_confluent_schema_registry
+            --nodes registry-1'
+
+    CLUSTERDOCK_MAPR_ARGS: "{testenvironments-config-directory}/{environment}/workspace/topology_mapr
+        --node-disks '{{node-1:[/dev/xvdb],node-2:[/dev/xvdc]}}'"
+
+    CLUSTERDOCK_DSE_ARGS: '{testenvironments-config-directory}/{environment}/workspace/topology_dse --kerberos
+        --kerberos-config-directory {testenvironments-config-directory}/{environment} --kerberos-principals sdc'
+
+    # Note the principal is not sdc since it conflicts
+    # with CM generated principal sdc/node-1.cluster in case of SDC installed on kerberized CDH cluster.
+    CLUSTERDOCK_KERBEROS_ARGS: --kerberos --kerberos-principals sdctest
+    CLUSTERDOCK_KERBEROS_COPY:
+        docker run --rm -v {testenvironments-config-directory}:{testenvironments-config-directory} busybox
+            cp {testenvironments-config-directory}/{environment}/kerberos/*.*
+                {testenvironments-config-directory}/{environment}
+    CLUSTERDOCK_KERBEROS_KEYTAB_RENAME:
+        docker run --rm -v {testenvironments-config-directory}:{testenvironments-config-directory} busybox
+            mv -f {testenvironments-config-directory}/{environment}/clusterdock.keytab
+                {testenvironments-config-directory}/{environment}/sdc.keytab
+
+    CLUSTERDOCK_SSL_KEYS_CERTS_COPY:
+        cp {testenvironments-config-directory}/{environment}/ssl/*pem {testenvironments-config-directory}/{environment}
+
+    GCP_ENV_CONFIG_COMMANDS:
+        gcloud auth activate-service-account --key-file /root/config/GCP-credentials.json &&
+        gcloud config set project streamsets-engineering
+    GCP_BIGTABLE_INSTANCE_CREATE_COMMAND:
+        gcloud beta bigtable instances create $GCP_BIGTABLE_INSTANCE --cluster=$GCP_BIGTABLE_INSTANCE-cluster
+            --cluster-zone=us-central1-c --display-name=$GCP_BIGTABLE_INSTANCE-disp --instance-type=DEVELOPMENT
+    GCP_BIGTABLE_INSTANCE_DELETE_COMMAND:
+        gcloud beta bigtable instances delete --quiet $GCP_BIGTABLE_INSTANCE
+
+CDH_PRE: &CDH_PRE_DEFAULTS
+    args:
+        --sdc-version:
+            help: SDC version to use
+            metavar: ver
+            required: True
+    start:
+        - python3 -m venv {testenvironments-config-directory}/{environment}/workspace/venv
+        - git -C {testenvironments-config-directory}/{environment}/workspace clone
+            https://github.com/clusterdock/topology_cdh.git
+        - git -C {testenvironments-config-directory}/{environment}/workspace/topology_cdh checkout streamsets
+        - '{testenvironments-config-directory}/{environment}/workspace/venv/bin/pip install clusterdock'
+        - '{testenvironments-config-directory}/{environment}/workspace/venv/bin/pip install
+            -r {testenvironments-config-directory}/{environment}/workspace/topology_cdh/requirements.txt'
+
+CDH_POST: &CDH_POST_DEFAULTS
+    start++:
+        - echo "Waiting 1 minute for cluster services to stabilize ..."
+        - sleep 1m
+
+DSE_PRE: &DSE_PRE_DEFAULTS
+    start:
+        - python3 -m venv {testenvironments-config-directory}/{environment}/workspace/venv
+        - git -C {testenvironments-config-directory}/{environment}/workspace clone
+            https://github.com/clusterdock/topology_dse.git
+        - '{testenvironments-config-directory}/{environment}/workspace/venv/bin/pip install clusterdock'
+
+HDP_PRE: &HDP_PRE_DEFAULTS
+    start:
+        - python3 -m venv {testenvironments-config-directory}/{environment}/workspace/venv
+        - git -C {testenvironments-config-directory}/{environment}/workspace clone
+            https://github.com/clusterdock/topology_hdp.git
+        - git -C {testenvironments-config-directory}/{environment}/workspace/topology_hdp checkout streamsets
+        - '{testenvironments-config-directory}/{environment}/workspace/venv/bin/pip install clusterdock'
+        - '{testenvironments-config-directory}/{environment}/workspace/venv/bin/pip install
+            -r {testenvironments-config-directory}/{environment}/workspace/topology_hdp/requirements.txt'
+
+HDP_POST: &HDP_POST_DEFAULTS
+    start++:
+        - echo "Waiting 1 minute for cluster services to stabilize ..."
+        - sleep 1m
+
+KAFKA_PRE: &KAFKA_PRE_DEFAULTS
+    start:
+        - python3 -m venv {testenvironments-config-directory}/{environment}/workspace/venv
+        - git -C {testenvironments-config-directory}/{environment}/workspace clone
+            https://github.com/clusterdock/topology_apache_kafka.git
+        - git -C {testenvironments-config-directory}/{environment}/workspace clone
+            https://github.com/clusterdock/topology_confluent_schema_registry
+        - '{testenvironments-config-directory}/{environment}/workspace/venv/bin/pip install clusterdock'
+
+MAPR_PRE: &MAPR_PRE_DEFAULTS
+    start_help: Node disks (/dev/xvdb, /dev/xvdc) are assumed to be pre-created and available for use
+    start:
+        - python3 -m venv {testenvironments-config-directory}/{environment}/workspace/venv
+        - git -C {testenvironments-config-directory}/{environment}/workspace clone
+            https://github.com/clusterdock/topology_mapr.git
+        - git -C {testenvironments-config-directory}/{environment}/workspace/topology_mapr checkout streamsets
+        - '{testenvironments-config-directory}/{environment}/workspace/venv/bin/pip install clusterdock'
+
+MAPR_POST: &MAPR_POST_DEFAULTS
+    start++:
+        - echo "Waiting 1 minute for cluster services to stabilize ..."
+        - sleep 1m
+
+CLUSTERDOCK_POST: &CLUSTERDOCK_POST_DEFAULTS
+    stop:
+        - '{testenvironments-config-directory}/{environment}/workspace/venv/bin/clusterdock
+            --clusterdock-config-directory {testenvironments-config-directory}/{environment} -v manage nuke'
+
+environment_start:
+    - mkdir -p {testenvironments-config-directory}/{environment}/workspace
+
+environment_stop:
+    - '{SUPER_COMMAND} rm -rf {testenvironments-config-directory}/{environment}'
+
+environments:
+    Broker:
+        args:
+            --mqtt-container-name:
+                default: mymqtt
+                help: MQTT Docker container name to use
+                metavar: name
+            --mqtt-image-name:
+                default: toke/mosquitto
+                help: MQTT Docker images to use
+                metavar: name
+            --rabbitmq-container-name:
+                default: myrabbitmq
+                metavar: name
+            --rabbitmq-image-name:
+                default: rabbitmq
+                help: RabbitMQ Docker image to use
+                metavar: name
+            --rabbitmq-image-version:
+                default: 3.5.6
+                help: RabbitMQ Docker image version to use
+                metavar: ver
+        start:
+            - docker run -d --net={docker-network} --name={mqtt-container-name} {mqtt-image-name}
+            - docker run -d --net={docker-network} --name={rabbitmq-container-name}
+                {rabbitmq-image-name}:{rabbitmq-image-version}
+        stop:
+            - docker rm -f {mqtt-container-name} {rabbitmq-container-name}
+    Cassandra_3.11.0:
+        args:
+            --container-name:
+                default: mycassandra
+                help: Cassandra Docker container name to use
+                metavar: name
+        start:
+            - docker run -d --net={docker-network} --name {container-name} cassandra:3.11.0
+        stop:
+            - docker rm -f {container-name}
+    CDH_5.9.0:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.9.0 --cm-version 5.9.0 --kafka-version 2.0.0'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.9.0_Kerberos:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.9.0 --cm-version 5.9.0 --kafka-version 2.0.0 {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.9.0_Spark2:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.9.0 --cm-version 5.9.0 --kafka-version 2.0.0 --spark2-version 2.1-r1'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.9.0_Spark2_Kerberos:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.9.0 --cm-version 5.9.0 --kafka-version 2.0.0 --spark2-version 2.1-r1
+                {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.9.0_Spark2_Kerberos_SSL_Encrypt:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.9.0 --cm-version 5.9.0 --kafka-version 2.0.0
+                --spark2-version 2.1-r1 --ssl encryption {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.9.0_Spark2_SSL_Auth:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.9.0 --cm-version 5.9.0 --kafka-version 2.0.0
+                --spark2-version 2.1-r1 --ssl authentication'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.9.0_Spark2_SSL_Encrypt:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.9.0 --cm-version 5.9.0 --kafka-version 2.0.0
+                --spark2-version 2.1-r1 --ssl encryption'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.10.0:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.10.0 --cm-version 5.10.0 --kafka-version 2.1.0 --kudu-version 1.2.0'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.10.0_Kerberos:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.10.0 --cm-version 5.10.0 --kafka-version 2.1.0 --kudu-version 1.2.0
+                {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.10.0_Spark2:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.10.0 --cm-version 5.10.0 --kafka-version 2.1.0 --kudu-version 1.2.0
+                --spark2-version 2.1-r1'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.10.0_Spark2_Kerberos:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.10.0 --cm-version 5.10.0
+                --kafka-version 2.1.0 --kudu-version 1.2.0 --spark2-version 2.1-r1 {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.10.0_Spark2_Kerberos_SSL_Encrypt:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.10.0 --cm-version 5.10.0 --kafka-version 2.1.0 --kudu-version 1.2.0
+                --spark2-version 2.1-r1 --ssl encryption {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.10.0_Spark2_SSL_Auth:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.10.0 --cm-version 5.10.0 --kafka-version 2.1.0 --kudu-version 1.2.0
+                --spark2-version 2.1-r1 --ssl authentication'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.10.0_Spark2_SSL_Encrypt:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.10.0 --cm-version 5.10.0 --kafka-version 2.1.0 --kudu-version 1.2.0
+                --spark2-version 2.1-r1 --ssl encryption'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.11.1:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.11.1 --cm-version 5.11.1 --kafka-version 2.1.0 --kudu-version 1.3.0'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.11.1_Kerberos:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.11.1 --cm-version 5.11.1 --kafka-version 2.1.0 --kudu-version 1.3.0
+                {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.11.1_Spark2:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.11.1 --cm-version 5.11.1 --kafka-version 2.1.0 --kudu-version 1.3.0
+                --spark2-version 2.1-r1'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.11.1_Spark2_Kerberos:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.11.1 --cm-version 5.11.1
+                --kafka-version 2.1.0 --kudu-version 1.3.0 --spark2-version 2.1-r1 {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.11.1_Spark2_Kerberos_SSL_Encrypt:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.11.1 --cm-version 5.11.1
+                --kafka-version 2.1.0 --kudu-version 1.3.0 --spark2-version 2.1-r1 --ssl encryption
+                {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.11.1_Spark2_SSL_Auth:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.11.1 --cm-version 5.11.1 --kafka-version 2.1.0 --kudu-version 1.3.0
+                --spark2-version 2.1-r1 --ssl authentication'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.11.1_Spark2_SSL_Encrypt:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.11.1 --cm-version 5.11.1 --kafka-version 2.1.0 --kudu-version 1.3.0
+                --spark2-version 2.1-r1 --ssl encryption'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.12.0:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.12.0 --cm-version 5.12.0 --kafka-version 2.1.0 --kudu-version 1.4.0'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.12.0_Kerberos:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.12.0 --cm-version 5.12.0 --kafka-version 2.1.0 --kudu-version 1.4.0
+                {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.12.0_Spark2:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.12.0 --cm-version 5.12.0 --kafka-version 2.1.0 --kudu-version 1.4.0
+                --spark2-version 2.1-r1'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.12.0_Spark2_Kerberos:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.12.0 --cm-version 5.12.0
+                --kafka-version 2.1.0 --kudu-version 1.4.0 --spark2-version 2.1-r1 {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.12.0_Spark2_Kerberos_SSL_Encrypt:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.12.0 --cm-version 5.12.0 --kafka-version 2.1.0 --kudu-version 1.4.0
+                --spark2-version 2.1-r1 --ssl encryption {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.12.0_Spark2_SSL_Auth:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.12.0 --cm-version 5.12.0 --kafka-version 2.1.0 --kudu-version 1.4.0
+                --spark2-version 2.1-r1 --ssl authentication'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.12.0_Spark2_SSL_Encrypt:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.12.0 --cm-version 5.12.0 --kafka-version 2.1.0 --kudu-version 1.4.0
+                --spark2-version 2.1-r1 --ssl encryption'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.13.0:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.13.0 --cm-version 5.13.0 --kafka-version 3.0.0 --kudu-version 1.5.0'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.13.0_Kerberos:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.13.0 --cm-version 5.13.0 --kafka-version 3.0.0 --kudu-version 1.5.0
+                {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.13.0_Spark2:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.13.0 --cm-version 5.13.0 --kafka-version 3.0.0 --kudu-version 1.5.0
+                --spark2-version 2.1-r1'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.13.0_Spark2_Kerberos:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.13.0 --cm-version 5.13.0 --kafka-version 3.0.0 --kudu-version 1.5.0
+                --spark2-version 2.1-r1 {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.13.0_Spark2_Kerberos_SSL_Encrypt:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.13.0 --cm-version 5.13.0 --kafka-version 3.0.0 --kudu-version 1.5.0
+                --spark2-version 2.1-r1 --ssl encryption {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.13.0_Spark2_SSL_Auth:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.13.0 --cm-version 5.13.0 --kafka-version 3.0.0 --kudu-version 1.5.0
+                --spark2-version 2.1-r1 --ssl authentication'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.13.0_Spark2_SSL_Encrypt:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.13.0 --cm-version 5.13.0 --kafka-version 3.0.0 --kudu-version 1.5.0
+                --spark2-version 2.1-r1 --ssl encryption'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.14.0:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.14.0 --cm-version 5.14.0 --kafka-version 3.0.0 --kudu-version 1.6.0'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.14.0_Kerberos:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.14.0 --cm-version 5.14.0 --kafka-version 3.0.0 --kudu-version 1.6.0
+                {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.14.0_Spark2:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.14.0 --cm-version 5.14.0 --kafka-version 3.0.0 --kudu-version 1.6.0
+                --spark2-version 2.1-r1'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.14.0_Spark2_Kerberos:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.14.0 --cm-version 5.14.0 --kafka-version 3.0.0 --kudu-version 1.6.0
+                --spark2-version 2.1-r1 {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.14.0_Spark2_Kerberos_SSL_Encrypt:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.14.0 --cm-version 5.14.0 --kafka-version 3.0.0 --kudu-version 1.6.0
+                --spark2-version 2.1-r1 --ssl encryption {CLUSTERDOCK_KERBEROS_ARGS}'
+            - '{CLUSTERDOCK_KERBEROS_COPY}'
+            - '{CLUSTERDOCK_KERBEROS_KEYTAB_RENAME}'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.14.0_Spark2_SSL_Auth:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.14.0 --cm-version 5.14.0 --kafka-version 3.0.0 --kudu-version 1.6.0
+                --spark2-version 2.1-r1 --ssl authentication'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    CDH_5.14.0_Spark2_SSL_Encrypt:
+        <<: *CDH_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_CDH_ARGS} --sdc-version {sdc-version}
+                --cdh-version 5.14.0 --cm-version 5.14.0 --kafka-version 3.0.0 --kudu-version 1.6.0
+                --spark2-version 2.1-r1 --ssl encryption'
+            - '{CLUSTERDOCK_SSL_KEYS_CERTS_COPY}'
+        <<: *CDH_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    DSE_5.1.3:
+        <<: *DSE_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_DSE_ARGS} --dse-version 5.1.3-1'
+            - '{SUPER_COMMAND} mv -f {testenvironments-config-directory}/{environment}/clusterdock.keytab
+                {testenvironments-config-directory}/{environment}/sdc.keytab'
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    Elasticsearch_5.2.0:
+        start:
+            - docker run -d --name=myelastic --net={docker-network}
+                -e "http.host=0.0.0.0" -e "transport.host=127.0.0.1"
+                docker.elastic.co/elasticsearch/elasticsearch:5.2.0
+        stop:
+            - docker rm -f myelastic
+    ELS_MDB_Solr_Http:
+        # TODOs:
+        # 1. migrate the mongodb_replica_setup.js script to testenvironments github repo (once after its setup)
+        # 2. remove GITHUB_USERNAME and GITHUB_TOKEN dependency once after STE goes public repo
+        start_help: Set GITHUB_USERNAME and GITHUB_TOKEN env variables before starting this environment
+        start:
+            - curl -u $GITHUB_USERNAME:$GITHUB_TOKEN
+                -s https://raw.githubusercontent.com/streamsets/infra/master/testframework/jenkins/scripts/mongodb_replica_setup.js
+                -o {testenvironments-config-directory}/{environment}/mongodb_replica_setup.js
+            - docker run -d --name=myelastic --net={docker-network}
+                -e "http.host=0.0.0.0" -e "transport.host=127.0.0.1"
+                docker.elastic.co/elasticsearch/elasticsearch:5.2.0
+            - docker run -d --name=mysolr --net={docker-network}
+                -t solr:6.1.0 solr-precreate mycore
+            - docker run -d --name myhttpmockserver --net={docker-network} pretenders/pretenders:1.4
+            - docker run -d --name=mymongo1 --net={docker-network}
+                -v {testenvironments-config-directory}/{environment}:/root/scripts mongo mongod --replSet my-mongo-set
+            - docker run -d --name=mymongo2 --net={docker-network} mongo mongod --replSet my-mongo-set
+            - docker run -d --name=mymongo3 --net={docker-network} mongo mongod --replSet my-mongo-set
+            - sleep 3s
+            - docker exec -i mymongo1 mongo /root/scripts/mongodb_replica_setup.js
+        stop:
+            - docker rm -f myelastic mysolr myhttpmockserver mymongo1 mymongo2 mymongo3
+    GCP:
+        start_help: Set GCP_KEY env variable before starting this environment
+        start:
+            - echo $GCP_KEY > {testenvironments-config-directory}/{environment}/GCP-credentials.json
+            - echo "stf-`head /dev/urandom | tr -dc a-z0-9 | head -c 10`" >
+                   {testenvironments-config-directory}/{environment}/bigtable_instance.txt
+            - docker run --rm
+                -e GCP_BIGTABLE_INSTANCE=$(cat {testenvironments-config-directory}/{environment}/bigtable_instance.txt)
+                -v {testenvironments-config-directory}/{environment}:/root/config google/cloud-sdk:slim
+                bash -c '{GCP_ENV_CONFIG_COMMANDS} && {GCP_BIGTABLE_INSTANCE_CREATE_COMMAND}'
+        stop:
+            - docker run --rm
+                -e GCP_BIGTABLE_INSTANCE=$(cat {testenvironments-config-directory}/{environment}/bigtable_instance.txt)
+                -v {testenvironments-config-directory}/{environment}:/root/config google/cloud-sdk:slim
+                bash -c '{GCP_ENV_CONFIG_COMMANDS} && {GCP_BIGTABLE_INSTANCE_DELETE_COMMAND}'
+    HDP_2.6.4.0:
+        <<: *HDP_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS} {CLUSTERDOCK_HDP_ARGS} --hdp-version 2.6.4.0 --ambari-version 2.6.1.0'
+        <<: *HDP_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    HTTP:
+        start:
+            - docker run -d --name myhttpmockserver --net={docker-network} pretenders/pretenders:1.4
+        stop:
+            - docker rm -f myhttpmockserver
+    InfluxDB_0.13:
+        start:
+            - docker run -d --net={docker-network} --name=myinfluxdb
+                -e INFLUXDB_USER=sdc -e INFLUXDB_USER_PASSWORD=sdc influxdb:0.13
+        stop:
+            - docker rm -f myinfluxdb
+    JMS_ActiveMQ:
+        start:
+            - docker run --name='activemq' -it --rm --net={docker-network}
+                 -e 'ACTIVEMQ_MIN_MEMORY=512' -e 'ACTIVEMQ_MAX_MEMORY=2048' -dP webcenter/activemq:5.14.3
+        stop:
+            - docker rm -f activemq
+    Kafka_0.9:
+        <<: *KAFKA_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS} {CLUSTERDOCK_KAFKA_ARGS} --kafka-version 0.9.0.1'
+            - '{CLUSTERDOCK_START_ARGS} {CLUSTERDOCK_SCHEMA_REGISTRY_ARGS}'
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    Kafka_0.10:
+        <<: *KAFKA_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS} {CLUSTERDOCK_KAFKA_ARGS} --kafka-version 0.10.0.1'
+            - '{CLUSTERDOCK_START_ARGS} {CLUSTERDOCK_SCHEMA_REGISTRY_ARGS}'
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    Kafka_0.11:
+        <<: *KAFKA_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS} {CLUSTERDOCK_KAFKA_ARGS} --kafka-version 0.11.0.1'
+            - '{CLUSTERDOCK_START_ARGS} {CLUSTERDOCK_SCHEMA_REGISTRY_ARGS}'
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    Kafka_1.0:
+        <<: *KAFKA_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS} {CLUSTERDOCK_KAFKA_ARGS} --kafka-version 1.0.0'
+            - '{CLUSTERDOCK_START_ARGS} {CLUSTERDOCK_SCHEMA_REGISTRY_ARGS}'
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    MapR_5.2.0:
+        <<: *MAPR_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_MAPR_ARGS} --mapr-version 5.2.0'
+        <<: *MAPR_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    MapR_5.2.2_MEP_1.1.3:
+        <<: *MAPR_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_MAPR_ARGS} --mapr-version 5.2.2 --mep-version 1.1.3'
+        <<: *MAPR_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    MapR_5.2.2_MEP_3.0.1:
+        <<: *MAPR_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_MAPR_ARGS} --mapr-version 5.2.2 --mep-version 3.0.1'
+        <<: *MAPR_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    MapR_6.0.0_MEP_4.0:
+        <<: *MAPR_PRE_DEFAULTS
+        start+:
+            - '{CLUSTERDOCK_START_ARGS_SS} {CLUSTERDOCK_MAPR_ARGS}
+                --mapr-version 6.0.0 --mep-version 4.0
+                --license-url http://stage.mapr.com/license/LatestDemoLicense-M7.txt
+                --license-credentials streamsets:mapr4streamsets'
+        <<: *MAPR_POST_DEFAULTS
+        <<: *CLUSTERDOCK_POST_DEFAULTS
+    MongoDB:
+        # TODOs:
+        # 1. migrate the mongodb_replica_setup.js script to testenvironments github repo (once after its setup)
+        # 2. remove GITHUB_USERNAME and GITHUB_TOKEN dependency once after STE goes public repo
+        start_help: Set GITHUB_USERNAME and GITHUB_TOKEN env variables before starting this environment
+        start:
+            - curl -u $GITHUB_USERNAME:$GITHUB_TOKEN
+                -s https://raw.githubusercontent.com/streamsets/infra/master/testframework/jenkins/scripts/mongodb_replica_setup.js
+                -o {testenvironments-config-directory}/{environment}/mongodb_replica_setup.js
+            - docker run -d --name=mymongo1 --net={docker-network}
+                -v {testenvironments-config-directory}/{environment}:/root/scripts mongo mongod --replSet my-mongo-set
+            - docker run -d --name=mymongo2 --net={docker-network} mongo mongod --replSet my-mongo-set
+            - docker run -d --name=mymongo3 --net={docker-network} mongo mongod --replSet my-mongo-set
+            - sleep 3s
+            - docker exec -i mymongo1 mongo /root/scripts/mongodb_replica_setup.js
+        stop:
+            - docker rm -f mymongo1 mymongo2 mymongo3
+    MQTT:
+        start:
+            - docker run -d --net={docker-network} --name=mymqtt toke/mosquitto
+        stop:
+            - docker rm -f mymqtt
+    MySQL_5.7:
+        start:
+            - docker run -d --net={docker-network} --name=mysql -e MYSQL_ROOT_PASSWORD=root
+                -e MYSQL_DATABASE=default -e MYSQL_USER=mysql -e MYSQL_PASSWORD=mysql
+                mysql:5.7
+            - echo "Waiting 1 minute for database to stabilize ..."
+            - sleep 1m
+        stop:
+            - docker rm -f mysql
+    PostgreSQL_9.6.2:
+        start:
+            - docker run -d --net={docker-network} --name=postgres
+                -e POSTGRES_DB=default postgres:9.6.2-alpine
+        stop:
+            - docker rm -f postgres
+    RabbitMQ_3.5.6:
+        start:
+            - docker run -d --net={docker-network} --name=myrabbitmq rabbitmq:3.5.6
+        stop:
+            - docker rm -f myrabbitmq
+    Redis_4.0.1:
+        start:
+            - docker run -d --net={docker-network} --name=myredis redis:4.0.1
+        stop:
+            - docker rm -f myredis
+    Redis_Cassandra:
+        start:
+            - docker run -d --net={docker-network} --name=myredis redis:4.0.1
+            - docker run -d --net={docker-network} --name mycassandra cassandra:3.11.0
+        stop:
+            - docker rm -f myredis
+            - docker rm -f mycassandra
+    Solr_6.1.0:
+        start:
+            - docker run -d --name=mysolr --net={docker-network}
+                -t solr:6.1.0 solr-precreate mycore
+        stop:
+            - docker rm -f mysolr
