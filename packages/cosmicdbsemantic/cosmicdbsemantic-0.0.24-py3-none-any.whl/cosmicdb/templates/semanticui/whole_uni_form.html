@@ -1,0 +1,30 @@
+{% load crispy_forms_utils %}
+
+{% specialspaceless %}
+{% if form_tag %}<form {{ flat_attrs|safe }} method="{{ form_method }}" {% if form.is_multipart %} enctype="multipart/form-data"{% endif %} class="ui form{% if form.non_field_errors %} error{% endif %}">{% endif %}
+
+    {% if form_method|lower == 'post' and not disable_csrf %}
+        {% csrf_token %}
+    {% endif %}
+
+    {% for field in form %}
+        {% include "semanticui/field.html" %}
+    {% endfor %}
+
+    {% include "semanticui/errors.html" %}
+
+    {% if inputs %}
+        {% for input in inputs %}
+        <input type="{{ input.input_type }}"
+        name="{% if input.name|wordcount > 1 %}{{ input.name|slugify }}{% else %}{{ input.name }}{% endif %}"
+        value="{{ input.value }}"
+        {% if input.input_type != "hidden" %} 
+        class="{{ input.field_classes }}" 
+        id="{% if input.id %}{{ input.id }}{% else %}{{ input.input_type }}-id-{{ input.name|slugify }}{% endif %}"{% endif %}
+        {{ input.flat_attrs|safe }}
+        />
+        {% endfor %}
+    {% endif %}
+    
+{% if form_tag %}</form>{% endif %}
+{% endspecialspaceless %}
