@@ -1,0 +1,72 @@
+This document illustrates applying different SMTPD Access Restrictions
+for different recipients depending upon whether a message gets SPF
+Pass.  An understanding of at least the following Postfix documents
+and associated man pages is required.
+
+        RESTRICTION_CLASS_README
+        SMTPD_ACCESS_README
+        SMTPD_POLICY_README
+
+The Postfix RESTRICTION_CLASS_README opens with the following example
+illustrating the use of different restrictions for different
+recipients.
+
+    /etc/postfix/main.cf:
+        smtpd_restriction_classes = restrictive, permissive
+        # With Postfix < 2.3 specify reject_unknown_client.
+        restrictive = reject_unknown_sender_domain
+            reject_unknown_client_hostname ...
+        permissive = permit
+
+        smtpd_recipient_restrictions
+            permit_mynetworks
+            reject_unauth_destination
+            check_recipient_access hash:/etc/postfix/recipient_access
+
+    /etc/postfix/recipient_access:
+        joe@my.domain        permissive
+        jane@my.domain        restrictive
+
+The example below illustrates using this policy-spf daemon with the
+Postfix "check_policy_service" access restriction to apply the
+"permissive" restriction only to messages getting SPF Pass.
+
+    /etc/python-policyd-spf/policyd-spf.conf:
+        HELO_pass_restriction = spf_fin, passed_spf
+        Mail_From_pass_restriction = spf_fin, passed_spf
+
+    /etc/python-policyd-spf/policyd-spf-fin.conf:
+        HELO_reject = False
+        Mail_From_reject = False
+
+    /etc/postfix/master.cf:
+        policyd-spf  unix  -       n       n       -       0       spawn
+            user=nobody argv=/usr/bin/policyd-spf
+        policyd-spf-fin unix  -    n       n       -       0       spawn
+            user=nobody argv=/usr/bin/policyd-spf /etc/python-policyd-spf/policyd-spf-fin.conf
+
+    /etc/postfix/main.cf:
+        spf_fin = check_policy_service unix:private/policyd-spf-fin
+
+        smtpd_restriction_classes = restrictive, permissive, spf_fin, passed_spf
+
+        restrictive = reject_unknown_sender_domain
+            reject_unknown_client_hostname ...
+
+        permissive = permit
+
+        passed_spf
+            check_recipient_access hash:/etc/postfix/recipient_access
+            restrictive
+
+        smtpd_recipient_restrictions             permit_mynetworks
+            reject_unauth_destination
+            check_policy_service unix:private/policyd-spf
+            restrictive
+
+        policyd-spf_time_limit = 3600
+        policyd-spf-fin_time_limit = 3600
+
+    /etc/postfix/recipient_access:
+        joe@my.domain        permissive
+        jane@my.domain        restrictive

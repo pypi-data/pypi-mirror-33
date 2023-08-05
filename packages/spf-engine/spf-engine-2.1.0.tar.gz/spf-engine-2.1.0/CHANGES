@@ -1,0 +1,323 @@
+# Legend:
+# --- = A new release
+#   + = Added a feature (in a backwards compatible way)
+#   ! = Changed something significant, or removed a feature
+#   * = Fixed a bug, or made a minor improvement
+
+--- 2.1.0 (2018-06-17)
+  ! Rename to SPF_Engine due to plan to add a milter front end in addition to
+    current policy service front end
+  ! Switched to use of setuptools and entry points (because its the future)
+  ! Refactored common policy code into __init__.py
+
+--- 2.0.2 (2017-12-14)
+  * Fix treatment of No_Mail configuration parameter so that specifying
+    No_Mail = False (the default) does not cause incorrect results (Thanks to
+    David Jones on spf-devel for reporting)
+  * Conditionally import authres is Header_Type is AR and raise an error if it
+    is missing (sorry pep-8) to avoid cases where users change the config
+    and suddenly it doesn't work for an example, see:
+    https://bugzilla.redhat.com/show_bug.cgi?id=1208876
+  * Update and correct Mail_From_pass_restriction description in
+    policyd-spf.conf(5 ()
+  * Update HELO checking default option in policyd-spf.conf(5) (LP: #1724107)
+  * Note that SPF_Not_Pass is not consistent with RFC 7208 in the HELO
+    checking section of policyd-spf.conf(5) - already documented for Mail From
+
+--- 2.0.1 (2016-12-08)
+  * Man page formatting and spelling corrections
+  * Corrected default debug level (LP: #1647089)
+  * Amplified loging level '-1' description
+  * Forward port version 1.3.2 fixes for detection of missing Authserv_Id that
+    were inadvertently not brought back to trunk
+
+--- 2.0.0 (2016-12-02)
+  ! No longer python2 compatible, minimum python3 version is 3.3 for ipaddress
+  ! Removed support for use of ipaddr
+  ! Changed default for HELO checking from SPF_Not_Pass to Fail (same as
+    MailFrom) even though I think Not Pass makes more sense in order to
+    still the complaints (Fedora, you can drop your sed call in the spec file
+    now). (LP: #1571144)
+  ! Changed default for Authserv-ID to use local hostname to provide a
+    reasonable default Authserv-ID. (LP: #1575608)
+  ! Increased minimum pyspf (python-spf) version to 2.0.9 so that Void_Limit
+    is always available and used.
+  ! Added new Hide_Receiver option to prevent accidental disclosure of BCC
+    receivers and enabled it by default to maximize privacy.  (LP: #1394294)
+  ! Changed the name of the defaultSeedOnly option to TestOnly.  The previous
+    name is still accepted, but an error is logged.  The old name is a legacy
+    from the greylising functionaliy in tumgreyspf (from which this was forked
+    in 2007).  The new name better reflects what the option does.
+  + Added new Reason_Message option to allow for custom reject/defer message
+    (LP: #1422324) - Thanks to Bastian Blank for the significant patch
+  + Added support for RFC 7372 email authentication specific enhanced status
+    codes as well as an option to use standard Postfix codes instead
+  + Added new HELO_Whitelist option to allow for whitelisting from SPF checks
+    based on specific HELO/EHLO names (LP: #1602761)
+  + Added new Whitelist_Lookup_Time to allow for adjustments on the maximum
+    time allowed for whitelist related DNS lookups to complete - This should
+    also help with LP: #1622137
+  + Refactored and extended per user configuration to work for more
+    configuration options
+  + Added new 'None' option for Header_Type.  When set, no header field of any
+    kind is added to the message (LP: #1531724)
+  + Added new Mock option for enhanced interoperability with downstream
+    milters - See policyd-spf.conf.5 for details
+  * Fix additional cases of choking on invalid email addresses (LP: #1342105)
+  * Reviewed and refactored logging to provide logging details at various
+    detail levels more consistent with the documentation.  Also added a new
+    log level, '-1' for completely silent running.
+  * Added a new PERFORMANCE CONSIDERATIONS section to policyd-spf.1.
+  * Fix python3 incompatibility in cases where HELO name is somehow missing
+    (LP: #1184102)
+  * Improved per-user settings processing to avoid issues with multiple or
+    incorrect header fields being appended to multi-recipient messages
+  * Refactored processing for the No_Mail option to use the pyspf cache from
+    the previous SPF query rather than a new DNS lookup - should help with
+    LP: #1622137
+  * Fixed an issue that may have caused issues with multi-recipient use of
+    restriction classes
+  * Fixed a typo in policyd-spf-peruser.5 that made the example configuration
+    file invalid
+
+--- 1.3.2 (2015-08-12)
+  * Fix python3 incompatibility in cases where HELO name is somehow missing
+    (LP: #1184102)
+  * Updated README to mention the minimum ipaddr version, if needed, is 2.1.10
+    (LP: #1229862)
+  * Fix up header caching (LP: #1422325)
+  * Fix and refactor for simplicity detection of Authserv_Id missing from
+    configuration (LP: #1484239)
+  * Add try/except around SPF record queries of No_Mail option to avoid errors
+    on bogus TXT records
+
+--- 1.3.1 (2014-06-14)
+  * Fix case where, when run with python3 the policy server would choke on
+    email addresses that contained non-ascii characters (LP: #1325579)
+
+--- 1.3 (2014-05-09)
+  ! Updates related to the new SPF RFC, RFC 7208
+    - Added new config option, Lookup_Time, to adjust SPF record timeout limit
+      (default 20 seconds per RFC 7208) Requires at least pyspf 2.0.7
+    - Added new config option, Void_Limit, to enable the new void lookup limit
+      instroduced in RFC 7208 to be adjusted - Default is 2 as recommended in
+      RFC 7208, section 4.6.4.  Has no effect on pyspf before 2.0.9.
+    - Updated documentation to refer to RFC 7208 (and RFC 7001 for
+      authentication results)
+    - Updated descriptions in documentation to describe spec compliance
+      relative to RFC 7208 instead of RFC 4408
+  * Guard against crashes when forming header field contents if the receiver
+    is somehow missing
+
+--- 1.2 (2013-07-25)
+  ! Added external dependency on ipaddr module for python versions < 3.3
+  * Fix PTR whitelist to work with IPv6 connections (patch from Frank
+    Hunszinger) - LP: #1179266
+  * Replace custom code with use of ipaddr/ipaddress to perform CIDR matching
+  ! CIDR network definitions are now more limited to correct networks
+    - Double slashes are no longer allowed
+    - Updated defaults and documentation for skip_addresses to match
+
+--- 1.1.2 (2013-05-10 13:13 -0400)
+    Brown paper bag release
+  * Add MANIFEST.in and rename in setup.py to make package compatible with
+    using sdist (fixes missing files in 1.1.1)
+
+--- 1.1.1 (2013-05-10 12:23 -0400)
+  * Fixed documentation to be more compatible with running with Python3.
+
+--- 1.1 (2012-07-21 21:30 -0400)
+  + Ported to Python 3. Tested on python3.2, python2.7, and python2.6.
+    Versions previous to python2.6 will not work. 
+
+--- 1.0 (2012-03-17 23:34 -0400)
+  * Fixed missing authentication results headers for no authentication
+    performed cases (when authres is enabled)
+  * Fixed ambiguous config file warning in per user processing
+  * Make functions private (leading underscore)
+  * Fixed erroneous use of syslog.LOG_ERR in per user processing
+
+--- 0.9 (2012-01-10 22:35 -0500)
+  + Add support for optionally generating RFC 5451 authentication results
+    headers
+  + Add new Header_Type configuration option to support generating RFC 4408
+    Received-SPF and/or RFC 5451 Authentication-Results headers (default is
+    Received-SPF)
+  ! Changed license from GPL version 2 to Apache 2.0 with agreement from all
+    copyright holders
+  * Log message to the error facility for all OSErrors
+  * Instead of crashing if per user configuration is missing, continue with
+    global configuration
+  * Use openspf.net instead of openspf.org for Why text in reject/defer
+    messages due to extended openspf.org downtime
+  * Fix install location of standard config file when installed with distutils
+  * Fix example syntax in policyd-spf.peruser.5
+  * Update and clarify inconsistencies in policyd-spf.conf.5
+
+--- 0.8.1 (2010-11-27 22:41 -0500)
+  * Prepend headers even when defaultSeedOnly = 0 (now does what's documented)
+  * Fix typos in policyd-spf.conf(5)
+
+--- 0.8 (2010-02-17 01:38 -0500)
+  + Add Domain_Whitelist_PTR to allow whitelisting from SPF tests based on
+    rDNS PTR match (patch from Colin Stewart <colin@owlfish.com>)
+  * Only check Domain_Whitelist if it actually exists in the configuration
+  + Add No_Mail option to allow for only rejecting from hosts/domains that
+    send no mail ("v=spf1 -all")
+  + Add ability to provide per user (per recipient) settings
+  * Fixed a bug so that skipping SPF checks due to localhost or any whitelist
+    settings does not prepend multiple headers per message for multi recipient
+    messages
+  * Fixed a bug so that non-reject HELO results are correctly used when Mail
+    From checks are disabled (No_Check)
+  * Clean up unused code in policydspfsupp.py
+
+--- 0.7.3 (2010-01-07 01:00 -0500)
+  * No longer require Python 2.5 (Thanks to Matthew Munsey
+    <openspf@msm.unending.org>)
+  * Update copyright for new year
+  * Update for new project location
+  * Clean up imports (PEP-8 style, remove redundancy, removed unused)
+  * Remove deprecated licence distribution option from setup.py
+
+--- 0.7.2 (2009-10-22 02:54 -0400)
+  ! Require at least Python 2.5
+  * Fix to not crash on invalid senders that lack a domain part
+  * Remove unused imports of deprecated popen2 module
+
+--- 0.7.1 (2008-07-25 23:54 -0400)
+  * Fix default log level in policyd-spf.conf.commented to match default
+  * Update configuration recommendations in policyd-spf.1
+
+--- 0.7 (2008-06-22 13:45 -0400)
+  + Reject option for Mail From not pass or none (parallel HELO option)
+  + Reject on Softfail for HELO and Mail From
+  + Add receiver policy options per sender domain to reject non-SPF Pass mail
+    for specific domains
+  + Update policyd-spf(5) for new options
+  ! Refactor result processing for better scalability and easier testing
+  ! Move commented config file to a new file and use/install an uncommented
+    minimal config file to reduce future churn in the operational config file
+  * Fix prepend only (no action) options to work
+  * Clarify in policyd-spf(5) that permerror and temperror setting affect
+    both HELO and Mail From checks when those checks are enabled
+
+--- 0.6.1 (2008-04-05 01:23 -0400)
+  * Pre-initialize helo_result to None to avoid crash if HELO checking is
+    disabled
+
+--- 0.6 (2008-02-20 16:35 -0500)
+  ! Logging redesign:
+    - Change default loglevel to 1 and readjust loglevel 1 and 2 to 2 and 3
+    - Loglevel 0 changed to no logging
+    - Move all non-error config file related logging to level 5
+    - Don't log SPF result comments
+    - Updated policyd-spf(5) debugLevel description
+    - Don't log errors for known config options
+  * Added exit log message promised in policyd-spf(5)
+  * Removed adding policyd-spf to %PYTHONPATH
+  + Added prospective SPF checks to see if mail sent from current IP would Fail
+    SPF after being sent. Don't add SPF Received headers for these.
+  * Fixed IP whitelisting to work with multiple IP ranges (patch from Nicolas
+    Litchinko)
+  * Fixed 'seed only' option to work (patch from Nicolas Litchinko)
+  * Fixed domain whitelist to work
+  * Fixed domain whitelist to work with multiple domains (patch from Nicolas
+    Litchinko)
+  * Correctly detect IPv6 addresses in skip and white lists and use correct
+    implicit CIDR for IPv6
+  * Correct examples and policyd-spf(5) to not have spaces in IP and domain
+    lists
+  + Log error if IP whitelist or skip list have non-IP address items in the
+    lists and then don't crash
+  ! Install man pages and config files in FHS compliant locations.
+  ! Removed spec files since I'm not qualified to maintain them
+
+--- 0.5.2 (2007-10-26 15:30 -0400)
+  * Corrected regression so appending a header on Permerror works (introduced 
+    in 0.4) - Thanks to "John A. Martin" <jam@jamux.com> for the bug report.
+  * Log and prepend Mail From result instead of HELO result if both are None.
+  * Provide default explanation for None results (so header and log fields are
+    not left empty
+  * Use correct RFC 4408 identity names (mailfrom/helo) in headers, logging,
+    and SMTP replies
+  * Use package installed config file if none is specified and related
+    documentation updates
+  * Fix default installation location for man pages and config file
+  * Revised README.per_user_whitelisting
+
+--- 0.5.1 (2007-10-17 14:47 -0400)
+  * Corrected regression so reject on Permerror works (introduced in 0.4)
+    Thanks to "John A. Martin" <jam@jamux.com> for the bug report.
+  * Fixed Restriction Class option to be useful.
+  + Made restriction class names configurable
+  + Added per user whitelisting README to explain how it's useful
+    Thanks to "John A. Martin" <jam@jamux.com> for the contribution.
+  * Corrected SPF-Recieved header to us <> for null sender
+  * Corrected Postfix integration section of policyd-spf(1) to reflect correct
+    policy service time limit name.
+  * Corrected installed config file locations in both man pages.
+  * Header and logging cleanup (removed trailing ';' and adjusted whitespace).
+
+--- 0.5 (2007-10-03 13:39 -0400)
+  + Added man page for configuration file formatting (man 5 policyd-spf.conf) 
+  * Moved explicit logging of the result headers for HELO and Mail From from
+    debug level 1 to debug level 2 (SPF results are already logged at debug
+    level 1)
+  * Moved config file item logging to a new debug level 5.  This should only be
+    needed for development and not for operational use.
+  ! Shifted list of local addresses to skip SPF from hard coded to a config
+    option.
+  * Changed default (no config file) TempError defer to False to match docs and
+    default in config file.
+  ! Refactored Whitelisting/SPF skipping code for reduced size and better
+    extensibility and maintainability.
+  + Added Forwarder Domain SPF Whitelist
+  + Added Restriction Class mode to return only SPF result to Postfix
+  + Return link to SPF "Why" page for reject/defer actions.
+
+--- 0.4.1 (2007-08-13 11:00 -0400)
+  * Correct multi-recipient caching to work for multi-recipient rejections
+
+--- 0.4 (2007-07-09 17:24)
+  + Process HELO first and reject if allowed before looking up Mail From
+  + Log failure to find SPF library
+  ! Rationalize text of logging and comments back to Postfix - any script that
+    parses logs from this program automatically will need to be updated.
+  * Remove obsolete code for using non-Python SPF libraries
+  + Activate support for config files (refactored legacy code)
+  ! Change PermError default from Reject to Prepend
+    - Reject on PermError was inconsistent with traditional SPF usage.
+  ! Remove obsolete undistributed files from SVN trunk
+  ! Remove INSTALL file (redundant to man 1 policyd-spf)
+  * Adjust master.cf recommendations in INSTALL for new recommendations from
+    Weitse Venema (postfix-users mailing list).
+  * Change indentation from tabs to spaces in legacy code
+  + Support case insensitive SPF results as required by RFC 4408.
+  + SPF results reported with initial capitalization.
+  + Add SPF whitelist facility in config file
+
+--- 0.3 (2007-02-23 11:54)
+  * Refactored and simplified SPF results reporting/logging
+  * Changed logging to match RFC 4408 SPF-Received: terminology
+  * Fixed processing to skip SPF for localhost connections to work for IPv6
+  + Implemented prepending of SPF-Received: header.
+  + Added man page (man 1 policyd-spf)
+
+--- 0.2 (2007-02-07 16:50)
+  * Changed skip local connections to use CIDR match rather than string.
+  * Log non-fail/error results to syslog
+
+--- 0.1 (2007-01-17 18:00)
+
+  ! Initial release
+  ! Removed greylisting
+  ! Stubbed out config files until they can be updated and integrated
+  + Defer on temperror
+  + Reject on permerror
+  + Check HELO for null Sender (Mail From)
+
+
+--- 0.0 Source from Tumgreyspf (2007-01-11 00:00)
+
+  ! Source Tumgreyspf Version 1.24 
