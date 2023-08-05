@@ -1,0 +1,128 @@
+<form id="fileupload" action="https://jquery-file-upload.appspot.com/" method="POST" enctype="multipart/form-data" class="">
+    <!-- Redirect browsers with JavaScript disabled to the origin page -->
+    <noscript>&lt;input type="hidden" name="redirect" value="https://blueimp.github.io/jQuery-File-Upload/"&gt;</noscript>
+    <!-- The fileupload-buttonbar contains buttons to add/delete files and start/cancel the upload -->
+    <div class="row fileupload-buttonbar">
+        <div class="col-lg-9" style="margin:5px;font-size:14px;">
+            <!-- The fileinput-button span is used to style the file input field as button -->
+            <span class="fileinput-button ui-button ui-corner-all ui-widget" style="border-bottom: 2px solid rgba(0,0,0,0.15);border:  none;border-radius: 4px;background: #3272A8;" role="button"><span class="ui-button-icon ui-icon ui-icon-plusthick"></span><span class="ui-button-icon-space"> </span>
+
+                <span>Add files...</span>
+
+            <input type="file" name="files[]" multiple=""></span>
+
+            <button type="submit" class="start ui-button ui-corner-all ui-widget" style="border-bottom: 2px solid rgba(0,0,0,0.15);border:  none;border-radius: 4px;background: #3272A8;" _vimium-has-onclick-listener=""><span class="ui-button-icon ui-icon ui-icon-circle-arrow-e"></span><span class="ui-button-icon-space"> </span>
+                <span style="font-size:14px;">Start upload</span>
+            </button>
+
+            <button type="reset" class="cancel ui-button ui-corner-all ui-widget" style="border-bottom: 2px solid rgba(0,0,0,0.15);border:  none;border-radius: 4px;background: #3272A8;" _vimium-has-onclick-listener=""><span class="ui-button-icon ui-icon ui-icon-cancel"></span><span class="ui-button-icon-space"> </span>
+                <span>Cancel upload</span>
+            </button>
+
+            <button type="button" class="delete ui-button ui-corner-all ui-widget" style="border-bottom: 2px solid rgba(0,0,0,0.15);border:  none;border-radius: 4px;background: #3272A8;" _vimium-has-onclick-listener=""><span class="ui-button-icon ui-icon ui-icon-trash"></span><span class="ui-button-icon-space"> </span>
+                <span>Delete</span>
+            </button>
+            <input type="checkbox" class="toggle">
+            <!-- The global file processing state -->
+            <span class="fileupload-process"></span>
+        </div>
+    </div>
+    <!-- The table listing the files available for upload/download -->
+    <table role="presentation" class="table table-striped" style="margin-bottom:0px;"><tbody class="files" _vimium-has-onclick-listener=""></tbody></table>
+</form>
+
+<div>
+    <div id="blueimp-gallery" class="blueimp-gallery blueimp-gallery-controls" data-filter=":even">
+        <div class="slides"></div>
+        <h3 class="title"></h3>
+        <a class="prev"></a>
+        <a class="next"></a>
+        <a class="close">×</a>
+        <a class="play-pause"></a>
+        <ol class="indicator"></ol>
+    </div>
+</div>
+
+{% verbatim %}
+<!-- The template to display files available for upload -->
+<script id="template-upload" type="text/x-tmpl">
+{% for (var i=0, file; file=o.files[i]; i++) { %}
+    <tr class="template-upload">
+        <td>
+            <span class="preview"></span>
+        </td>
+        <td>
+            <p class="name">{%=file.name%}</p>
+            <strong class="error"></strong>
+        </td>
+        <td>
+            <p class="size">Processing...</p>
+            <div class="progress"></div>
+        </td>
+        <td>
+            {% if (!i && !o.options.autoUpload) { %}
+                <button class="start" disabled>Start</button>
+            {% } %}
+            {% if (!i) { %}
+                <button class="cancel">Cancel</button>
+            {% } %}
+        </td>
+    </tr>
+{% } %}
+</script>
+
+<!-- The template to display files available for download -->
+<script id="template-download" type="text/x-tmpl">
+{% for (var i=0, file; file=o.files[i]; i++) { %}
+    <tr class="template-download">
+        <td>
+            <span class="preview">
+                {% if (file.thumbnailUrl) { %}
+                    <a href="{%=file.url%}" title="{%=file.name%}" download="{%=file.name%}" data-gallery><img src="{%=file.thumbnailUrl%}"></a>
+                {% } %}
+            </span>
+        </td>
+        <td>
+            <p class="name">
+                <a href="{%=file.url%}" title="{%=file.name%}" download="{%=file.name%}" {%=file.thumbnailUrl?'data-gallery':''%}>{%=file.name%}</a>
+            </p>
+            {% if (file.error) { %}
+                <div><span class="error">Error</span> {%=file.error%}</div>
+            {% } %}
+        </td>
+        <td>
+            <span class="size">{%=o.formatFileSize(file.size)%}</span>
+        </td>
+        <td>
+            <button class="delete" data-type="{%=file.deleteType%}" data-url="{%=file.deleteUrl%}"{% if (file.deleteWithCredentials) { %} data-xhr-fields='{"withCredentials":true}'{% } %}>Delete</button>
+            <input type="checkbox" name="delete" value="1" class="toggle">
+        </td>
+    </tr>
+{% } %}
+</script>
+
+
+
+
+{% endverbatim %}
+
+{% load  mycms_tags %}
+{% Script type="text/javascript" src="/static/mycms/dustjs/dust-full.js" priority=8888 %} 
+{# Script type="text/javascript" src="/static/mycms/js/templates.js" priority=8888 #} 
+{% Script type="text/javascript" src="/static/mycms/editor/article.editor.js" priority=8888 %} 
+
+
+{% Script  src="https://blueimp.github.io/JavaScript-Templates/js/tmpl.min.js" type="text/javascript"  priority=8888 %} 
+{% Script  src="https://blueimp.github.io/JavaScript-Load-Image/js/load-image.all.min.js" type="text/javascript"  priority=8888 %} 
+{% Script  src="https://blueimp.github.io/JavaScript-Canvas-to-Blob/js/canvas-to-blob.min.js" type="text/javascript"  priority=8888 %} 
+{% Script  src="https://blueimp.github.io/Gallery/js/jquery.blueimp-gallery.min.js" type="text/javascript"  priority=8888 %} 
+{% Script  src="/static/mycms/file-upload/js/jquery.iframe-transport.js" type="text/javascript"  priority=8888 %} 
+{% Script  src="/static/mycms/file-upload/js/jquery.fileupload.js" type="text/javascript"  priority=8888 %} 
+{% Script  src="/static/mycms/file-upload/js/jquery.fileupload-process.js" type="text/javascript"  priority=8888 %} 
+{% Script  src="/static/mycms/file-upload/js/jquery.fileupload-image.js" type="text/javascript"  priority=8888 %} 
+{% Script  src="/static/mycms/file-upload/js/jquery.fileupload-audio.js" type="text/javascript"  priority=8888 %} 
+{% Script  src="/static/mycms/file-upload/js/jquery.fileupload-video.js" type="text/javascript"  priority=8888 %} 
+{% Script  src="/static/mycms/file-upload/js/jquery.fileupload-validate.js" type="text/javascript"  priority=8888 %} 
+{% Script  src="/static/mycms/file-upload/js/jquery.fileupload-ui.js" type="text/javascript"  priority=8888 %} 
+{% Script  src="/static/mycms/file-upload/js/jquery.fileupload-jquery-ui.js" type="text/javascript"  priority=8888 %} 
+{% Script  src="/static/mycms/file-upload/js/main.js" type="text/javascript"  priority=8888 %} 
