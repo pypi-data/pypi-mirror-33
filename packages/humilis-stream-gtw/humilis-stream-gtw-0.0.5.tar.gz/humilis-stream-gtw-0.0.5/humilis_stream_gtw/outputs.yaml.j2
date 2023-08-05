@@ -1,0 +1,35 @@
+---
+outputs:
+    {% if domain_name and certificate_arn %}
+    DomainName:
+        Description:
+            The domain name associated to the root resource of the API
+        Value:
+            Ref: DomainName
+    {% endif %}
+
+    RestApiId:
+        Description:
+            The REST API Id
+        Value: {Ref: RestApi}
+
+    ApiKey:
+        Description:
+            The key associated to the REST API {{__context.stage}} deployment
+        Value: {Ref: ApiKey}
+
+    {% for key in (client_keys or []) %}
+    ApiKey{{key.name.title()}}:
+        Description:
+            "Key to {{__context.stage}} for {{key.name}} client"
+        Value: {Ref: ApiKey{{key.name.title()}}}
+    {% endfor %}
+
+    RootResourceInvokeUrl:
+        Description:
+            The invoke URL for the root resource of the API
+        Value:
+            "Fn::Join":
+                - ""
+                - ["https://", {Ref: RestApi}, ".execute-api.",
+                   {Ref: "AWS::Region"}, ".amazonaws.com/", "{{__context.stage.lower()}}"]
