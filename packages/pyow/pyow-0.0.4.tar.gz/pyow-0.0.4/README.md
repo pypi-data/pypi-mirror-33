@@ -1,0 +1,153 @@
+> Function argument validation for humans for Python 3!
+
+
+## Highlights
+
+- Straight port from the amazing library [`ow`](https://github.com/sindresorhus/ow/) from Sindre Sorhus
+- Expressive chainable API
+- Pythonic approach via decorator
+- Lots of built-in validations
+- Supports custom validations
+- Written in Python3 with Type hinting
+
+
+## Notes
+Since this is a straight up port from the JavaScript library not all features are available.
+Partly since this is a port and I haven't caught up and also since Python doesn't support all usecases
+as JavaScript does.
+
+## Install
+
+```shell
+$ pip3 install pyow
+```
+
+
+## Usage
+
+```python
+from pyow import pyow
+
+def unicorn(input):
+	pyow(input, pyow.string.min_length(5))
+
+	# ...
+
+unicorn(3)
+>>> ArgumentError: 'Expected argument to be of type `str` but received type `int`
+
+unicorn('yo')
+>>> ArgumentError: Expected string to have a minimum length of `3`, got `yo`
+```
+
+or via decorator
+
+```python
+
+from pyow.decorator import validate
+
+@validate(
+    pyow.string.min_length(5)
+)
+def unicorn(input):
+    return 1
+```
+
+## API
+
+### pyow(value, predicate)
+
+Test if `value` matches the provided `predicate`. Throws an `ArgumentError` if the test fails.
+
+### pyow.is_valid(value, predicate)
+
+Returns `True` if the value matches the predicate, otherwise returns `False`.
+
+### pyow.create(predicate)
+
+Create a reusable validator.
+
+```python
+check_password = pyow.create(pyow.string.min_length(6))
+
+check_password('foo')
+>>> ArgumentError: ('Expected string to have a minimum length of `6`, got `foo`')
+```
+
+### pyow.any(predicate: List[Predicate])
+
+Returns a predicate that verifies if the value matches at least one of the given predicates.
+
+```python
+pyow('foo', pyow.any(pyow.string.max_length(3), pyow.number))
+```
+
+### pyow.{type}
+
+All the below types return a predicate. Every predicate has some extra operators that you can use to test the value even more fine-grained.
+
+#### Primitives
+
+- [`string`]()
+- [`number`]()
+- [`boolean`]()
+
+#### Built-in types
+
+- [`list`]()
+- [`set`]()
+- [`dict`]()
+- [`error`]()
+
+### Predicates
+
+The following predicates are available on every type.
+
+#### nix/isnot
+
+Inverts the following predicates.
+
+```python
+pyow(1, pyow.number.nix.infinite)
+pyow(1, pyow.number.isnot.infinite)
+
+pyow('', pyow.string.isnot.empty);
+>>> ArgumentError: [NOT] Expected string to be empty, got ``
+```
+
+#### is_(fn)
+
+Use a custom validation function. Return `True` if the value matches the validation, return `False` if it doesn't.
+
+```python
+pyow(1, pyow.number.is_(lambda x: x < 10))
+
+pyow(1, pyow.number.is_(lambda x: x > 10))
+>>> ArgumentError: Expected `1` to pass custom validation function
+```
+
+Instead of returning `False`, you can also return a custom error message which results in a failure.
+
+```python
+def greater_than(max_number: int, x: int):
+	return x > max_number or f'Expected `{x}` to be greater than `{max_number}`'
+};
+
+pyow(5, pyow.number.is_(lambda x: greater_than(10, x)))
+>>> ArgumentError: Expected `5` to be greater than `10`
+```
+
+
+## Maintainers
+
+- [Henrik Andersson](https://github.com/limelights)
+
+
+## Related
+
+- [@sindresorhus/ow](https://github.com/sindresorhus/ow) - Function argument validation for humans
+
+
+## License
+
+MIT
