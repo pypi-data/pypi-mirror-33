@@ -1,0 +1,251 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Working with numerical data in shared memory (memmapping) &#8212; joblib 0.11.1.dev0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/gallery.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.11.1.dev0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="working-with-numerical-data-in-shared-memory-memmapping">
+<h1>Working with numerical data in shared memory (memmapping)<a class="headerlink" href="#working-with-numerical-data-in-shared-memory-memmapping" title="Permalink to this headline">¶</a></h1>
+<p>By default the workers of the pool are real Python processes forked using the
+<code class="docutils literal"><span class="pre">multiprocessing</span></code> module of the Python standard library when <code class="docutils literal"><span class="pre">n_jobs</span> <span class="pre">!=</span> <span class="pre">1</span></code>.
+The arguments passed as input to the <code class="docutils literal"><span class="pre">Parallel</span></code> call are serialized and
+reallocated in the memory of each worker process.</p>
+<p>This can be problematic for large arguments as they will be reallocated
+<code class="docutils literal"><span class="pre">n_jobs</span></code> times by the workers.</p>
+<p>As this problem can often occur in scientific computing with <code class="docutils literal"><span class="pre">numpy</span></code>
+based datastructures, <a class="reference internal" href="generated/joblib.Parallel.html#joblib.Parallel" title="joblib.Parallel"><code class="xref py py-class docutils literal"><span class="pre">joblib.Parallel</span></code></a> provides a special
+handling for large arrays to automatically dump them on the filesystem
+and pass a reference to the worker to open them as memory map
+on that file using the <code class="docutils literal"><span class="pre">numpy.memmap</span></code> subclass of <code class="docutils literal"><span class="pre">numpy.ndarray</span></code>.
+This makes it possible to share a segment of data between all the
+worker processes.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>The following only applies with the <code class="docutils literal"><span class="pre">&quot;loky&quot;`</span> <span class="pre">and</span>
+<span class="pre">``'multiprocessing'</span></code> process-backends. If your code can release the
+GIL, then using a thread-based backend backend by passing
+<code class="docutils literal"><span class="pre">prefer='threads'</span></code> is even more efficient because it makes it
+possible to avoid the communication overhead of process-based
+parallelism.</p>
+<p class="last">Scientific Python libraries such as numpy, scipy, pandas and
+scikit-learn often release the GIL in performance critical code paths.
+It is therefore advised to always measure the speed of thread-based
+parallelism and use it when the scalability is not limited by the GIL.</p>
+</div>
+<div class="section" id="automated-array-to-memmap-conversion">
+<h2>Automated array to memmap conversion<a class="headerlink" href="#automated-array-to-memmap-conversion" title="Permalink to this headline">¶</a></h2>
+<p>The automated array to memmap conversion is triggered by a configurable
+threshold on the size of the array:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">joblib</span> <span class="k">import</span> <span class="n">Parallel</span><span class="p">,</span> <span class="n">delayed</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">is_memmap</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">memmap</span><span class="p">)</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Parallel</span><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">max_nbytes</span><span class="o">=</span><span class="mf">1e6</span><span class="p">)(</span>
+<span class="gp">... </span>    <span class="n">delayed</span><span class="p">(</span><span class="n">is_memmap</span><span class="p">)(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)))</span>
+<span class="gp">... </span>    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">1e2</span><span class="p">,</span> <span class="mf">1e4</span><span class="p">,</span> <span class="mf">1e6</span><span class="p">])</span>
+<span class="go">[False, False, True]</span>
+</pre></div>
+</div>
+<p>By default the data is dumped to the <code class="docutils literal"><span class="pre">/dev/shm</span></code> shared-memory partition if it
+exists and is writable (typically the case under Linux). Otherwise the
+operating system’s temporary folder is used. The location of the temporary data
+files can be customized by passing a <code class="docutils literal"><span class="pre">temp_folder</span></code> argument to the
+<code class="docutils literal"><span class="pre">Parallel</span></code> constructor.</p>
+<p>Passing <code class="docutils literal"><span class="pre">max_nbytes=None</span></code> makes it possible to disable the automated array to
+memmap conversion.</p>
+</div>
+<div class="section" id="manual-management-of-memmaped-input-data">
+<h2>Manual management of memmaped input data<a class="headerlink" href="#manual-management-of-memmaped-input-data" title="Permalink to this headline">¶</a></h2>
+<p>For even finer tuning of the memory usage it is also possible to
+dump the array as a memmap directly from the parent process to
+free the memory before forking the worker processes. For instance
+let’s allocate a large array in the memory of the parent process:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">large_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="mf">1e6</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Dump it to a local file for memmapping:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">os</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">joblib</span> <span class="k">import</span> <span class="n">load</span><span class="p">,</span> <span class="n">dump</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">temp_folder</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_folder</span><span class="p">,</span> <span class="s1">&#39;joblib_test.mmap&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span> <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">_</span> <span class="o">=</span> <span class="n">dump</span><span class="p">(</span><span class="n">large_array</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">large_memmap</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mmap_mode</span><span class="o">=</span><span class="s1">&#39;r+&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">large_memmap</span></code> variable is pointing to a <code class="docutils literal"><span class="pre">numpy.memmap</span></code>
+instance:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">large_memmap</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">large_array</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span> <span class="n">large_array</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(&#39;memmap&#39;, 8000000, (1000000,))</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">large_array</span><span class="p">,</span> <span class="n">large_memmap</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>The original array can be freed from the main process memory:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">del</span> <span class="n">large_array</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">gc</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">_</span> <span class="o">=</span> <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>It is possible to slice <code class="docutils literal"><span class="pre">large_memmap</span></code> into a smaller memmap:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">small_memmap</span> <span class="o">=</span> <span class="n">large_memmap</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">5</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">small_memmap</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">small_memmap</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span> <span class="n">small_memmap</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(&#39;memmap&#39;, 24, (3,))</span>
+</pre></div>
+</div>
+<p>Finally a <code class="docutils literal"><span class="pre">np.ndarray</span></code> view backed on that same memory mapped file can be
+used:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">small_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">small_memmap</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">small_array</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">small_array</span><span class="o">.</span><span class="n">nbytes</span><span class="p">,</span> <span class="n">small_array</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(&#39;ndarray&#39;, 24, (3,))</span>
+</pre></div>
+</div>
+<p>All those three datastructures point to the same memory buffer and
+this same buffer will also be reused directly by the worker processes
+of a <code class="docutils literal"><span class="pre">Parallel</span></code> call:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">Parallel</span><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">max_nbytes</span><span class="o">=</span><span class="kc">None</span><span class="p">)(</span>
+<span class="gp">... </span>    <span class="n">delayed</span><span class="p">(</span><span class="n">is_memmap</span><span class="p">)(</span><span class="n">a</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">[</span><span class="n">large_memmap</span><span class="p">,</span> <span class="n">small_memmap</span><span class="p">,</span> <span class="n">small_array</span><span class="p">])</span>
+<span class="go">[True, True, True]</span>
+</pre></div>
+</div>
+<p>Note that here <code class="docutils literal"><span class="pre">max_nbytes=None</span></code> is used to disable the auto-dumping
+feature of <code class="docutils literal"><span class="pre">Parallel</span></code>. <code class="docutils literal"><span class="pre">small_array</span></code> is still in shared memory in the
+worker processes because it was already backed by shared memory in the
+parent process.
+The pickling machinery of <code class="docutils literal"><span class="pre">Parallel</span></code> multiprocessing queues are
+able to detect this situation and optimize it on the fly to limit
+the number of memory copies.</p>
+</div>
+<div class="section" id="writing-parallel-computation-results-in-shared-memory">
+<h2>Writing parallel computation results in shared memory<a class="headerlink" href="#writing-parallel-computation-results-in-shared-memory" title="Permalink to this headline">¶</a></h2>
+<p>If data are opened using the <code class="docutils literal"><span class="pre">w+</span></code> or <code class="docutils literal"><span class="pre">r+</span></code> mode in the main program, the
+worker will get <code class="docutils literal"><span class="pre">r+</span></code> mode access. Thus the worker will be able to write
+its results directly to the original data, alleviating the need of the
+serialization to send back the results to the parent process.</p>
+<p>Here is an example script on parallel processing with preallocated
+<code class="docutils literal"><span class="pre">numpy.memmap</span></code> datastructures
+<a class="reference internal" href="auto_examples/parallel_memmap.html#sphx-glr-auto-examples-parallel-memmap-py"><span class="std std-ref">NumPy memmap in joblib.Parallel</span></a>.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p>Having concurrent workers write on overlapping shared memory data segments,
+for instance by using inplace operators and assignments on a <cite>numpy.memmap</cite>
+instance, can lead to data corruption as numpy does not offer atomic
+operations. The previous example does not risk that issue as each task is
+updating an exclusive segment of the shared result array.</p>
+<p class="last">Some C/C++ compilers offer lock-free atomic primitives such as add-and-fetch
+or compare-and-swap that could be exposed to Python via <a class="reference external" href="https://cffi.readthedocs.org">CFFI</a> for instance.
+However providing numpy-aware atomic constructs is outside of the scope
+of the joblib project.</p>
+</div>
+<p>A final note: don’t forget to clean up any temporary folder when you are done
+with the computation:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">try</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">temp_folder</span><span class="p">)</span>
+<span class="gp">... </span><span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="k">pass</span>  <span class="c1"># this can sometimes fail under Windows</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="index.html">
+    <img class="logo" src="_static/joblib_logo.svg" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="why.html">Why joblib: project goals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installing.html">Installing joblib</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory.html">On demand recomputing: the <cite>Memory</cite> class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parallel.html">Embarrassingly parallel for loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="persistence.html">Persistence</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auto_examples/index.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developing.html">Development</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.Memory.html">joblib.Memory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.Parallel.html">joblib.Parallel</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.dump.html">joblib.dump</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.load.html">joblib.load</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.hash.html">joblib.hash</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.register_compressor.html"><code class="docutils literal"><span class="pre">joblib</span></code>.register_compressor</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2008-2018, Joblib developers.
+      
+      |
+      <a href="_sources/parallel_numpy.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

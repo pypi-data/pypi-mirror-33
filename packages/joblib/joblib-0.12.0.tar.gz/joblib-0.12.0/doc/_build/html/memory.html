@@ -1,0 +1,667 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>On demand recomputing: the Memory class &#8212; joblib 0.11.1.dev0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/gallery.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.11.1.dev0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Embarrassingly parallel for loops" href="parallel.html" />
+    <link rel="prev" title="Installing joblib" href="installing.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="on-demand-recomputing-the-memory-class">
+<span id="memory"></span><h1>On demand recomputing: the <cite>Memory</cite> class<a class="headerlink" href="#on-demand-recomputing-the-memory-class" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="use-case">
+<h2>Use case<a class="headerlink" href="#use-case" title="Permalink to this headline">¶</a></h2>
+<p>The <cite>Memory</cite> class defines a context for lazy evaluation of function, by
+putting the results in a store, by default using a disk, and not re-running
+the function twice for the same arguments.</p>
+<p>It works by explicitly saving the output to a file and it is designed to
+work with non-hashable and potentially large input and output data types
+such as numpy arrays.</p>
+<div class="section" id="a-simple-example">
+<h3>A simple example:<a class="headerlink" href="#a-simple-example" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p>First, define the cache directory:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cachedir</span> <span class="o">=</span> <span class="s1">&#39;your_cache_location_directory&#39;</span>
+</pre></div>
+</div>
+<p>Then, instanciate a memory context that uses this cache directory:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">joblib</span> <span class="k">import</span> <span class="n">Memory</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">memory</span> <span class="o">=</span> <span class="n">Memory</span><span class="p">(</span><span class="n">cachedir</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>After these initial steps, just decorate a function to cache its output in
+this context:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nd">@memory</span><span class="o">.</span><span class="n">cache</span>
+<span class="gp">... </span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Running f(</span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="n">x</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">return</span> <span class="n">x</span>
+</pre></div>
+</div>
+<p>Calling this function twice with the same argument does not execute it the
+second time, the output is just reloaded from a pickle file in the cache
+directory:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+<span class="go">Running f(1)</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+<span class="go">1</span>
+</pre></div>
+</div>
+<p>However, calling the function with a different parameter executes it and
+recomputes the output:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+<span class="go">Running f(2)</span>
+<span class="go">2</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="comparison-with-memoize">
+<h3>Comparison with <cite>memoize</cite><a class="headerlink" href="#comparison-with-memoize" title="Permalink to this headline">¶</a></h3>
+<p>The <cite>memoize</cite> decorator (<a class="reference external" href="http://code.activestate.com/recipes/52201/">http://code.activestate.com/recipes/52201/</a>)
+caches in memory all the inputs and outputs of a function call. It can
+thus avoid running twice the same function, with a very small
+overhead. However, it compares input objects with those in cache on each
+call. As a result, for big objects there is a huge overhead. Moreover
+this approach does not work with numpy arrays, or other objects subject
+to non-significant fluctuations. Finally, using <cite>memoize</cite> with large
+objects will consume all the memory, where with <cite>Memory</cite>, objects are
+persisted to disk, using a persister optimized for speed and memory
+usage (<a class="reference internal" href="generated/joblib.dump.html#joblib.dump" title="joblib.dump"><code class="xref py py-func docutils literal"><span class="pre">joblib.dump()</span></code></a>).</p>
+<p>In short, <cite>memoize</cite> is best suited for functions with “small” input and
+output objects, whereas <cite>Memory</cite> is best suited for functions with complex
+input and output objects, and aggressive persistence to disk.</p>
+</div>
+</div>
+<div class="section" id="using-with-numpy">
+<h2>Using with <cite>numpy</cite><a class="headerlink" href="#using-with-numpy" title="Permalink to this headline">¶</a></h2>
+<p>The original motivation behind the <cite>Memory</cite> context was to have a
+memoize-like pattern on numpy arrays. <cite>Memory</cite> uses fast cryptographic
+hashing of the input arguments to check if they have been computed;</p>
+<div class="section" id="an-example">
+<h3>An example<a class="headerlink" href="#an-example" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><p>Define two functions: the first with a number as an argument,
+outputting an array, used by the second one. Both functions are decorated
+with <cite>Memory.cache</cite>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="nd">@memory</span><span class="o">.</span><span class="n">cache</span>
+<span class="gp">... </span><span class="k">def</span> <span class="nf">g</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;A long-running calculation, with parameter </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">x</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">hamming</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="nd">@memory</span><span class="o">.</span><span class="n">cache</span>
+<span class="gp">... </span><span class="k">def</span> <span class="nf">h</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;A second long-running calculation, using g(x)&#39;</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">vander</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If the function <cite>h</cite> is called with the array created by the same call to <cite>g</cite>,
+<cite>h</cite> is not re-run:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">a</span> <span class="o">=</span> <span class="n">g</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="go">A long-running calculation, with parameter 3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span>
+<span class="go">array([0.08, 1.  , 0.08])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="go">array([0.08, 1.  , 0.08])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b</span> <span class="o">=</span> <span class="n">h</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+<span class="go">A second long-running calculation, using g(x)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b2</span> <span class="o">=</span> <span class="n">h</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b2</span>
+<span class="go">array([[0.0064, 0.08  , 1.    ],</span>
+<span class="go">       [1.    , 1.    , 1.    ],</span>
+<span class="go">       [0.0064, 0.08  , 1.    ]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">b2</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="using-memmapping">
+<h3>Using memmapping<a class="headerlink" href="#using-memmapping" title="Permalink to this headline">¶</a></h3>
+<p>Memmapping (memory mapping) speeds up cache looking when reloading large numpy
+arrays:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cachedir2</span> <span class="o">=</span> <span class="s1">&#39;your_cachedir2_location&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">memory2</span> <span class="o">=</span> <span class="n">Memory</span><span class="p">(</span><span class="n">cachedir2</span><span class="p">,</span> <span class="n">mmap_mode</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">square</span> <span class="o">=</span> <span class="n">memory2</span><span class="o">.</span><span class="n">cache</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vander</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">square</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+<span class="go">________________________________________________________________________________</span>
+<span class="go">[Memory] Calling square...</span>
+<span class="go">square(array([[0., 0., 1.],</span>
+<span class="go">       [1., 1., 1.],</span>
+<span class="go">       [4., 2., 1.]]))</span>
+<span class="go">___________________________________________________________square - 0.0s, 0.0min</span>
+<span class="go">memmap([[ 0.,  0.,  1.],</span>
+<span class="go">        [ 1.,  1.,  1.],</span>
+<span class="go">        [16.,  4.,  1.]])</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Notice the debug mode used in the above example. It is useful for
+tracing of what is being reexecuted, and where the time is spent.</p>
+</div>
+<p>If the <cite>square</cite> function is called with the same input argument, its
+return value is loaded from the disk using memmapping:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">square</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">res</span><span class="p">))</span>
+<span class="go">memmap([[ 0.,  0.,  1.],</span>
+<span class="go">        [ 1.,  1.,  1.],</span>
+<span class="go">        [16.,  4.,  1.]])</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>The memmap file must be closed to avoid file locking on Windows; closing
+numpy.memmap objects is done with del, which flushes changes to the disk</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">del</span> <span class="n">res</span>
+</pre></div>
+</div>
+</div></blockquote>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>If the memory mapping mode used was ‘r’, as in the above example, the
+array will be read only, and will be impossible to modified in place.</p>
+<p class="last">On the other hand, using ‘r+’ or ‘w+’ will enable modification of the
+array, but will propagate these modification to the disk, which will
+corrupt the cache. If you want modification of the array in memory, we
+suggest you use the ‘c’ mode: copy on write.</p>
+</div>
+</div>
+</div>
+<div class="section" id="shelving-using-references-to-cached-values">
+<h2>Shelving: using references to cached values<a class="headerlink" href="#shelving-using-references-to-cached-values" title="Permalink to this headline">¶</a></h2>
+<p>In some cases, it can be useful to get a reference to the cached
+result, instead of having the result itself. A typical example of this
+is when a lot of large numpy arrays must be dispatched accross several
+workers: instead of sending the data themselves over the network, send
+a reference to the joblib cache, and let the workers read the data
+from a network filesystem, potentially taking advantage of some
+system-level caching too.</p>
+<p>Getting a reference to the cache can be done using the
+<cite>call_and_shelve</cite> method on the wrapped function:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">call_and_shelve</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+<span class="go">A long-running calculation, with parameter 4</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span>  
+<span class="go">MemorizedResult(location=&quot;...&quot;, func=&quot;...g...&quot;, argument_hash=&quot;...&quot;)</span>
+</pre></div>
+</div>
+<p>Once computed, the output of <cite>g</cite> is stored on disk, and deleted from
+memory. Reading the associated value can then be performed with the
+<cite>get</cite> method:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+<span class="go">array([0.08, 0.77, 0.77, 0.08])</span>
+</pre></div>
+</div>
+<p>The cache for this particular value can be cleared using the <cite>clear</cite>
+method. Its invocation causes the stored value to be erased from disk.
+Any subsequent call to <cite>get</cite> will cause a <cite>KeyError</cite> exception to be
+raised:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>  
+<span class="gt">Traceback (most recent call last):</span>
+<span class="c">...</span>
+<span class="gr">KeyError</span>: <span class="n">&#39;Non-existing cache value (may have been cleared).\nFile ... does not exist&#39;</span>
+</pre></div>
+</div>
+<p>A <cite>MemorizedResult</cite> instance contains all that is necessary to read
+the cached value. It can be pickled for transmission or storage, and
+the printed representation can even be copy-pasted to a different
+python interpreter.</p>
+<div class="topic">
+<p class="topic-title first">Shelving when cache is disabled</p>
+<p>In the case where caching is disabled (e.g.
+<cite>Memory(None)</cite>), the <cite>call_and_shelve</cite> method returns a
+<cite>NotMemorizedResult</cite> instance, that stores the full function
+output, instead of just a reference (since there is nothing to
+point to). All the above remains valid though, except for the
+copy-pasting feature.</p>
+</div>
+</div>
+<div class="section" id="gotchas">
+<h2>Gotchas<a class="headerlink" href="#gotchas" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p class="first"><strong>Across sessions, function cache is identified by the function’s name</strong>.
+Thus assigning the same name to different functions, their cache will
+override each-others (e.g. there are ‘name collisions’), and unwanted re-run
+will happen:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nd">@memory</span><span class="o">.</span><span class="n">cache</span>
+<span class="gp">... </span><span class="k">def</span> <span class="nf">func</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Running func(</span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">func2</span> <span class="o">=</span> <span class="n">func</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="nd">@memory</span><span class="o">.</span><span class="n">cache</span>
+<span class="gp">... </span><span class="k">def</span> <span class="nf">func</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Running a different func(</span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>As long as the same session is used, there are no collisions (in joblib
+0.8 and above), altough joblib does warn you that you are doing something
+dangerous:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">func</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="go">Running a different func(1)</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># FIXME: The next line should create a JolibCollisionWarning but does not</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># memory.rst:0: JobLibCollisionWarning: Possible name collisions between functions &#39;func&#39; (&lt;doctest memory.rst&gt;:...) and &#39;func&#39; (&lt;doctest memory.rst&gt;:...)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">func2</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>  
+<span class="go">Running func(1)</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">func</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="c1"># No recomputation so far</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">func2</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="c1"># No recomputation so far</span>
+</pre></div>
+</div>
+<p>But suppose the interpreter is exited and then restarted, the cache will not
+be identified properly, and the functions will be rerun:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># FIXME: The next line will should create a JoblibCollisionWarning but does not. Also it is skipped because it does not produce any output</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># memory.rst:0: JobLibCollisionWarning: Possible name collisions between functions &#39;func&#39; (&lt;doctest memory.rst&gt;:...) and &#39;func&#39; (&lt;doctest memory.rst&gt;:...)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">func</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> 
+<span class="go">Running a different func(1)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">func2</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>  
+<span class="go">Running func(1)</span>
+</pre></div>
+</div>
+<p>As long as the same session is used, there are no needless
+recomputation:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">func</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="c1"># No recomputation now</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">func2</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="c1"># No recomputation now</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><strong>lambda functions</strong></p>
+<p>Beware that with Python 2.7 lambda functions cannot be separated out:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">my_print</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">memory</span><span class="o">.</span><span class="n">cache</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="n">my_print</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span> <span class="o">=</span> <span class="n">memory</span><span class="o">.</span><span class="n">cache</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="n">my_print</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="p">()</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="p">()</span> 
+<span class="go">memory.rst:0: JobLibCollisionWarning: Cannot detect name collisions for function &#39;&lt;lambda&gt;&#39;</span>
+<span class="go">2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="p">()</span> 
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="p">()</span> 
+<span class="go">1</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><strong>memory cannot be used on some complex objects</strong>, e.g. a callable
+object with a <cite>__call__</cite> method.</p>
+<p>However, it works on numpy ufuncs:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">sin</span> <span class="o">=</span> <span class="n">memory</span><span class="o">.</span><span class="n">cache</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">sin</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="go">0.0</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><strong>caching methods: memory is designed for pure functions and it is
+not recommended to use it for methods</strong>. If one wants to use cache
+inside a class the recommended pattern is to cache a pure function
+and use the cached function inside your class, i.e. something like
+this:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@mem</span><span class="o">.</span><span class="n">cache</span>
+<span class="k">def</span> <span class="nf">compute_func</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="n">arg3</span><span class="p">):</span>
+    <span class="c1"># long computation</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<span class="k">class</span> <span class="nc">Foo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">compute_func</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">arg1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">arg2</span><span class="p">,</span> <span class="mi">40</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Using <code class="docutils literal"><span class="pre">Memory</span></code> for methods is not recommended and has some caveats
+that make it very fragile from a maintenance point of view because
+it is very easy to forget about these caveats when a software
+evolves. If this cannot be avoided (we would be interested about
+your use case by the way), here are a few known caveats:</p>
+<ol class="arabic">
+<li><p class="first">a method cannot be decorated at class definition,
+because when the class is instantiated, the first argument (self) is
+<em>bound</em>, and no longer accessible to the <cite>Memory</cite> object. The
+following code won’t work:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="nd">@mem</span><span class="o">.</span><span class="n">cache</span>  <span class="c1"># WRONG</span>
+    <span class="k">def</span> <span class="nf">method</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="k">pass</span>
+</pre></div>
+</div>
+<p>The right way to do this is to decorate at instantiation time:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Foo</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="n">mem</span><span class="o">.</span><span class="n">cache</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">method</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">method</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
+        <span class="k">pass</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">The cached method will have <code class="docutils literal"><span class="pre">self</span></code> as one of its
+arguments. That means that the result will be recomputed if
+anything with <code class="docutils literal"><span class="pre">self</span></code> changes. For example if <code class="docutils literal"><span class="pre">self.attr</span></code> has
+changed calling <code class="docutils literal"><span class="pre">self.method</span></code> will recompute the result even if
+<code class="docutils literal"><span class="pre">self.method</span></code> does not use <code class="docutils literal"><span class="pre">self.attr</span></code> in its body. Another
+example is changing <code class="docutils literal"><span class="pre">self</span></code> inside the body of
+<code class="docutils literal"><span class="pre">self.method</span></code>. The consequence is that <code class="docutils literal"><span class="pre">self.method</span></code> will
+create cache that will not be reused in subsequent calls. To
+alleviate these problems and if you <em>know</em> that the result of
+<code class="docutils literal"><span class="pre">self.method</span></code> does not depend on <code class="docutils literal"><span class="pre">self</span></code> you can use
+<code class="docutils literal"><span class="pre">self.method</span> <span class="pre">=</span> <span class="pre">mem.cache(self.method,</span> <span class="pre">ignore=['self'])</span></code>.</p>
+</li>
+</ol>
+</li>
+</ul>
+</div>
+<div class="section" id="ignoring-some-arguments">
+<h2>Ignoring some arguments<a class="headerlink" href="#ignoring-some-arguments" title="Permalink to this headline">¶</a></h2>
+<p>It may be useful not to recalculate a function when certain arguments
+change, for instance a debug flag. <cite>Memory</cite> provides the <cite>ignore</cite> list:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nd">@memory</span><span class="o">.</span><span class="n">cache</span><span class="p">(</span><span class="n">ignore</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;debug&#39;</span><span class="p">])</span>
+<span class="gp">... </span><span class="k">def</span> <span class="nf">my_func</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Called with x = </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">x</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">my_func</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="go">Called with x = 0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">my_func</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">my_func</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># my_func was not reevaluated</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="reference-documentation-of-the-memory-class">
+<span id="memory-reference"></span><h2>Reference documentation of the <cite>Memory</cite> class<a class="headerlink" href="#reference-documentation-of-the-memory-class" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="joblib.memory.Memory">
+<em class="property">class </em><code class="descclassname">joblib.memory.</code><code class="descname">Memory</code><span class="sig-paren">(</span><em>location=None</em>, <em>backend='local'</em>, <em>cachedir=None</em>, <em>mmap_mode=None</em>, <em>compress=False</em>, <em>verbose=1</em>, <em>bytes_limit=None</em>, <em>backend_options={}</em><span class="sig-paren">)</span><a class="headerlink" href="#joblib.memory.Memory" title="Permalink to this definition">¶</a></dt>
+<dd><p>A context object for caching a function’s return value each time it
+is called with the same input arguments.</p>
+<p>All values are cached on the filesystem, in a deep directory
+structure.</p>
+<p>Read more in the <a class="reference internal" href="#memory"><span class="std std-ref">User Guide</span></a>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first last docutils">
+<dt><strong>location: str or None</strong></dt>
+<dd><p class="first last">The path of the base directory to use as a data store
+or None. If None is given, no caching is done and
+the Memory object is completely transparent. This option
+replaces cachedir since version 0.12.</p>
+</dd>
+<dt><strong>backend: str, optional</strong></dt>
+<dd><p class="first last">Type of store backend for reading/writing cache files.
+Default: ‘local’.
+The ‘local’ backend is using regular filesystem operations to
+manipulate data (open, mv, etc) in the backend.</p>
+</dd>
+<dt><strong>cachedir: str or None, optional</strong></dt>
+<dd></dd>
+<dt><strong>mmap_mode: {None, ‘r+’, ‘r’, ‘w+’, ‘c’}, optional</strong></dt>
+<dd><p class="first last">The memmapping mode used when loading from cache
+numpy arrays. See numpy.load for the meaning of the
+arguments.</p>
+</dd>
+<dt><strong>compress: boolean, or integer, optional</strong></dt>
+<dd><p class="first last">Whether to zip the stored data on disk. If an integer is
+given, it should be between 1 and 9, and sets the amount
+of compression. Note that compressed arrays cannot be
+read by memmapping.</p>
+</dd>
+<dt><strong>verbose: int, optional</strong></dt>
+<dd><p class="first last">Verbosity flag, controls the debug messages that are issued
+as functions are evaluated.</p>
+</dd>
+<dt><strong>bytes_limit: int, optional</strong></dt>
+<dd><p class="first last">Limit in bytes of the size of the cache.</p>
+</dd>
+<dt><strong>backend_options: dict, optional</strong></dt>
+<dd><p class="first last">Contains a dictionnary of named parameters used to configure
+the store backend.</p>
+</dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="joblib.memory.Memory.cache">
+<code class="descname">cache</code><span class="sig-paren">(</span><em>func=None</em>, <em>ignore=None</em>, <em>verbose=None</em>, <em>mmap_mode=False</em><span class="sig-paren">)</span><a class="headerlink" href="#joblib.memory.Memory.cache" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decorates the given function func to only compute its return
+value for input arguments not cached on disk.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
+<dt><strong>func: callable, optional</strong></dt>
+<dd><p class="first last">The function to be decorated</p>
+</dd>
+<dt><strong>ignore: list of strings</strong></dt>
+<dd><p class="first last">A list of arguments name to ignore in the hashing</p>
+</dd>
+<dt><strong>verbose: integer, optional</strong></dt>
+<dd><p class="first last">The verbosity mode of the function. By default that
+of the memory object is used.</p>
+</dd>
+<dt><strong>mmap_mode: {None, ‘r+’, ‘r’, ‘w+’, ‘c’}, optional</strong></dt>
+<dd><p class="first last">The memmapping mode used when loading from cache
+numpy arrays. See numpy.load for the meaning of the
+arguments. By default that of the memory object is used.</p>
+</dd>
+</dl>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
+<dt><strong>decorated_func: MemorizedFunc object</strong></dt>
+<dd><p class="first last">The returned object is a MemorizedFunc object, that is
+callable (behaves like a function), but offers extra
+methods for cache lookup and management. See the
+documentation for <a class="reference internal" href="#joblib.memory.MemorizedFunc" title="joblib.memory.MemorizedFunc"><code class="xref py py-class docutils literal"><span class="pre">joblib.memory.MemorizedFunc</span></code></a>.</p>
+</dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="joblib.memory.Memory.clear">
+<code class="descname">clear</code><span class="sig-paren">(</span><em>warn=True</em><span class="sig-paren">)</span><a class="headerlink" href="#joblib.memory.Memory.clear" title="Permalink to this definition">¶</a></dt>
+<dd><p>Erase the complete cache directory.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="joblib.memory.Memory.eval">
+<code class="descname">eval</code><span class="sig-paren">(</span><em>func</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#joblib.memory.Memory.eval" title="Permalink to this definition">¶</a></dt>
+<dd><p>Eval function func with arguments <cite>*args</cite> and <cite>**kwargs</cite>,
+in the context of the memory.</p>
+<p>This method works similarly to the builtin <cite>apply</cite>, except
+that the function is called only if the cache is not
+up to date.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="useful-methods-of-decorated-functions">
+<h2>Useful methods of decorated functions<a class="headerlink" href="#useful-methods-of-decorated-functions" title="Permalink to this headline">¶</a></h2>
+<p>Function decorated by <a class="reference internal" href="#joblib.memory.Memory.cache" title="joblib.memory.Memory.cache"><code class="xref py py-meth docutils literal"><span class="pre">Memory.cache()</span></code></a> are <a class="reference internal" href="#joblib.memory.MemorizedFunc" title="joblib.memory.MemorizedFunc"><code class="xref py py-class docutils literal"><span class="pre">MemorizedFunc</span></code></a>
+objects that, in addition of behaving like normal functions, expose
+methods useful for cache exploration and management.</p>
+<dl class="class">
+<dt id="joblib.memory.MemorizedFunc">
+<em class="property">class </em><code class="descclassname">joblib.memory.</code><code class="descname">MemorizedFunc</code><span class="sig-paren">(</span><em>func</em>, <em>location</em>, <em>backend='local'</em>, <em>ignore=None</em>, <em>mmap_mode=None</em>, <em>compress=False</em>, <em>verbose=1</em>, <em>timestamp=None</em><span class="sig-paren">)</span><a class="headerlink" href="#joblib.memory.MemorizedFunc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callable object decorating a function for caching its return value
+each time it is called.</p>
+<p>Methods are provided to inspect the cache or clean it.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Attributes:</th><td class="field-body"><dl class="first last docutils">
+<dt><strong>func: callable</strong></dt>
+<dd><p class="first last">The original, undecorated, function.</p>
+</dd>
+<dt><strong>location: string</strong></dt>
+<dd><p class="first last">The location of joblib cache. Depends on the store backend used.</p>
+</dd>
+<dt><strong>backend: str</strong></dt>
+<dd><p class="first last">Type of store backend for reading/writing cache files.
+Default is ‘local’, in which case the location is the path to a
+disk storage.</p>
+</dd>
+<dt><strong>ignore: list or None</strong></dt>
+<dd><p class="first last">List of variable names to ignore when choosing whether to
+recompute.</p>
+</dd>
+<dt><strong>mmap_mode: {None, ‘r+’, ‘r’, ‘w+’, ‘c’}</strong></dt>
+<dd><p class="first last">The memmapping mode used when loading from cache
+numpy arrays. See numpy.load for the meaning of the different
+values.</p>
+</dd>
+<dt><strong>compress: boolean, or integer</strong></dt>
+<dd><p class="first last">Whether to zip the stored data on disk. If an integer is
+given, it should be between 1 and 9, and sets the amount
+of compression. Note that compressed arrays cannot be
+read by memmapping.</p>
+</dd>
+<dt><strong>verbose: int, optional</strong></dt>
+<dd><p class="first last">The verbosity flag, controls messages that are issued as
+the function is evaluated.</p>
+</dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="joblib.memory.MemorizedFunc.call">
+<code class="descname">call</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#joblib.memory.MemorizedFunc.call" title="Permalink to this definition">¶</a></dt>
+<dd><p>Force the execution of the function with the given arguments and
+persist the output values.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="joblib.memory.MemorizedFunc.clear">
+<code class="descname">clear</code><span class="sig-paren">(</span><em>warn=True</em><span class="sig-paren">)</span><a class="headerlink" href="#joblib.memory.MemorizedFunc.clear" title="Permalink to this definition">¶</a></dt>
+<dd><p>Empty the function’s cache.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="index.html">
+    <img class="logo" src="_static/joblib_logo.svg" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="why.html">Why joblib: project goals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installing.html">Installing joblib</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">On demand recomputing: the <cite>Memory</cite> class</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#use-case">Use case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#using-with-numpy">Using with <cite>numpy</cite></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#shelving-using-references-to-cached-values">Shelving: using references to cached values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gotchas">Gotchas</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ignoring-some-arguments">Ignoring some arguments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#reference-documentation-of-the-memory-class">Reference documentation of the <cite>Memory</cite> class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#useful-methods-of-decorated-functions">Useful methods of decorated functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="parallel.html">Embarrassingly parallel for loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="persistence.html">Persistence</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auto_examples/index.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developing.html">Development</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.Memory.html">joblib.Memory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.Parallel.html">joblib.Parallel</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.dump.html">joblib.dump</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.load.html">joblib.load</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.hash.html">joblib.hash</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.register_compressor.html"><code class="docutils literal"><span class="pre">joblib</span></code>.register_compressor</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2008-2018, Joblib developers.
+      
+      |
+      <a href="_sources/memory.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

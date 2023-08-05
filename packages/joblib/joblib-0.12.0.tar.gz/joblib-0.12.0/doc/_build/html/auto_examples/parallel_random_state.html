@@ -1,0 +1,286 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Random state within joblib.Parallel &#8212; joblib 0.11.1.dev0 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.11.1.dev0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Checkpoint using joblib.Memory and joblib.Parallel" href="nested_parallel_memory.html" />
+    <link rel="prev" title="Examples" href="index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Click <a class="reference internal" href="#sphx-glr-download-auto-examples-parallel-random-state-py"><span class="std std-ref">here</span></a> to download the full example code</p>
+</div>
+<div class="sphx-glr-example-title section" id="random-state-within-joblib-parallel">
+<span id="sphx-glr-auto-examples-parallel-random-state-py"></span><h1>Random state within joblib.Parallel<a class="headerlink" href="#random-state-within-joblib-parallel" title="Permalink to this headline">¶</a></h1>
+<p>Randomness is affected by parallel execution differently by the different
+backends.</p>
+<p>In particular, when using multiple processes, the random sequence can be
+the same in all processes. This example illustrates the problem and shows
+how to work around it.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">joblib</span> <span class="kn">import</span> <a href="../generated/joblib.Parallel.html#joblib.Parallel" title="View documentation for joblib.Parallel"><span class="n">Parallel</span></a><span class="p">,</span> <a href="../parallel.html#joblib.delayed" title="View documentation for joblib.delayed"><span class="n">delayed</span></a>
+</pre></div>
+</div>
+<p>A utility function for the example</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">print_vector</span><span class="p">(</span><span class="n">vector</span><span class="p">,</span> <span class="n">backend</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper function to print the generated vector with a given backend.&quot;&quot;&quot;</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">The different generated vectors using the {} backend are:</span><span class="se">\n</span><span class="s1"> {}&#39;</span>
+          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backend</span><span class="p">,</span> <a href="https://docs.scipy.org/doc/numpy/reference/generated/numpy.array.html#numpy.array" title="View documentation for numpy.array"><span class="n">np</span><span class="o">.</span><span class="n">array</span></a><span class="p">(</span><span class="n">vector</span><span class="p">)))</span>
+</pre></div>
+</div>
+<div class="section" id="sequential-behavior">
+<h2>Sequential behavior<a class="headerlink" href="#sequential-behavior" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><code class="docutils literal"><span class="pre">stochastic_function</span></code> will generate five random integers. When
+calling the function several times, we are expecting to obtain
+different vectors. For instance, we will call the function five times
+in a sequential manner, we can check that the generated vectors are all
+different.</div></blockquote>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">stochastic_function</span><span class="p">(</span><span class="n">max_value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Randomly generate integer up to a maximum value.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <a href="https://docs.scipy.org/doc/numpy/reference/generated/numpy.random.randint.html#numpy.random.randint" title="View documentation for numpy.random.randint"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span></a><span class="p">(</span><span class="n">max_value</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+
+
+<span class="n">n_vectors</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">random_vector</span> <span class="o">=</span> <span class="p">[</span><span class="n">stochastic_function</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_vectors</span><span class="p">)]</span>
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">The different generated vectors in a sequential manner are:</span><span class="se">\n</span><span class="s1"> {}&#39;</span>
+      <span class="o">.</span><span class="n">format</span><span class="p">(</span><a href="https://docs.scipy.org/doc/numpy/reference/generated/numpy.array.html#numpy.array" title="View documentation for numpy.array"><span class="n">np</span><span class="o">.</span><span class="n">array</span></a><span class="p">(</span><span class="n">random_vector</span><span class="p">)))</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>The different generated vectors in a sequential manner are:
+ [[1 7 0 6 8]
+ [8 4 4 9 9]
+ [6 4 7 0 9]
+ [6 3 2 9 0]
+ [5 7 1 0 4]]
+</pre></div>
+</div>
+</div>
+<div class="section" id="parallel-behavior">
+<h2>Parallel behavior<a class="headerlink" href="#parallel-behavior" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div>Joblib provides three different backend: loky (default), threading, and
+multiprocessing.</div></blockquote>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">backend</span> <span class="o">=</span> <span class="s1">&#39;loky&#39;</span>
+<span class="n">random_vector</span> <span class="o">=</span> <a href="../generated/joblib.Parallel.html#joblib.Parallel" title="View documentation for joblib.Parallel"><span class="n">Parallel</span></a><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)(</span><a href="../parallel.html#joblib.delayed" title="View documentation for joblib.delayed"><span class="n">delayed</span></a><span class="p">(</span>
+    <span class="n">stochastic_function</span><span class="p">)(</span><span class="mi">10</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_vectors</span><span class="p">))</span>
+<span class="n">print_vector</span><span class="p">(</span><span class="n">random_vector</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>The different generated vectors using the loky backend are:
+ [[2 4 3 5 6]
+ [0 0 2 7 0]
+ [4 4 8 7 8]
+ [2 3 6 1 7]
+ [1 8 4 1 6]]
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">backend</span> <span class="o">=</span> <span class="s1">&#39;threading&#39;</span>
+<span class="n">random_vector</span> <span class="o">=</span> <a href="../generated/joblib.Parallel.html#joblib.Parallel" title="View documentation for joblib.Parallel"><span class="n">Parallel</span></a><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)(</span><a href="../parallel.html#joblib.delayed" title="View documentation for joblib.delayed"><span class="n">delayed</span></a><span class="p">(</span>
+    <span class="n">stochastic_function</span><span class="p">)(</span><span class="mi">10</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_vectors</span><span class="p">))</span>
+<span class="n">print_vector</span><span class="p">(</span><span class="n">random_vector</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>The different generated vectors using the threading backend are:
+ [[7 5 3 0 4]
+ [3 3 9 4 8]
+ [7 6 8 9 0]
+ [5 1 2 2 0]
+ [2 1 7 6 0]]
+</pre></div>
+</div>
+<p>Loky and the threading backends behave exactly as in the sequential case and
+do not require more care. However, this is not the case regarding the
+multiprocessing backend.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">backend</span> <span class="o">=</span> <span class="s1">&#39;multiprocessing&#39;</span>
+<span class="n">random_vector</span> <span class="o">=</span> <a href="../generated/joblib.Parallel.html#joblib.Parallel" title="View documentation for joblib.Parallel"><span class="n">Parallel</span></a><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)(</span><a href="../parallel.html#joblib.delayed" title="View documentation for joblib.delayed"><span class="n">delayed</span></a><span class="p">(</span>
+    <span class="n">stochastic_function</span><span class="p">)(</span><span class="mi">10</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_vectors</span><span class="p">))</span>
+<span class="n">print_vector</span><span class="p">(</span><span class="n">random_vector</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>The different generated vectors using the multiprocessing backend are:
+ [[7 8 2 7 3]
+ [7 8 2 7 3]
+ [5 3 8 9 8]
+ [6 2 3 9 5]
+ [5 3 8 9 8]]
+</pre></div>
+</div>
+<p>Some of the generated vectors are exactly the same, which can be a
+problem for the application.</p>
+<p>Technically, the reason is that all forked Python processes share the
+same exact random seed. As a results, we obtain twice the same randomly
+generated vectors because we are using <code class="docutils literal"><span class="pre">n_jobs=2</span></code>. A solution is to
+set the random state within the function which is passed to
+<a class="reference internal" href="../generated/joblib.Parallel.html#joblib.Parallel" title="joblib.Parallel"><code class="xref py py-class docutils literal"><span class="pre">joblib.Parallel</span></code></a>.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">stochastic_function_seeded</span><span class="p">(</span><span class="n">max_value</span><span class="p">,</span> <span class="n">random_state</span><span class="p">):</span>
+    <span class="n">rng</span> <span class="o">=</span> <a href="https://docs.scipy.org/doc/numpy/reference/generated/numpy.random.RandomState.html#numpy.random.RandomState" title="View documentation for numpy.random.RandomState"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span></a><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">rng</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="n">max_value</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">stochastic_function_seeded</span></code> accepts as argument a random seed. We can
+reset this seed by passing <code class="docutils literal"><span class="pre">None</span></code> at every function call. In this case, we
+see that the generated vectors are all different.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">random_vector</span> <span class="o">=</span> <a href="../generated/joblib.Parallel.html#joblib.Parallel" title="View documentation for joblib.Parallel"><span class="n">Parallel</span></a><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)(</span><a href="../parallel.html#joblib.delayed" title="View documentation for joblib.delayed"><span class="n">delayed</span></a><span class="p">(</span>
+    <span class="n">stochastic_function_seeded</span><span class="p">)(</span><span class="mi">10</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_vectors</span><span class="p">))</span>
+<span class="n">print_vector</span><span class="p">(</span><span class="n">random_vector</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>The different generated vectors using the multiprocessing backend are:
+ [[3 5 7 6 4]
+ [3 7 5 6 6]
+ [7 3 5 5 2]
+ [8 4 3 4 7]
+ [0 4 0 6 1]]
+</pre></div>
+</div>
+</div>
+<div class="section" id="fixing-the-random-state-to-obtain-deterministic-results">
+<h2>Fixing the random state to obtain deterministic results<a class="headerlink" href="#fixing-the-random-state-to-obtain-deterministic-results" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div>The pattern of <code class="docutils literal"><span class="pre">stochastic_function_seeded</span></code> has another advantage: it
+allows to control the random_state by passing a known seed. So for instance,
+we can replicate the same generation of vectors by passing a fixed state as
+follows.</div></blockquote>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">random_state</span> <span class="o">=</span> <a href="https://docs.scipy.org/doc/numpy/reference/generated/numpy.random.randint.html#numpy.random.randint" title="View documentation for numpy.random.randint"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span></a><span class="p">(</span><a href="https://docs.scipy.org/doc/numpy/reference/generated/numpy.iinfo.html#numpy.iinfo" title="View documentation for numpy.iinfo"><span class="n">np</span><span class="o">.</span><span class="n">iinfo</span></a><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n_vectors</span><span class="p">)</span>
+
+<span class="n">random_vector</span> <span class="o">=</span> <a href="../generated/joblib.Parallel.html#joblib.Parallel" title="View documentation for joblib.Parallel"><span class="n">Parallel</span></a><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)(</span><a href="../parallel.html#joblib.delayed" title="View documentation for joblib.delayed"><span class="n">delayed</span></a><span class="p">(</span>
+    <span class="n">stochastic_function_seeded</span><span class="p">)(</span><span class="mi">10</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span> <span class="k">for</span> <span class="n">rng</span> <span class="ow">in</span> <span class="n">random_state</span><span class="p">)</span>
+<span class="n">print_vector</span><span class="p">(</span><span class="n">random_vector</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span>
+
+<span class="n">random_vector</span> <span class="o">=</span> <a href="../generated/joblib.Parallel.html#joblib.Parallel" title="View documentation for joblib.Parallel"><span class="n">Parallel</span></a><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="n">backend</span><span class="p">)(</span><a href="../parallel.html#joblib.delayed" title="View documentation for joblib.delayed"><span class="n">delayed</span></a><span class="p">(</span>
+    <span class="n">stochastic_function_seeded</span><span class="p">)(</span><span class="mi">10</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span> <span class="k">for</span> <span class="n">rng</span> <span class="ow">in</span> <span class="n">random_state</span><span class="p">)</span>
+<span class="n">print_vector</span><span class="p">(</span><span class="n">random_vector</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>The different generated vectors using the multiprocessing backend are:
+ [[1 5 9 0 1]
+ [2 3 2 8 8]
+ [1 3 6 7 2]
+ [7 6 8 1 4]
+ [3 0 2 1 0]]
+
+The different generated vectors using the multiprocessing backend are:
+ [[1 5 9 0 1]
+ [2 3 2 8 8]
+ [1 3 6 7 2]
+ [7 6 8 1 4]
+ [3 0 2 1 0]]
+</pre></div>
+</div>
+<p><strong>Total running time of the script:</strong> ( 0 minutes  1.286 seconds)</p>
+<div class="sphx-glr-footer class sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-parallel-random-state-py">
+<div class="sphx-glr-download docutils container">
+<a class="reference download internal" href="../_downloads/parallel_random_state.py" download=""><code class="xref download docutils literal"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">parallel_random_state.py</span></code></a></div>
+<div class="sphx-glr-download docutils container">
+<a class="reference download internal" href="../_downloads/parallel_random_state.ipynb" download=""><code class="xref download docutils literal"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">parallel_random_state.ipynb</span></code></a></div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.readthedocs.io">Gallery generated by Sphinx-Gallery</a></p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="../index.html">
+    <img class="logo" src="../_static/joblib_logo.svg" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../why.html">Why joblib: project goals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installing.html">Installing joblib</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../memory.html">On demand recomputing: the <cite>Memory</cite> class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel.html">Embarrassingly parallel for loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../persistence.html">Persistence</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Examples</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#id1">General examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#parallel-examples">Parallel examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../developing.html">Development</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.Memory.html">joblib.Memory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.Parallel.html">joblib.Parallel</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.dump.html">joblib.dump</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.load.html">joblib.load</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.hash.html">joblib.hash</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.register_compressor.html"><code class="docutils literal"><span class="pre">joblib</span></code>.register_compressor</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2008-2018, Joblib developers.
+      
+      |
+      <a href="../_sources/auto_examples/parallel_random_state.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

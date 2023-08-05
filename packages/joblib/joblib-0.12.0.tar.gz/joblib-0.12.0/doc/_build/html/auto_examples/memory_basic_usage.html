@@ -1,0 +1,284 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>How to use joblib.Memory &#8212; joblib 0.11.1.dev0 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.11.1.dev0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="NumPy memmap in joblib.Parallel" href="parallel_memmap.html" />
+    <link rel="prev" title="Checkpoint using joblib.Memory and joblib.Parallel" href="nested_parallel_memory.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Click <a class="reference internal" href="#sphx-glr-download-auto-examples-memory-basic-usage-py"><span class="std std-ref">here</span></a> to download the full example code</p>
+</div>
+<div class="sphx-glr-example-title section" id="how-to-use-joblib-memory">
+<span id="sphx-glr-auto-examples-memory-basic-usage-py"></span><h1>How to use joblib.Memory<a class="headerlink" href="#how-to-use-joblib-memory" title="Permalink to this headline">¶</a></h1>
+<p>This example illustrates the usage of <a class="reference internal" href="../generated/joblib.Memory.html#joblib.Memory" title="joblib.Memory"><code class="xref py py-class docutils literal"><span class="pre">joblib.Memory</span></code></a> with both
+functions and methods.</p>
+<div class="section" id="without-joblib-memory">
+<h2>Without <a class="reference internal" href="../generated/joblib.Memory.html#joblib.Memory" title="joblib.Memory"><code class="xref py py-class docutils literal"><span class="pre">joblib.Memory</span></code></a><a class="headerlink" href="#without-joblib-memory" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><code class="docutils literal"><span class="pre">costly_compute</span></code> emulates a computationally expensive process which later
+will benefit from caching using <a class="reference internal" href="../generated/joblib.Memory.html#joblib.Memory" title="joblib.Memory"><code class="xref py py-class docutils literal"><span class="pre">joblib.Memory</span></code></a>.</div></blockquote>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+
+<span class="k">def</span> <span class="nf">costly_compute</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">column_index</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Simulate an expensive computation&quot;&quot;&quot;</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="n">column_index</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Be sure to set the random seed to generate deterministic data. Indeed, if the
+data is not deterministic, the <a class="reference internal" href="../generated/joblib.Memory.html#joblib.Memory" title="joblib.Memory"><code class="xref py py-class docutils literal"><span class="pre">joblib.Memory</span></code></a> instance will not be
+able to reuse the cache from one run to another.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">rng</span> <span class="o">=</span> <a href="https://docs.scipy.org/doc/numpy/reference/generated/numpy.random.RandomState.html#numpy.random.RandomState" title="View documentation for numpy.random.RandomState"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span></a><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="mf">1e5</span><span class="p">),</span> <span class="mi">10</span><span class="p">)</span>
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">data_trans</span> <span class="o">=</span> <span class="n">costly_compute</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="n">end</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">The function took {:.2f} s to compute.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">))</span>
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">The transformed data are:</span><span class="se">\n</span><span class="s1"> {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data_trans</span><span class="p">))</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>The function took 5.01 s to compute.
+
+The transformed data are:
+ [ 0.49671415 -0.1382643   0.64768854  1.52302986 -0.23415337 -0.23413696
+  1.57921282  0.76743473 -0.46947439  0.54256004]
+</pre></div>
+</div>
+</div>
+<div class="section" id="caching-the-result-of-a-function-to-avoid-recomputing">
+<h2>Caching the result of a function to avoid recomputing<a class="headerlink" href="#caching-the-result-of-a-function-to-avoid-recomputing" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div>If we need to call our function several time with the same input data, it is
+beneficial to avoid recomputing the same results over and over since it is
+expensive. <a class="reference internal" href="../generated/joblib.Memory.html#joblib.Memory" title="joblib.Memory"><code class="xref py py-class docutils literal"><span class="pre">joblib.Memory</span></code></a> enables to cache results from a function
+into a specific location.</div></blockquote>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">joblib</span> <span class="kn">import</span> <a href="../generated/joblib.Memory.html#joblib.Memory" title="View documentation for joblib.Memory"><span class="n">Memory</span></a>
+<span class="n">location</span> <span class="o">=</span> <span class="s1">&#39;./cachedir&#39;</span>
+<span class="n">memory</span> <span class="o">=</span> <a href="../generated/joblib.Memory.html#joblib.Memory" title="View documentation for joblib.Memory"><span class="n">Memory</span></a><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">costly_compute_cached</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">column_index</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Simulate an expensive computation&quot;&quot;&quot;</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="n">column_index</span><span class="p">]</span>
+
+
+<span class="n">costly_compute_cached</span> <span class="o">=</span> <span class="n">memory</span><span class="o">.</span><span class="n">cache</span><span class="p">(</span><span class="n">costly_compute_cached</span><span class="p">)</span>
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">data_trans</span> <span class="o">=</span> <span class="n">costly_compute_cached</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="n">end</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">The function took {:.2f} s to compute.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">))</span>
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">The transformed data are:</span><span class="se">\n</span><span class="s1"> {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data_trans</span><span class="p">))</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>The function took 5.08 s to compute.
+
+The transformed data are:
+ [ 0.49671415 -0.1382643   0.64768854  1.52302986 -0.23415337 -0.23413696
+  1.57921282  0.76743473 -0.46947439  0.54256004]
+</pre></div>
+</div>
+<p>At the first call, the results will be cached. Therefore, the computation
+time corresponds to the time to compute the results plus the time to dump the
+results into the disk.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">data_trans</span> <span class="o">=</span> <span class="n">costly_compute_cached</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="n">end</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">The function took {:.2f} s to compute.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">))</span>
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">The transformed data are:</span><span class="se">\n</span><span class="s1"> {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data_trans</span><span class="p">))</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>The function took 0.02 s to compute.
+
+The transformed data are:
+ [ 0.49671415 -0.1382643   0.64768854  1.52302986 -0.23415337 -0.23413696
+  1.57921282  0.76743473 -0.46947439  0.54256004]
+</pre></div>
+</div>
+<p>At the second call, the computation time is largely reduced since the results
+are obtained by loading the data previously dumped to the disk instead of
+recomputing the results.</p>
+</div>
+<div class="section" id="using-joblib-memory-with-a-method">
+<h2>Using <a class="reference internal" href="../generated/joblib.Memory.html#joblib.Memory" title="joblib.Memory"><code class="xref py py-class docutils literal"><span class="pre">joblib.Memory</span></code></a> with a method<a class="headerlink" href="#using-joblib-memory-with-a-method" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><a class="reference internal" href="../generated/joblib.Memory.html#joblib.Memory" title="joblib.Memory"><code class="xref py py-class docutils literal"><span class="pre">joblib.Memory</span></code></a> is designed to work with functions with no side
+effects. When dealing with class, the computationally expensive part of a
+method has to be moved to a function and decorated in the class method.</div></blockquote>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">_costly_compute_cached</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="n">column</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">Algorithm</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A class which is using the previous function.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">column</span> <span class="o">=</span> <span class="n">column</span>
+
+    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">costly_compute</span> <span class="o">=</span> <span class="n">memory</span><span class="o">.</span><span class="n">cache</span><span class="p">(</span><span class="n">_costly_compute_cached</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">costly_compute</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">column</span><span class="p">)</span>
+
+
+<span class="n">transformer</span> <span class="o">=</span> <span class="n">Algorithm</span><span class="p">()</span>
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">data_trans</span> <span class="o">=</span> <span class="n">transformer</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="n">end</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">The function took {:.2f} s to compute.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">))</span>
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">The transformed data are:</span><span class="se">\n</span><span class="s1"> {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data_trans</span><span class="p">))</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>The function took 5.05 s to compute.
+
+The transformed data are:
+ [ 0.49671415 -0.1382643   0.64768854  1.52302986 -0.23415337 -0.23413696
+  1.57921282  0.76743473 -0.46947439  0.54256004]
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">data_trans</span> <span class="o">=</span> <span class="n">transformer</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="n">end</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">The function took {:.2f} s to compute.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">))</span>
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">The transformed data are:</span><span class="se">\n</span><span class="s1"> {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data_trans</span><span class="p">))</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>The function took 0.02 s to compute.
+
+The transformed data are:
+ [ 0.49671415 -0.1382643   0.64768854  1.52302986 -0.23415337 -0.23413696
+  1.57921282  0.76743473 -0.46947439  0.54256004]
+</pre></div>
+</div>
+<p>As expected, the second call to the <code class="docutils literal"><span class="pre">transform</span></code> method load the results
+which have been cached.</p>
+</div>
+<div class="section" id="clean-up-cache-directory">
+<h2>Clean up cache directory<a class="headerlink" href="#clean-up-cache-directory" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">memory</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="n">warn</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Total running time of the script:</strong> ( 0 minutes  15.225 seconds)</p>
+<div class="sphx-glr-footer class sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-memory-basic-usage-py">
+<div class="sphx-glr-download docutils container">
+<a class="reference download internal" href="../_downloads/memory_basic_usage.py" download=""><code class="xref download docutils literal"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">memory_basic_usage.py</span></code></a></div>
+<div class="sphx-glr-download docutils container">
+<a class="reference download internal" href="../_downloads/memory_basic_usage.ipynb" download=""><code class="xref download docutils literal"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">memory_basic_usage.ipynb</span></code></a></div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.readthedocs.io">Gallery generated by Sphinx-Gallery</a></p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="../index.html">
+    <img class="logo" src="../_static/joblib_logo.svg" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../why.html">Why joblib: project goals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installing.html">Installing joblib</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../memory.html">On demand recomputing: the <cite>Memory</cite> class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel.html">Embarrassingly parallel for loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../persistence.html">Persistence</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Examples</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#id1">General examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#parallel-examples">Parallel examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../developing.html">Development</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.Memory.html">joblib.Memory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.Parallel.html">joblib.Parallel</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.dump.html">joblib.dump</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.load.html">joblib.load</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.hash.html">joblib.hash</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.register_compressor.html"><code class="docutils literal"><span class="pre">joblib</span></code>.register_compressor</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2008-2018, Joblib developers.
+      
+      |
+      <a href="../_sources/auto_examples/memory_basic_usage.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

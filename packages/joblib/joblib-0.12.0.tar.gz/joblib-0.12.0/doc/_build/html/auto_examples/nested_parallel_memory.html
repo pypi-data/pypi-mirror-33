@@ -1,0 +1,264 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Checkpoint using joblib.Memory and joblib.Parallel &#8212; joblib 0.11.1.dev0 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.11.1.dev0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="How to use joblib.Memory" href="memory_basic_usage.html" />
+    <link rel="prev" title="Random state within joblib.Parallel" href="parallel_random_state.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Click <a class="reference internal" href="#sphx-glr-download-auto-examples-nested-parallel-memory-py"><span class="std std-ref">here</span></a> to download the full example code</p>
+</div>
+<div class="sphx-glr-example-title section" id="checkpoint-using-joblib-memory-and-joblib-parallel">
+<span id="sphx-glr-auto-examples-nested-parallel-memory-py"></span><h1>Checkpoint using joblib.Memory and joblib.Parallel<a class="headerlink" href="#checkpoint-using-joblib-memory-and-joblib-parallel" title="Permalink to this headline">¶</a></h1>
+<p>This example illustrates how to cache intermediate computing results using
+<a class="reference internal" href="../generated/joblib.Memory.html#joblib.Memory" title="joblib.Memory"><code class="xref py py-class docutils literal"><span class="pre">joblib.Memory</span></code></a> within <a class="reference internal" href="../generated/joblib.Parallel.html#joblib.Parallel" title="joblib.Parallel"><code class="xref py py-class docutils literal"><span class="pre">joblib.Parallel</span></code></a>.</p>
+<div class="section" id="embed-caching-within-parallel-processing">
+<h2>Embed caching within parallel processing<a class="headerlink" href="#embed-caching-within-parallel-processing" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div>It is possible to cache a computationally expensive function executed during
+a parallel process. <code class="docutils literal"><span class="pre">costly_compute</span></code> emulates such time consuming function.</div></blockquote>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">time</span>
+
+
+<span class="k">def</span> <span class="nf">costly_compute</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Emulate a costly function by sleeping and returning a column.&quot;&quot;&quot;</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="n">column</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">data_processing_mean</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the mean of a column.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">costly_compute</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">column</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Create some data. The random seed is fixed to generate deterministic data
+across Python session. Note that this is not necessary for this specific
+example since the memory cache is cleared at the end of the session.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="n">rng</span> <span class="o">=</span> <a href="https://docs.scipy.org/doc/numpy/reference/generated/numpy.random.RandomState.html#numpy.random.RandomState" title="View documentation for numpy.random.RandomState"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span></a><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="mf">1e4</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>It is first possible to make the processing without caching or parallel
+processing.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">data_processing_mean</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span>
+<span class="n">stop</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Sequential processing&#39;</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;Elapsed time for the entire processing: {:.2f} s&#39;</span>
+      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">stop</span> <span class="o">-</span> <span class="n">start</span><span class="p">))</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>Sequential processing
+Elapsed time for the entire processing: 8.01 s
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">costly_compute</span></code> is expensive to compute and it is used as an intermediate
+step in <code class="docutils literal"><span class="pre">data_processing_mean</span></code>. Therefore, it is interesting to store the
+intermediate results from <code class="docutils literal"><span class="pre">costly_compute</span></code> using <a class="reference internal" href="../generated/joblib.Memory.html#joblib.Memory" title="joblib.Memory"><code class="xref py py-class docutils literal"><span class="pre">joblib.Memory</span></code></a>.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">joblib</span> <span class="kn">import</span> <a href="../generated/joblib.Memory.html#joblib.Memory" title="View documentation for joblib.Memory"><span class="n">Memory</span></a>
+
+<span class="n">location</span> <span class="o">=</span> <span class="s1">&#39;./cachedir&#39;</span>
+<span class="n">memory</span> <span class="o">=</span> <a href="../generated/joblib.Memory.html#joblib.Memory" title="View documentation for joblib.Memory"><span class="n">Memory</span></a><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">costly_compute_cached</span> <span class="o">=</span> <span class="n">memory</span><span class="o">.</span><span class="n">cache</span><span class="p">(</span><span class="n">costly_compute</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Now, we define <code class="docutils literal"><span class="pre">data_processing_mean_using_cache</span></code> which benefits from the
+cache by calling <code class="docutils literal"><span class="pre">costly_compute_cached</span></code></p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">data_processing_mean_using_cache</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the mean of a column.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">costly_compute_cached</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">column</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Then, we execute the same processing in parallel and caching the intermediate
+results.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">joblib</span> <span class="kn">import</span> <a href="../generated/joblib.Parallel.html#joblib.Parallel" title="View documentation for joblib.Parallel"><span class="n">Parallel</span></a><span class="p">,</span> <a href="../parallel.html#joblib.delayed" title="View documentation for joblib.delayed"><span class="n">delayed</span></a>
+
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">results</span> <span class="o">=</span> <a href="../generated/joblib.Parallel.html#joblib.Parallel" title="View documentation for joblib.Parallel"><span class="n">Parallel</span></a><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">2</span><span class="p">)(</span>
+    <a href="../parallel.html#joblib.delayed" title="View documentation for joblib.delayed"><span class="n">delayed</span></a><span class="p">(</span><span class="n">data_processing_mean_using_cache</span><span class="p">)(</span><span class="n">data</span><span class="p">,</span> <span class="n">col</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+<span class="n">stop</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">First round - caching the data&#39;</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;Elapsed time for the entire processing: {:.2f} s&#39;</span>
+      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">stop</span> <span class="o">-</span> <span class="n">start</span><span class="p">))</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>First round - caching the data
+Elapsed time for the entire processing: 4.06 s
+</pre></div>
+</div>
+<p>By using 2 workers, the parallel processing gives a x2 speed-up compared to
+the sequential case. By executing again the same process, the intermediate
+results obtained by calling <code class="docutils literal"><span class="pre">costly_compute_cached</span></code> will be loaded from the
+cache instead of executing the function.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">results</span> <span class="o">=</span> <a href="../generated/joblib.Parallel.html#joblib.Parallel" title="View documentation for joblib.Parallel"><span class="n">Parallel</span></a><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">2</span><span class="p">)(</span>
+    <a href="../parallel.html#joblib.delayed" title="View documentation for joblib.delayed"><span class="n">delayed</span></a><span class="p">(</span><span class="n">data_processing_mean_using_cache</span><span class="p">)(</span><span class="n">data</span><span class="p">,</span> <span class="n">col</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+<span class="n">stop</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Second round - reloading from the cache&#39;</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;Elapsed time for the entire processing: {:.2f} s&#39;</span>
+      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">stop</span> <span class="o">-</span> <span class="n">start</span><span class="p">))</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>Second round - reloading from the cache
+Elapsed time for the entire processing: 0.01 s
+</pre></div>
+</div>
+</div>
+<div class="section" id="reuse-intermediate-checkpoints">
+<h2>Reuse intermediate checkpoints<a class="headerlink" href="#reuse-intermediate-checkpoints" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div>Having cached the intermediate results of the <code class="docutils literal"><span class="pre">costly_compute_cached</span></code>
+function, they are reusable by calling the function. We define a new
+processing which will take the maximum of the array returned by
+<code class="docutils literal"><span class="pre">costly_compute_cached</span></code> instead of previously the mean.</div></blockquote>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">data_processing_max_using_cache</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute the max of a column.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">costly_compute_cached</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">column</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+
+
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">results</span> <span class="o">=</span> <a href="../generated/joblib.Parallel.html#joblib.Parallel" title="View documentation for joblib.Parallel"><span class="n">Parallel</span></a><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">2</span><span class="p">)(</span>
+    <a href="../parallel.html#joblib.delayed" title="View documentation for joblib.delayed"><span class="n">delayed</span></a><span class="p">(</span><span class="n">data_processing_max_using_cache</span><span class="p">)(</span><span class="n">data</span><span class="p">,</span> <span class="n">col</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+<span class="n">stop</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Reusing intermediate checkpoints&#39;</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="s1">&#39;Elapsed time for the entire processing: {:.2f} s&#39;</span>
+      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">stop</span> <span class="o">-</span> <span class="n">start</span><span class="p">))</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>Reusing intermediate checkpoints
+Elapsed time for the entire processing: 0.01 s
+</pre></div>
+</div>
+<p>The processing time only corresponds to the execution of the <code class="docutils literal"><span class="pre">max</span></code>
+function. The internal call to <code class="docutils literal"><span class="pre">costly_compute_cached</span></code> is reloading the
+results from the cache.</p>
+</div>
+<div class="section" id="clean-up-the-cache-folder">
+<h2>Clean-up the cache folder<a class="headerlink" href="#clean-up-the-cache-folder" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">memory</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="n">warn</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Total running time of the script:</strong> ( 0 minutes  12.094 seconds)</p>
+<div class="sphx-glr-footer class sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-nested-parallel-memory-py">
+<div class="sphx-glr-download docutils container">
+<a class="reference download internal" href="../_downloads/nested_parallel_memory.py" download=""><code class="xref download docutils literal"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">nested_parallel_memory.py</span></code></a></div>
+<div class="sphx-glr-download docutils container">
+<a class="reference download internal" href="../_downloads/nested_parallel_memory.ipynb" download=""><code class="xref download docutils literal"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">nested_parallel_memory.ipynb</span></code></a></div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.readthedocs.io">Gallery generated by Sphinx-Gallery</a></p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="../index.html">
+    <img class="logo" src="../_static/joblib_logo.svg" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../why.html">Why joblib: project goals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installing.html">Installing joblib</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../memory.html">On demand recomputing: the <cite>Memory</cite> class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel.html">Embarrassingly parallel for loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../persistence.html">Persistence</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Examples</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#id1">General examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#parallel-examples">Parallel examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../developing.html">Development</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.Memory.html">joblib.Memory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.Parallel.html">joblib.Parallel</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.dump.html">joblib.dump</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.load.html">joblib.load</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.hash.html">joblib.hash</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.register_compressor.html"><code class="docutils literal"><span class="pre">joblib</span></code>.register_compressor</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2008-2018, Joblib developers.
+      
+      |
+      <a href="../_sources/auto_examples/nested_parallel_memory.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

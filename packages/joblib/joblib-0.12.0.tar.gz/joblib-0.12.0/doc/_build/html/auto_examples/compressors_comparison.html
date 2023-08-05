@@ -1,0 +1,381 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Improving I/O using compressors &#8212; joblib 0.11.1.dev0 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.11.1.dev0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Using dask distributed for single-machine parallel computing" href="parallel/distributed_backend_simple.html" />
+    <link rel="prev" title="NumPy memmap in joblib.Parallel" href="parallel_memmap.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Click <a class="reference internal" href="#sphx-glr-download-auto-examples-compressors-comparison-py"><span class="std std-ref">here</span></a> to download the full example code</p>
+</div>
+<div class="sphx-glr-example-title section" id="improving-i-o-using-compressors">
+<span id="sphx-glr-auto-examples-compressors-comparison-py"></span><h1>Improving I/O using compressors<a class="headerlink" href="#improving-i-o-using-compressors" title="Permalink to this headline">¶</a></h1>
+<p>This example compares the compressors available in Joblib. In the example,
+Zlib, LZMA and LZ4 compression only are used but Joblib also supports BZ2 and
+GZip compression methods.
+For each compared compression method, this example dumps and reloads a
+dataset fetched from an online machine-learning database. This gives 3
+informations: the size on disk of the compressed data, the time spent to dump
+and the time spent to reload the data from disk.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">os.path</span>
+<span class="kn">import</span> <span class="nn">time</span>
+</pre></div>
+</div>
+<div class="section" id="get-some-data-from-real-world-use-cases">
+<h2>Get some data from real-world use cases<a class="headerlink" href="#get-some-data-from-real-world-use-cases" title="Permalink to this headline">¶</a></h2>
+<p>First fetch the benchmark dataset from an online machine-learning database
+and load it in a pandas dataframe.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pandas</span> <span class="kn">as</span> <span class="nn">pd</span>
+
+<span class="n">url</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;https://archive.ics.uci.edu/ml/machine-learning-databases/&quot;</span>
+       <span class="s2">&quot;kddcup99-mld/kddcup.data.gz&quot;</span><span class="p">)</span>
+<span class="n">names</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;duration, protocol_type, service, flag, src_bytes, &quot;</span>
+         <span class="s2">&quot;dst_bytes, land, wrong_fragment, urgent, hot, &quot;</span>
+         <span class="s2">&quot;num_failed_logins, logged_in, num_compromised, &quot;</span>
+         <span class="s2">&quot;root_shell, su_attempted, num_root, &quot;</span>
+         <span class="s2">&quot;num_file_creations, &quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="p">)</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="n">names</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="dump-and-load-the-dataset-without-compression">
+<h2>Dump and load the dataset without compression<a class="headerlink" href="#dump-and-load-the-dataset-without-compression" title="Permalink to this headline">¶</a></h2>
+<p>This gives reference values for later comparison.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">joblib</span> <span class="kn">import</span> <a href="../generated/joblib.dump.html#joblib.dump" title="View documentation for joblib.dump"><span class="n">dump</span></a><span class="p">,</span> <a href="../generated/joblib.load.html#joblib.load" title="View documentation for joblib.load"><span class="n">load</span></a>
+
+<span class="n">pickle_file</span> <span class="o">=</span> <span class="s1">&#39;./pickle_data.joblib&#39;</span>
+</pre></div>
+</div>
+<p>Start by measuring the time spent for dumping the raw data:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pickle_file</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <a href="../generated/joblib.dump.html#joblib.dump" title="View documentation for joblib.dump"><span class="n">dump</span></a><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+<span class="n">raw_dump_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">&quot;Raw dump duration: </span><span class="si">%0.3f</span><span class="s2">s&quot;</span> <span class="o">%</span> <span class="n">raw_dump_duration</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>Raw dump duration: 3.734s
+</pre></div>
+</div>
+<p>Then measure the size of the raw dumped data on disk:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">raw_file_size</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">pickle_file</span><span class="p">)</span><span class="o">.</span><span class="n">st_size</span> <span class="o">/</span> <span class="mf">1e6</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">&quot;Raw dump file size: </span><span class="si">%0.1f</span><span class="s2">MB&quot;</span> <span class="o">%</span> <span class="n">raw_file_size</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>Raw dump file size: 1509.3MB
+</pre></div>
+</div>
+<p>Finally measure the time spent for loading the raw data:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pickle_file</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <a href="../generated/joblib.load.html#joblib.load" title="View documentation for joblib.load"><span class="n">load</span></a><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="n">raw_load_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">&quot;Raw load duration: </span><span class="si">%0.3f</span><span class="s2">s&quot;</span> <span class="o">%</span> <span class="n">raw_load_duration</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>Raw load duration: 1.294s
+</pre></div>
+</div>
+</div>
+<div class="section" id="dump-and-load-the-dataset-using-the-zlib-compression-method">
+<h2>Dump and load the dataset using the Zlib compression method<a class="headerlink" href="#dump-and-load-the-dataset-using-the-zlib-compression-method" title="Permalink to this headline">¶</a></h2>
+<p>The compression level is using the default value, 3, which is, in general, a
+good compromise between compression and speed.</p>
+<p>Start by measuring the time spent for dumping of the zlib data:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pickle_file</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <a href="../generated/joblib.dump.html#joblib.dump" title="View documentation for joblib.dump"><span class="n">dump</span></a><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">compress</span><span class="o">=</span><span class="s1">&#39;zlib&#39;</span><span class="p">)</span>
+<span class="n">zlib_dump_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">&quot;Zlib dump duration: </span><span class="si">%0.3f</span><span class="s2">s&quot;</span> <span class="o">%</span> <span class="n">zlib_dump_duration</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>Zlib dump duration: 5.356s
+</pre></div>
+</div>
+<p>Then measure the size of the zlib dump data on disk:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">zlib_file_size</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">pickle_file</span><span class="p">)</span><span class="o">.</span><span class="n">st_size</span> <span class="o">/</span> <span class="mf">1e6</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">&quot;Zlib file size: </span><span class="si">%0.1f</span><span class="s2">MB&quot;</span> <span class="o">%</span> <span class="n">zlib_file_size</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>Zlib file size: 19.8MB
+</pre></div>
+</div>
+<p>Finally measure the time spent for loading the compressed dataset:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pickle_file</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <a href="../generated/joblib.load.html#joblib.load" title="View documentation for joblib.load"><span class="n">load</span></a><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="n">zlib_load_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">&quot;Zlib load duration: </span><span class="si">%0.3f</span><span class="s2">s&quot;</span> <span class="o">%</span> <span class="n">zlib_load_duration</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>Zlib load duration: 2.743s
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The compression format is detected automatically by Joblib.
+The compression format is identified by the standard magic number present
+at the beginning of the file. Joblib uses this information to determine
+the compression method used.
+This is the case for all compression methods supported by Joblib.</p>
+</div>
+</div>
+<div class="section" id="dump-and-load-the-dataset-using-the-lzma-compression-method">
+<h2>Dump and load the dataset using the LZMA compression method<a class="headerlink" href="#dump-and-load-the-dataset-using-the-lzma-compression-method" title="Permalink to this headline">¶</a></h2>
+<p>LZMA compression method has a very good compression rate but at the cost
+of being very slow.
+In this example, a light compression level, e.g. 3, is used to speed up a
+bit the dump/load cycle.</p>
+<p>Start by measuring the time spent for dumping the lzma data:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pickle_file</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <a href="../generated/joblib.dump.html#joblib.dump" title="View documentation for joblib.dump"><span class="n">dump</span></a><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">compress</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;lzma&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+<span class="n">lzma_dump_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">&quot;LZMA dump duration: </span><span class="si">%0.3f</span><span class="s2">s&quot;</span> <span class="o">%</span> <span class="n">lzma_dump_duration</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>LZMA dump duration: 14.718s
+</pre></div>
+</div>
+<p>Then measure the size of the lzma dump data on disk:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">lzma_file_size</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">pickle_file</span><span class="p">)</span><span class="o">.</span><span class="n">st_size</span> <span class="o">/</span> <span class="mf">1e6</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">&quot;LZMA file size: </span><span class="si">%0.1f</span><span class="s2">MB&quot;</span> <span class="o">%</span> <span class="n">lzma_file_size</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>LZMA file size: 8.1MB
+</pre></div>
+</div>
+<p>Finally measure the time spent for loading the lzma data:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pickle_file</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <a href="../generated/joblib.load.html#joblib.load" title="View documentation for joblib.load"><span class="n">load</span></a><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="n">lzma_load_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">&quot;LZMA load duration: </span><span class="si">%0.3f</span><span class="s2">s&quot;</span> <span class="o">%</span> <span class="n">lzma_load_duration</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>LZMA load duration: 3.244s
+</pre></div>
+</div>
+</div>
+<div class="section" id="dump-and-load-the-dataset-using-the-lz4-compression-method">
+<h2>Dump and load the dataset using the LZ4 compression method<a class="headerlink" href="#dump-and-load-the-dataset-using-the-lz4-compression-method" title="Permalink to this headline">¶</a></h2>
+<p>LZ4 compression method is known to be one of the fastest available
+compression method but with a compression rate a bit lower than Zlib. In
+most of the cases, this method is a good choice.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">In order to use LZ4 compression with Joblib, the
+<a class="reference external" href="http://https://pypi.python.org/pypi/lz4">lz4</a> package must be installed
+on the system.</p>
+</div>
+<p>Start by measuring the time spent for dumping the lz4 data:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pickle_file</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <a href="../generated/joblib.dump.html#joblib.dump" title="View documentation for joblib.dump"><span class="n">dump</span></a><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">compress</span><span class="o">=</span><span class="s1">&#39;lz4&#39;</span><span class="p">)</span>
+<span class="n">lz4_dump_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">&quot;LZ4 dump duration: </span><span class="si">%0.3f</span><span class="s2">s&quot;</span> <span class="o">%</span> <span class="n">lz4_dump_duration</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>LZ4 dump duration: 0.807s
+</pre></div>
+</div>
+<p>Then measure the size of the lz4 dump data on disk:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">lz4_file_size</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">pickle_file</span><span class="p">)</span><span class="o">.</span><span class="n">st_size</span> <span class="o">/</span> <span class="mf">1e6</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">&quot;LZ4 file size: </span><span class="si">%0.1f</span><span class="s2">MB&quot;</span> <span class="o">%</span> <span class="n">lz4_file_size</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>LZ4 file size: 34.4MB
+</pre></div>
+</div>
+<p>Finally measure the time spent for loading the lz4 data:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pickle_file</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <a href="../generated/joblib.load.html#joblib.load" title="View documentation for joblib.load"><span class="n">load</span></a><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="n">lz4_load_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">&quot;LZ4 load duration: </span><span class="si">%0.3f</span><span class="s2">s&quot;</span> <span class="o">%</span> <span class="n">lz4_load_duration</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none"><div class="highlight"><pre><span></span>LZ4 load duration: 1.728s
+</pre></div>
+</div>
+</div>
+<div class="section" id="comparing-the-results">
+<h2>Comparing the results<a class="headerlink" href="#comparing-the-results" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+
+<span class="n">N</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">load_durations</span> <span class="o">=</span> <span class="p">(</span><span class="n">raw_load_duration</span><span class="p">,</span> <span class="n">lz4_load_duration</span><span class="p">,</span> <span class="n">zlib_load_duration</span><span class="p">,</span>
+                  <span class="n">lzma_load_duration</span><span class="p">)</span>
+<span class="n">dump_durations</span> <span class="o">=</span> <span class="p">(</span><span class="n">raw_dump_duration</span><span class="p">,</span> <span class="n">lz4_dump_duration</span><span class="p">,</span> <span class="n">zlib_dump_duration</span><span class="p">,</span>
+                  <span class="n">lzma_dump_duration</span><span class="p">)</span>
+<span class="n">file_sizes</span> <span class="o">=</span> <span class="p">(</span><span class="n">raw_file_size</span><span class="p">,</span> <span class="n">lz4_file_size</span><span class="p">,</span> <span class="n">zlib_file_size</span><span class="p">,</span> <span class="n">lzma_file_size</span><span class="p">)</span>
+<span class="n">ind</span> <span class="o">=</span> <a href="https://docs.scipy.org/doc/numpy/reference/generated/numpy.arange.html#numpy.arange" title="View documentation for numpy.arange"><span class="n">np</span><span class="o">.</span><span class="n">arange</span></a><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+<span class="n">width</span> <span class="o">=</span> <span class="mf">0.5</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">p1</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">ind</span><span class="p">,</span> <span class="n">dump_durations</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+<span class="n">p2</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">ind</span><span class="p">,</span> <span class="n">load_durations</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">bottom</span><span class="o">=</span><span class="n">dump_durations</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Time in seconds&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Dump and load durations&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">ind</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;Raw&#39;</span><span class="p">,</span> <span class="s1">&#39;LZ4&#39;</span><span class="p">,</span> <span class="s1">&#39;Zlib&#39;</span><span class="p">,</span> <span class="s1">&#39;LZMA&#39;</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">(</span><a href="https://docs.scipy.org/doc/numpy/reference/generated/numpy.arange.html#numpy.arange" title="View documentation for numpy.arange"><span class="n">np</span><span class="o">.</span><span class="n">arange</span></a><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">((</span><span class="n">p1</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">p2</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="p">(</span><span class="s1">&#39;Dump duration&#39;</span><span class="p">,</span> <span class="s1">&#39;Load duration&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<img alt="../_images/sphx_glr_compressors_comparison_001.png" class="sphx-glr-single-img" src="../_images/sphx_glr_compressors_comparison_001.png" />
+<p>Compared with other compressors, LZ4 is clearly the fastest, especially for
+dumping compressed data on disk. In this particular case, it can even be
+faster than the raw dump.
+Also note that dump and load durations depend on the I/O speed of the
+underlying storage: for example, with SSD hard drives the LZ4 compression
+will be slightly slower than raw dump/load, whereas with spinning hard disk
+drives (HDD) or remote storage (NFS), LZ4 is faster in general.</p>
+<p>LZMA and Zlib, even if always slower for dumping data, are quite fast when
+re-loading compressed data from disk.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">ind</span><span class="p">,</span> <span class="n">file_sizes</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;File size in MB&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">ind</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;Raw&#39;</span><span class="p">,</span> <span class="s1">&#39;LZ4&#39;</span><span class="p">,</span> <span class="s1">&#39;Zlib&#39;</span><span class="p">,</span> <span class="s1">&#39;LZMA&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<img alt="../_images/sphx_glr_compressors_comparison_003.png" class="sphx-glr-single-img" src="../_images/sphx_glr_compressors_comparison_003.png" />
+<p>Compressed data obviously takes a lot less space on disk than raw data. LZMA
+is the best compression method in terms of compression rate. Zlib also has a
+better compression rate than LZ4.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="clear-the-pickle-file">
+<h2>Clear the pickle file<a class="headerlink" href="#clear-the-pickle-file" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">pickle_file</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Total running time of the script:</strong> ( 1 minutes  14.074 seconds)</p>
+<div class="sphx-glr-footer class sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-compressors-comparison-py">
+<div class="sphx-glr-download docutils container">
+<a class="reference download internal" href="../_downloads/compressors_comparison.py" download=""><code class="xref download docutils literal"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">compressors_comparison.py</span></code></a></div>
+<div class="sphx-glr-download docutils container">
+<a class="reference download internal" href="../_downloads/compressors_comparison.ipynb" download=""><code class="xref download docutils literal"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">compressors_comparison.ipynb</span></code></a></div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.readthedocs.io">Gallery generated by Sphinx-Gallery</a></p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="../index.html">
+    <img class="logo" src="../_static/joblib_logo.svg" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../why.html">Why joblib: project goals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installing.html">Installing joblib</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../memory.html">On demand recomputing: the <cite>Memory</cite> class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel.html">Embarrassingly parallel for loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../persistence.html">Persistence</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Examples</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#id1">General examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#parallel-examples">Parallel examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../developing.html">Development</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.Memory.html">joblib.Memory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.Parallel.html">joblib.Parallel</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.dump.html">joblib.dump</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.load.html">joblib.load</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.hash.html">joblib.hash</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generated/joblib.register_compressor.html"><code class="docutils literal"><span class="pre">joblib</span></code>.register_compressor</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2008-2018, Joblib developers.
+      
+      |
+      <a href="../_sources/auto_examples/compressors_comparison.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

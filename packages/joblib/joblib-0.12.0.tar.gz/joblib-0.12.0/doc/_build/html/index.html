@@ -1,0 +1,334 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Joblib: running Python functions as pipeline jobs &#8212; joblib 0.11.1.dev0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/gallery.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.11.1.dev0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Why joblib: project goals" href="why.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <style type="text/css">
+  div.body li.toctree-l1 {
+      padding: 0.5em 0 1em 0 ;
+      list-style-type: none;
+      font-size: 150% ;
+      }
+
+  div.body li.toctree-l2 {
+      font-size: 70% ;
+      list-style-type: square;
+      }
+
+  div.body li.toctree-l3 {
+      font-size: 85% ;
+      list-style-type: circle;
+      }
+
+  div.bodywrapper blockquote {
+      margin: 0 ;
+  }
+
+</style><div class="section" id="joblib-running-python-functions-as-pipeline-jobs">
+<h1>Joblib: running Python functions as pipeline jobs<a class="headerlink" href="#joblib-running-python-functions-as-pipeline-jobs" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-joblib">
+<span id="introduction"></span><h2>Introduction<a class="headerlink" href="#module-joblib" title="Permalink to this headline">¶</a></h2>
+<p>Joblib is a set of tools to provide <strong>lightweight pipelining in
+Python</strong>. In particular:</p>
+<ol class="arabic simple">
+<li>transparent disk-caching of functions and lazy re-evaluation
+(memoize pattern)</li>
+<li>easy simple parallel computing</li>
+</ol>
+<p>Joblib is optimized to be <strong>fast</strong> and <strong>robust</strong> in particular on large
+data and has specific optimizations for <cite>numpy</cite> arrays. It is
+<strong>BSD-licensed</strong>.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="29%" />
+<col width="71%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><strong>Documentation:</strong></td>
+<td><a class="reference external" href="http://pythonhosted.org/joblib">http://pythonhosted.org/joblib</a></td>
+</tr>
+<tr class="row-even"><td><strong>Download:</strong></td>
+<td><a class="reference external" href="http://pypi.python.org/pypi/joblib#downloads">http://pypi.python.org/pypi/joblib#downloads</a></td>
+</tr>
+<tr class="row-odd"><td><strong>Source code:</strong></td>
+<td><a class="reference external" href="http://github.com/joblib/joblib">http://github.com/joblib/joblib</a></td>
+</tr>
+<tr class="row-even"><td><strong>Report issues:</strong></td>
+<td><a class="reference external" href="http://github.com/joblib/joblib/issues">http://github.com/joblib/joblib/issues</a></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<div class="section" id="vision">
+<h3>Vision<a class="headerlink" href="#vision" title="Permalink to this headline">¶</a></h3>
+<p>The vision is to provide tools to easily achieve better performance and
+reproducibility when working with long running jobs.</p>
+<blockquote>
+<div><ul class="simple">
+<li><strong>Avoid computing twice the same thing</strong>: code is rerun over an
+over, for instance when prototyping computational-heavy jobs (as in
+scientific development), but hand-crafted solution to alleviate this
+issue is error-prone and often leads to unreproducible results</li>
+<li><strong>Persist to disk transparently</strong>: persisting in an efficient way
+arbitrary objects containing large data is hard. Using
+joblib’s caching mechanism avoids hand-written persistence and
+implicitly links the file on disk to the execution context of
+the original Python object. As a result, joblib’s persistence is
+good for resuming an application status or computational job, eg
+after a crash.</li>
+</ul>
+</div></blockquote>
+<p>Joblib addresses these problems while <strong>leaving your code and your flow
+control as unmodified as possible</strong> (no framework, no new paradigms).</p>
+</div>
+<div class="section" id="main-features">
+<h3>Main features<a class="headerlink" href="#main-features" title="Permalink to this headline">¶</a></h3>
+<ol class="arabic">
+<li><p class="first"><strong>Transparent and fast disk-caching of output value:</strong> a memoize or
+make-like functionality for Python functions that works well for
+arbitrary Python objects, including very large numpy arrays. Separate
+persistence and flow-execution logic from domain logic or algorithmic
+code by writing the operations as a set of steps with well-defined
+inputs and  outputs: Python functions. Joblib can save their
+computation to disk and rerun it only if necessary:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">joblib</span> <span class="k">import</span> <span class="n">Memory</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cachedir</span> <span class="o">=</span> <span class="s1">&#39;your_cache_dir_goes_here&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mem</span> <span class="o">=</span> <span class="n">Memory</span><span class="p">(</span><span class="n">cachedir</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vander</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">square</span> <span class="o">=</span> <span class="n">mem</span><span class="o">.</span><span class="n">cache</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b</span> <span class="o">=</span> <span class="n">square</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>                                   
+<span class="go">________________________________________________________________________________</span>
+<span class="go">[Memory] Calling square...</span>
+<span class="go">square(array([[0., 0., 1.],</span>
+<span class="go">       [1., 1., 1.],</span>
+<span class="go">       [4., 2., 1.]]))</span>
+<span class="go">___________________________________________________________square - 0...s, 0.0min</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">c</span> <span class="o">=</span> <span class="n">square</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># The above call did not trigger an evaluation</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><strong>Embarrassingly parallel helper:</strong> to make it easy to write readable
+parallel code and debug it quickly:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">joblib</span> <span class="k">import</span> <span class="n">Parallel</span><span class="p">,</span> <span class="n">delayed</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">math</span> <span class="k">import</span> <span class="n">sqrt</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">Parallel</span><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">1</span><span class="p">)(</span><span class="n">delayed</span><span class="p">(</span><span class="n">sqrt</span><span class="p">)(</span><span class="n">i</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+<span class="go">[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first"><strong>Fast compressed Persistence</strong>: a replacement for pickle to work
+efficiently on Python objects containing large data (
+<em>joblib.dump</em> &amp; <em>joblib.load</em> ).</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="section" id="user-manual">
+<h2>User manual<a class="headerlink" href="#user-manual" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="why.html">Why joblib: project goals</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="why.html#benefits-of-pipelines">Benefits of pipelines</a></li>
+<li class="toctree-l2"><a class="reference internal" href="why.html#joblib-s-approach">Joblib’s approach</a></li>
+<li class="toctree-l2"><a class="reference internal" href="why.html#design-choices">Design choices</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="installing.html">Installing joblib</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installing.html#using-pip">Using <cite>pip</cite></a></li>
+<li class="toctree-l2"><a class="reference internal" href="installing.html#using-distributions">Using distributions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installing.html#the-manual-way">The manual way</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="memory.html">On demand recomputing: the <cite>Memory</cite> class</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="memory.html#use-case">Use case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="memory.html#using-with-numpy">Using with <cite>numpy</cite></a></li>
+<li class="toctree-l2"><a class="reference internal" href="memory.html#shelving-using-references-to-cached-values">Shelving: using references to cached values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="memory.html#gotchas">Gotchas</a></li>
+<li class="toctree-l2"><a class="reference internal" href="memory.html#ignoring-some-arguments">Ignoring some arguments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="memory.html#reference-documentation-of-the-memory-class">Reference documentation of the <cite>Memory</cite> class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="memory.html#useful-methods-of-decorated-functions">Useful methods of decorated functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="parallel.html">Embarrassingly parallel for loops</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="parallel.html#common-usage">Common usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel.html#thread-based-parallelism-vs-process-based-parallelism">Thread-based parallelism vs process-based parallelism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel.html#shared-memory-semantics">Shared-memory semantics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel.html#reusing-a-pool-of-workers">Reusing a pool of workers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel.html#working-with-numerical-data-in-shared-memory-memmapping">Working with numerical data in shared memory (memmapping)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel.html#avoiding-over-subscription-of-cpu-ressources">Avoiding over-subscription of CPU ressources</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel.html#custom-backend-api-experimental">Custom backend API (experimental)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel.html#old-multiprocessing-backend">Old multiprocessing backend</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel.html#bad-interaction-of-multiprocessing-and-third-party-libraries">Bad interaction of multiprocessing and third-party libraries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel.html#parallel-reference-documentation"><cite>Parallel</cite> reference documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="persistence.html">Persistence</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="persistence.html#use-case">Use case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="persistence.html#a-simple-example">A simple example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="persistence.html#persistence-in-file-objects">Persistence in file objects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="persistence.html#compressed-joblib-pickles">Compressed joblib pickles</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="auto_examples/index.html">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/index.html#id1">General examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/index.html#parallel-examples">Parallel examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="developing.html">Development</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="developing.html#getting-the-latest-code">Getting the latest code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="developing.html#installing">Installing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="developing.html#dependencies">Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="developing.html#workflow-to-contribute">Workflow to contribute</a></li>
+<li class="toctree-l2"><a class="reference internal" href="developing.html#running-the-test-suite">Running the test suite</a></li>
+<li class="toctree-l2"><a class="reference internal" href="developing.html#building-the-docs">Building the docs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="developing.html#making-a-source-tarball">Making a source tarball</a></li>
+<li class="toctree-l2"><a class="reference internal" href="developing.html#making-a-release-and-uploading-it-to-pypi">Making a release and uploading it to PyPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="developing.html#updating-the-changelog">Updating the changelog</a></li>
+<li class="toctree-l2"><a class="reference internal" href="developing.html#latest-changes">Latest changes</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="module-reference">
+<h2>Module reference<a class="headerlink" href="#module-reference" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="longtable docutils">
+<colgroup>
+<col width="10%" />
+<col width="90%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><a class="reference internal" href="generated/joblib.Memory.html#joblib.Memory" title="joblib.Memory"><code class="xref py py-obj docutils literal"><span class="pre">Memory</span></code></a>([location,&nbsp;backend,&nbsp;cachedir,&nbsp;…])</td>
+<td>A context object for caching a function’s return value each time it is called with the same input arguments.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="generated/joblib.Parallel.html#joblib.Parallel" title="joblib.Parallel"><code class="xref py py-obj docutils literal"><span class="pre">Parallel</span></code></a>([n_jobs,&nbsp;backend,&nbsp;verbose,&nbsp;…])</td>
+<td>Helper class for readable parallel mapping.</td>
+</tr>
+</tbody>
+</table>
+<table border="1" class="longtable docutils">
+<colgroup>
+<col width="10%" />
+<col width="90%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><a class="reference internal" href="generated/joblib.dump.html#joblib.dump" title="joblib.dump"><code class="xref py py-obj docutils literal"><span class="pre">dump</span></code></a>(value,&nbsp;filename[,&nbsp;compress,&nbsp;protocol,&nbsp;…])</td>
+<td>Persist an arbitrary Python object into one file.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="generated/joblib.load.html#joblib.load" title="joblib.load"><code class="xref py py-obj docutils literal"><span class="pre">load</span></code></a>(filename[,&nbsp;mmap_mode])</td>
+<td>Reconstruct a Python object from a file persisted with joblib.dump.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="generated/joblib.hash.html#joblib.hash" title="joblib.hash"><code class="xref py py-obj docutils literal"><span class="pre">hash</span></code></a>(obj[,&nbsp;hash_name,&nbsp;coerce_mmap])</td>
+<td>Quick calculation of a hash to identify uniquely Python objects containing numpy arrays.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="generated/joblib.register_compressor.html#joblib.register_compressor" title="joblib.register_compressor"><code class="xref py py-obj docutils literal"><span class="pre">register_compressor</span></code></a>(compressor_name,&nbsp;compressor)</td>
+<td>Register a new compressor.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="#">
+    <img class="logo" src="_static/joblib_logo.svg" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="why.html">Why joblib: project goals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installing.html">Installing joblib</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory.html">On demand recomputing: the <cite>Memory</cite> class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parallel.html">Embarrassingly parallel for loops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="persistence.html">Persistence</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auto_examples/index.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developing.html">Development</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.Memory.html">joblib.Memory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.Parallel.html">joblib.Parallel</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.dump.html">joblib.dump</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.load.html">joblib.load</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.hash.html">joblib.hash</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.register_compressor.html"><code class="docutils literal"><span class="pre">joblib</span></code>.register_compressor</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2008-2018, Joblib developers.
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

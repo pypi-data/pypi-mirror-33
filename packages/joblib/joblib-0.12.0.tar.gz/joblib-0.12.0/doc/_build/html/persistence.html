@@ -1,0 +1,277 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Persistence &#8212; joblib 0.11.1.dev0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/gallery.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.11.1.dev0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Examples" href="auto_examples/index.html" />
+    <link rel="prev" title="Embarrassingly parallel for loops" href="parallel.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="persistence">
+<span id="id1"></span><h1>Persistence<a class="headerlink" href="#persistence" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="use-case">
+<h2>Use case<a class="headerlink" href="#use-case" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="generated/joblib.dump.html#joblib.dump" title="joblib.dump"><code class="xref py py-func docutils literal"><span class="pre">joblib.dump()</span></code></a> and <a class="reference internal" href="generated/joblib.load.html#joblib.load" title="joblib.load"><code class="xref py py-func docutils literal"><span class="pre">joblib.load()</span></code></a> provide a replacement for
+pickle to work efficiently on arbitrary Python objects containing large data,
+in particular large numpy arrays.</p>
+</div>
+<div class="section" id="a-simple-example">
+<h2>A simple example<a class="headerlink" href="#a-simple-example" title="Permalink to this headline">¶</a></h2>
+<p>First create a temporary directory:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">tempfile</span> <span class="k">import</span> <span class="n">mkdtemp</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">savedir</span> <span class="o">=</span> <span class="n">mkdtemp</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">os</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">savedir</span><span class="p">,</span> <span class="s1">&#39;test.joblib&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Then create an object to be persisted:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">to_persist</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]),</span> <span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">10</span><span class="p">))]</span>
+</pre></div>
+</div>
+<p>which is saved into <cite>filename</cite>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">joblib</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">joblib</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">to_persist</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>  
+<span class="go">[&#39;...test.joblib&#39;]</span>
+</pre></div>
+</div>
+<p>The object can then be reloaded from the file:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">joblib</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+<span class="go">[(&#39;a&#39;, [1, 2, 3]), (&#39;b&#39;, array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="persistence-in-file-objects">
+<h2>Persistence in file objects<a class="headerlink" href="#persistence-in-file-objects" title="Permalink to this headline">¶</a></h2>
+<p>Instead of filenames, <a class="reference internal" href="generated/joblib.dump.html#joblib.dump" title="joblib.dump"><code class="xref py py-func docutils literal"><span class="pre">joblib.dump()</span></code></a> and <a class="reference internal" href="generated/joblib.load.html#joblib.load" title="joblib.load"><code class="xref py py-func docutils literal"><span class="pre">joblib.load()</span></code></a> functions
+also accept file objects:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fo</span><span class="p">:</span>  
+<span class="gp">... </span>   <span class="n">joblib</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">to_persist</span><span class="p">,</span> <span class="n">fo</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fo</span><span class="p">:</span>  
+<span class="gp">... </span>   <span class="n">joblib</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fo</span><span class="p">)</span>
+<span class="go">[(&#39;a&#39;, [1, 2, 3]), (&#39;b&#39;, array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="compressed-joblib-pickles">
+<h2>Compressed joblib pickles<a class="headerlink" href="#compressed-joblib-pickles" title="Permalink to this headline">¶</a></h2>
+<p>Setting the <cite>compress</cite> argument to <cite>True</cite> in <a class="reference internal" href="generated/joblib.dump.html#joblib.dump" title="joblib.dump"><code class="xref py py-func docutils literal"><span class="pre">joblib.dump()</span></code></a> will allow to
+save space on disk:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">joblib</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">to_persist</span><span class="p">,</span> <span class="n">filename</span> <span class="o">+</span> <span class="s1">&#39;.compressed&#39;</span><span class="p">,</span> <span class="n">compress</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  
+<span class="go">[&#39;...test.joblib.compressed&#39;]</span>
+</pre></div>
+</div>
+<p>If the filename extension corresponds to one of the supported compression
+methods, the compressor will be used automatically:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">joblib</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">to_persist</span><span class="p">,</span> <span class="n">filename</span> <span class="o">+</span> <span class="s1">&#39;.z&#39;</span><span class="p">)</span>  
+<span class="go">[&#39;...test.joblib.z&#39;]</span>
+</pre></div>
+</div>
+<p>By default, <a class="reference internal" href="generated/joblib.dump.html#joblib.dump" title="joblib.dump"><code class="xref py py-func docutils literal"><span class="pre">joblib.dump()</span></code></a> uses the zlib compression method as it gives
+the best tradeoff between speed and disk space. The other supported compression
+methods are ‘gzip’, ‘bz2’, ‘lzma’ and ‘xz’:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Dumping in a gzip compressed file using a compress level of 3.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">joblib</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">to_persist</span><span class="p">,</span> <span class="n">filename</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span><span class="p">,</span> <span class="n">compress</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;gzip&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>  
+<span class="go">[&#39;...test.joblib.gz&#39;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">joblib</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filename</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span><span class="p">)</span>
+<span class="go">[(&#39;a&#39;, [1, 2, 3]), (&#39;b&#39;, array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">joblib</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">to_persist</span><span class="p">,</span> <span class="n">filename</span> <span class="o">+</span> <span class="s1">&#39;.bz2&#39;</span><span class="p">,</span> <span class="n">compress</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;bz2&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>  
+<span class="go">[&#39;...test.joblib.bz2&#39;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">joblib</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filename</span> <span class="o">+</span> <span class="s1">&#39;.bz2&#39;</span><span class="p">)</span>
+<span class="go">[(&#39;a&#39;, [1, 2, 3]), (&#39;b&#39;, array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))]</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">compress</span></code> parameter of the <a class="reference internal" href="generated/joblib.dump.html#joblib.dump" title="joblib.dump"><code class="xref py py-func docutils literal"><span class="pre">joblib.dump()</span></code></a> function also accepts a
+string corresponding to the name of the compressor used. When using this, the
+default compression level is used by the compressor:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">joblib</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">to_persist</span><span class="p">,</span> <span class="n">filename</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span><span class="p">,</span> <span class="n">compress</span><span class="o">=</span><span class="s1">&#39;gzip&#39;</span><span class="p">)</span>  
+<span class="go">[&#39;...test.joblib.gz&#39;]</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Lzma and Xz compression methods are only available for python versions &gt;= 3.3.</p>
+</div>
+<p>Compressor files provided by the python standard library can also be used to
+compress pickle, e.g <code class="docutils literal"><span class="pre">gzip.GzipFile</span></code>, <code class="docutils literal"><span class="pre">bz2.BZ2File</span></code>, <code class="docutils literal"><span class="pre">lzma.LZMAFile</span></code>:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Dumping in a gzip.GzipFile object using a compression level of 3.</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">gzip</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">filename</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">,</span> <span class="n">compresslevel</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span> <span class="k">as</span> <span class="n">fo</span><span class="p">:</span>  
+<span class="gp">... </span>   <span class="n">joblib</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">to_persist</span><span class="p">,</span> <span class="n">fo</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">filename</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fo</span><span class="p">:</span>  
+<span class="gp">... </span>   <span class="n">joblib</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fo</span><span class="p">)</span>
+<span class="go">[(&#39;a&#39;, [1, 2, 3]), (&#39;b&#39;, array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))]</span>
+</pre></div>
+</div>
+<p>If the <code class="docutils literal"><span class="pre">lz4</span></code> package is installed, this compression method is automatically
+available with the dump function.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">joblib</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">to_persist</span><span class="p">,</span> <span class="n">filename</span> <span class="o">+</span> <span class="s1">&#39;.lz4&#39;</span><span class="p">)</span>  
+<span class="go">[&#39;...test.joblib.lz4&#39;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">joblib</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filename</span> <span class="o">+</span> <span class="s1">&#39;.lz4&#39;</span><span class="p">)</span>
+<span class="go">[(&#39;a&#39;, [1, 2, 3]), (&#39;b&#39;, array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))]</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">LZ4 compression is only available with python major versions &gt;= 3</p>
+</div>
+<p>More details can be found in the <a class="reference internal" href="generated/joblib.dump.html#joblib.dump" title="joblib.dump"><code class="xref py py-func docutils literal"><span class="pre">joblib.dump()</span></code></a> and
+<a class="reference internal" href="generated/joblib.load.html#joblib.load" title="joblib.load"><code class="xref py py-func docutils literal"><span class="pre">joblib.load()</span></code></a> documentation.</p>
+<div class="section" id="registering-extra-compressors">
+<h3>Registering extra compressors<a class="headerlink" href="#registering-extra-compressors" title="Permalink to this headline">¶</a></h3>
+<p>Joblib provides <a class="reference internal" href="generated/joblib.register_compressor.html#joblib.register_compressor" title="joblib.register_compressor"><code class="xref py py-func docutils literal"><span class="pre">joblib.register_compressor()</span></code></a> in order to extend the list
+of default compressors available.
+To fit with Joblib internal implementation and features, such as
+<a class="reference internal" href="generated/joblib.load.html#joblib.load" title="joblib.load"><code class="xref py py-func docutils literal"><span class="pre">joblib.load()</span></code></a> and <a class="reference internal" href="generated/joblib.Memory.html#joblib.Memory" title="joblib.Memory"><code class="xref py py-class docutils literal"><span class="pre">joblib.Memory</span></code></a>, the registered compressor
+should implement the Python file object interface.</p>
+</div>
+<div class="section" id="compatibility-across-python-versions">
+<h3>Compatibility across python versions<a class="headerlink" href="#compatibility-across-python-versions" title="Permalink to this headline">¶</a></h3>
+<p>Compatibility of joblib pickles across python versions is not fully
+supported. Note that, for a very restricted set of objects, this may appear to
+work when saving a pickle with python 2 and loading it with python 3 but
+relying on it is strongly discouraged.</p>
+<p>If you are switching between python versions, you will need to save a
+different joblib pickle for each python version.</p>
+<p>Here are a few examples or exceptions:</p>
+<blockquote>
+<div><ul>
+<li><p class="first">Saving joblib pickle with python 2, trying to load it with python 3:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">):</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/lesteve/dev/joblib/joblib/numpy_pickle.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">453</span><span class="p">,</span> <span class="ow">in</span> <span class="n">load</span>
+    <span class="n">obj</span> <span class="o">=</span> <span class="n">unpickler</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/lesteve/miniconda3/lib/python3.4/pickle.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">1038</span><span class="p">,</span> <span class="ow">in</span> <span class="n">load</span>
+    <span class="n">dispatch</span><span class="p">[</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">]](</span><span class="bp">self</span><span class="p">)</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/lesteve/miniconda3/lib/python3.4/pickle.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">1176</span><span class="p">,</span> <span class="ow">in</span> <span class="n">load_binstring</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_decode_string</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/lesteve/miniconda3/lib/python3.4/pickle.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">1158</span><span class="p">,</span> <span class="ow">in</span> <span class="n">_decode_string</span>
+    <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">encoding</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">errors</span><span class="p">)</span>
+<span class="ne">UnicodeDecodeError</span><span class="p">:</span> <span class="s1">&#39;ascii&#39;</span> <span class="n">codec</span> <span class="n">can</span><span class="s1">&#39;t decode byte 0x80 in position 1024: ordinal not in range(128)</span>
+
+<span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">):</span>
+  <span class="n">File</span> <span class="s2">&quot;&lt;string&gt;&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">1</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/lesteve/dev/joblib/joblib/numpy_pickle.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">462</span><span class="p">,</span> <span class="ow">in</span> <span class="n">load</span>
+    <span class="k">raise</span> <span class="n">new_exc</span>
+  <span class="ne">ValueError</span><span class="p">:</span> <span class="n">You</span> <span class="n">may</span> <span class="n">be</span> <span class="n">trying</span> <span class="n">to</span> <span class="n">read</span> <span class="k">with</span> <span class="n">python</span> <span class="mi">3</span> <span class="n">a</span> <span class="n">joblib</span> <span class="n">pickle</span> <span class="n">generated</span> <span class="k">with</span> <span class="n">python</span> <span class="mf">2.</span> <span class="n">This</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">feature</span> <span class="n">supported</span> <span class="n">by</span> <span class="n">joblib</span><span class="o">.</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Saving joblib pickle with python 3, trying to load it with python 2:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">):</span>
+  <span class="n">File</span> <span class="s2">&quot;&lt;string&gt;&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">1</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
+  <span class="n">File</span> <span class="s2">&quot;joblib/numpy_pickle.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">453</span><span class="p">,</span> <span class="ow">in</span> <span class="n">load</span>
+    <span class="n">obj</span> <span class="o">=</span> <span class="n">unpickler</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/lesteve/miniconda3/envs/py27/lib/python2.7/pickle.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">858</span><span class="p">,</span> <span class="ow">in</span> <span class="n">load</span>
+    <span class="n">dispatch</span><span class="p">[</span><span class="n">key</span><span class="p">](</span><span class="bp">self</span><span class="p">)</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/lesteve/miniconda3/envs/py27/lib/python2.7/pickle.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">886</span><span class="p">,</span> <span class="ow">in</span> <span class="n">load_proto</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="s2">&quot;unsupported pickle protocol: </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">proto</span>
+<span class="ne">ValueError</span><span class="p">:</span> <span class="n">unsupported</span> <span class="n">pickle</span> <span class="n">protocol</span><span class="p">:</span> <span class="mi">3</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</div></blockquote>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="index.html">
+    <img class="logo" src="_static/joblib_logo.svg" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="why.html">Why joblib: project goals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installing.html">Installing joblib</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory.html">On demand recomputing: the <cite>Memory</cite> class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parallel.html">Embarrassingly parallel for loops</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Persistence</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#use-case">Use case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#a-simple-example">A simple example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#persistence-in-file-objects">Persistence in file objects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#compressed-joblib-pickles">Compressed joblib pickles</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="auto_examples/index.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developing.html">Development</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.Memory.html">joblib.Memory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.Parallel.html">joblib.Parallel</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.dump.html">joblib.dump</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.load.html">joblib.load</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.hash.html">joblib.hash</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generated/joblib.register_compressor.html"><code class="docutils literal"><span class="pre">joblib</span></code>.register_compressor</a></li>
+</ul>
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2008-2018, Joblib developers.
+      
+      |
+      <a href="_sources/persistence.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
