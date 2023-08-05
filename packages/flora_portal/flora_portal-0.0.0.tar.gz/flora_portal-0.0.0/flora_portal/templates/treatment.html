@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block style %}
+  <link rel="stylesheet"
+   href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.3.5/jquery.fancybox.min.css"
+   type="text/css">
+{% endblock %}
+
+{% block title %}
+  {{ name_simple }}
+{% endblock %}
+
+{% block main %}
+  <div style="font-size: 2em">{{ flora_name }}</div>
+
+  <div id="tools">
+    <span title="Edit" class="material-icons clickme" id="edit">edit</span>
+    <a title="Add image" class="material-icons"
+     href="{{ url_for('add_image', taxon_id=taxon_id) }}">
+      add_photo_alternate
+    </a>
+    <a title="Add occurrence"
+     href="{{ url_for('add_occurrence', taxon_id=taxon_id) }}"
+     class="material-icons">
+      add_location
+    </a>
+  </div>
+
+  {% if parent != None %}
+    <div id="parent"><a href="{{ parent_id }}">
+      {{ parent }}
+    </a></div>
+  {% endif %}
+
+  <h1 id="name">{{ name_html|safe }}</h1>
+
+  <div id="gallery">
+    {% for image in images %}
+      {% set file_name = 'taxa_img/' + image[0] %}
+      <a data-fancybox="gallery"
+       href="{{ url_for('static', filename=file_name) }}">
+        <img src="{{ url_for('static', filename=file_name) }}">
+      </a>
+    {% endfor %}
+  </div>
+
+  {% if common_names != None %}
+    <h2>Common names</h2>
+    <div id="commonNames">{{ common_names }}</div>
+  {% endif %}
+
+  {% if description != None %}
+    <h2>Description</h2>
+    <div id="description" class="section">
+      {{ description|safe }}
+    </div>
+  {% else %}
+    <h2 class="hidden-heading">Description</h2>
+    <div id="description" class="section"><p></p></div>
+  {% endif %}
+
+  {% if phenology != None %}
+    <h2>Phenology</h2>
+    <div id="phenology" class="section">
+      {{ phenology|safe }}
+    </div>
+  {% else %}
+    <h2 class="hidden-heading">Phenology</h2>
+    <div id="phenology" class="section"><p></p></div>
+  {% endif %}
+
+  {% if habitat != None %}
+    <h2>Habitat</h2>
+    <div id="habitat" class="section">
+      {{ habitat|safe }}
+    </div>
+  {% else %}
+    <h2 class="hidden-heading">Habitat</h2>
+    <div id="habitat" class="section"><p></p></div>
+  {% endif %}
+
+  <h2>Distribution</h2>
+  <div id="map"></div>
+  <div id="distribution" class="section">
+    {% if distribution != None %}
+      {{ distribution|safe }}
+    {% else %}
+      <p></p>
+    {% endif %}
+  </div>
+
+  {% if notes != None %}
+    <h2>Notes</h2>
+    <div id="notes" class="section">
+      {{ notes|safe }}
+    </div>
+  {% else %}
+    <h2 class="hidden-heading">Notes</h2>
+    <div id="notes" class="section"<p></p></div>
+  {% endif %}
+
+  <form method="POST" id="form">
+    {{ form.csrf_token }}
+    {{ form.description }}
+    {{ form.phenology }}
+    {{ form.habitat }}
+    {{ form.distribution }}
+    {{ form.notes }}
+  </form>
+
+  <button type="submit" id="submit" form="form" style="display:none">
+    Update
+  </button>
+{% endblock %}
+
+{% block scripts %}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.3.5/jquery.fancybox.min.js"></script>
+  <script src="http://www.openlayers.org/api/OpenLayers.js"></script>
+
+  <script>
+    $('document').ready(
+      function() {
+        var map = new OpenLayers.Map("map");
+        map.addLayer(new OpenLayers.Layer.OSM());
+
+        var markers = new OpenLayers.Layer.Markers("Markers");
+        map.addLayer(markers);
+
+        var lonLat;
+
+        {% for occurrence in occurrences %}
+          lonLat = new OpenLayers.LonLat({{ occurrence[1] }},
+                                         {{ occurrence[0] }})
+            .transform(
+              new OpenLayers.Projection("EPSG:4326"),
+              map.getProjectionObject()
+            );
+
+            markers.addMarker(new OpenLayers.Marker(lonLat));
+        {% endfor %}
+
+        $(".olControlAttribution").css("bottom", "5px");
+        $(".olControlAttribution").css("background-color", "white");
+        $(".olControlAttribution").css("border-radius", "3px");
+        $(".olControlAttribution").css("paddingLeft", "5px");
+        $(".olControlAttribution").css("paddingRight", "5px");
+        $(".olButton").css("background-color", "#01C4A7");
+      }
+    );
+
+    $('#edit').click(function() {
+      $('.section').attr('contenteditable', 'true');
+      $('.section').addClass('editable');
+      $('.hidden-heading').css('display', 'block');
+      $('#submit').css('display', 'block');
+    });
+
+    $('#form').submit(function() {
+      $('#description-field').val($('#description').html());
+      $('#phenology-field').val($('#phenology').html());
+      $('#habitat-field').val($('#habitat').html());
+      $('#distribution-field').val($('#distribution').html());
+      $('#notes-field').val($('#notes').html());
+      return true;
+    });
+  </script>
+{% endblock %}
+
