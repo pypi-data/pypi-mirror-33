@@ -1,0 +1,96 @@
+Metadata-Version: 2.1
+Name: pytest-pigeonhole
+Version: 0.2
+Summary: UNKNOWN
+Home-page: https://gitlab.com/kamichal/pigeonhole
+Author: Michal Kaczmarczyk
+Author-email: michal.s.kaczmarczyk@gmail.com
+License: UNKNOWN
+Platform: UNKNOWN
+Classifier: Framework :: Pytest
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python
+Classifier: Topic :: Software Development :: Testing
+Requires-Dist: pytest (>=3.4)
+
+==========
+Pigeonhole
+==========
+
+`pytest-pigeonhole` is a pytest plugin that adds a terminal-summary in whose
+outcomes are splitted along given fixture value.
+
+
+Usage
+-----
+
+Install the plugin and then add `--pigeonhole given_fixture_name` parameter to
+your pytest run. That's all.
+
+Alternativelly you can either add such to your `conftest.py`::
+
+    from pigeonhole.plugin import configure_pigeonhole
+
+    def pytest_configure(config):
+        configure_pigeonhole(config, "given_fixture_name")
+
+
+Or such statement to `pytest.ini` or `tox.ini`:
+
+	[pytest]
+	addopts = --pigeonhole given_fixture_name
+
+Each of above gives the same result.
+
+Usage example:
+
+  * `conftest.py`::
+
+        import pytest
+        from pigeonhole.plugin import configure_pigeonhole
+
+        def pytest_configure(config):
+            configure_pigeonhole(config, "that_fixture")
+
+        @pytest.fixture(params=["one", "two", 23, False])
+        def that_fixture(request):
+            return request.param
+
+        @pytest.fixture(params=range(3))
+        def int_fixture(request):
+            return request.param
+
+  * `test_usage.py`::
+
+        import pytest
+
+        @pytest.fixture
+        def faulty_setup(that_fixture):
+            assert not that_fixture
+
+        def test_passes(that_fixture):
+            pass
+
+        def test_int_passes(int_fixture):
+            if not int_fixture:
+                pytest.skip()
+
+        def test_fail(that_fixture, int_fixture):
+            assert int_fixture
+
+        def test_errors(faulty_setup):
+            pass
+
+  * calling `pytest` adds terminal-report (without additional commandline arguments)::
+
+		 ============= Pigeonhole: that_fixture =========
+		 'one' | p: 3    | f: 1    | s: 0    | e: 1   
+		 'two' | p: 3    | f: 1    | s: 0    | e: 1   
+		 23    | p: 3    | f: 1    | s: 0    | e: 1   
+		 False | p: 4    | f: 1    | s: 0    | e: 0   
+		 N/A   | p: 2    | f: 0    | s: 1    | e: 0   
+
+
+
