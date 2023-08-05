@@ -1,0 +1,303 @@
+#!python
+
+
+__ver__='1.5'
+__author__='Subhash Bose'
+
+from argparse import ArgumentParser
+parser = ArgumentParser(usage="%(prog)s [CONF_FILE] [options] [--help]",
+                        description="SimSpec (UI v"+__ver__+") by "+__author__)
+parser.add_argument('cnff', metavar='CONF_FILE', nargs='?', default='setup.conf', help='Configuration file, default is setup.conf')
+parser.add_argument('-w','-workdir', metavar='DIR', dest='workdir', default='', help='Working directory for reduction')
+parser.add_argument('-d','-datadir', metavar='DIR', dest='datadir', default='', help='Data directory for input files')
+parser.add_argument('-listinst', '-listinstruments', action='store_true', help='List all available instrument modules')
+parser.add_argument('-liststds', '-liststd', '-liststandards', action='store_true', help='List all available standards')
+parser.add_argument('-obslog', metavar='INST', nargs='?', default=False, 
+                    help='Parse headers of all .fits files according to given instrument (INST) and show Observation Log. If no INST name given, options will be provided to chose from.')
+parser.add_argument('-genconf', metavar='INST', nargs='?', default=False, help='Generate a instrument (INST) specific Configuration file template If no INST name given, options will be provided to chose from.')
+parser.add_argument('-deleteunused', action='store_true', help='Delete all unused file, i.e. all files not mentioned in CONF_FILE')
+parser.add_argument('-installmodule', metavar='PKG', help='Install module(s) from a given package file (PKG)')
+parser.add_argument('-mkuserconf', action='store_true', help='Create / overwrite user configuration file.')
+parser.add_argument('-debug', action='store_true', help='Enable debugging')
+parser._positionals.title=None
+arg=parser.parse_args()
+
+import sys, time, subprocess
+sys.tracebacklimit = None if arg.debug else 0
+if not arg.debug:
+    import warnings
+    from astropy.utils.exceptions import AstropyWarning
+    warnings.simplefilter('ignore', category=AstropyWarning)
+
+
+from SimSpecLib import SimSpec, SSutil
+
+#reload(sys)
+
+redb='\033[1;91m'
+magb='\033[1;95m'
+default='\033[0m'
+blue='\033[0;34m'
+greenb='\033[1;92m'
+cyanb='\033[1;96m'
+yellowb='\033[1;93m'
+bar='\033[1;44m'
+
+def echo(txt):
+    print magb+str(txt)+default
+
+def ListInst():
+    nm_len=max([len(k) for k,v in SSutil.ListInstrument()])+3
+    echo(("%-"+str(nm_len)+"s    %s") % ('Instrument ID','Description') )
+    echo(("%-"+str(nm_len)+"s    %s") % ('-------------','-----------') )
+    for k,v in SSutil.ListInstrument():
+        echo(("%-"+str(nm_len)+"s->  %s") % (k,v) )
+
+def cinput(txt):
+    res=raw_input(cyanb+txt)
+    print (default)
+    return res
+
+def chkreq(minrq,fullrq):
+    if minrq:
+        if fullrq:
+            res=greenb
+        else:
+            res=redb
+    else:
+        res=blue
+    return res
+
+def printhead(txt,leng):
+    a=int( (leng-len(txt))/2.0 )
+    b=int(leng-a-len(txt))
+    return(bar+' '*a+txt+' '*b+default)
+
+def ValidateExtraction(type):
+    S.DeleteOldFiles(S.Files[type+'1D'],timestamp=overwrite)
+    if S.os.path.isfile(S.Files[type+'1D']) and cinput("\n1D extracted file already exist, are you sure to overwrite? [y/n]: ").lower()!='y':
+        return False
+    done=False
+    while not done:
+        spectype='standard' if type.lower()=='std' else type.lower()
+        S.ApExtract(spectype=spectype, DelOlder='now')
+        res=''
+        while res not in ['y','n']:
+            res=cinput("\nAre you happy with extraction [y/n]: ").lower()
+            if res=='y':
+                done=True
+
+
+if arg.listinst:
+    ListInst()
+    sys.exit(0)
+elif arg.liststds:
+    echo("List of available standards")
+    for k in SSutil.ListDefaultStds():
+        echo(" "+k)
+    sys.exit(0)
+elif arg.obslog != False:
+    if arg.obslog==None:
+        ListInst()
+        arg.obslog=raw_input("\nEnter instrument id: ")
+    SSutil.ObsLog(inst=arg.obslog, datadir=arg.datadir)
+    sys.exit(0)
+elif arg.genconf != False:
+    if arg.genconf==None:
+        ListInst()
+        arg.genconf=raw_input("\nEnter instrument id: ")
+    SSutil.GenConf(inst=arg.genconf)
+    sys.exit(0)
+elif arg.deleteunused:
+    SSutil.DeleteUnusedFiles(arg.cnff, datadir=arg.datadir)
+    sys.exit(0)
+elif arg.installmodule:
+    SSutil.InstallModule(arg.installmodule)
+    sys.exit(0)
+
+
+maininiF=SimSpec.os.path.join(SimSpec.os.path.expanduser('~'), SimSpec.__name__ + '.ini')
+if SimSpec.os.path.exists(maininiF) and not arg.mkuserconf:
+    pass
+elif SimSpec.os.path.exists(SimSpec.os.path.join(SimSpec.os.path.dirname(SimSpec.os.path.realpath(__file__)) , SimSpec.__name__ + '.ini')) and not arg.mkuserconf:
+    maininiF=SimSpec.os.path.join(SimSpec.os.path.dirname(SimSpec.os.path.realpath(__file__)), SimSpec.__name__ + '.ini')
+else:
+    if not arg.mkuserconf:
+        print "It seems you are running " + SimSpec.__name__ + " for the first time"
+    print "Let's create a user configuration file"
+    mainini = SimSpec.ConfigParser.RawConfigParser(allow_no_value=True)
+    mainini.optionxform = str
+    mainini.add_section(SimSpec.__name__)
+    mainini.set(SimSpec.__name__, '; ' + SimSpec.__name__ + ' User Configuration file')
+    mainini.set(SimSpec.__name__, 'Reducer',
+                raw_input("Enter your name, this I will add to the header of spectra you reduce\n").strip() +
+                "    ; Can also be set in runtime configuration file (e.g setup.conf) under [setup] section")
+    mainini.set(SimSpec.__name__, 'SnidExe',
+                raw_input("If you use SNID for SN classification enter the name of the executable, else leave blank\n").strip() +
+                "    ; SNID executable; only needed if SNID classification is executed")
+    with open(maininiF, 'wb') as configfile:
+        mainini.write(configfile)
+    if arg.mkuserconf:
+        sys.exit(0)
+
+
+S=SimSpec(arg.cnff,False,arg.datadir,arg.workdir)
+
+mainini=S.ConfigParser.RawConfigParser()
+mainini.read(maininiF)
+if 'reducer' not in S.param or S.param['reducer']=='':
+    S.param['reducer']=mainini.get(S.__name__,'reducer').split(';')[0]
+S.param['snidexe']=mainini.get(S.__name__,'snidexe').split(';')[0]
+
+tmp=S.ListObjects()
+if len(tmp)==1:
+    S.parseObject(tmp[0])
+    #pass
+#xt = raw_input("prompt")
+#rint text
+
+
+
+overwrite=False
+while True:
+    try:
+        rows, columns = S.os.popen('stty size', 'r').read().split()
+        columns=int(columns)
+    except:
+        columns=60
+    print ""
+    #print bar+' '*int(columns)+default
+    print printhead('|[ '+SimSpec.__name__+' Lib:v'+SimSpec.__ver__+' ('+SimSpec.__date__+') UI:v'+__ver__+' ]|',columns)
+    print "Color codes - "+chkreq(True,True)+"[Already executed]  "+chkreq(True,False)+"[To be executed next]  "+chkreq(False,False)+"[Cannot be executed]"+default
+    #print bar+' '*int(columns)+default
+    print printhead('Loaded setup: '+S.param['description']+' (v'+str(S.param['modulever'])+')',columns)
+    fullrq=S.ObjectGrp
+    tmp=chkreq(True, fullrq)
+    print(tmp+"(1) Load Object"+(cyanb+" [Loaded: "+S.ObjectGrp+"]" if S.ObjectGrp else '') )
+    minrq=fullrq
+    fullrq=minrq and S.os.path.isfile(S.Files['Object2D'])
+    tmp=chkreq(minrq, fullrq )
+    print(tmp+'(2) Clean data')
+    tmp=chkreq(S.ObjectGrp and S.os.path.isfile(S.Files['Std2D']), S.ObjectGrp and not S.isInputNew(S.Files['Std2D'],S.Files['Std1D']) )
+    print(tmp+'(3) Extract 1D spectrum of standard'+(cyanb+" ["+S.StdName+("; \033[7mCalibration file missing in 'StdDir' directoy!!" if S.StdName not in S.LsStdDir() else "")+default+cyanb+"]" if S.StdFiles else ' [No Standard defined; Skip this]'))
+    minrq=fullrq
+    fullrq=minrq and not S.isInputNew(S.Files['Object2D'], S.Files['Object1D'])
+    tmp=chkreq(minrq, fullrq )
+    print(tmp+'(4) Extract 1D spectrum of '+(S.ObjectGrp if S.ObjectGrp else 'object'))
+    tmp=chkreq(S.ObjectGrp and S.os.path.isfile(S.Files['Object1D']), S.ObjectGrp and not (S.isInputNew( S.Files['Object1D'], S.Files['ObjectWcal']) or S.isInputNew( S.Files['Arc1D'], S.Files['ObjectWcal'])) )
+    print(tmp+'(5) Do automatic wavelength calibration')
+    #tmp=chkreq(S.ObjectGrp and S.os.path.isfile(S.Files['Object1D']), S.ObjectGrp and S.os.path.isfile(S.Files['ObjectWcal']) )
+    print(tmp+'(6) Manually Redo or adjust wavelength calibration')
+    tmp=chkreq(S.ObjectGrp and S.os.path.isfile(S.Files['ObjectWcal']) and (S.os.path.isfile(S.Files['StdWcal']) or S.os.path.isfile(S.Files['StdSens'])), S.ObjectGrp and not S.isInputNew( S.Files['ObjectWcal'], S.Files['ObjectFcal']) )
+    print(tmp+'(7) Do Flux calibration')
+    tmp=chkreq(S.ObjectGrp and S.os.path.isfile(S.Files['ObjectFcal']), True )
+    print(tmp+'(8) Apply correction to wavelength calibration using skyline')
+    print("")
+    tmp=yellowb if S.ObjectGrp and S.os.path.isfile(S.Files['Object1D']) else blue
+    print(tmp+'(s) Show latest stage of spectrum for '+(S.ObjectGrp if S.ObjectGrp else 'object'))
+    tmp=yellowb if S.ObjectGrp and S.os.path.isfile(S.Files['ObjectFcal']) else blue
+    if S.param['snidexe']!='':
+        print(tmp+'(c) Classify '+(S.ObjectGrp if S.ObjectGrp else 'object')+' spectrum using SNID')
+    print("")
+    print(yellowb+"(o) "+("Set to Overwrite files older than current time" if not overwrite else "\033[7m"+"UnSet overwriting of files (currently set)")+default)
+    print(yellowb+"(p) Show or modify Parameters for current configuration")
+    print("(q) Quit")
+    print bar+' '*int(columns)+default
+    print ""
+    
+    inp=cinput("Enter your choice: ").lower()
+    if inp=='q':
+        break
+    elif inp=='o':
+        if overwrite:
+            overwrite=False
+            echo("Overwriting has been unset")
+        else:
+            overwrite=time.time()
+            echo("All file older than current point of time will be overwritten")
+    elif inp=='s':
+        if S.os.path.isfile(S.Files['ObjectFcal']):
+            echo ("Showing Flux + Wave calibrated spectrum")
+            tmp=S.Files['ObjectFcal']
+        elif S.os.path.isfile(S.Files['ObjectWcal']):
+            echo ("Showing Wave calibrated spectrum")
+            tmp=S.Files['ObjectWcal']
+        elif S.os.path.isfile(S.Files['Object1D']):
+            echo ("Showing 1D extrcted spectrum")
+            tmp=S.Files['Object1D']
+        else:
+            echo ("No Spectrum to show")
+            tmp=None
+        if tmp:
+            cwd=S.os.getcwd()
+            S.os.chdir( S.WorkDir )
+            try:
+                S.iraf.splot(S.os.path.basename(tmp))
+            except Exception as e:
+                S.os.chdir( cwd )
+                echo ("Failed to show spectrum")
+            S.os.chdir( cwd )
+    elif inp=='parall':
+        #for p,v in S.param.items():
+        for p, v in sorted(S.param.items()):
+            echo (str(p)+' -> '+str(v))
+        par=cinput("Enter the parameter you want to add / update: ")
+        if par!='':
+            val=cinput("Enter the value: ")
+            S.parseParam(par,val)
+    elif inp=='p':
+        for p, v in sorted(S.param.items()):
+            if p not in ['postcleanscript', 'precleanscript', 'ref-arc', 'ref-id', 'description', 'snidexe']:
+                if SimSpec.ProDir in str(v):
+                    v='[DEFAULT]'
+                echo (str(p)+' -> '+str(v))
+        par=cinput("Enter the parameter you want to add / update: ")
+        if par!='':
+            val=cinput("Enter the value: ")
+            S.parseParam(par,val)
+    elif inp=='i':
+        ListInst()
+        cinput("Continue... ")
+    elif inp=='c' and S.param['snidexe']!='':
+        SSutil.RunSNID(S.Files['ObjectFcal'],S.param['snidexe'])
+    elif inp=='cleanall':
+        for objs in S.ListObjects():
+            S.parseObject(objs)
+            S.Clean(DelOlder=overwrite)
+        S.parseObject(S.ListObjects()[0])
+    elif inp=='1':
+        echo ("List of available objects are: "+str(S.ListObjects()))
+        try:
+            S.parseObject(cinput("Enter the object name: "))
+        except:
+            S.ObjectGrp=False
+            echo ("Error loading object!! Try again")
+    elif inp=='2':
+        S.Clean(DelOlder=overwrite)
+    elif inp=='3':
+        ValidateExtraction('Std')
+    elif inp=='4':
+        ValidateExtraction('Object')
+        if S.ArcFiles:
+            S.ApExtract(spectype='arc', DelOlder=overwrite)
+    elif inp=='5':
+        if S.AutoId(DelOlder=overwrite):
+            try:
+                shift=float(subprocess.check_output("tail -1 "+S.WorkDir+"logfile | awk '{print($8)}'" , shell=True))
+            except:
+                shift=100
+            print shift
+            if S.np.abs(shift)>10:
+                raw_input(redb+'Warning!! The Wave Cal may be inaccurate. Please verify. [Ok]'+default)
+        S.DispCor(DelOlder=overwrite)
+    elif inp=='6':
+        S.MannId()
+        S.DispCor(DelOlder='now')
+    elif inp=='7':
+        S.FluxCal(DelOlder=overwrite)
+    elif inp=='8':
+        S.SkyLineCor()
+        if S.np.abs(S.param['skyshift'])>10:
+            raw_input(redb+'Warning!! The Wave Cal may be inaccurate. Please verify. [Ok]'+default)
+    else:
+        echo ("Invalid option!!!")
