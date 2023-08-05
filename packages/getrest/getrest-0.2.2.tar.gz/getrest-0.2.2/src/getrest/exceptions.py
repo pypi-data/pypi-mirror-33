@@ -1,0 +1,2 @@
+class NoSuchEndpoint(AttributeError):
+    pass
