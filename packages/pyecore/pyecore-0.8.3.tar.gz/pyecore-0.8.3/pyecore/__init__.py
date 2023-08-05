@@ -1,0 +1,9 @@
+"""
+
+"""
+from .utils import install_issubclass_patch
+
+__version__ = "0.8.3"
+
+
+install_issubclass_patch()
