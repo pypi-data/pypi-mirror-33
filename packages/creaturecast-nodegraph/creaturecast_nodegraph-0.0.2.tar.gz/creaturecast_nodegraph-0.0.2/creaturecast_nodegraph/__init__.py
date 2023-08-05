@@ -1,0 +1,5 @@
+__version__ = '0.0.2'
+__description__ = 'A gui for making connections between nodes'
+__author__ = 'Paxton Gerrish'
+__email__ = 'creaturecastlabs@gmail.com'
+__url__ = 'https://github.com/Paxtongerrish/creaturecast_nodegraph.git'
