@@ -1,0 +1,1 @@
+ipython -i -c "from shpy import *"
