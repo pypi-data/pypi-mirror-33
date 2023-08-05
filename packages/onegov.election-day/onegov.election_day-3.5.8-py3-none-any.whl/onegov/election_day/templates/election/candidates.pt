@@ -1,0 +1,76 @@
+<div metal:use-macro="layout.base" i18n:domain="onegov.election_day">
+    <tal:block metal:fill-slot="title">${election.title}</tal:block>
+    <tal:block metal:fill-slot="before-content">
+        <div metal:use-macro="layout.macros['election_header']" />
+    </tal:block>
+    <tal:block metal:fill-slot="content">
+
+        <div metal:use-macro="layout.macros['status_callout']" />
+
+        <tal:block tal:condition="layout.visible">
+
+            <h2 i18n:translate="">Results</h2>
+
+            <div metal:use-macro="layout.macros['election_factoids']" />
+
+            <div metal:use-macro="layout.macros['tab_menu']"/>
+
+            <h3 tal:content="layout.title()" />
+
+            <div class="row" tal:condition="not: election.tacit">
+                <div class="small-12 small-centered large-10 columns">
+                    <figure>
+                        <div class="bar-chart"
+                            i18n:attributes="data-embed-link"
+                            data-dataurl="${request.link(election, name='candidates-data')}"
+                            data-embed-link="Embed"
+                            data-embed-source="${request.link(election, name='candidates-chart')}">
+                        </div>
+                        <a class="svg-download" tal:condition="layout.svg_path" href="${layout.svg_link}">
+                            <i class="fa fa-download"></i><tal:block i18n:translate="">Download</tal:block>
+                        </a>
+                    </figure>
+                </div>
+            </div>
+
+            <table class="results tablesaw collapsible collapsed sortable"
+                data-tablesaw-mode="columntoggle"
+                data-tablesaw-mode-switch="" data-tablesaw-mode-exclude="swipe"
+                data-tablesaw-minimap=""
+                >
+                <thead>
+                    <tr>
+                        <th data-tablesaw-priority="persist" i18n:translate="">Candidate</th>
+                        <th data-tablesaw-priority="2" tal:condition="not:layout.tacit" i18n:translate="single_votes" class="right-aligned">Votes</th>
+                        <th data-tablesaw-priority="3" tal:condition="layout.majorz" i18n:translate="" class="right-aligned">Party</th>
+                        <th data-tablesaw-priority="3" tal:condition="layout.proporz" i18n:translate="" class="right-aligned">List</th>
+                        <th data-tablesaw-priority="1" i18n:translate="" class="right-aligned">Elected</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr tal:repeat="candidate candidates" tal:attributes="class 'sticky-row' if candidate[2] > 0 else ''">
+                        <td>${candidate[0]} ${candidate[1]}</td>
+                        <td tal:condition="not:layout.tacit" class="right-aligned" data-text="${candidate[4]}">${layout.format_number(candidate[4])}</td>
+                        <td tal:condition="layout.majorz" class="right-aligned">${candidate[3]}</td>
+                        <td tal:condition="layout.proporz" class="right-aligned">${candidate[5]}</td>
+                        <td class="answer accepted right-aligned" tal:condition="candidate[2] == True" i18n:translate="">Yes</td>
+                        <td class="answer rejected right-aligned" tal:condition="candidate[2] == False" i18n:translate="">No</td>
+                        <td class="answer right-aligned" tal:condition="candidate[2] == None" i18n:translate=""></td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr class="more" tal:condition="not: election.tacit">
+                        <td colspan="4" i18n:translate="">All candidates</td>
+                    </tr>
+                    <tr class="less" tal:condition="not: election.tacit">
+                        <td colspan="4" i18n:translate="">Elected candidates only</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </tal:block>
+
+        <div metal:use-macro="layout.macros['related_link']" />
+        <div metal:use-macro="layout.macros['related_elections']" />
+
+    </tal:block>
+</div>
