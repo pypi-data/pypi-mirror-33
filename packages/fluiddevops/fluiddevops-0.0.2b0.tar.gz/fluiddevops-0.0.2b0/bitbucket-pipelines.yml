@@ -1,0 +1,31 @@
+# This is a sample build configuration for Docker.
+# Check our guides at https://confluence.atlassian.com/x/O1toN for more examples.
+# Only use spaces to indent your .yml configuration.
+# -----
+# You can specify a custom docker image from Docker Hub as your build environment.
+image: atlassian/default-image:2
+
+# enable Docker for your repository
+options:
+  docker: true
+
+pipelines:
+  bookmarks:
+    docker-*:
+      - step:
+          script: # Modify the commands below to build your repository.
+            - apt-get update && apt-get install -y python-pip
+            - pip install --user mako
+            # Set $DOCKER_HUB_USERNAME and $DOCKER_HUB_PASSWORD as environment variables in repository settings
+            - docker version
+            # authenticate with the Docker Hub registry
+            - docker login --username $DOCKER_HUB_USERNAME --password $DOCKER_HUB_PASSWORD
+            - cd docker
+            - export IMAGE_NAME=python2-stable
+            # build the Docker image (this will use the Dockerfile in the root of the repo)
+            - make build image=$IMAGE_NAME
+            # push the new Docker image to the Docker registry
+            - make push image=$IMAGE_NAME
+            - export IMAGE_NAME=python3-stable
+            - make build image=$IMAGE_NAME
+            - make push image=$IMAGE_NAME
