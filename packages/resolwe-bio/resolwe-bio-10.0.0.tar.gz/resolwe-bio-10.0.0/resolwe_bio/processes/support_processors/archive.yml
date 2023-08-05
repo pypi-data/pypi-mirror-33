@@ -1,0 +1,124 @@
+- slug: archive-samples
+  name: Archive samples
+  data_name: Sample archive
+  requirements:
+    expression-engine: jinja
+    executor:
+      docker:
+        image: resolwebio/utils:1.2.0
+  version: 0.1.2
+  type: "data:archive:samples"
+  category: other
+  persistence: TEMP
+  scheduling_class: interactive
+  description: >
+    Create an archive of output files. The ouput folder
+    structure is organized by sample slug and data object's
+    output-field names.
+  input:
+    - name: data
+      label: Data list
+      type: list:data
+    - name: fields
+      label: Output file fields
+      type: list:basic:string
+    - name: j
+      label: Junk paths
+      type: basic:boolean
+      description: Store just names of saved files (junk the path)
+      default: False
+  output:
+    - name: archive
+      label: Archive
+      type: basic:file
+  run:
+    runtime: polyglot
+    language: bash
+    program: |
+
+      FILE_PATH=()
+      SAMPLE_NAMES=()
+      BUILD=()
+      SPECIES=()
+      EXP_TYPE=()
+
+      {% for d in data %}
+        {% for field in fields %}
+          {% if d[field].file %}
+            {% set link = d|sample_slug|string + '/' + field|string + '/' + d[field] | relative_path %}
+            mkdir -p {{ link | dirname }}
+            ln -s --backup=numbered {{ d[field].file }} {{ link }}
+            {% for ref in d[field].refs %}
+              {% set ref_link = d|sample_slug|string + '/' + field|string + '/' + ref | relative_path %}
+              mkdir -p {{ ref_link | dirname }}
+              ln -s --backup=numbered {{ ref }} {{ ref_link }}
+            {% endfor %}
+          {% endif %}
+          {% for file in d[field] %}
+            {% if file.file %}
+              {% set link = d|sample_slug|string + '/' + field|string + '/' + file | relative_path %}
+              mkdir -p {{ link | dirname }}
+              ln -s --backup=numbered {{ d[field].file }} {{ link }}
+              {% for ref in file.refs %}
+                {% set ref_link = d|sample_slug|string + '/' + field|string + '/' + ref | relative_path %}
+                mkdir -p {{ ref_link | dirname }}
+                ln -s --backup=numbered {{ ref }} {{ ref_link }}
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+
+        # Select data for IGV and organize by species / build.
+        IGV_FILE={{ d.species }}_{{ d.build }}_temp_igv.txt
+
+        {% if (d|type).startswith('data:alignment:bam') %}
+          mv {{ d|sample_slug }}/bai/{{ d.bai.file|basename }} {{d|sample_slug}}/bam/{{ d.bai.file|basename }}
+          rm -r {{d|sample_slug}}/bai
+          # In the first line of _temp_igv.txt file add build information and in the following lines add paths to bam files.
+          if [[ ! -f "$IGV_FILE" ]]; then
+            echo {{ d.build }} > "$IGV_FILE"
+          fi
+          echo {{ d|sample_slug }}/bam/{{ d.bam.file|basename }} >> "$IGV_FILE"
+
+        {% elif (d|type).startswith('data:variants:vcf') %}
+          # In the first line of _temp_igv.txt file add build information and in the following lines add paths to vcf files.
+          if [[ ! -f "$IGV_FILE" ]]; then
+            echo {{ d.build }} > "$IGV_FILE"
+          fi
+          echo {{ d|sample_slug }}/vcf/{{ d.vcf.file|basename }} >> "$IGV_FILE"
+        {% endif %}
+
+        # Store expression files and the corresponding info (sample names, build, species and expression type).
+        {% if (d|type).startswith('data:expression') %}
+          FILE_PATH+=({{ d|sample_slug }}/exp/{{ d.exp.file|basename }})
+          SAMPLE_NAMES+=({{ d|sample_name }})
+          BUILD+=({{ d.build }})
+          SPECIES+=({{ d.species }})
+          EXP_TYPE+=({{ d.exp_type }})
+
+        {% endif %}
+
+      {% endfor %}
+
+      # Create IGV for data from the same Species and Build.
+      for txt_file in *temp_igv.txt; do
+        [[ -f ${txt_file} ]] || continue
+        make_igv_session_archive.py --input_file "${txt_file}"
+        re-checkrc "Crating IGV session failed"
+      done
+
+      expressionmerge_archive.py \
+        --file_path "${FILE_PATH[@]}" \
+        --sample_names "${SAMPLE_NAMES[@]}" \
+        --build "${BUILD[@]}" \
+        --species "${SPECIES[@]}" \
+        --exp_type "${EXP_TYPE[@]}"
+
+      re-checkrc "Merging expression files failed"
+
+      if [ -d None ]; then
+        mv None other_data
+      fi
+
+      zip -0 -r {% if j %}-j {% endif %}results.zip */ *all_expressions.txt
+      re-save-file archive results.zip
