@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+"""cm2plot - Generate plot images from a cmonkey2 run
+
+This file is part of cMonkey Python. Please see README and LICENSE for
+more information and licensing details.
+"""
+import os
+import argparse
+
+import cmonkey.tools.plot_expressions as plot_exps
+import cmonkey.tools.plot_motifs as plot_motifs
+import cmonkey.tools.plot_motif_positions as plot_motif_pos
+import cmonkey.database as cm2db
+
+
+DESCRIPTION = """cm2plot - generate cmonkey2 plots"""
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    parser.add_argument('--output_dir', default=None,
+                        help='directory to store the generated plots in')
+    parser.add_argument('--dburl', default=None, help='database URL')
+    parser.add_argument('resultdir',
+                        help='cmonkey2 result directory')
+    parser.add_argument('command', choices=['expressions', 'motif_logos', 'motif_pos', 'all'],
+                        help='command')
+
+    args = parser.parse_args()
+    if not os.path.exists(args.resultdir):
+        raise Exception("cmonkey2 result directory '%s' does not exist" % args.resultdir)
+
+    if args.output_dir is None:
+        output_dir = args.resultdir
+    else:
+        output_dir = args.output_dir
+
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+
+    if args.dburl is None:
+        dburl = cm2db.make_sqlite_url(os.path.join(args.resultdir, 'cmonkey_run.db'))
+    else:
+        dburl = args.dburl
+    session = cm2db.make_session(dburl)
+
+    try:
+        if args.command == 'expressions':
+            plot_exps.generate_plots(session, args.resultdir, output_dir)
+        elif args.command == 'motif_logos':
+            plot_motifs.generate_plots(session, output_dir)
+        elif args.command == 'motif_pos':
+            plot_motif_pos.generate_plots(session, output_dir)
+        elif args.command == 'all':
+            plot_exps.generate_plots(session, args.resultdir, output_dir)
+            plot_motifs.generate_plots(session, output_dir)
+            plot_motif_pos.generate_plots(session, output_dir)
+    finally:
+        if session is not None:
+            session.close()
