@@ -1,0 +1,115 @@
+{% extends 'bee_django_social_feed/base.html' %}
+
+{% block content %}
+    <div class="col-md-12">
+        <div id="new-feed">
+            {% verbatim %}
+            <div class="bg-success text-center">
+                {{ success_message }}
+            </div>
+            <div class="bg-danger">
+                {{ error_message }}
+            </div>
+            {% endverbatim %}
+            <textarea class="form-control" rows="3" placeholder="分享你的感受" v-model="content">
+            </textarea>
+            <input type="submit" value="发布" class="btn btn-default" id="post-new-feed"
+                   data-confirm="{% url 'bee_django_social_feed:create_feed' %}"/>
+        </div>
+
+        <br/>
+        <div id="feeds">
+            <div>
+                日志显示：<a href="#" v-on:click="load_all_page">所有</a> |
+                <a href="#" v-on:click.prevent="load_classmates_page(request_user_id)">同班</a> |
+                <a href="#" v-on:click.prevent="load_my_page(request_user_id)">我</a>
+            </div>
+            <feed v-for="feed in feeds" v-bind:key="feed.pk"
+                  v-bind:id="feed.id" v-bind:publisher_data="feed.publisher_data" v-bind:content="feed.content"
+                  v-bind:emojis.sync="feed.emojis" v-bind:comments.sync="feed.comments"
+                  v-bind:created_at="feed.created_at"
+                  v-bind:input_show.sync="feed.input_show">
+
+            </feed>
+        </div>
+
+        <div id="feeds-loader">
+            <div v-if="status == 1">页面加载中，请稍后...</div>
+            <div v-else-if="status == 2" v-on:click="load_more_page">
+                加载超时，点击重试
+            </div>
+            <div v-else>
+                下面没有了
+            </div>
+        </div>
+
+    </div>
+{% endblock content %}
+
+{% block scripts %}
+    {% load static %}
+    <script src="{% static 'bee_django_social_feed/app.js' %}"></script>
+
+    <script type="text/x-template" id="feed-template">
+        <div class="feed">
+            {% verbatim %}
+            <div class="feed-author">
+                <a href="#" v-on:click="load_user_page(publisher_data.id, $event)">
+                    {{ publisher_data.username }}
+                </a>
+            </div>
+
+            <div class="feed-content">
+                {{ content }}
+            </div>
+
+            <div class="feed-time">
+                {{ created_at | formatDate }}
+            </div>
+
+            <div class="feed-emoji" v-if="has_emojis">
+                <i class="glyphicon glyphicon-heart-empty"></i>
+                <span v-for="emoji in emojis" class="feed-emoji-users">
+                    {{ emoji.user_data.username }}
+                </span>
+            </div>
+            <div class="feed-comments" v-if="has_comments">
+                <div v-for="comment in comments">
+                    <span>{{ comment.user_data.username }} : </span>
+                    {{ comment.comment }}
+                </div>
+            </div>
+
+
+            <div class="feed-button">
+                <emoji-did v-if="is_request_user_emoji"></emoji-did>
+                <emoji-button v-else v-on:click.native.prevent="post_emoji(id)"></emoji-button>
+                <comment-button v-on:click.native.prevent="show_comment_input()"></comment-button>
+            </div>
+
+            <div class="feed-comment-input" v-if="input_show">
+                <textarea placeholder="评论" class="form-control" rows="3" v-model="new_comment">
+                </textarea>
+                <button class="btn btn-default" v-on:click.prevent="post_comment(id, new_comment)">提交</button>
+            </div>
+            {% endverbatim %}
+        </div>
+    </script>
+
+    <script type="text/x-template" id="emoji-button">
+        <a href="#"><i class="glyphicon glyphicon-heart-empty">赞</i></a>
+    </script>
+
+    <script type="text/x-template" id="emoji-did">
+        <span><i class="glyphicon glyphicon-heart-empty">已赞</i></span>
+    </script>
+
+    <script type="text/x-template" id="comment-button">
+        <a href="#"><i class="glyphicon glyphicon-pencil">评论</i></a>
+    </script>
+
+{% endblock scripts %}
+
+{% block styles %}
+    <link rel="stylesheet" href="{% static 'bee_django_social_feed/app.css' %}">
+{% endblock styles %}
