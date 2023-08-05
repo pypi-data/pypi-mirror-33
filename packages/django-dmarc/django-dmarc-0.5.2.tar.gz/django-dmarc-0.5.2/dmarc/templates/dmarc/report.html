@@ -1,0 +1,469 @@
+{% extends "admin/base_site.html" %}
+
+{% load i18n %}
+
+{% block meta_title %}{% trans "DMARC aggregate feedback report" %}{% endblock %}
+{% block title %}{% trans "DMARC aggregate feedback report" %}{% endblock %}
+{% block extrahead %}
+<meta name="robots" content="noindex">
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+<style>
+span.invalid {
+    background-color: red;
+}
+span.valid {
+}
+#dmarc-tab-report {
+    padding-left:0;
+    padding-right:0;
+}
+</style>
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function(event) {
+  // Set default dates
+  dt = new Date();
+  $("#dmarc_date_to"  ).val(dt.getFullYear().toString() + '-' + (dt.getMonth() + 1).toString() + '-' + dt.getDate().toString())
+  $("#dmarc_date_to"  ).datepicker({dateFormat: "yy-mm-dd", autoSize: true});
+  df = new Date(Date.now() - (1000 * 60 * 60 * 24));
+  $("#dmarc_date_from").val(df.getFullYear().toString() + '-' + (df.getMonth() + 1).toString() + '-' + df.getDate().toString())
+  $("#dmarc_date_from").datepicker({dateFormat: "yy-mm-dd", defaultDate: -1, autoSize: true});
+
+  $( function() {
+    $( "#dmarc-tabs" ).tabs();
+  } );
+  // Toggles filter menu and requests update.
+  function dmarc_update() {
+    // Reset error messages
+    var m = $("#dmarc_form");
+    m.toggle();
+    show_filter = m.css("display");
+    switch (show_filter) {
+      case "none":
+        var dmarc_filters = [];
+        dmarc_download_args = []
+        dmarc_filters.push("DMARC aggregate feedback filter: &nbsp;");
+        dmarc_filters.push("Date: " + $("#dmarc_date_from").val() + "&nbsp;");
+        dmarc_download_args.push("dmarc_date_from=" + $("#dmarc_date_from").val());
+        dmarc_filters.push("&ndash;&nbsp;" + $("#dmarc_date_to").val() + ";&nbsp;");
+        dmarc_download_args.push("dmarc_date_to=" + $("#dmarc_date_to").val());
+        if ($("#dmarc_onlyerror:checkbox:checked").val()){
+          dmarc_filters.push("Only errors; &nbsp;");
+          dmarc_download_args.push("dmarc_onlyerror");
+        }
+        if ($("#dmarc_disposition").val()){
+          dmarc_filters.push("Disposition: " + $("#dmarc_disposition").val() + ";&nbsp;");
+          dmarc_download_args.push("dmarc_disposition=" + $("#dmarc_disposition").val());
+        }
+        if ($("#dmarc_filter").val()){
+          dmarc_filters.push("Filter: " + $("#dmarc_filter").val() + ";&nbsp;");
+          dmarc_download_args.push("dmarc_filter=" + $("#dmarc_filter").val());
+        }
+
+        $("#dmarc_menu_header").html("");
+        $( "<span/>", {
+          html: dmarc_filters.join( "" )
+        }).appendTo("#dmarc_menu_header");
+
+        $("#dmarc_messages").html('');
+        $("#dmarc_results").html('<tr><td>Fetching results</td></tr>');
+        var download_url = "{% url 'dmarc:dmarc_csv' %}?" + dmarc_download_args.join('&');
+        $("#dmarc_download").html('<a id="dmarc_download" '
+          + 'href="' + download_url + '">Download csv</a>.');
+        $("#dmarc_download").show();
+        dmarc_ajax()
+        break;
+      case "block":
+        $("#dmarc_menu_header").html("DMARC aggregate feedback report filter");
+        $("#dmarc_download").hide();
+        break;
+    }
+  }
+
+  function colour_code(value, testvalue) {
+     if (value == testvalue) {
+        return "<span class=\"valid\">" + value + "</span>";
+     } else {
+        return "<span class=\"invalid\">" + value + "</span>";
+     }
+  }
+
+  // Adds dmarc_update() to filter menu header
+  $( "#dmarc_menu_header" ).click( function() {
+    dmarc_update()
+  });
+
+  // Adds dmarc_update() to form and prevents form submission
+  $( "#dmarc_form" ).submit(function( event ) {
+    dmarc_update();
+    event.preventDefault();
+  });
+
+  // Main ajax call to request and populate report
+  function dmarc_ajax() {
+    var
+        DMARC_ORG_NAME = 0,
+        DMARC_EMAIL = 1,
+        DMARC_DATE_BEGIN = 2,
+        DMARC_DATE_END = 3,
+        DMARC_POLICY_DOMAIN = 4,
+        DMARC_POLICY_ADKIM = 5,
+        DMARC_POLICY_ASPF = 6,
+        DMARC_POLICY_P = 7,
+        DMARC_POLICY_SP = 8,
+        DMARC_POLICY_PCT = 9,
+        DMARC_REPORT_ID = 10,
+        DMARC_SOURCE_IP = 11,
+        DMARC_RECORDCOUNT = 12,
+        DMARC_POLICYEVALUATED_DISPOSITION = 13,
+        DMARC_POLICYEVALUATED_DKIM = 14,
+        DMARC_POLICYEVALUATED_SPF = 15,
+        DMARC_POLICYEVALUATED_REASONTYPE = 16,
+        DMARC_POLICYEVALUATED_REASONCOMMENT = 17,
+        DMARC_IDENTIFIER_HEADERFROM = 18,
+        DMARC_SPF_RECORD_TYPE = 19,
+        DMARC_SPF_DOMAIN = 20,
+        DMARC_SPF_RESULT = 21,
+        DMARC_DKIM_RECORD_TYPE = 22,
+        DMARC_DKIM_DOMAIN = 23,
+        DMARC_DKIM_RESULT = 24;
+    $.ajax({
+    url: "{% url 'dmarc:dmarc_json' %}",
+    async: true,
+    dataType: "json",
+    data: {
+      csrf: "{{ csrf_token }}",
+      dmarc_date_from: $("#dmarc_date_from").val(),
+      dmarc_date_to: $("#dmarc_date_to").val(),
+      dmarc_onlyerror: $("#dmarc_onlyerror:checkbox:checked").val(),
+      dmarc_disposition: $("#dmarc_disposition").val(),
+      dmarc_filter: $("#dmarc_filter").val()
+    },
+    success: function ( result ) {
+        var r = new Array(), j = -1;
+        // Start with a header
+        DMARC_REPORT_ID = 10,
+        r[++j] = '<thead><tr>';
+        r[++j] = '<th>Organisation</th>';
+        r[++j] = '<th title="DKIM alignment">d</th>';
+        r[++j] = '<th title="SPF alignment">s</th>';
+        r[++j] = '<th title="Requested Mail Receiver policy">p</th>';
+        r[++j] = '<th title="Percentage of messages from the Domain Owner&quot;s mail stream to which the DMARC policy is to be applied">pct</th>';
+        r[++j] = '<th>source</th>';
+        r[++j] = '<th>count</th>';
+        r[++j] = '<th>disposition</th>';
+        r[++j] = '<th>header-from</th>';
+        r[++j] = '<th>dkim</th>';
+        r[++j] = '<th>dkim-domain</th>';
+        r[++j] = '<th>spf</th>';
+        r[++j] = '<th>spf-domain</th>';
+        r[++j] = '<th>reason type</th>';
+        r[++j] = '<th>comment</th>';
+        r[++j] = '</tr></thead>';
+        r[++j] = '<tbody>';
+        for (var key=0, size=result.length; key<size; key++){
+            r[++j] ='<tr>';
+            r[++j] = '<td>' + result[key][DMARC_ORG_NAME] + '</td>';
+            r[++j] = '<td>' + result[key][DMARC_POLICY_ADKIM] + '</td>';
+            r[++j] = '<td>' + result[key][DMARC_POLICY_ASPF] + '</td>';
+            r[++j] = '<td>' + result[key][DMARC_POLICY_P] + '</td>';
+            r[++j] = '<td>' + result[key][DMARC_POLICY_PCT] + '</td>';
+            r[++j] = '<td>' + result[key][DMARC_SOURCE_IP] + '</td>';
+            r[++j] = '<td>' + result[key][DMARC_RECORDCOUNT] + '</td>';
+            r[++j] = '<td>' + colour_code(result[key][DMARC_POLICYEVALUATED_DISPOSITION], 'none') + '</td>';
+            r[++j] = '<td>' + result[key][DMARC_IDENTIFIER_HEADERFROM] + '</td>';
+            r[++j] = '<td>' + colour_code(result[key][DMARC_POLICYEVALUATED_DKIM], 'pass') + '</td>';
+            r[++j] = '<td>' + result[key][DMARC_DKIM_DOMAIN] + '</td>';
+            r[++j] = '<td>' + colour_code(result[key][DMARC_POLICYEVALUATED_SPF], 'pass') + '</td>';
+            r[++j] = '<td>' + result[key][DMARC_SPF_DOMAIN] + '</td>';
+            r[++j] = '<td>' + result[key][DMARC_POLICYEVALUATED_REASONTYPE] + '</td>';
+            if (result[key][DMARC_POLICYEVALUATED_REASONCOMMENT]) {
+                r[++j] = '<td><span title="' + result[key][DMARC_POLICYEVALUATED_REASONCOMMENT] + '">...</span></td>';
+            } else {
+                r[++j] = '<td>&nbsp;</td>';
+            }
+            r[++j] = '</tr>';
+        }
+        r[++j] = '</tbody>';
+        $('#dmarc_results').html(r.join(''));
+    },
+    error: function ( jqXHR, textStatus, errorThrown ) {
+      $("#dmarc_messages").html(
+        '<div class="alert alert-warning">'
+        + '<a class="close" data-dismiss="alert">×</a>'
+        + '<span class="fas fa-exclamation-triangle"></span>'
+        + textStatus + ": " + errorThrown
+        + '</div>'
+      );
+    },
+    });
+  }
+    dmarc_update();
+});
+</script>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans "Home" %}</a> &rsaquo;
+    <a href="{% url 'admin:index' %}dmarc">DMARC</a> &rsaquo;
+    DMARC feedback reports
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="dmarcreport">
+    <h1>{% trans "DMARC aggregate feedback report" %}</h1>
+    <p id="dmarc_messages"></p>
+    <div id="dmarc_menu">
+    <h2 id="dmarc_menu_header">Report filter</h2>
+    <div id="dmarc_download">&nbsp;</div>
+    <form id="dmarc_form">
+      <ul>
+        <li>Period: <input id="dmarc_date_from" name="dmarc_date_from" type="text"></input>/<input id="dmarc_date_to" name="dmarc_date_to" type="text"></input></li>
+        <li>Only errors <input id="dmarc_onlyerror" name="dmarc_onlyerror" type="checkbox"></input></li>
+        <li>Filter source organisation / ip address <input id="dmarc_filter" name="dmarc_filter"></input></li>
+        <li>Disposition <select id="dmarc_disposition">
+          <option value="">Any</option>
+          <option value="quarantine">Quarantine</option>
+          <option value="reject">Reject</option>
+        </select></li>
+        <li><button>go</button></li>
+      </ul>
+    </form>
+    </div>
+    <div id="dmarc-tabs">
+        <ul>
+            <li><a href="#dmarc-tab-report">Report</a></li>
+            <li><a href="#dmarc-tab-faq">FAQ</a></li>
+            <li><a href="#dmarc-tab-glossary">Glossary</a></li>
+        </ul>
+        <div id="dmarc-tab-report">
+            <table id="dmarc_results" style="border-style:solid;border-width:1px;"></table>
+        </div>
+        <div id="dmarc-tab-faq">
+            <dl>
+                <dt>What does DMARC stand for</dt>
+                <dd>Domain-based Message Authentication, Reporting, and Conformance
+                (DMARC) is a scalable mechanism by which a mail-originating
+                organization can express domain-level policies and preferences for
+                message validation, disposition, and reporting, that a mail-receiving
+                organization can use to improve mail handling.</dd>
+                <dt>What is DMARC aiming to achieve?</dt>
+                <dd>Allows senders and receivers to improve and monitor
+                protection of their domain from fraudulent email by building
+                on and adding reporting to the widely deployed SPF and DKIM
+                protocols.</dd>
+                <dt>How do aggregate feedback reports help?</dt>
+                <dd>Feedback reports provide a mechanism to monitor and
+                improve mail handling.
+                </dd>
+                <dt>How does django-dmarc make implementing DMARC easier?</dt>
+                <dd>Collecting feedback reports is automated, allowing easier
+                filtering, with an option to download and use the data in a
+                spreadsheet.</dd>
+                <dt>Can I get detailed information about failures?</dt>
+                <dd>Yes, set the ruf attribute and a detailed report will be
+                sent for each failure.  See the
+                <a href="https://tools.ietf.org/html/rfc7489" target="_blank"
+                >RFC</a> for details.</dd>
+            </dl>
+            <p><a href="https://tools.ietf.org/html/rfc7489" target="_blank"
+                >The DMARC specification
+                https://tools.ietf.org/html/rfc7489</a></p>
+            <p><a href="https://tools.ietf.org/html/rfc7208" target="_blank"
+            >Sender Policy Framework (SPF)
+           for Authorizing Use of Domains in Email, Version 1</a></p>
+            <p><a href="https://tools.ietf.org/html/rfc6376" target="_blank"
+            >DomainKeys Identified Mail (DKIM) Signatures</a></p>
+        </div>
+        <div id="dmarc-tab-glossary">
+        <dl>
+            <dt>DMARC</dt>
+            <dd>Domain-based Message Authentication, Reporting, and Conformance
+   (DMARC) is a scalable mechanism by which a mail-originating
+   organization can express domain-level policies and preferences for
+   message validation, disposition, and reporting, that a mail-receiving
+   organization can use to improve mail handling.</dd>
+            <!-- This list should be in alphabetical order -->
+            <dt>adkim</dt>
+            <dd>Indicates whether
+      strict or relaxed DKIM Identifier Alignment mode is required by
+      the Domain Owner.  Valid values are as follows:
+      <ul><li>r: relaxed mode (default)</li>
+      <li>s: strict mode</li></ul></dd>
+            <dt>AFRF</dt>
+            <dd>Authentication Failure Reporting Format</dd>
+            <dt>aspf</dt>
+            <dd>Indicates whether
+      strict or relaxed SPF Identifier Alignment mode is required by the
+      Domain Owner.  Valid values are as follows:
+      <ul><li>r: relaxed mode (default)</li>
+      <li>s: strict mode</li></ul></dd>
+            <dt>Authenticated Identifiers</dt>
+            <dd>Domain-level identifiers that are
+      validated using authentication technologies are referred to as
+      "Authenticated Identifiers".</dd>
+            <dt>Author Domain</dt>
+            <dd>The domain name of the apparent author, as extracted
+      from the RFC5322 From field.</dd>
+
+            <dt>DomainKeys Identified Mail (DKIM)</dt>
+            <dd>DKIM is an email authentication method designed to detect
+            email spoofing. It allows the receiver to check that an email
+            claimed to come from a specific domain was indeed authorized
+            by the owner of that domain. It is intended to prevent forged
+            sender addresses in emails, a technique often used in phishing
+            and email spam.</dd>
+            <dt>DMARC Policy Record</dt>
+            <dd>Domain Owner DMARC preferences are stored as DNS TXT records in
+   subdomains named "_dmarc".  For example, the Domain Owner of
+   "example.com" would post DMARC preferences in a TXT record at
+   "_dmarc.example.com".  Similarly, a Mail Receiver wishing to query
+   for DMARC preferences regarding mail with an RFC5322.From domain of
+   "example.com" would issue a TXT query to the DNS for the subdomain of
+   "_dmarc.example.com".</dd>
+            <dt>Domain Owner</dt>
+            <dd>An entity or organization that owns a DNS domain.  The
+      term "owns" here indicates that the entity or organization being
+      referenced holds the registration of that DNS domain.  Domain
+      Owners range from complex, globally distributed organizations, to
+      service providers working on behalf of non-technical clients, to
+      individuals responsible for maintaining personal domains.  This
+      specification uses this term as analogous to an Administrative
+      Management Domain as defined in [EMAIL-ARCH].  It can also refer
+      to delegates, such as Report Receivers, when those are outside of
+      their immediate management domain.</dd>
+
+            <dt>fo</dt>
+            <dd><p>Failure reporting options.</p>
+      <p>Provides requested options for generation of failure reports.
+      Report generators MAY choose to adhere to the requested options.
+      This tag's content MUST be ignored if a "ruf" tag (below) is not
+      also specified.  The value of this tag is a colon-separated list
+      of characters that indicate failure reporting options as follows:</p>
+      <ul><li>0: Generate a DMARC failure report if all underlying
+         authentication mechanisms fail to produce an aligned "pass"
+         result. (default)</li>
+      <li>1: Generate a DMARC failure report if any underlying
+         authentication mechanism produced something other than an
+         aligned "pass" result.</li>
+      <li>d: Generate a DKIM failure report if the message had a signature
+         that failed evaluation, regardless of its alignment.</li>
+      <li>s: Generate an SPF failure report if the message failed SPF
+         evaluation, regardless of its alignment.</li></dd>
+
+            <dt>Identifier Alignment</dt>
+            <dd>When the domain in the RFC5322.From address
+      matches a domain validated by SPF or DKIM (or both), it has
+      Identifier Alignment.</dd>
+
+            <dt>Mail Receiver</dt>
+            <dd>The entity or organization that receives and
+      processes email.  Mail Receivers operate one or more Internet-
+      facing Mail Transport Agents (MTAs).</dd>
+
+            <dt>Organizational Domain</dt>
+            <dd>The domain that was registered with a domain
+      name registrar.  In the absence of more accurate methods,
+      heuristics are used to determine this, since it is not always the
+      case that the registered domain name is simply a top-level DNS
+      domain plus one component (e.g., "example.com", where "com" is a
+      top-level domain).</dd>
+
+            <dt>p</dt>
+            <dd>Requested Mail Receiver policy.
+      Indicates the policy to be enacted by the Receiver at
+      the request of the Domain Owner.  Policy applies to the domain
+      queried and to subdomains, unless subdomain policy is explicitly
+      described using the "sp" tag.  This tag is mandatory for policy
+      records only, but not for third-party reporting records.
+      Possible values are as follows:
+      <ul><li>none:  The Domain Owner requests no specific action be taken
+         regarding delivery of messages.</li>
+      <li>quarantine:  The Domain Owner wishes to have email that fails the
+         DMARC mechanism check be treated by Mail Receivers as
+         suspicious.  Depending on the capabilities of the Mail
+         Receiver, this can mean "place into spam folder", "scrutinize
+         with additional intensity", and/or "flag as suspicious".</li>
+      <li>reject:  The Domain Owner wishes for Mail Receivers to reject
+         email that fails the DMARC mechanism check.  Rejection SHOULD
+         occur during the SMTP transaction.  See Section 10.3 for some
+         discussion of SMTP rejection methods and their implications.</li>
+      </ul></dd>
+            <dt>pct</dt>
+            <dd>Percentage of messages from the Domain Owner's
+      mail stream to which the DMARC policy is to be applied.  However,
+      this MUST NOT be applied to the DMARC-generated reports, all of
+      which must be sent and received unhindered.  The purpose of the
+      "pct" tag is to allow Domain Owners to enact a slow rollout
+      enforcement of the DMARC mechanism.  The prospect of "all or
+      nothing" is recognized as preventing many organizations from
+      experimenting with strong authentication-based mechanisms.</dd>
+
+            <dt>Report Receiver</dt>
+            <dd>An operator that receives reports from another
+      operator implementing the reporting mechanism described in this
+      document.  Such an operator might be receiving reports about its
+      own messages, or reports about messages related to another
+      operator.  This term applies collectively to the system components
+      that receive and process these reports and the organizations that
+      operate them.</dd>
+            <dt>rf</dt>
+            <dd>Format to be used for message-specific failure reports.
+      The value of this tag is a list of one or more report formats as
+      requested by the Domain Owner to be used when a message fails both
+      [SPF] and [DKIM] tests to report details of the individual
+      failure. For this version, only "afrf" (the auth-failure report
+      type defined in [AFRF]) is presently supported.</dd>
+            <dt>ri</dt>
+            <dd>Interval requested between aggregate reports.
+            The default is 86400 (one day).  Indicates a
+      request to Receivers to generate aggregate reports separated by no
+      more than the requested number of seconds.  DMARC implementations
+      MUST be able to provide daily reports and SHOULD be able to
+      provide hourly reports when requested.  However, anything other
+      than a daily report is understood to be accommodated on a best-
+      effort basis.</dd>
+            <dt>rua</dt>
+            <dd>Addresses to which aggregate feedback is to be sent.</dd>
+            <dt>ruf</dt>
+            <dd>Addresses to which message-specific failure information is to
+      be reported.  If present, the Domain Owner is requesting Mail
+      Receivers to send detailed failure reports about messages that
+      fail the DMARC evaluation in specific ways (see the "fo" tag).</dd>
+
+            <dt>Sender Policy Framework (SPF)</dt>
+            <dd>Sender Policy Framework is a simple email-validation system
+            designed to detect email spoofing by providing a mechanism to
+            allow receiving mail exchangers to check that incoming mail from
+            a domain comes from a host authorized by that domain's
+            administrators.</dd>
+            <dt>sp</dt>
+            <dd>Requested Mail Receiver policy for all subdomains.
+      Indicates the policy to be enacted by the Receiver at
+      the request of the Domain Owner.  It applies only to subdomains of
+      the domain queried and not to the domain itself.  Its syntax is
+      identical to that of the "p" tag.  If absent, the
+      policy specified by the "p" tag MUST be applied for subdomains.
+      Note that "sp" will be ignored for DMARC records published on
+      subdomains of Organizational Domains due to the effect of the
+      DMARC policy discovery mechanism </dd>
+
+            <dt>v</dt>
+            <dd>Version.  Identifies the record retrieved
+      as a DMARC record.  It MUST have the value of "DMARC1".</dd>
+        </dl>
+        <p><a href="https://tools.ietf.org/html/rfc7489" target="_blank"
+            >The DMARC specification
+            https://tools.ietf.org/html/rfc7489</a></p>
+        <p><a href="https://tools.ietf.org/html/rfc7208" target="_blank"
+        >Sender Policy Framework (SPF)
+        for Authorizing Use of Domains in Email, Version 1</a></p>
+        <p><a href="https://tools.ietf.org/html/rfc6376" target="_blank"
+        >DomainKeys Identified Mail (DKIM) Signatures</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
