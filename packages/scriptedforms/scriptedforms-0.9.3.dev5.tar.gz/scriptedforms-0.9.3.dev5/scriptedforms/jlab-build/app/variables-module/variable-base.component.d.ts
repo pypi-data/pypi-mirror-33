@@ -1,0 +1,38 @@
+import { AfterViewInit, ElementRef, ChangeDetectorRef, EventEmitter } from '@angular/core';
+import { VariableService } from '../services/variable.service';
+import { VariableValue } from '../types/variable-value';
+export declare class VariableBaseComponent implements AfterViewInit {
+    myChangeDetectorRef: ChangeDetectorRef;
+    myVariableService: VariableService;
+    myElementRef: ElementRef;
+    isOutput: boolean;
+    isFormReady: boolean;
+    isPandas: boolean;
+    isFocus: boolean;
+    required?: string;
+    variableIdentifier: string;
+    variableChange: EventEmitter<VariableValue>;
+    oldVariableValue: VariableValue;
+    variableValue: VariableValue;
+    name?: string;
+    label?: string;
+    labelValue: string;
+    variableName: string;
+    placeholder?: string;
+    variablecontainer: ElementRef;
+    constructor(myChangeDetectorRef: ChangeDetectorRef, myVariableService: VariableService, myElementRef: ElementRef);
+    htmlDecode(input: string): string;
+    loadVariableName(): void;
+    ngAfterViewInit(): void;
+    onBlur(tableCoords?: [number, string]): void;
+    onFocus(tableCoords?: [number, string]): void;
+    pythonValueReference(): string;
+    pythonVariableEvaluate(): string;
+    testIfDifferent(): boolean;
+    updateOldVariable(): void;
+    variableChanged(): void;
+    updateVariableView(value: VariableValue): void;
+    formReady(isReady: boolean): void;
+    setId(index: number): void;
+    initialise(): void;
+}

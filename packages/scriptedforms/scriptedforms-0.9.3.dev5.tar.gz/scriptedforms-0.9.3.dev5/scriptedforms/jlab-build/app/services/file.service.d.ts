@@ -1,0 +1,31 @@
+import { BehaviorSubject } from 'rxjs';
+import { PromiseDelegate } from '@phosphor/coreutils';
+import { DocumentRegistry } from '@jupyterlab/docregistry';
+import { JupyterService } from './jupyter.service';
+import { FormService } from './form.service';
+import { KernelService } from './kernel.service';
+import { VariableService } from './variable.service';
+export declare class FileService {
+    private myFormService;
+    private myJupyterService;
+    private myKernelService;
+    private myVariableService;
+    path: BehaviorSubject<string>;
+    node: HTMLElement;
+    _context: DocumentRegistry.Context;
+    context: DocumentRegistry.Context;
+    baseUrl: string;
+    renderComplete: PromiseDelegate<void>;
+    constructor(myFormService: FormService, myJupyterService: JupyterService, myKernelService: KernelService, myVariableService: VariableService);
+    getApplicationBaseUrl(): string;
+    setNode(node: HTMLElement): void;
+    handleFileContents(fileContents: string): Promise<void>;
+    loadFileContents(path: string): Promise<void>;
+    setPathFromContext(): void;
+    setPath(path: string): void;
+    serviceSessionInitialisation(): void;
+    openFile(path: string): void;
+    setTemplateToString(dummyPath: string, template: string): void;
+    urlToFilePath(url: string): string;
+    openUrl(url: string): void;
+}

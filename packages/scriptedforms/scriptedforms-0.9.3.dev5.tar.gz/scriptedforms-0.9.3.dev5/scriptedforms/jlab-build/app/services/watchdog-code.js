@@ -1,0 +1,28 @@
+"use strict";
+// Scripted Forms -- Making GUIs easy for everyone on your team.
+// Copyright (C) 2017 Simon Biggs
+Object.defineProperty(exports, "__esModule", { value: true });
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version (the "AGPL-3.0+").
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License and the additional terms for more
+// details.
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
+// ADDITIONAL TERMS are also included as allowed by Section 7 of the GNU
+// Affrero General Public License. These aditional terms are Sections 1, 5,
+// 6, 7, 8, and 9 from the Apache License, Version 2.0 (the "Apache-2.0")
+// where all references to the definition "License" are instead defined to
+// mean the AGPL-3.0+.
+// You should have received a copy of the Apache-2.0 along with this
+// program. If not, see <http://www.apache.org/licenses/LICENSE-2.0>.
+exports.startWatchdogSessionCode = "\ntry:\n    observer\n    raise AssertionError(\"observer shouldn't exist yet\")\nexcept NameError:\n    import os\n    from watchdog.observers import Observer\n    from watchdog.events import FileSystemEventHandler, FileModifiedEvent\n\n    class MyHandler(FileSystemEventHandler):\n        def on_modified(self, event):\n            print('absolute: {}'.format(os.path.abspath(event.src_path)))\n            try:\n                print('relative: {}'.format(os.path.relpath(event.src_path)))\n            finally:\n                pass\n\n    event_handler = MyHandler()\n    observer = Observer()\n    observer.start()\n";
+function addObserverPathCode(observerPath) {
+    return "\nnext_path = os.path.dirname(os.path.abspath(\n    os.path.expanduser(os.path.expandvars('" + observerPath + "'))))\nobserver.schedule(event_handler, path=next_path)";
+}
+exports.addObserverPathCode = addObserverPathCode;
+//# sourceMappingURL=watchdog-code.js.map

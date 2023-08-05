@@ -1,0 +1,10 @@
+import { TickComponent } from '../variables-module/tick.component';
+import { ToggleComponent } from '../variables-module/toggle.component';
+import { ConditionalComponent } from '../variables-module/conditional.component';
+import { NumberComponent } from '../variables-module/number.component';
+import { SliderComponent } from '../variables-module/slider.component';
+import { VariableTableComponent } from '../variables-module/variable-table.component';
+import { StringComponent } from '../variables-module/string.component';
+import { DropdownComponent } from '../variables-module/dropdown.component';
+import { VariableFileComponent } from '../variables-module/variable-file.component';
+export declare type VariableComponent = (NumberComponent | StringComponent | VariableTableComponent | TickComponent | ToggleComponent | SliderComponent | DropdownComponent | ConditionalComponent | VariableFileComponent);
