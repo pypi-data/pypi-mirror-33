@@ -1,0 +1,77 @@
+# Flask Google App Engine Users
+
+Provide route decorators for Google App Engine users.
+
+
+# Author
+
+Daniel 'Vector' Kerr (<vector@vector.id.au>)
+
+
+# License
+
+Refer to [LICENSE.txt](LICENSE.txt).
+
+
+# Installation
+
+pip install flask-gae-users
+
+
+# Sample Usage
+
+## Python Code
+
+`main.py`
+```python
+from flask import Flask, request, Response, jsonify
+from flask_gae_users import GAEUsers
+from flask_gae_users import GAENoUserException
+from flask_gae_users import GAENotAdminException
+
+
+app = Flask()
+GAEUsers( app = app )
+
+# Provide a response when a user is not logged in
+@app.errorhandler( GAENoUserException )
+def onAppNoUser( e ):
+  body = "<p>You must log in to continue</p>"
+  body = body + "<p><a href=\"" + app.get_login_url() + "\">Sign in</a></p>"
+  return Response( body, status = 401 )
+
+# Provide a response when a user is not an administrator
+@app.errorhandler( GAENotAdminException )
+def onAppNoUser( e ):
+  body = "<p>You are not authorized to access this resource</p>"
+  body = body + "<p><a href=\"" + app.get_logout_url() + "\">Sign in as a different user</a></p>"
+  return Response( body, status = 403 )
+
+
+# Create a user-protected route by adding the `require_user` decorator
+@app.route( '/home', methods = [ 'GET' ] )
+@app.require_user()
+def routeHome():
+  user = app.get_user()
+  return jsonify( { 'user': repr( user ) } )
+
+# Create an admin-protected route by adding the `require_admin` decorator
+@app.route( '/admin', methods = [ 'GET' ] )
+@app.require_admin()
+def routeAdmin():
+  admin = app.get_user()
+  return jsonify( { 'admin': repr( admin ) } )
+
+
+# Run the flask application
+if __name__ == '__main__':
+  app.run( port = 8080 )
+```
+
+
+
+## Run Server
+
+```sh
+python main.py
+```
