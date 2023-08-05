@@ -1,0 +1,6 @@
+HELP = 'help'
+INSTRUCTIONS = 'instructions'
+TEST_CASE = 'case'
+TEST_SUITE = 'suite'
+SPECIFICATION = 'spec'
+HTML_DOCUMENTATION = 'htmldoc'
