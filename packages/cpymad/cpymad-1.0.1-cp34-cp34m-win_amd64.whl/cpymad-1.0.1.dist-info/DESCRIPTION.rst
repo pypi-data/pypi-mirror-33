@@ -1,0 +1,130 @@
+cpymad
+------
+|Version| |License| |Python| |Tests| |Coverage|
+
+cpymad is a Cython_ binding to MAD-X_ (`MAD-X source`_).
+
+This version of cpymad should be built against MAD-X |VERSION|.
+
+.. _Cython: http://cython.org/
+.. _MAD-X: http://cern.ch/mad
+.. _MAD-X source: https://github.com/MethodicalAcceleratorDesign/MAD-X
+.. |VERSION| replace:: 5.04.01
+
+cpymad is NOT maintained by CERN members and links against an unofficial build
+of MAD-X that is not supported by CERN, i.e. this binary may have problems
+that the official binary does not have and vice versa. See also: `Reporting
+issues`_.
+
+
+Links
+~~~~~
+
+- `Getting Started`_
+- `Installation`_
+- `Source code`_
+- `Documentation`_
+- `Issue tracker`_
+- `Latest Release`_
+
+.. _Getting Started: http://hibtc.github.io/cpymad/getting-started
+.. _Installation: http://hibtc.github.io/cpymad/installation
+.. _Source code: https://github.com/hibtc/cpymad
+.. _Documentation: http://hibtc.github.io/cpymad
+.. _Issue tracker: https://github.com/hibtc/cpymad/issues
+.. _Latest Release: https://pypi.python.org/pypi/cpymad#downloads
+
+
+License
+~~~~~~~
+
+White the cpymad source code itself is under free license, the MAD-X software
+package is **NOT FREE**. For more details, see COPYING.rst_.
+
+.. _COPYING.rst: https://github.com/hibtc/cpymad/blob/master/COPYING.rst
+
+
+Reporting issues
+~~~~~~~~~~~~~~~~
+
+If you have a problem with a sequence file, first try to check if that
+problem remains when using the MAD-X command line client distributed by
+CERN, then:
+
+- Report the issue to CERN only if it **can** be reproduced with their
+  official command line client.
+- Report the issue here only if it can **not** be reproduced with their
+  official command line client.
+
+For issues regarding the cpymad code itself or usage information, I'm happy to
+answer. Just keep in mind to be **precise**, **specific**, **concise** and
+provide all the necessary information.
+
+.. Badges:
+
+.. |Tests| image::      https://api.travis-ci.org/hibtc/cpymad.svg?branch=master
+   :target:             https://travis-ci.org/hibtc/cpymad
+   :alt:                Test Status
+
+.. |Coverage| image::   https://coveralls.io/repos/hibtc/cpymad/badge.svg?branch=master
+   :target:             https://coveralls.io/r/hibtc/cpymad
+   :alt:                Coverage
+
+.. |Version| image::    https://img.shields.io/pypi/v/cpymad.svg
+   :target:             https://pypi.python.org/pypi/cpymad/
+   :alt:                Latest Version
+
+.. |License| image::    https://img.shields.io/badge/license-CC0,_Apache,_Non--Free-red.svg
+   :target:             https://github.com/hibtc/cpymad/blob/master/COPYING.rst
+   :alt:                License: CC0, Apache, Non-Free
+
+.. |Python| image::     https://img.shields.io/pypi/pyversions/cpymad.svg
+   :target:             https://pypi.python.org/pypi/cpymad#downloads
+   :alt:                Python versions
+
+Changelog
+~~~~~~~~~
+
+1.0.1
+=====
+Date: 22.06.2018
+
+- improve error message on missing command attributes
+- allow negative indices when accessing table rows
+- fix returning the correct table from ``twiss()``/``survey()`` if a
+  non-default table is used
+- improve support for multi-line commands in ``input()`` (but still no comments!)
+- automatically add missing semicolons at the end of command strings
+
+
+1.0.0
+=====
+Date: 11.06.2018
+
+Please see the comprehensive list of changes and backward incompatibilities
+mentioned in the prereleases!
+
+In addition:
+
+- update to minrpc 0.0.7
+- the windows wheels are built using MAD-X 5.04.01
+
+
+1.0.0rc3
+========
+Date: 31.05.2018
+
+- add ``Parameter.var_type`` that tells apart constant/direct/expression vars
+- change the meaning of ``inform`` for globals, ``inform=0`` means now
+  "predefined variable"
+- fix TypeError occuring in ``mad_command`` when composing string arrays
+
+
+Older versions
+==============
+
+The full changelog is available online in CHANGES.rst_.
+
+.. _CHANGES.rst: https://github.com/hibtc/cpymad/blob/master/CHANGES.rst
+
+
