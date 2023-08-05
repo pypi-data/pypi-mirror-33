@@ -1,0 +1,20 @@
+## Adopters
+* [Advanced Telematics Systems](https://advancedtelematic.com/en/press-releases/ats-is-integrating-the-uptane-security-framework-for-over-the-air-software-updates-to-connected-vehicles.html)
+* [Airbiquity](https://www.airbiquity.com/news/press-releases/airbiquity-unveils-new-otamatictm-release-further-strengthening-over-air-ota-software-and-data-management-offering-automotive)
+* [Automotive Grade Linux](http://docs.automotivelinux.org/docs/architecture/en/dev/reference/security/05-platform-security.html#agl-platform-software-update)
+* [Cloudflare](https://blog.cloudflare.com/pal-a-container-identity-bootstrapping-tool/)
+* [DigitalOcean](https://github.com/digitalocean/do-agent)
+* [Docker](https://blog.docker.com/2015/08/content-trust-docker-1-8/)
+* [Flynn](https://flynn.io/docs/development#the-update-framework-%28tuf%29)
+* [Kolide](https://github.com/kolide/updater)
+* [LEAP](https://leap.se/en/2014/darkest-night)
+* [Notary](https://github.com/theupdateframework/notary)
+* [Quay by CoreOS](https://www.youtube.com/watch?v=ofXHmfOTLyA)
+* [VMWare](https://www.youtube.com/watch?v=2ZIu9XTvsC0)
+
+## Ongoing integrations
+* [Crates.io/Rust](https://github.com/heartsucker/rust-tuf)
+* [Hackage](https://www.well-typed.com/blog/2015/04/improving-hackage-security/)
+* [OPAM](https://opam.ocaml.org/blog/Signing-the-opam-repository/)
+* [PyPI](https://github.com/pypa/interoperability-peps/blob/master/pep-0458-tuf-online-keys.rst)
+* [RubyGems](https://corner.squareup.com/2013/12/securing-rubygems-with-tuf-part-1.html)
