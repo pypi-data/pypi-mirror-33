@@ -1,0 +1,1 @@
+from .SPRWIoTExceptions import QuotaLimitReachedError, AuthenticationError, ValidationError, NetworkError, ServerError, Error, SpeechRecognitionError, UnknownValueError, WaitTimeoutError, RequestError
