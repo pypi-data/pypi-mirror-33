@@ -1,0 +1,92 @@
+Metadata-Version: 2.1
+Name: class-pool
+Version: 0.5rc1
+Summary: Simple implementation of class pools for Python. Optional support for Django and DRF (if available)
+Home-page: UNKNOWN
+Author: Pawel Pecio
+Author-email: 
+License: UNKNOWN
+Description: # class-pool
+        
+        This tool bases on django's models pool.
+        
+        *Features*
+        - thread-safe classes pool
+        - ad-hoc class registering
+        - auto class registering from all application
+        - custom class identifiers in a pool
+        - filtering classes during registration by base class
+        - default class for unregistered identifiers
+        - pool classes choice field for Django models, forms and Django Rest Framework serializers
+        
+        ## Requirements
+        * django >= 1.7
+        * Python 3 (probably works as well on 2.7, not tested)
+        
+        ## Usage
+        
+        
+        **Filtering**
+        
+        Create your own class from `Pool` class. You can overload `base_class` attribute to allow registration
+        only subclasses of given class. By default all new-style Python classes can be registered.
+        
+        
+        **Autodiscovery**
+        
+        Create your own class from `Pool` class and overload `module_lookup` attribute. When instantiated pool will import
+        all applications and try to load module which match name in `module_lookup`. If found, all classes will be imported
+        and registered in the pool (if `base_class` is given limited only to classes which match base).
+        
+        
+        **Default class**
+        
+        Create your own class from `Pool` class and overload `default` attribute. When unregistered class is requested then
+        default will be returned. `default` can be callable and return class on demand, requested ID is passed as an
+        argument.
+        
+        
+        **Custom identifiers**
+        
+        By default all classes in the pool are distinguished by its names. This can be changed by overloading `get_class_id()`
+        function in `Pool` implementation, which takes as an argument class to register and should return ID as a string.
+        
+        **Registering classes**
+        
+        Instantiate `Pool` class (or derivative). If autodiscovery is configured, pool will scan all applications listed
+        in `INSTALLED_APPS`. To add new class to the registry call `register()` function which takes one argument - class
+        to register. Note! Your class has to be compatible with identifier getter defined in the pool (by default class
+        name is used as ID).
+        
+        
+        **Getting classes**
+        
+        To get class from the pool call `get()` method, which takes identifier as an argument. If class is not found and
+        default class is not specified `None` is returned.
+        
+        `Pool` supports also `__getitem__` call, but in that case `KeyError` exception is thrown if class of given ID
+        is not registered, __even if default class is specified__.
+        
+        
+        **Field**
+        
+        This tool offers simple model, form and django rest framework fields which allow to add a choice field with
+        dynamically built choices basing on all classes registered in a pool. These fields takes pool class instance
+        as a `pool` argument in the constructor.
+        
+        Example:
+        ```
+        class FooModel(models.Model):
+           subtype = PoolChoiceField(pool=types_pool)
+        ```
+        
+        ## Roadmap to 1.0
+        - add tests
+        - add an ability to pass `pool` argument in fields as a string and then import it lazily (simplify imports)
+        - add django forms field (currently model field is represented as any other CharField with choices)
+        
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Description-Content-Type: text/markdown
