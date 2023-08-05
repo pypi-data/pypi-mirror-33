@@ -1,0 +1,48 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:tal="http://xml.zope.org/namespaces/tal"
+      xmlns:i18n="http://xml.zope.org/namespaces/i18n"
+      tal:omit-tag=""
+      tal:define="languages view/languages | nothing;
+                  sorted_languages view/sorted_languages | nothing;
+                  current view/current | nothing;
+                  default_value view/default_value | nothing;
+                  available_languages view/available_languages | nothing;
+                  addable_languages view/addable_languages | nothing;
+                  widget_name view/__name__ | nothing;"
+      i18n:domain="ps.zope.i18nfield">
+
+  <div id="${view/id}" class="pat-autotoc autotabs" data-pat-autotoc="section:section;levels:header;IDPrefix:${view/id}-autotoc-item-">
+    <tal:languages tal:repeat="language sorted_languages">
+      <section
+          tal:condition="python: language in available_languages"
+          tal:define="language_name languages/?language">
+        <header style="display: none;" tal:content="language_name">[language]</header>
+
+        <div id="${view/id}__widget--${language}"
+            tal:condition="python: language in available_languages">
+          <div style="margin: 1em 0;" tal:define="widget python:view.getWidget(language)">
+              <input type="text" tal:replace="structure widget/render" />
+              <div class="controls" style="overflow: hidden;">
+                <button style="margin-top: 1em; float: right;" i18n:translate="" id="${view/id}-button_remove" class="destructive" name="${view/name}.button_remove" value="${language}">Remove translation</button>
+              </div>
+          </div>
+        </div>
+      </section>
+    </tal:languages>
+
+    <div class="form_controls">
+      <select name="${view/name}.add" id="${view/id}__add">
+        <option value="" tal:content="view/option_select_language | nothing"></option>
+        <tal:languages tal:repeat="language sorted_languages">
+          <option value="${language}"
+              tal:condition="python: language not in available_languages"
+              tal:content="languages/?language"></option>
+        </tal:languages>
+      </select>
+      <input id="${view/id}-button_add" class="context" name="${view/name}.button_add" type="submit" value=""
+          tal:attributes="value view/button_add_language_i18n | nothing;" />
+    </div>
+  </div>
+
+
+</html>
