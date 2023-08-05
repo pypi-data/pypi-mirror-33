@@ -1,0 +1,100 @@
+# Flask JSON Schema Validator
+
+Validate Flask JSON request data with schema files and route decorators.
+
+
+# Author
+
+Daniel 'Vector' Kerr (<vector@vector.id.au>)
+
+
+# License
+
+Refer to [LICENSE.txt](LICENSE.txt).
+
+
+# Installation
+
+pip install flask-jsonschema-validator
+
+
+# Sample Usage
+
+## Python Code
+
+`main.py`
+```python
+from flask import Flask, request, jsonify
+from flask_jsonschema_validator import JSONSchemaValidator
+
+app = Flask()
+JSONSchemaValidator( app = app, root = "schemas" )
+
+# Define a normal flask route, and then apply the `validate` decorator.
+# Look for the `users.json` file, and use the `register` key as the schema source.
+@app.route( '/register', methods = [ 'POST' ] )
+@app.validate( 'users', 'register' )
+def routeRegister():
+  user = request.json
+  return jsonify( user )
+
+if __name__ == '__main__':
+  app.run( port = 8080 )
+```
+
+
+## Schema File
+
+`schemas/users.json`
+```json
+{
+  "register": {
+    "type": "object",
+    "properties": {
+      "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+      "email": { "type": "string", "format": "email" },
+      "password": { "type": "string", "minLength": 8, "maxLength": 32 }
+    },
+    "required": [ "name", "email", "password" ]
+  }
+}
+```
+
+
+## Run Server
+
+```sh
+python main.py
+```
+
+
+## POST Data to Server
+```http
+POST /register HTTP/1.0
+Content-Type: application/json
+Content-Length: 76
+
+{
+	"name": "fred",
+	"email": "fred@foo.com",
+	"password": "frediscool"
+}
+```
+
+
+## Handling Validation Errors
+
+If the data validates correctly then the server will respond with the POST data as a JSON object.
+
+If the data fails to validate, a `jsonschema.ValidationError` exception will be raised.
+
+To handle the exception, you could register a Flask errorhandler. For example:
+
+```python
+import jsonschema
+from flask import Response
+
+@app.errorhandler( jsonschema.ValidationError )
+def onValidationError( e ):
+  return Response( "There was a validation error: " + str( e ), 400 )
+```
