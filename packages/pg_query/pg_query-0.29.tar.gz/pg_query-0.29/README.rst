@@ -1,0 +1,14 @@
+.. -*- coding: utf-8 -*-
+.. :Project:   pg_query -- Pythonic wrapper around libpg_query
+.. :Created:   mer 02 ago 2017 14:49:24 CEST
+.. :Author:    Lele Gaifax <lele@metapensiero.it>
+.. :License:   GNU General Public License version 3 or later
+.. :Copyright: © 2017, 2018 Lele Gaifax
+..
+
+==========
+ pg_query
+==========
+
+This has been superseded by `pglast <https://pypi.org/project/pglast>`_, please use that
+instead.
