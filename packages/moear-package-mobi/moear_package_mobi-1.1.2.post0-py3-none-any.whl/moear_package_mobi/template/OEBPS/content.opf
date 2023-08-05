@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="BookId">
+  <metadata>
+    <dc-metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+      <dc:title>{{ spider.display_name|escape }}</dc:title>
+      <dc:language>{{ options.language }}</dc:language>
+      <dc:identifier id="BookId" opf:scheme="ISBN">{{ spider.name }}</dc:identifier>
+      <dc:creator>{{ spider.author }}</dc:creator>
+      <dc:publisher>{{ spider.display_name|escape }}</dc:publisher>
+      {#- <dc:subject></dc:subject> #}
+      <dc:date>{{ options.publish_date }}</dc:date>
+      <dc:description>{{ spider.description }}</dc:description>
+      {#- <dc:rights></dc:rights> #}
+    </dc-metadata>
+    {%- if options.book_mode == 'periodical' %}
+    <x-metadata>
+      <output encoding="utf-8" content-type="application/x-mobipocket-subscription-magazine"></output>
+    </x-metadata>
+    {%- endif %}
+    <meta name="cover" content="cimage"/>
+  </metadata>
+
+  <manifest>
+    <item id="ncxtoc" media-type="application/x-dtbncx+xml" href="misc/toc.ncx"/>
+
+    <item id="cimage" media-type="image/jpeg" href="images/cover.jpg" properties="cover-image"/>
+
+    <item href="html/toc.html" media-type="application/xhtml+xml" id="htmltoc"/>
+    {%- for section in data.items() %}
+    {%- for post in section[1] %}
+    <item id="{{ post.idx }}" href="{{ post.url_local }}" media-type="application/xhtml+xml"/>
+    {%- endfor %}
+    {%- endfor %}
+  </manifest>
+
+  <spine toc="ncxtoc">
+    <itemref idref="cimage" linear="no"/>
+    <itemref idref="htmltoc"/>
+    {%- for section in data.items() %}
+    {%- for post in section[1] %}
+    <itemref idref="{{ post.idx }}"/>
+    {%- endfor %}
+    {%- endfor %}
+  </spine>
+  <guide>
+    <reference type="toc" title="Table of Contents" href="html/toc.html"/>
+    <reference type="text" title="Content" href="html/toc.html"/>
+  </guide>
+</package>
