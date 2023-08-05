@@ -1,0 +1,617 @@
+Metadata-Version: 1.1
+Name: madgui
+Version: 1.12.0
+Summary: GUI for accelerator simulations using MAD-X.
+Home-page: https://github.com/hibtc/madgui
+Author: Thomas Gläßle
+Author-email: t_glaessle@gmx.de
+License: GPLv3+
+Description: madgui
+        ======
+        
+        madgui_ is a Qt5 python GUI for interactive accelerator simulations using MAD-X_.
+        
+        
+        Requirements
+        ~~~~~~~~~~~~
+        
+        - **Python >= 3.4**
+        
+          *On linux*, I recommend the latest python version you can find.
+        
+          *On windows*, I recommend `WinPython 3.4 Qt5`_ (should be about 300MiB in
+          size). In particular, you **can not use 64bit python 3.5 and above** on
+          windows 10, since there are problems building cpymad for these versions, see
+          `hibtc/cpymad#41`_.
+        
+        - PyQt5_
+        
+        - cpymad_, in order to work with MAD-X_.
+        
+          *On windows*, installing cpymad should be as simple as::
+        
+            pip install cpymad
+        
+          Otherwise, please refer to cpymad's `installation instructions`_.
+        
+        .. _WinPython 3.4 Qt5: https://sourceforge.net/projects/winpython/files/WinPython_3.4/3.4.4.6/
+        .. _hibtc/cpymad#41: https://github.com/hibtc/cpymad/issues/41
+        .. _installation instructions: http://hibtc.github.io/cpymad/installation/index.html
+        .. _MAD-X: http://madx.web.cern.ch/madx
+        .. _cpymad: https://github.com/hibtc/cpymad
+        .. _PyQt5: https://riverbankcomputing.com/software/pyqt/intro
+        
+        
+        Installation
+        ~~~~~~~~~~~~
+        
+        You are now ready to install madgui. Type::
+        
+            pip install madgui
+        
+        Or, in order to install from the local checkout::
+        
+            python setup.py install
+        
+        If you intend to make changes to the madgui code and want to try the effects
+        immediately, use::
+        
+            python setup.py develop
+        
+        
+        Usage
+        ~~~~~
+        
+        Now, you should be able to start madgui with the command::
+        
+            madgui
+        
+        or::
+        
+            python -m madgui
+        
+        If you are on windows, and nothing happens, you can start madgui manually as
+        follows, which may provide you with more error information::
+        
+            python -c "from madgui.core.app import main; main()"
+        
+        
+        Configuration
+        ~~~~~~~~~~~~~
+        
+        The application loads a YAML config file ``madgui.yml`` in the current
+        directory or the user's home directory.
+        
+        Example file:
+        
+        .. code-block:: yaml
+        
+            model_path: ../hit_models
+            session_file: madgui.session.yml
+        
+            onload: |
+              from hit_csys.plugin import DllLoader, StubLoader
+              frame.add_online_plugin(DllLoader)
+              frame.add_online_plugin(StubLoader)
+        
+        Note that the onload handler can be used to execute user-defined code, import
+        modules and e.g. add loaders for online control plugins. The API is defined in
+        the ``madgui.online.api`` module.
+        
+        
+        Development guidelines
+        ~~~~~~~~~~~~~~~~~~~~~~
+        
+        **Coding:**
+        
+        - Try to be consistent with PEP8_ and PEP257_.
+        - Add `sphinx`_ style docstrings for all modules, classes, functions
+        - Check regularly for unused imports etc with ``pyflakes madgui``
+        
+        .. _PEP8: http://www.python.org/dev/peps/pep-0008/
+        .. _PEP257: http://www.python.org/dev/peps/pep-0257/
+        .. _`sphinx`: http://sphinx-doc.org/
+        
+        **Naming:**
+        
+        - Stick to ``names_with_underscores`` for methods and variable names as
+          recommended by PEP8_ (I admit that the code base is currently somewhat
+          inconsistent in this regard)
+        - class names are in ``CamelCase``
+        - only PyQt class method overrides and their parameters shall be written in
+          ``lowerCamelCase``
+        
+        **Version control:**
+        
+        Commits should be reversible, independent units if possible. Use descriptive
+        titles and also add an explaining commit message unless the modification is
+        trivial. See also: `A Note About Git Commit Messages`_.
+        
+        .. _`A Note About Git Commit Messages`: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
+        
+        Copying
+        ~~~~~~~
+        
+        Copyright 2016-2018 HIT Betriebs GmbH
+        
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+        
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+        
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+        
+        For a full text version of the license, see ``COPYING.GPLv3.txt``.
+        
+        CHANGELOG
+        ~~~~~~~~~
+        
+        1.12.0
+        ~~~~~~
+        Date: 26.06.2018
+        
+        - add "About python" menuitem
+        - fix bugs in ``Model.get_transfer_maps`` / ``Model.sectormap``
+        - collect multiple variable update commands into one RPC call
+        - add class for boxing generic values
+        - make ``Mainwindow.model`` a ``Boxed`` object!!
+        - remove ``Model.destroyed`` signal in favor of the more general
+          ``Boxed.changed`` signal
+        - add ``envx``/``envy`` columns to ``get_elem_twiss``
+        - fix data export in "Read strengths"/"Write strengths" dialogs
+        - set "Ok" as default button in export widgets
+        - add menuitem for executing MAD-X files (i.e. CALL)
+        - remember folders separately for "load strengths" and "execute file" items
+        
+        
+        1.11.4
+        ~~~~~~
+        Date: 11.06.2018
+        
+        - fix inconsistency with open-/closedness of sectormap intervals in
+          ``model.sectormap`` and ``get_transfer_maps``
+        
+        
+        1.11.3
+        ~~~~~~
+        Date: 11.06.2018
+        
+        - add 'export strengths' menu item
+        - add export as .str file in globals edit
+        - fix JSON incorrectly being listed as export format
+        - show globals according to var_type (predefinedness)
+        
+        
+        1.11.2
+        ~~~~~~
+        Date: 11.06.2018
+        
+        - fix losing zoom/view on every curve redraw due to autoscaling
+        - fix AttributeError when trying to save session data. This appeared only if
+          online control was not connected and prevented saving the current model,
+          folder etc
+        - fix ValueError when computing relative path for a model on different volume
+        - let madgui have its own taskbar group on windows
+        - add preliminary window icon
+        - more consistent behaviour for model.get_transfer_maps
+        - prettify default output format for numpy arrays in python shell
+        
+        element indicators:
+        - more distinctive lines for monitors
+        - flip displacement for pos/neg dipole strengths
+        - scale displacements/quadrupole colors according to magnet strength
+        - draw element indicators in background
+        - distinguish twiss curve by adding outlines
+        - set alpha=1 for element indicators
+        - add KICK marker within SBEND
+        - highlight selected and hovered elements
+        
+        
+        1.11.1
+        ~~~~~~
+        Date: 01.06.2018
+        
+        - fix deadlock appearing mainly on windows during MAD-X commands with long
+          output (the fix will cause minor performance degradation for now)
+        - avoid some unnecessary updates/redraws on startup
+        - remember *which* online plugin to connect to
+        - some more info log statements
+        - change ``onload`` again to be executed before loading the model
+        
+        
+        1.11.0
+        ~~~~~~
+        Date: 31.05.2018
+        
+        Miscellaneous:
+            - require cpymad 1.0.0rc3
+            - fix multi grid view not being updated
+            - add units for K0
+            - update floor plan survey after twiss
+        
+        Matching:
+            - group multiple matching constraints at the same element and position
+              into one statement
+            - specify weights only for the used quantities
+            - disable matching if the number of constraints is incorrect
+            - don't reset matching when deactivating the match mode
+        
+        Element/param dialogs:
+            - fix condition for when globals are editable
+            - display element attribute names in title case again
+            - show leading part of variable names in lowercase
+            - make use of cpymad's ``inform`` and ``var_type``
+        
+        TreeView:
+            - improve/refactor internal tableview API
+            - use tree view
+            - expand vectors in tree view
+            - expand variables occuring in expressions in GlobalsEdit/CommandEdit
+        
+        Undo:
+            - support undoing simple .str files
+            - remove flawed accept/reject logic, i.e. "Cancel" buttons, leaving only
+              "Ok" buttons for now (the logic required to properly implement "Cancel"
+              is nontrivial, and the behaviour might still be confusing)
+            - move undo utils to their own module
+            - subclass QUndoStack
+            - never show empty macros (QUndoCommand.setObsolete)
+        
+        Plotting:
+            - share loaded curves between all windows
+            - handle add_curve/del_curve in mainwindow
+            - "snapshot" now saves all available twiss data so that when changing
+              graphs, the snapshot for the other curves will be shown
+            - gracefully deal with missing data in user curves (showed exception very
+              loudly previously, showing debug message now)
+            - invert quadrupole focussing color codes in Y plot
+            - distinguish SBEND/KICKER sign by shifting the indicator position up/down
+            - smaller but more distinct indicators
+            - fade out "off-axis" kickers (e.g. HKICKER in Y plot)
+            - remove grid lines in Y direction
+            - fix missing element name in status bar
+            - update element markers on each draw
+        
+        
+        1.10.1
+        ------
+        Date: 15.05.2018
+        
+        - fix ``ElementList.__contains__``
+        - show/edit expression field for global variables
+        - fix SyntaxError on py34
+        - require cpymad 1.0.0rc2
+        - use ``e_kin`` only if it was given explicitly when editting beam
+        - more accurate undo handling for setting *new* parameters
+        - use space-insensitive string comparison before updating expressions
+        - fix bug that results in squared UI unit conversion factor during matching
+        - use the builtin unit conversion mechanism in match widget
+        - allow overwriting deferred expressions by direct values when editting
+        - fix for not tracking modifications to element attributes on the undo stack
+        - fix obsolete checks that would prevent certain updates to element attributes
+        - simplify and unify ParamTable flavours by relying on model invalidation
+        - implement "expression deletion" by replacing them with their values
+        - make "Expression" field immutable for string attributes
+        
+        
+        1.10.0
+        ------
+        Date: 13.05.2018
+        
+        - execute ``onload`` commands *after* loading models
+        - add coordinate axes and size indicator to floor plan
+        - use ``logging`` for warnings in emittance module
+        - use the global logger instead of personal loggers
+        - fix bug in TableView that can cause using the wrong quantity for unit conversion
+        - knobs are now exclusively global variables occuring in deferred expressions
+        - remove ``Knob`` class
+        - don't show units in globals dialog nor in matching dialog
+        - show globals names in uppercase
+        - use .ui file for mainwindow
+        - add UI for filtering shown log records in main window
+        - suppress MAD-X output by default
+        - refactor and cleanup TableView API considerably; the old ``ValueProxy``
+          classes are now replaced by ``Delegate`` classes that no nothing about the
+          individual cell and a ``Cell`` class that provides a context
+        - allow specializing virtually all data roles by passing an apropriate value or
+          callback function to ``ColumnInfo``
+        - unify and improve handling of checked columns
+        - remove config item for left/right number alignment
+        - introduce offsets for monitor calibration
+        - add naive way to define monitor offsets as the difference between model and
+          measurement
+        - keep monitor values in MAD-X units internally
+        - add units to column title for several table views
+        - add "Expression" column for elements
+        - highlight user-specified values using bold
+        - remove ``DataStore``, replaced by simplified TableView API and getter methods
+        - fix energy/mass UI units
+        - add "E_kin" field for beam
+        - fix exception in YAML params exporter
+        - fix bug in sectormap due to interpolate
+        - compute sectormap only once between changes, and only on demand
+        - fix missing redraw after ``twiss``
+        - fix editing ``kick`` (works only for HIT-model style angle/k0 definitions)
+        - remove ``Element.id`` in favor of ``.index``
+        - remove our own proxy layer for ``Element``, use the cpymad elements directly
+        - remove support for scalar names referring to vector components ("KNL[0]" etc)
+        - simplifications for ``ElementList`` and how elements can be accessed
+        - fix ``open_graph`` always showing "orbit" plot
+        - make the different beam diagnostic tasks part of a tabbed dialog,
+          increase code sharing
+        - rework the beam diagnostic widgets, layout, buttons, defaults
+        - remember plot window positions, sizes and graph names
+        - inline some initializer methods in ``model``
+        - use undo/redo mechanism and a corresponding history widget that fixes the
+          backup/restore mechanism used in several places
+        
+        
+        1.9.0
+        -----
+        Date: 16.04.2018
+        
+        Improvements:
+        
+        - add x/y/px/py values to *Twiss* tab in element info dialog
+        - replot backtracked twiss on every new monitor readout
+        - consider ``SBEND->K0`` when detecting knobs
+        - remove conversion mechanism for knobs, this is now the responsibility of the
+          model itself (by using appropriate expressions) or the online plugin
+        - use only user defined variables in deferred expressions as knobs, consider
+          fixed numbers as static
+        - show marks with monitor width/position when opening monitor dialog, can
+          select which ones to show
+        - add update/backtrack functionality to monitor widget
+        - show unit on the column title
+        - add simple data export for monitors
+        - make the monitorwidget child to the main window (so it will be closed like
+          everything else when the main window is closed)
+        - persist some settings across multiple madgui runs using *session* files:
+          main window size/position, model, folder, selected monitors
+        - enable grid in twiss plot (mainly for y=0)
+        - add ``onload`` config entry for application, and in model
+        - remove setuptools based entrypoint for online models, must be manually
+          loaded by the user using the ``onload`` handler instead
+        - draw element markers at the exit end of the element
+        - unify log window with MAD-X input commands, output, as well as logging
+          records, based on PlainTextEdit with extra selections in different colors,
+          much easier on the eyes and hands! Shows line numbers and times on the left.
+        - show exceptions in log window as well
+        - silence Pint redefinition warning
+        - log interleaved MAD-X input/output in chronological order!
+        - display line numbers for config edit dialog (multi grid)
+        - show only the actual MAD-X command parameters in the second info tab
+        - add ``kick`` attribute for SBEND in summary tab
+        
+        Bug fixes:
+        
+        - fix exception on py34: missing ``math.isclose``
+        - fix exception in floor plan
+        - fix error in matching due to discarding ``Expression``
+        - fix unit conversion for gantry angle
+        - fix multi grid with ``assign`` in config file
+        - use float edit boxes for target values
+        - fix input unit of multi-grid target values
+        - fix bug with disappearing monitor widget (GC related)
+        
+        Internal changes:
+        
+        - use function call syntax to get the values from Bool proxies
+        - remove some remaining py2 compatibility code
+        - support attribute access and *on_change* signals for config entries, make
+          ``config.NumberFormat`` a simple config entry
+        - rename ``user_ns`` to ``context``
+        - cleanup some unused imports, undefined names etc (pyflakes)
+        - replace ``monospace`` function by a simpler one without ``size`` parameter
+        - remove uppercase restritcion when accessing element attributes
+        - adapt to changes in cpymad 1.0 API
+        - flip definition of ``gantry_angle`` (``SROTATION->ANGLE`` has changed in
+          MAD-X 5.04.00)
+        
+        
+        1.8.0
+        -----
+        Date: 25.03.2018
+        
+        - remove ``api_version`` entry from model files
+        - add menu item to load MAD-X file
+        - autoscale plots when pressing "Home" button
+        - add shortcut method ``model.sectormap`` for use in ipython shell
+        
+        - twiss/beam init dialog:
+            - remove menuitems for separate init tabs, move to file menu
+            - treat attributes specified in the config as reals, not ints
+            - update enabled-state of save/open buttons according to current widget
+        
+        - element infobox:
+            - add tab with sectormap for element infobox
+            - update title clicking on another element (previously was updated only
+              when changing using the combobox)
+            - fix "open" button
+        
+        - both:
+            - use spinbox=true by default
+            - use QuantityValue for floats (spin to win!)
+            - fix editting bool values
+            - fix display bug when showing SpinBox for IntValue
+            - fix "save" button
+        
+        - matching:
+            - match against variables inside expressions
+            - reuse computed init conditions after applying corrections
+        
+        - internal resource handling:
+            - remove PackageResource
+            - replace pkg_resources with importlib_resources where appropriate
+            - remove madgui.resource package
+        
+        - ellipses plots:
+            - add ellipse tab for init dialog
+            - add x/y labels
+            - use tight_layout
+            - use ui units
+            - draw ellipse over grid
+            - fix swapped ellipse axes when alpha is negative
+            - fix swapped formulas for the half axes
+        
+        - units:
+            - pass values internally as plain floats, convert only for IO/UI (#2)
+            - Replace all Expression instances by their values, get rid of
+              SymbolicValue
+            - introduce globals for ``madx_units`` and ``ui_units`` used for
+              conversion
+            - format degrees with "°" symbol
+            - improve unit labels for lists
+            - remove pint units file, use the default one shipped with pint instead
+        
+        
+        1.7.2
+        -----
+        Date: 05.03.2018
+        
+        - added missing factor 2 in ellipse axes lengths
+        - don't need AttrDict from new cpymad in this version
+        
+        
+        1.7.1
+        -----
+        Date: 02.03.2018
+        
+        - fix knobs in skew quadrupoles
+        - hotfix regression with posx/posy aliases
+        - compatible with hit_models 0.7.0, hit_csys 0.6.0
+        
+        
+        1.7.0
+        -----
+        Date: 02.03.2018
+        
+        - compute alfa/beta from sigma matrix for consistency
+        - expose ``twiss`` variable holding twiss table in python shell widget
+        - set better display units for some plots
+        - keep plot axis limits on most updates
+        - finally start to use position dependent emittances in some places
+        - add more plots: momentum/dispersion/phase advance/emittance/gamma
+        - plot monitors as dashed lines
+        - plot loaded/snapshot curves without markers
+        - update infobox window title when changing element
+        - add tab with global variables to init-settings dialog
+        - add tabs to info box: primary/expert/twiss/sigma/ellipse
+        - keep position in info-box when refreshing values or element
+        - fit small tool buttons to text size
+        - let user click on zero-length elements
+        - scale interpolation step length with sequence length, to show smooth curves
+        - default number_format.align=right
+        - default mirror_mode=True
+        - fix python shell, when starting madqt as gui_script under windows
+        - rework the multi-grid dialog (for orbit correction)
+        - rename back to madgui
+        - new versioning scheme, interpret: ``0.0.X`` -> ``1.X.0``, acknowledging the
+          the ``0.X.Y`` releases of the old wx-based madgui.
+        - remove pytao binding
+        - match dialog: dropdown menu for knobs, minor visual improvements
+        - internal refactoring, module renamings
+        - can connect online control without loaded model
+        
+        
+        0.0.6
+        -----
+        Date: 26.01.2018
+        
+        - element info box: add UI to switch element
+        - floor plan: support 3D models (no more curved sbends anymore though…)
+        - floor plan: add UI to change view perspective
+        - floor plan: fix mirror inversion
+        - main/plot window: set window title
+        - main window: add config setting for initial position
+        - codebase: unify the workspace/segment mess, now only have 'model' again
+          (it's unlikely that we will ever be able to work on less/more than one
+          sequence in the same workspace anyway)
+        
+        
+        0.0.5
+        -----
+        Date: 24.01.2018
+        
+        - fix mass unit in MAD-X
+        - massive simplification of knobs API for interfacing control system
+        - can read beam parameters from online plugin
+        - show updated orbit plot after fitting in orbit-correction-mode (regression)
+        - open orbit plot for orbit-correction-mode
+        
+        
+        0.0.4
+        -----
+        Date: 09.01.2018
+        
+        - Emit signal when workspace is changed (for plugins…)
+        - Show about boxes only if the package exists
+        - Add about dialog for pytao
+        - Change tab in settings dialog when clicking menu
+        - When user invokes an action via a menu and the corresponding dialog
+          already exists, focus the existing window
+        - No longer show checkboxes for twiss/beam dialogs in menu
+        - Read spinbox setting from config
+        - [regression] Fix exception (closed logfile) when opening different model
+        - [regression] Fix exception in online-control module when changing values
+          into MAD-X
+        
+        
+        0.0.3
+        -----
+        Date: 06.01.2018
+        
+        - fuzzy select when removing constraints in matching mode (middle click)
+        - start log threads as daemon thread (never blocks program exit)
+        - thread safe access to madx/tao
+        - fetch element data for indicators in background
+        - fix missing .ui files in installation
+        - fix crash on windows at startup when starting via gui_scripts entrypoint
+        
+        
+        0.0.2
+        -----
+        Date: 05.12.2017
+        
+        - continuous matching (within any element position)
+        - fix bugs in matching code
+        - updated dependencies: pint 0.8.1, cpymad>=0.18.2, pytao>=0.0.1
+        
+        
+        0.0.1
+        -----
+        Date: 30.11.2017
+        
+        First reference point to define somewhat stable versions.
+        
+        List of features:
+        
+        - cpymad/pytao as simulation backends
+        - plots: alfa/beta/envelope/orbit; and the ones defined by tao
+        - integrated python shell (ipython/jupyter) not very useful as of yet:
+          limited exhibition of objects, no convenient APIs provided (plotting)
+        - log tab that shows madx/tao output
+        - tab that shows madx/tao commands
+        - display and edit box for beam parameters; initial conditions (i.e. twiss);
+          and element attributes (read-only so far)
+        - 2D floor plan
+        - matching (interactive + dialog)
+        - emittance (dialog)
+        - orbit alignment: 2-grid + N+optic methods
+        
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Environment :: X11 Applications :: Qt
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Scientific/Engineering :: Medical Science Apps.
+Classifier: Topic :: Scientific/Engineering :: Physics
