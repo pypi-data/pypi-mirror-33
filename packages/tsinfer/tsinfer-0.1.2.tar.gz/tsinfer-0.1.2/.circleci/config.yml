@@ -1,0 +1,63 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/python:3.6-stretch
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies and set PATH
+          command: |
+              # Need gsl-dev for msprime. When we move to tskit we should 
+              # be able to remove this.
+              sudo apt-get install libcap-dev libnuma-dev libgsl-dev
+              # way to set path persistently https://circleci.com/docs/2.0/env-vars/#setting-path
+              echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
+      - run:
+          name: Install package and test basic usage.
+          command: |
+              # Need to install numpy first or msprime doesn't build correctly.
+              # Remove this when msprime fully depends on numpy.
+              pip install numpy --user
+              pip install . --user 
+              tsinfer --help
+              pip uninstall tsinfer --yes
+      - run:
+          name: Compile Python
+          command: |
+              python setup.py build_ext --inplace
+      - run:
+          name: Install development dependencies
+          command: |
+              # FIXME installing msprime from betas here to workaround the missing 
+              # package for 0.6.0. Remove as soon as 0.6.0 is released.
+              pip install msprime --user --pre
+              pip install -r requirements/development.txt --user
+      - run:
+          name: Lint Python
+          command: |
+              flake8 --max-line-length 89 tsinfer setup.py tests
+      - run:
+          name: Run Python tests 
+          command: |
+              nosetests -v --with-coverage --cover-package tsinfer \
+                  --cover-branches --cover-erase --cover-xml \
+                  --cover-inclusive tests
+              python3 -m codecov 
+      - run:
+          name: Build the distribution tarball.
+          command: python setup.py sdist
+      - run:
+          name: Test the docs will build on RTD minimal environment.
+          command: |
+               python -m venv docs-venv
+               source docs-venv/bin/activate 
+               pip install -r requirements/readthedocs.txt
+               make -C docs
+      - run:
+          name: Install from the distribution tarball
+          command: |
+               python -m venv venv
+               source venv/bin/activate 
+               pip install --upgrade setuptools pip
+               pip install dist/*.tar.gz 
