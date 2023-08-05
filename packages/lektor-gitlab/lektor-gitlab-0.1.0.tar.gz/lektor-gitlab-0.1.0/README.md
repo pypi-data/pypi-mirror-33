@@ -1,0 +1,55 @@
+# Lektor Gitlab
+
+Query the Gitlab API right from your [Lektor][1] templates.
+
+## Configuration 
+
+To use the plugin you must first acquire an [private access token][2]. 
+The token must at least have the `api` scope. 
+
+Depending on your preference you can either create a Lektor config file 
+ called `configs/gitlab.ini` where the token is stored under the 
+ `private_token` key.
+ 
+Eg: 
+```ini
+private_token = <Your access token>
+```
+
+Alternatively the token can also be set using an environment variable.
+
+__Note__: the config file is checked before the environment variable  
+
+Eg: 
+```bash 
+export GITLAB_PRIVATE_TOKEN=<Your access token> 
+```
+
+## Usage 
+
+After you have set up the access token, the [Python-Gitlab][3] `Gitlab`
+ object is available in your templates. This means you can do anything 
+ your heart desires with it. 
+ 
+### Examples
+
+List your public repos
+
+```jinja2
+<ul>
+    {% for project in gitlab.projects.list(owned=True, visibility='public') %}
+        <li>{{ project.name }} [{{ project.star_count }}]</li>
+    {% endfor %}
+</ul>
+```
+
+Display the your name and avatar 
+
+```jinja2
+<h2>{{ gitlab.user.name }}</h2>
+<img src="{{ gitlab.user.avatar_url }}">
+```
+
+[1]: https://www.getlektor.com
+[2]: https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html
+[3]: http://python-gitlab.readthedocs.io/en/stable/index.html
