@@ -1,0 +1,78 @@
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Description: # Sitemapper
+        
+        A utility for generating sitemaps from a list of URLs.
+        
+        ## Installation
+        
+        ```
+        pip install sitemapper
+        ```
+        
+        ## Usage
+        
+        ```
+        sitemapper --input-file URLs.txt --output-directory out --change-freq weekly --max-urls-per-sitemap 50000 --sitemap-root https://example.com --pretty-print
+        ```
+        
+        
+        ## Sample output
+        
+        ```
+        <?xml version='1.0' encoding='utf-8'?>
+        <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+          <sitemap>
+            <loc>https://marcomontagna.com/sitemap0.xml</loc>
+          <lastmod>2018-06-01T19:02:17.440168</lastmod>
+          </sitemap>
+        <sitemap>
+            <loc>https://marcomontagna.com/sitemap1.xml</loc>
+          <lastmod>2018-06-01T19:02:17.440168</lastmod>
+        </sitemap>
+        </sitemapindex>
+        ```
+        
+        ```
+        <?xml version='1.0' encoding='utf-8'?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+            <url>
+            <loc>https://marcomontagna.com/</loc>
+            <changefreq>weekly</changefreq>
+            </url>
+          <url>
+            <loc>https://marcomontagna.com/blog.html</loc>
+            <changefreq>weekly</changefreq>
+          </url>
+        </urlset>
+        ```
+        
+Keywords: sitemaps,sitemap index,sitemap generator
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Natural Language :: English
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Requires-Python: >=2.7
+Description-Content-Type: text/markdown
