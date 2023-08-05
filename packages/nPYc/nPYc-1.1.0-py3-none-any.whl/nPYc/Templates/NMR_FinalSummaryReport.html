@@ -1,0 +1,119 @@
+{% extends "base_QC.html" %}
+
+{% import 'pcaReport.html' as pca %}
+{% import 'sampleReportChunk.html' as sampleReport %}
+
+{% block title %}Assay Summary Report For: {{ item.Name }}{% endblock %}
+
+{% block content %}
+
+<!--Overall Summary_______________________________________________________________________________________________________________-->
+<h2>Final Dataset</h2>
+
+<div class='content'>
+	<p>{{ item['Nsamples'] }} samples</p>
+	<p></p>
+</div>
+
+<!--Summary of samples acquired________________________________________________________________________________________________________________-->
+<h2>Sample Summary</h2>
+{% if 'SampleSummaryTable' in item %}
+	<h3>Sample Summary Table</h3>
+	{{ item['SampleSummaryTable']['Acquired'].to_html() }}
+{% endif %}
+
+
+<!--Sample Acquisition Structure_______________________________________________________________________________________________________-->
+<h2>Sample Acquisition Structure</h2>
+<div class='content'>
+	<p>Samples acquired between {{ item['toA_from'] }} and {{ item['toA_to'] }}.</p>
+	<p></p>
+</div>
+<div class='content'>
+	<p>Samples referenced to: {{ attributes['calibrateTo'] }} ppm, and aligned and interpolated onto a common scale of {{ attributes['variableSize'] }} points</p>
+	<p></p>
+</div>
+
+
+
+<!--info on whats been done______________________________________________________________________________________________________________-->
+<h2>Data Structure Summary</h2>
+<p>Data processed with the following parameters:</p>
+<div class='table1'>
+	<table>
+	 <tr>
+		<th></th>
+		<th>Applied</th>
+	</tr>
+	{% if 'baselineCheckRegion' in attributes %}
+	<tr>
+		<td>Baseline checked</td>
+		<td>Yes</td>
+	</tr>
+	<tr>
+		<td>Baseline check regions</td>
+		<td>{{ attributes['baselineCheckRegion'] }}</td>
+	</tr>
+	{% endif %}
+	{% if 'waterPeakCheckRegion' in attributes %}
+	<tr>
+		<td>Water resonance checked</td>
+		<td>Yes</td>
+	</tr>
+	<tr>
+		<td>Water Resonance check regions</td>
+		<td>{{ attributes['waterPeakCheckRegion'] }}</td>
+	</tr>
+	{% endif %}
+	{% if 'PWFailThreshold' in attributes %}
+	<tr>
+		<td>Samples with excesive line width removed</td>
+		<td>Yes</td>
+	</tr>
+	<tr>
+		<td>Line width threshold</td>
+		<td>{{ attributes['PWFailThreshold'] }}</td>
+	</tr>
+	<tr>
+		<td>Peak used for line width calculation</td>
+		<td>{{ attributes['LWpeakRange'] }}</td>
+	</tr>
+	<tr>
+		<td>Multiplicity of line width peak</td>
+		<td>{{ attributes['LWpeakMultiplicity'] }}</td>
+	</tr>
+	{% endif %}
+	<tr>
+		<td>Spectral regions automatically removed</td>
+		<td>{{ attributes['exclusionRegions'] }}</td>
+	</tr>
+	</table>
+</div>
+<!--BL *& PW plots______________________________________________________________________________________________________________-->
+
+<!--Figure 1: peak width box-->
+<div class='figure1'>
+	<p class="caption"><span class="heading">Figure&nbsp;1.</span> Peak Width</p>
+	<img src="{{ item['peakWidthBoxplot'] }}" alt="Peak Width plot.">
+</div>
+<div class='figure2'>
+	<p class="caption"><span class="heading">Figure&nbsp;2.</span> Baseline low and high</p>
+	<img src="{{ item['finalFeatureBLWPplots1']}}" alt="Baseline plot.">
+</div>
+
+<div class='figure3'>
+	<p class="caption"><span class="heading">Figure&nbsp;3.</span> Water peak low and high</p>
+	<img src="{{ item['finalFeatureBLWPplots3']}}" alt="Water peak plot.">
+</div>
+
+<!--Multivariate -->
+{% if pcaPlots %}
+	{{ pca.basicPCAReport(pcaPlots) }}
+{% endif %}
+
+<!--Samples -->
+{% if sampleSummary %}
+	{{ sampleReport.sampleReport(sampleSummary) }}
+{% endif %}
+
+{% endblock %}
