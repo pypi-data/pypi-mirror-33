@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% trans "Register for an account" %}{% endblock %}
+
+<script>
+{% block jquery %}
+
+$(".controls input").addClass("textinput textInput form-control");
+
+$("#getVerificationCode").click(function(event){
+    event.preventDefault();
+    $.ajax({
+        type: "POST", 
+        url: "{% url 'getVerificationCode' %}",
+        data: {
+              phone_number: $('#id_phone').val(),
+        },
+        
+        beforeSend : function(){
+            $('#getVerificationCode').prop('disabled', true); //disable the item
+            var interval;
+            var times=10;
+            var title = $('#getVerificationCode').val(); 
+            interval = setInterval(timeleft, "500");
+            function timeleft() {
+                $('#getVerificationCode').html(times-- + "s");
+                if(times < 0){
+                    clearTimeout(interval);
+                    $('#getVerificationCode').prop('disabled', false);
+                    $('#getVerificationCode').html(title);
+                }
+            }
+            /*
+            $('#getVerificationCode').everyTime('1s',function(){
+                alert("t");
+                $('#getVerificationCode').html("x");
+            });
+            */
+        },
+        success: function(data) {
+          if(null == data.token )
+            alert("generate otp fail")
+          $('#id_otp').val(data.token);
+        }, 
+        error: function(response, error) {
+          console.log(error)
+        }
+    })
+
+})
+
+{% endblock %}
+</script>
+
+{% block content %}
+
+<style type="text/css">
+.controls input {
+width: 100%
+}
+
+.control-label{
+    padding-right: 5px;
+    padding-left: 5px;
+}
+
+.controls{
+    padding-right: 5px;
+    padding-left: 5px;
+}
+
+
+#getVerificationCodeForm{
+	/*width: 40%;
+	position: relative;
+	float:left;*/
+}
+</style>
+
+<div class='row'>
+    <div class='col-sm-6 col-sm-offset-3'>
+        <h1>{% block content_title %}{% trans "Register for free!" %}{% endblock %}</h1>        
+        <form class="form-horizontal" method='POST' action=''>{% csrf_token %}
+            {% if form.errors %}
+                <p style="color: red;">
+                    {# pulralize 是filter，用来判断是否为添加's'来表示单词的复数形式#}
+                    Please correct the error{{ form.errors|pluralize }} below.
+                    {{ form.non_field_errors }}
+                </p>
+            {% endif %}
+
+            {% for field in form %}
+            <div class="form-group {% if field.errors %}has-error{% endif %}">
+              <div class="col-sm-4 col-xs-3 control-label">
+                  {{field.label_tag}}
+              </div>
+              
+              <div class="{% if field.label == 'One-Time Password' %} col-sm-4 col-xs-5 {% else %} col-sm-8 col-xs-9 {% endif %} controls">                                     
+                {{field}}                
+                {% if field.help_text %}<p class="help">{{ field.help_text|safe }}</p>{% endif %}              
+                <p class="help-block"><strong>{% if not field.is_readonly %}
+                  {% for error in field.errors %}{{ error }}{% endfor %}
+                {% endif %}</strong></p>
+              </div>
+              {% if field.label == "One-Time Password" %}
+              <div class="col-sm-4 col-xs-4 controls">
+                <button type="button" class="btn btn-default" id="getVerificationCode" value ="Get OTP" style="width: 100%" ">Get OTP</button>
+              </div>
+              {% endif %}            
+            </div>
+            {% endfor %} 
+
+{% comment  %}
+            {{ form|crispy }}
+{% endcomment  %}
+
+
+          <div class="form-group">
+            <div class="col-xs-9 col-sm-8  col-xs-offset-3 col-sm-offset-4 controls">
+              <button type="submit" class="btn btn-default"  style="width: 100%">Sign Up</button>
+            </div>
+          </div>
+
+        </form>
+    </div>
+</div>    
+
+
+{% endblock %}
