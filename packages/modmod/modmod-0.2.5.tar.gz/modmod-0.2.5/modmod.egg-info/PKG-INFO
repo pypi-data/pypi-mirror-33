@@ -1,0 +1,185 @@
+Metadata-Version: 2.1
+Name: modmod
+Version: 0.2.5
+Summary: modular models for efficient ML development
+Home-page: https://github.com/Remesh/modmod
+Author: Nicholas Tietz-Sokolsky
+Author-email: me@ntietz.com
+License: Apache 2.0
+Description: 
+        
+        # modmod
+        
+        modmod is a library for making *Mod*-ular *Mod*-els. The primary problem that
+        modmod solves is how to load models at runtime without instantiating them
+        multiple times; in that respect, it is essentially a dependency injection
+        system for models.
+        
+        # Installation
+        
+        To use modmod, just install it with your package manager in the usual way. If
+        you use [Pipenv](https://docs.pipenv.org/), you can copy/paste this:
+        
+        ```
+        pipenv install modmod
+        ```
+        
+        # Usage
+        
+        There are two main pieces of modmod: Models and Pools.
+        
+        A `Pool` is a container for models. A `Model` can be treated like an augmented
+        function which is a `Model` factory.
+        
+        Here's an example of defining the simplest possible model:
+        
+        ```
+        from modmod.model import Model
+        
+        class AddThings(Model):
+            def call(self, x: int, y: int) -> int:
+                return x + y
+        ```
+        
+        And here is how you would use it:
+        
+        ```
+        import modmod.pool
+        
+        pool = modmod.pool.get()
+        
+        adder = pool.get(AddThings)
+        
+        z = adder(1, 2)
+        print(z) # prints 3
+        ```
+        
+        You can also take a shortcut to get the model:
+        
+        ```
+        adder = AddThings.get()
+        ```
+        
+        However, this should never be done inside a model, bceause it will use the
+        default pool and will have strange side effects if anyone tries to use your
+        model in a non-default pool.
+        
+        ## Models with initialization
+        
+        Sometimes a model needs to be initialized to load in data or do other one-time
+        startup tasks. To do this, you just override the constructor and the `create`
+        method. Here's an example for stripping stopwords:
+        
+        ```
+        import nltk
+        from modmod.model import Model
+        
+        class RemoveStopwords(Model):
+          def __init__(self, pool: Pool, config: Dict[str, Any], stopwords: List[str]) -> None:
+            super().__init__(pool, config)
+            self.stopwords = stopwords
+        
+          @classmethod
+          def create(cls, pool: Pool, config: Dict[str, Any]) -> 'RemoveStopwords':
+            nltk.download('stopwords')
+            stopwords = nltk.corpus.stopwords.words('english')
+            stopwords.append('')
+            stopwords.remove('not')
+            stopwords.remove('no')
+            return RemoveStopwords(pool, config, stopwords)
+        
+          def call(self, words: List[str]) -> List[str]:
+            return list(filter(lambda w: w not in self.stopwords, words))
+        ```
+        
+        The `create` method is invoked when you call `RemoveStopwords.get()`. It is
+        only called the _first_ time you get a model; after that, the created model
+        lives in the pool, and it will not be re-initialized.
+        
+        *Why are *`__init__`* and *`create`* both required?* This is a good question.
+        The reason comes down to configurability and use in testing environments.
+        In the example above, if you wanted to experiment with a new list of
+        stopwords, you could use the constructor to create a model with that list and
+        then add it into the pool:
+        ```
+        pool = modmod.pool.get('stopwords-experiment')
+        config = {}
+        
+        remove_new_stopwords = RemoveStopwords(pool, config, ['stop', 'word', 'list'])
+        pool.add_model(remove_new_stopwords, RemoveStopwords)
+        ```
+        Once it's added to the pool, any calls to
+        `RemoveStopwords.get('stopwords-experiment')` will find and retrieve the
+        manually created model.
+        
+        Note: `create` is generally overridden if you have to do a heavy operation,
+        like downloading a file or reading in some data. If you are just using the pool
+        and the config object, it's perfectly acceptable to override `__init__` and
+        leave the default behavior for `create`.
+        
+        
+        ## Configuring the pool
+        
+        Every model gets configuration passed into them, and this comes from the pool.
+        So, if you need configuration, you need to configure the pool.
+        
+        **Note:** the pool must be configured *before* you get any models, since
+        configuring it overwrites the existing pool.
+        
+        To configure the default pool:
+        
+        ```
+        import modmod.pool
+        
+        config = {'opt1': 2}
+        
+        modmod.pool.configure(config)
+        ```
+        
+        ## Non-default Pools
+        
+        Sometimes you will want separate pools for separate tasks. One example of this
+        is for unit testing: you may want to test with multiple configurations of the
+        model. To do this, you can use separate pools.
+        
+        The first step is to configure the pool:
+        
+        ```
+        import modmod.pool
+        
+        poolname = 'my-pool'
+        config = {'opt1': 2}
+        
+        modmod.pool.configure(config, poolname)
+        ```
+        
+        The second step is just to use the pool!
+        
+        ```
+        import modmod.pool
+        
+        pool = modmod.pool.get('my-pool')
+        
+        adder = pool.get(AddThings)
+        # Equivalent:
+        adder = AddThings.get('my-pool')
+        ```
+        
+        # Roadmap
+        
+        We have a few initiatives on the roadmap. Each of these will be a version bump:
+        
+        * [ ] Add support for data and model versioning, add support for model training
+        * [ ] Add hooks for profiling, debugging, caching
+        
+        
+Platform: UNKNOWN
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Intended Audience :: Science/Research
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Classifier: Programming Language :: Python :: Implementation :: PyPy
+Requires-Python: >=3.6.0
+Description-Content-Type: text/markdown
