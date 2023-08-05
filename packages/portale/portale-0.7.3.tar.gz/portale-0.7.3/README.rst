@@ -1,0 +1,87 @@
+Portale
+=======
+
+Portale is minimalistic requests based HTTP/REST API client. 
+
+Advantage over other libraries: Allows different cache timeout policy for each API
+
+Simple example
+--------------
+
+.. code-block:: python
+
+    from portale import PrefixedURLSession
+
+    session = PrefixedURLSession('https://httpbin.org/')
+
+    get_thing = session.GETRequest('anything?thing={0}', timeout=10)
+    thing = get_thing('snake')
+
+    get_thing_by_name = session.GETRequest('anything?thing={name}', timeout=10)
+    thing = get_thing_by_name(name='snake')
+
+    long_request = session.GETJSONRequest('delay/{n}', timeout=20)
+    result = long_request(n=2)
+    result = long_request(n=2)  # cached response
+
+    post_req = session.POSTJSONRequest('anything/{category}/')
+    pathargs = ()
+    pathkw = {'category': 'products'}
+    payload = {'id': 101, 'title': 'Journal'}
+    resp = post_req(json=payload)
+
+.. code-block:: python
+
+    from portale import PrefixedURLSession
+
+    session = PrefixedURLSession('https://cms.example/')
+
+    list_articles = session.GETJSONRequest('articles/')
+    new_article = session.POSTJSONRequest('articles/')
+    get_article = session.GETJSONRequest('articles/{0}')
+    update_article = session.PATCHJSONRequest('articles/{0}')
+    delete_article = session.DELETEJSONRequest('articles/{0}')
+
+    list_articles()
+    new_article(title='Best story ever', tags=['stories', 'fiction'])
+    get_article(101)
+    update_article(101, title='The Best story ever')
+    delete_article(101)
+
+
+
+
+Cache 
+-----
+  
+
+`timeout` if not specified in Request initialization, session's timeout is used as default timeout for all the APIs using same session.
+
+.. code-block:: python
+
+    from portale import PrefixedURLSession
+
+    session = PrefixedURLSession('https://httpbin.org/', timeout=10)
+    get_thing = session.GETRequest('anything?thing={0}')
+    long_request = session.GETJSONRequest('delay/{n}')
+
+
+Busting cache
+
+.. code-block:: python
+
+    long_request.cache.bust(n=n)
+
+Access cache metrics
+
+.. code-block:: python
+
+    print(long_request.cache.metrics)
+
+
+Tests
+-----
+
+.. code-block:: python
+
+    nosetests -xv tests.py
