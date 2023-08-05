@@ -1,0 +1,96 @@
+Metadata-Version: 2.1
+Name: molo.usermetadata
+Version: 6.0.0
+Summary: User metadata to be used with Molo.
+Home-page: http://github.com/praekelt/molo.usermetadata
+Author: Praekelt.org
+Author-email: dev@praekelt.org
+License: BSD
+Keywords: praekelt,mobi,web,django
+Platform: UNKNOWN
+Classifier: Programming Language :: Python
+Classifier: Framework :: Django
+Classifier: Topic :: Internet :: WWW/HTTP
+Classifier: Topic :: Internet :: WWW/HTTP :: WSGI :: Application
+Provides-Extra: test
+Provides-Extra: lint
+Provides-Extra: cover
+Requires-Dist: molo.core (<=7.0.0,>=6.0.0)
+Provides-Extra: cover
+Requires-Dist: pytest-cov; extra == 'cover'
+Provides-Extra: lint
+Requires-Dist: flake8 (==3.4.1); extra == 'lint'
+Provides-Extra: test
+Requires-Dist: pytest (==3.0.0); extra == 'test'
+Requires-Dist: pytest-django (==3.1.1); extra == 'test'
+Requires-Dist: responses; extra == 'test'
+
+Molo User Metadata
+==================
+
+.. image:: https://travis-ci.org/praekelt/molo.usermetadata.svg?branch=develop
+    :target: https://travis-ci.org/praekelt/molo.usermetadata
+    :alt: Continuous Integration
+
+.. image:: https://coveralls.io/repos/praekelt/molo.usermetadata/badge.png?branch=develop
+    :target: https://coveralls.io/r/praekelt/molo.usermetadata?branch=develop
+    :alt: Code Coverage
+
+Provides code to help with User metadata in a project using the Molo code base.
+
+.. Note:: This library does not provide a Django user model, it provides a
+          metadata model that can be attached to a user. Our experience is
+          that custom User models in Django add all sorts of unpleasantries
+          when using migrations.
+
+Installation::
+
+   pip install molo.usermetadata
+
+
+In your app settings::
+
+   INSTALLED_APPS = (
+      'molo.usermetadata',
+   )
+
+   MIDDLEWARE = (
+      'molo.usermetadata.middleware.PeronsaMiddleware'
+   )
+
+In your app urls.py::
+
+   urlpatterns += patterns('',
+        url(r'^meta/', include('molo.usermetadata.urls', namespace='molo.usermetadata', app_name='molo.usermetadata')),
+   )
+
+Note::
+
+   In order for the personae to be activated, choose activate under wagtail settings > personae settings
+
+Google Analytics
+----------------
+
+In order for GA to pick up persona data you need to add the following to your base.html
+
+At the top of the template you need to load the persona tag::
+
+    {% load persona_tags %}
+
+In your GTM block add the following to get the persona value::
+
+    {% persona_selected as persona_selected_value %}
+
+In your <noscript> tag add the following to src in order to add the persona to the data layer when JS is not enabled::
+
+    {% if persona_selected_value%}&persona={{ persona_selected_value }}&event=persona{% endif %}
+
+At the bottom of your tag manager block add the following in order to add the persona to the data layer when JS is enabled::
+
+    {% if persona_selected_value %}
+      <script type="text/javascript">
+        dataLayer.push({'persona': '{{ persona_selected_value }}', 'event': 'persona'});
+      </script>
+    {% endif %}
+
+
