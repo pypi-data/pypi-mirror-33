@@ -1,0 +1,640 @@
+#!/usr/bin/python3
+
+import argparse
+import re
+import sys
+import os
+import logging
+import coloredlogs
+import subprocess
+import requests
+import stat
+import json
+import shutil
+import tabulate
+import glob
+import menus
+
+# ------------------------------------------------------------------------------
+# Common vars
+
+CORE_INSTALL_DIR        = os.path.expanduser('~/.theCore/')
+CORE_SRC_DIR            = CORE_INSTALL_DIR + 'theCore/'
+CORE_CONFIG_PATH        = CORE_SRC_DIR + 'config.json'
+CORE_TOOLCHAIN_DIR      = CORE_SRC_DIR + 'toolchains/'
+CORE_INSTALLFILE        = CORE_INSTALL_DIR + 'installfile.json'
+# TODO: add ability to globally specify theCore remote (not only upstream)
+CORE_UPSTREAM           = 'https://github.com/forGGe/theCore'
+CORE_THIRDPARTY_DIR     = CORE_INSTALL_DIR + 'thirdparties'
+NIX_DIR                 = '~/.nix-profile'
+NIX_INSTALL_SCRIPT      = '/tmp/nix_install.sh'
+NIX_SOURCE_FILE         = os.path.expanduser('~/.nix-profile/etc/profile.d/nix.sh')
+CURRENT_RUNNING_DIR     = os.getcwd()
+VERSION                 = '0.0.3'
+
+# ------------------------------------------------------------------------------
+# Logging
+
+logger = logging.getLogger('tcore')
+logger.setLevel(logging.DEBUG)
+
+console_log = logging.StreamHandler()
+console_log.setLevel(logging.DEBUG)
+
+formatter = coloredlogs.ColoredFormatter('%(asctime)s [%(levelname)-8s] %(message)s')
+console_log.setFormatter(formatter)
+
+logger.addHandler(console_log)
+
+# ------------------------------------------------------------------------------
+# Utilities
+
+# Runs command within the Nix environment
+def run_with_nix(cmd):
+    nix_cmd = '. {} && {}'.format(NIX_SOURCE_FILE, cmd)
+    rc = subprocess.call(nix_cmd, shell = True)
+
+    if rc != 0:
+        logger.error('failed to run command: ' + nix_cmd)
+        exit(1)
+
+# Runs command within the Nix shell
+def run_with_nix_shell(cmd):
+    run_with_nix('nix-shell --run \"{}\" {}'.format(cmd, CORE_SRC_DIR))
+
+# Returns True if theCore is installed
+def theCore_installed():
+    return os.path.isfile(CORE_INSTALLFILE)
+
+# Returns path to metafile or None if missing
+def get_metafile(src_dir = os.getcwd()):
+    metafile = os.path.normpath(src_dir + '/meta.json')
+    logger.debug('looking up for metafile: ' + metafile)
+
+    if not os.path.isfile(metafile):
+        return None
+    return metafile
+
+# ------------------------------------------------------------------------------
+# Commands
+
+# Boostraps theCore, downloads and installs Nix
+def do_bootstrap(args):
+    if args.force:
+        logger.warn('force (re)install theCore dev environment')
+
+    # Check if nix exists
+
+    if os.path.isdir(os.path.expanduser(NIX_DIR)) and not args.force:
+        logger.info('Nix is already installed')
+    else:
+        logger.info('Installing Nix ... ')
+        r = requests.get('https://nixos.org/nix/install')
+
+        with open(NIX_INSTALL_SCRIPT, 'w') as fl:
+            fl.write(r.text)
+
+        os.chmod(NIX_INSTALL_SCRIPT, stat.S_IRWXU)
+        rc = subprocess.call(NIX_INSTALL_SCRIPT, shell=True)
+
+        if rc != 0:
+            logger.error('failed to install Nix')
+            exit(1)
+
+    # Check if theCore is downloaded
+
+    if theCore_installed() and not args.force:
+        logger.info('theCore is already downloaded')
+    else:
+        if os.path.isdir(CORE_SRC_DIR):
+            logger.info('remove old theCore files')
+            shutil.rmtree(CORE_SRC_DIR)
+
+        if theCore_installed():
+            logger.info('remove theCore installfile')
+            os.remove(CORE_INSTALLFILE)
+
+        logger.info('downloading theCore')
+        os.makedirs(CORE_SRC_DIR)
+        run_with_nix('nix-env -i git')
+        # Upstream name is way better name for such theCore installation
+        run_with_nix('git clone {} {} -o upstream'.format(CORE_UPSTREAM, CORE_SRC_DIR))
+        run_with_nix('cd {} && git submodule update --init --recursive'.format(CORE_SRC_DIR))
+
+        # Initial install file contents
+        installfile_content = { 'tcore_ver': VERSION }
+
+        with open(CORE_INSTALLFILE, 'w') as installfile:
+            installfile.write(json.dumps(installfile_content, indent=4) + '\n')
+
+        # Initialize Nix (download all dependencies)
+        run_with_nix_shell('true')
+
+    logger.info('theCore successfully installed!')
+
+# Initializes empty project, or downloads existing one using Git.
+def do_init(args):
+    if not theCore_installed():
+        logger.error('theCore is not installed in {}. Forgot to run `bootstrap`?'
+            .format(CORE_INSTALL_DIR))
+        exit(1)
+
+    if not args.remote:
+        logger.error('initializing an empty project is not yet implemented, use remote option')
+        exit(1)
+
+    if args.outdir:
+        out_dir = args.outdir
+    else:
+        out_dir = ''
+
+    run_with_nix('git clone {} {}'.format(args.remote, out_dir))
+
+# Change theCore revision globally
+def do_fetch(args):
+    if not theCore_installed():
+        logger.error('theCore is not installed in {} Forgot to run `bootstrap`?'
+            .format(CORE_INSTALL_DIR))
+        exit(1)
+
+    run_with_nix('cd {} && git fetch {} {} && git checkout -q FETCH_HEAD'
+        .format(CORE_SRC_DIR, args.remote, args.ref))
+
+# Deletes Nix and theCore
+def do_purge(args):
+    if not theCore_installed():
+        logger.error('theCore is not installed in {} Nothing to purge'
+            .format(CORE_INSTALL_DIR))
+        exit(1)
+
+    logger.error('not implemented yet!')
+
+# Configures project, by launching GUI
+def do_configure(args):
+    if not theCore_installed():
+        logger.error('theCore is not installed in {}. You must install it first.'
+            .format(CORE_INSTALL_DIR))
+        exit(1)
+
+    src_dir = os.path.normpath(args.source)
+    metafile = get_metafile(src_dir)
+
+    logger.info('using source directory: ' + src_dir)
+    # Not going to use it here, but configurator will definetely use it inside
+    if not metafile:
+        logger.error('meta.json must be present in the project directory')
+        exit(1)
+
+    configure_app = menus.theCoreConfiguratorApp(CORE_CONFIG_PATH, src_dir)
+    configure_app.run()
+
+# Compiles project specified in arguments
+def do_compile(args):
+    if not theCore_installed():
+        logger.error('theCore is not installed in {} Forgot to run `bootstrap`?'
+            .format(CORE_INSTALL_DIR))
+        exit(1)
+
+    src_dir = os.path.normpath(args.source)
+    metafile = get_metafile(src_dir)
+
+    logger.info('using source directory: ' + src_dir)
+    if not metafile:
+        logger.error('meta.json must be present in the project directory')
+        exit(1)
+
+    meta_cfg = {}
+
+    with open(metafile, 'r') as fl:
+        meta_cfg = json.load(fl)
+
+    logger.info('current project: ' + meta_cfg['name'])
+
+    if args.list_targets:
+        targets = [ [ 'Target name', 'Configuration file', 'Description' ] ]
+        # Only target list is requested, ignoring other operations
+        for name, target_cfg in meta_cfg['targets'].items():
+            targets.append([name, target_cfg['config'], target_cfg['description']])
+
+        logger.info('\nSupported targets:\n'
+                + tabulate.tabulate(targets, tablefmt = "fancy_grid", headers = 'firstrow'))
+        exit(0)
+    elif not args.target:
+        logger.error('target name must be specified.'
+            + ' Use --list-targets for list of avaliable targets')
+        exit(1)
+
+    target_cfg = meta_cfg['targets'][args.target]
+
+    if not target_cfg:
+        logger.error('no such target exists: ' + args.target)
+        exit(1)
+
+    # Build dir should be optional
+    if args.builddir:
+        build_dir = args.build_dir
+    else:
+        build_dir = src_dir + '/build/' + args.target
+        # In case of default values, build type must be appended
+        if args.buildtype != 'none':
+            build_dir = build_dir + '-' + args.buildtype
+
+    # Check if build is host-oriented. No toolchain is required in that case.
+    host_build = args.target == 'host'
+
+    if not host_build:
+        if os.path.isfile(src_dir + '/' + target_cfg['toolchain']):
+            toolchain_path = src_dir + '/' + target_cfg['toolchain']
+        else:
+            toolchain_path = CORE_TOOLCHAIN_DIR + target_cfg['toolchain']
+
+        if not os.path.isfile(toolchain_path):
+            logger.error('no such toolchain found: ' + toolchain_path)
+
+    # TODO: get default configuration from theCore, if any
+    config_json_path = src_dir + '/' + target_cfg['config']
+
+    if not os.path.isfile(config_json_path):
+        logger.error('no such configuration file found: ' + config_json_path)
+
+    # Remove directory is enough in CMake case
+    if args.clean:
+        logger.info('performing cleanup before build ' + build_dir)
+        if os.path.isdir(build_dir):
+            shutil.rmtree(build_dir)
+        else:
+            logger.info('nothing to clean')
+
+    # To generate build files with CMake we must first step into
+    # the build  directory
+
+    if not os.path.isdir(build_dir):
+        os.makedirs(build_dir)
+
+    os.chdir(build_dir)
+
+    # 'none' means no build type specified
+    if args.buildtype == 'none':
+        cmake_build_type = ''
+    elif args.buildtype == 'debug':
+        cmake_build_type = '-DCMAKE_BUILD_TYPE=Debug'
+    elif args.buildtype == 'release':
+        cmake_build_type = '-DCMAKE_BUILD_TYPE=Release'
+    elif args.buildtype == 'min_size':
+        cmake_build_type = '-DCMAKE_BUILD_TYPE=MinSizeRel'
+
+    if not host_build:
+        cmake_toolchain = '-DCMAKE_TOOLCHAIN_FILE=' + toolchain_path
+    else:
+        cmake_toolchain = ''
+
+    thecore_cfg_param = '-DTHECORE_TARGET_CONFIG_FILE=' + config_json_path
+    thecore_thirdparty_param = '-DTHECORE_THIRDPARTY_DIR=' + CORE_THIRDPARTY_DIR
+    thecore_thirdparty_worktrees = '-DTHECORE_BUILD_THIRDPARTY_DIR=' + src_dir + '/thirdparties'
+    thecore_dir_param = '-DCORE_DIR=' + CORE_SRC_DIR
+
+    run_with_nix_shell('cmake {} {} {} {} {} {} {}'
+        .format(thecore_dir_param, thecore_thirdparty_param, thecore_thirdparty_worktrees,
+            cmake_build_type, cmake_toolchain, thecore_cfg_param, src_dir))
+
+    run_with_nix_shell('make -j{}'.format(args.jobs))
+    logger.info('project built successfully')
+
+    # CMake invocation above makes sure that all binaries compiled
+    # are for single target (single toolchain and configuration is used).
+    # It is safe to describe that config using simple json for only one target.
+
+    output_cfg = { 'meta': metafile, 'target': args.target }
+
+    with open('output.json', 'w') as outputfile:
+        outputfile.write(json.dumps(output_cfg, indent=4) + '\n')
+
+# Compiles project specified in arguments or prints avaliable binaries
+def do_flash(args):
+    metafile = get_metafile()
+    if not metafile:
+        logger.error('meta.json must be present in the project directory')
+        exit(1)
+
+    # Get targets information, directly from metafile
+
+    targets = []
+    with open(metafile, 'r') as fl:
+        # print(fl.read())
+        targets = json.loads(fl.read())['targets']
+
+    builds_dir = 'build'
+
+    build_subdirs = []
+    binaries_info = []
+
+    # In case if  build directrory explicitly given, no need to traverse
+    if args.builddir:
+        if not os.path.isdir(args.builddir):
+            logger.error('no such build directory: ' + args.builddir)
+            exit(1)
+
+        build_subdirs.append(args.builddir)
+    else:
+        if not os.path.isdir(builds_dir):
+            logger.error('no such build directory: ' + builds_dir)
+            exit(1)
+
+        with os.scandir(builds_dir) as it:
+            for entry in it:
+                if entry.is_dir():
+                    build_subdirs.append(entry.path)
+
+    for subdir in build_subdirs:
+        # Do not process directory without meta-information file within it.
+        output_file = subdir + '/output.json'
+        if not os.path.isfile(output_file):
+            logger.debug('no output.json in {}, skipping'.format(subdir))
+            continue
+
+        output_cfg = {}
+        with open(output_file, 'r') as fl:
+            output_cfg = json.loads(fl.read())
+
+        logger.debug('found output configuration: ' + str(output_cfg))
+
+        if output_cfg['target'] == 'host':
+            logger.debug('skip host target')
+            continue
+
+        debuggers = targets[output_cfg['target']]['debuggers']
+
+        # Combine all binaries inside builddir with their possible debuggers
+        for bin in glob.glob(subdir + '/*.bin'):
+            for dbg, dbg_cfg in debuggers.items():
+
+                if args.debugger and args.debugger != dbg:
+                    logger.debug('skipping debugger: ' + dbg)
+                    continue
+
+                bin_info = { 'bin': bin, 'tgt': output_cfg['target'],
+                    'dbg': dbg, 'dbg_cfg': dbg_cfg, 'dbg_subconf': '\n'.join([ x for x in dbg_cfg.keys() ]) }
+
+                binaries_info.append(bin_info)
+
+    # Debug subtypes names should be included in the list table
+    printable_info = [ [ item['tgt'], item['bin'], item['dbg'], item['dbg_subconf'] ] for item in binaries_info ]
+
+    logger.info('found binaries:\n'
+        + tabulate.tabulate(printable_info, tablefmt = 'fancy_grid', showindex = "always",
+            headers = ['ID', 'Target', 'Binary', 'Debugger', 'Debugger configurations']))
+
+    # No need to go any further if only listing is requested
+    if args.list_bin:
+        return
+
+    chosen_binary = {}
+
+    if len(binaries_info) == 0:
+        logger.info('no binaries for flashing has been found')
+        exit(0)
+
+    if len(binaries_info) > 1:
+        logger.info('more than one binary-debugger pair is found. Which ID you want to use?')
+        choice = int(input('ID of a binary? '))
+        chosen_binary = binaries_info[choice]
+    else:
+        chosen_binary = binaries_info[0]
+
+    def flash_using_openocd(args, binary):
+        dbg = {}
+
+        if args.debugger_config:
+            key = args.debugger_config
+            logger.info('using user-provided OpenOCD subtype: ' + key)
+        else:
+            # Use first debugger
+            key = list(binary['dbg_cfg'].keys())[0]
+            logger.info('using default OpenOCD subtype: ' + key)
+
+        dbg_cfg = binary['dbg_cfg'][key]
+        print(dbg_cfg)
+
+        openocd_cmd = [
+            'openocd -f {} -c \'init; reset halt; flash write_image erase {} {}; reset run; exit\''.format(
+                dbg_cfg['file'], binary['bin'], dbg_cfg['flash_address'])
+        ]
+
+        runenv_args = argparse.Namespace(command = openocd_cmd, sudo = args.sudo)
+        do_runenv(runenv_args)
+
+    # TODO: implement at least 'st-link' support additionally
+    if chosen_binary['dbg'] != 'openocd':
+        logger.error('only OpenOCD debugger is supported so far')
+        exit(1)
+
+    flash_using_openocd(args, chosen_binary)
+
+
+# Runs a command within theCore environment, optionally with sudo permission
+def do_runenv(args):
+    cmd = ' '.join(args.command)
+
+    if args.sudo:
+        logger.info('Executing: sudo ' + cmd) # Trick user
+        # $(which sudo) is required to run sudo within Nix shell
+        run_with_nix_shell('$(which sudo) ' + cmd)
+    else:
+        logger.info('Executing: ' + cmd)
+        run_with_nix_shell(cmd)
+
+
+# ------------------------------------------------------------------------------
+# Command line parsing
+
+# For nice subparsers help handling
+subparsers_list = []
+
+parser = argparse.ArgumentParser(description = 'theCore framework CLI')
+subparsers = parser.add_subparsers(help = 'theCore subcommands')
+
+# Boostrap subcommand
+
+bootstrap_parser = subparsers.add_parser('bootstrap',
+    help = 'Installs theCore development environment')
+bootstrap_parser.add_argument('-f', '--force', action = 'store_true',
+    help = 'Force (re)install theCore dev environment')
+bootstrap_parser.set_defaults(handler = do_bootstrap)
+
+subparsers_list.append(bootstrap_parser)
+
+# Purge parser
+
+purge_parser = subparsers.add_parser('purge',
+    help = 'Deletes theCore development environment')
+purge_parser.set_defaults(handler = do_purge)
+
+subparsers_list.append(purge_parser)
+
+# Init subcommand
+
+init_parser = subparsers.add_parser('init',
+    help = 'Initialize project based on theCore')
+init_parser.add_argument('-r', '--remote', type = str,
+    help = 'Git remote to download project from')
+init_parser.add_argument('-o', '--outdir', type = str,
+    help = 'Output directory to place a project in')
+init_parser.set_defaults(handler = do_init)
+
+subparsers_list.append(init_parser)
+
+# Fetch subcommand
+
+fetch_parser = subparsers.add_parser('fetch',
+    help = 'Fetches given theCore revision, globally changing its state. '
+        + 'Such change will be visible for every theCore-based project '
+        + 'of current user')
+fetch_parser.add_argument('-r', '--remote', type = str,
+    help = 'Git remote to fetch theCore, defaults to `upstream`', default = 'upstream')
+fetch_parser.add_argument('-e', '--ref', type = str,
+    help = 'Optional Git reference: commit id, branch or tag. '
+        + 'If not given, `develop` branch will be used.', default = 'develop')
+fetch_parser.set_defaults(handler = do_fetch)
+
+subparsers_list.append(fetch_parser)
+
+# TODO: implement theCore local mode
+#
+# Ideally, theCore revision should be checkout'ed  using `git worktree`
+# mechanism.
+#
+# meta.json must be updated to reflect that (few JSON fields must be added, as follows):
+#
+#   - core_remote must contain remote from where theCore were fetched
+#   - core_rev must contain desired theCore revision
+#   - core_path must contain theCore path
+#
+# Later, when `init` subcommand is executed to download a project with
+# such meta.json file, it must:
+#
+#   1. fetch revision from remote found in meta.json
+#   2. place that revision in the directory found in meta.json
+#
+# Still, following questions remain open:
+#
+#   - what if global theCore is deleted, how those worktrees will behave?
+#   - how to resolve collision in thirdparty remotes, when different theCore
+#     revisions may have different remotes for single thirdparty?
+#   - what if local theCore copy is changed, should buildsystem detect it
+#     and change a revision back?
+#   - how to revert local theCore changes, if something go wrong? another
+#     command, like `refresh` ? or additional switch for `fetch`? or plain
+#     `git` approach?
+#   - what if project wants to return to the global mode again?
+# `
+
+# Local mode (and aux) switches:
+
+# Globally changes theCore revision. Change will be visible for every project,
+# based on theCore.
+#
+#  fetch_parser.add_argument('-g', '--global', action = 'store_true',
+#     help = 'Global mode - changes global theCore revision')
+
+# Path to a project source code. meta.json must be present there.
+#
+# fetch_parser.add_argument('-s', '--source', type = str,
+#     help = 'Path to the project source code. Defaults to current working directory. '
+#         + 'Meaningless in global mode (-g/--global switch).',
+#     default = os.getcwd())
+
+# Output directory to place theCore revision in.
+#
+# fetch_parser.add_argument('-o', '--outdir', type = str,
+#     help = 'Optional output directory to place a theCore in, defaults to '
+#         + '`<project_dir>/theCore`. Meaningless in global mode (-g/--global switch).')
+
+# Configure command
+
+configure_parser = subparsers.add_parser('configure',
+    help = 'Configure project: launches GUI to select and modify configuration files')
+configure_parser.add_argument('-s', '--source', type = str,
+    help = 'Path to the source code. Defaults to current directory.',
+    default = os.getcwd())
+configure_parser.set_defaults(handler = do_configure)
+
+subparsers_list.append(configure_parser)
+
+# Compile subcommand
+
+compile_parser = subparsers.add_parser('compile',
+    help = 'Complie and build project')
+compile_parser.add_argument('-s', '--source', type = str,
+    help = 'Path to the source code. Defaults to current directory.',
+    default = os.getcwd())
+compile_parser.add_argument('-b', '--builddir', type = str,
+    help = 'Path to the build directory. Defaults to ./build/<target_name>-<build_type>,'
+            + ' where <target_name> is the selected target and <build_type> '
+            + ' is a build type supplied with --buildtype parameter')
+compile_parser.add_argument('--buildtype', type = str,
+    help = 'Build type. Default is none',
+    choices = [ 'debug', 'release', 'min_size', 'none' ], default = 'none')
+compile_parser.add_argument('-t', '--target', type = str,
+    help = 'Target name to compile for')
+compile_parser.add_argument('-j', '--jobs', type = int, default = 1,
+    help = 'Specifies the number of `make` jobs (commands) to run simultaneously. Default is 1.')
+compile_parser.add_argument('-l', '--list-targets', action = 'store_true',
+    help = 'List supported targets')
+compile_parser.add_argument('-c', '--clean', action = 'store_true',
+    help = 'Clean build')
+compile_parser.set_defaults(handler = do_compile)
+
+subparsers_list.append(compile_parser)
+
+# Flash subcommand
+
+flash_parser = subparsers.add_parser('flash',
+    help = 'flash project on the target')
+flash_parser.add_argument('-s', '--source', type = str,
+    help = 'Path to the source code. Defaults to current directory.',
+    default = os.getcwd())
+flash_parser.add_argument('-b', '--builddir', type = str,
+    help = 'Explicit path to the build directory where binary files are placed. '
+        + 'By default the `build` directory and subdirectories are scanned for binaries.')
+flash_parser.add_argument('-l', '--list-bin', action = 'store_true',
+    help = 'List built binaries and avaliable debuggers to perform flash operation')
+flash_parser.add_argument('-d', '--debugger', type = str,
+    help = 'Use debugger to perform flash. By default the first supported debugger '
+        + 'in meta.json is used')
+flash_parser.add_argument('-c', '--debugger-config', type = str,
+    help = 'Specify debugger configuration. For example, different configurations '
+        + ' can represent different debugger versions. By default, first suitable '
+        + ' debugger configuration, defined in meta.json, will be used')
+flash_parser.add_argument('-u', '--sudo', action = 'store_true',
+    help = 'Run flash command with root privileges using sudo.')
+
+flash_parser.set_defaults(handler = do_flash)
+
+subparsers_list.append(flash_parser)
+
+# Runenv subcommand
+
+runenv_parser = subparsers.add_parser('runenv',
+    help = 'Run arbitrary command inside theCore environment')
+runenv_parser.add_argument('-u', '--sudo', action = 'store_true',
+    help = 'Run command with root privileges using sudo.')
+runenv_parser.add_argument('command', nargs='+',
+    help = 'Command to execute.')
+runenv_parser.set_defaults(handler = do_runenv)
+
+subparsers_list.append(runenv_parser)
+
+#-------------------------------------------------------------------------------
+
+args = parser.parse_args()
+
+if hasattr(args, 'handler') and args.handler:
+    args.handler(args)
+else:
+    logger.error('no operation given')
+    parser.print_help()
+
+    # Subparser help is not printed by default
+    for subparser in subparsers_list:
+        print('\n\nSubcommand:')
+        subparser.print_help()
