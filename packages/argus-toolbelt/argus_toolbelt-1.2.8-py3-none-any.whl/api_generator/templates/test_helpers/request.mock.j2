@@ -1,0 +1,36 @@
+
+{% for status_code, name in {"200": "success", "401": "unauthorized", "403": "access_denied", "404": "not_found"}.items() %}
+def {{name}}(function):
+    """Mock {{method.url_regex}}, respond with HTTP {{status_code}}"""
+    import re
+    from {{method._fake_response_factory().__module__}} import {{method._fake_response_factory().__name__}}
+    from api_generator.helpers.tests import Mocker
+    def mock_response(*args, **kwargs):
+        with Mocker(real_http=True) as mock:
+            mock.register_uri(
+                "{{method.method | upper}}",
+                re.compile("{{method.url_regex}}"),
+                status_code={{status_code}},
+                json={% if status_code == "200" %}{{method.fake_response() | safe_dict_dump }}{% else %}None{%endif%}
+            )
+            return function(*args, **kwargs)
+    return mock_response
+{% endfor %}
+
+def respond_with(status=200, json={}):
+    """Custom response"""
+    def decorator(function):
+        """Mock {{method.url_regex}}, respond with custom JSON and status"""
+        import re
+        from api_generator.helpers.tests import Mocker
+        def mock_response(*args, **kwargs):
+            with Mocker(real_http=True) as mock:
+                mock.register_uri(
+                    "{{method.method | upper}}",
+                    re.compile("{{method.url_regex}}"),
+                    status_code=status,
+                    json=json
+                )
+                return function(*args, **kwargs)
+        return mock_response
+    return decorator

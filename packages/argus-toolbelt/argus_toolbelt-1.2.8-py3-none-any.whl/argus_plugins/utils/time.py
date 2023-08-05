@@ -1,0 +1,39 @@
+"""Utility functions for parsing and formating time in plugins"""
+import time
+from datetime import datetime
+
+
+def date_time_to_timestamp(input):
+    """Parses a time argument in a ISO8601 format
+
+    Can either be just date, or date + time
+    """
+    if len(input) is len("YYYY-mm-dd"):
+        time_format = "%Y-%m-%d"
+    elif len(input) is len("YYYY-mm-ddTHH-MM-SS"):
+        time_format = "%Y-%m-%dT%H:%M:%S"
+    elif input == "now":
+        return int(time.mktime(datetime.now().timetuple()) * 1e3)  # Add milliseconds
+    else:
+        raise ValueError("Invalid time input-format. Use ISO8601 format")
+    date = datetime.strptime(input, time_format)
+    return int(time.mktime(date.timetuple()) * 1e3)
+
+
+def time_diff(input):
+    """Converts the input from one unit to milliseconds"""
+    units = {"s": 1, "m": 60, "h": 60 * 60, "d": 60 * 60 * 24, "w": 60 * 60 * 24 * 7}
+    if input == "now":
+        return 0
+    else:
+        return int(input[:-1]) * units[input[-1]] * 1000
+
+
+def timestamp_to_period(timestamp: int):
+    """Converts a timestamp to a ISO8601 style period with days"""
+    return datetime.fromtimestamp(timestamp).strftime("P%jDT%H:%M:%S")
+
+
+def timestamp_to_date(timestamp: int):
+    """Converts a timestamp to a ISO8601 style date and time"""
+    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%dT%H:%M:%S")
