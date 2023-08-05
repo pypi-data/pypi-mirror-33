@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% trans "Register for an account" %}{% endblock %}
+
+<script type="text/javascript">
+{% block js %}
+
+function GetVerificationCodeFunc() {
+  $.ajax('/phone_login/generate/',{
+      type: "POST",
+      dataType: "json",
+      data : {
+        phone_number: $('#phone_number').val(),
+      },
+      beforeSend : function(){/*
+        $('#getVerificationCode').prop('disabled', true); //disable the item
+        var interval;
+        var times=10;
+        var title = $('#getVerificationCode').val(); 
+        interval = setInterval(timeleft, "1000");
+        function timeleft() {
+            $('#getVerificationCode').html(times-- + "s");
+            if(times < 0){
+                clearTimeout(interval);
+                $('#getVerificationCode').prop('disabled', false);
+                $('#getVerificationCode').html(title);
+            }
+        }*/
+      },
+      success: function(s) {
+        if (s.status == "1"){
+          alert("Token校验成功");
+        }else{
+          alert("Token校验失败！");
+        }
+        return;
+      },
+      error: function() {
+        alert("接口无响应或超时！");
+      },
+      timeout: 10000,
+    })
+}
+
+{% endblock %}
+</script>
+
+<script>
+{% block jquery1 %}
+
+$("#getVerificationCode").click(function(event){
+    event.preventDefault();
+    $.ajax({
+        type: "POST", 
+        url: "{% url 'generate' %}",
+        data: {
+            phone_number: $('#phone_number').val(),
+        },
+        beforeSend : function(){
+            $('#getVerificationCode').prop('disabled', true); //disable the item
+            var interval;
+            var times=10;
+            var title = $('#getVerificationCode').val(); 
+            interval = setInterval(timeleft, "1000");
+            function timeleft() {
+                $('#getVerificationCode').html(times-- + "s");
+                if(times < 0){
+                    clearTimeout(interval);
+                    $('#getVerificationCode').prop('disabled', false);
+                    $('#getVerificationCode').html(title);
+                }
+            }
+        },
+        success: function(data) {
+        }, 
+        error: function(response, error) {
+            
+        }
+    })
+
+})
+
+{% endblock %}
+</script>
+
+{% block content %}
+<script>
+function GetVerificationCodeFunc();
+</script>
+
+<style type="text/css">
+{% comment  %}
+	label{display:inline;float:left;width:20%;}
+	input,textarea{width:80%;}
+	textarea{height:80px;}
+	input[type=submit]{width:20%;margin-left:0%;float:right;}
+{% endcomment  %}	
+#div_id_vc{
+
+}
+
+#getVerificationCodeForm{
+	/*width: 40%;
+	position: relative;
+	float:left;*/
+}
+</style>
+
+<div class='row'>
+    <div class='col-sm-6 col-sm-offset-3'>
+        <h1>Register for free!</h1>
+        <form class="form-horizontal" method='POST' action='/phone_login/generate/'>{% csrf_token %}
+            {% if form.errors %}
+                <p style="color: red;">
+                    {# pulralize 是filter，用来判断是否为添加's'来表示单词的复数形式#}
+                    Please correct the error{{ form.errors|pluralize }} below.
+                </p>
+            {% endif %}
+
+          {% comment  %}
+          {{form|crispy}}
+
+          <div class="form-group" id="getVerificationCodeForm">
+            <button type="button" class="btn btn-default" id="getVerificationCode" value ="Get Verification Code" onclick="getVerificationCode()" style="width: 100%" ">Get Verification Code</button>
+          </div>
+          {% endcomment %}
+
+          {# comment  #}
+          <div class="form-group">
+            <label for="inputPhone3" class="col-sm-2 col-xs-3 control-label">Phone</label>
+            <div class="col-sm-10 col-xs-9">
+              <input type="text" class="form-control" id="inputphone3" name="phone_number" placeholder="phone_number">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="inputPassword3" class="col-sm-2 col-xs-3 control-label">Password</label>
+            <div class="col-sm-10 col-xs-9">
+              <input type="password" class="form-control" id="inputPassword3" name="password" placeholder="Password">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="col-sm-offset-2  col-xs-offset-3 col-sm-4 col-xs-4">
+              <input type="text" class="form-control" id="inputvc2" name="vc" placeholder="verification code" >
+            </div>
+            <div class="col-sm-6 col-xs-5">
+              <button type="button" class="btn btn-default" id="getVerificationCode" value ="Get Verification Code" onclick="GetVerificationCodeFunc()" style="width: 100%" ">Get Verification Code</button>
+            </div> 
+          </div>  
+          {# endcomment #}
+
+
+          <div class="form-group">
+            <div class="col-sm-offset-6  col-xs-offset-3 col-sm-10 col-xs-9">
+              <button type="submit" class="btn btn-default">Sign Up</button>
+            </div>
+          </div>
+
+        </form>
+    </div>
+</div>    
+
+
+
+{% endblock %}
