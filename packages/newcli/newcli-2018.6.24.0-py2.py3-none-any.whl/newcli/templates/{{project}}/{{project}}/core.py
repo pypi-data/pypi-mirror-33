@@ -1,0 +1,3 @@
+
+def {{projcet}}():
+    pass
