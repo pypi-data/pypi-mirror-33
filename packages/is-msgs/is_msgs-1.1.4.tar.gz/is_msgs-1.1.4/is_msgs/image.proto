@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package is.vision;
+
+option java_package = "com.is.vision";
+option java_multiple_files = true;
+
+import "google/protobuf/wrappers.proto";
+import "is_msgs/common.proto";
+
+message Image {
+  oneof content {
+    bytes data = 1; // Image content, represented as a stream of bytes. 
+    string uri = 2; // External image source
+  }
+}
+
+enum ImageFormats {
+  PNG = 0;
+  JPEG = 1;
+  WebP = 2;
+}
+
+message ImageFormat {
+  ImageFormats format = 1;
+  google.protobuf.FloatValue compression = 2;
+}
+
+message Vertex {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+/* Sequence of vertices modelling a polygon.  
+ - BoudingPoly with only 2 vertices is usually interpreted as a rectangle 
+   where the vertices represent the TopLeft and BottomRight vertices respectively.
+*/
+message BoundingPoly {
+  repeated Vertex vertices = 1;
+}
+
+message Resolution {
+  uint32 height = 1;
+  uint32 width = 2;
+}
+
+enum ColorSpaces {
+  RGB = 0;
+  GRAY = 1;
+  YCbCr = 2;
+  HSV = 3;
+}
+
+message ColorSpace {
+  ColorSpaces value = 1;
+}
+
+message ImageSettings {
+  Resolution resolution = 1;
+  ImageFormat format = 2; // Image serialization format. e.g: PNG
+  ColorSpace color_space = 3; // Color space  
+  
+  /* Bounding poly defining the region of interest in the image.
+     This region is usually represented as a rectangle, modelled by
+     the TopLeft and BottomRight vertices */
+  BoundingPoly region = 4;
+}
+
+message ImageAnnotation {
+  string label = 1;
+  float score = 2;
+  BoundingPoly region = 3;
+  common.Pose pose = 4;
+}
+
+message ImageAnnotations {
+  repeated ImageAnnotation annotations = 1;
+}
