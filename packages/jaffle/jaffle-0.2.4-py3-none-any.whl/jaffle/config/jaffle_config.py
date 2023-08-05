@@ -1,0 +1,167 @@
+# -*- coding: utf-8 -*-
+
+import hcl
+import json
+import jsonschema
+from pathlib import Path
+import re
+from ..functions import functions
+from ..utils import deep_merge, str_value
+from ..variables import VariablesNamespace
+from .value import ConfigValue, ConfigList, ConfigDict
+
+
+class JaffleConfig(object):
+    """
+    Jaffle configuration loaded from ``jaffle.hcl``.
+    """
+
+    def __init__(self, namespace, variable=None, kernel=None, app=None, process=None, job=None,
+                 logger=None):
+        """
+        Initializes JaffleConfig.
+
+        Parameters
+        ----------
+        namespace : dict
+            Namespace for string interpolation.
+        variable : dict
+            Variables configuration.
+        kernel : dict
+            Kernel configuration.
+        app : dict
+            App configuration.
+        process : dict
+            Process configuration.
+        job : dict
+            Job configuration.
+        logger : dict
+            Logger configuration.
+        """
+        self.namespace = namespace
+        self.variable = ConfigValue.create(variable or {}, namespace)
+        self.kernel = ConfigValue.create(kernel or {}, namespace)
+        self.app = ConfigValue.create(app or {}, namespace)
+        self.process = ConfigValue.create(process or {}, namespace)
+        self.job = ConfigValue.create(job or {}, namespace)
+        self.logger = ConfigValue.create(logger or {}, namespace)
+
+        self.app_log_suppress_patterns = {
+            app_name: [re.compile(str_value(r)) for r in
+                       app_data.get('logger', ConfigDict()).get('suppress_regex', ConfigList())]
+            for app_name, app_data in self.app.items()
+        }
+        self.app_log_replace_patterns = {
+            app_name: [(re.compile(str_value(r['from'])), r['to']) for r in
+                       app_data.get('logger', ConfigDict()).get('replace_regex', ConfigList())]
+            for app_name, app_data in self.app.items()
+        }
+        self.process_log_suppress_patterns = {
+            app_name: [re.compile(str_value(r)) for r in
+                       app_data.get('logger', ConfigDict()).get('suppress_regex', ConfigList())]
+            for app_name, app_data in self.process.items()
+        }
+        self.process_log_replace_patterns = {
+            app_name: [(re.compile(str_value(r['from'])), r['to']) for r in
+                       app_data.get('logger', ConfigDict()).get('replace_regex', ConfigList())]
+            for app_name, app_data in self.process.items()
+        }
+        self.global_log_suppress_patterns = [
+            re.compile(str_value(r))
+            for r in self.logger.get('suppress_regex', default=ConfigList())
+        ]
+        self.global_log_replace_patterns = [
+            (re.compile(str_value(r['from'])), r['to'])
+            for r in self.logger.get('replace_regex', default=ConfigList())
+        ]
+
+    def __repr__(self):
+        """
+        Returns string representation of JaffleConfig.
+
+        Returns
+        -------
+        repr : str
+            String representation of JaffleConfig.
+        """
+        return repr(self.raw())
+
+    def raw(self):
+        """
+        Returns the raw contents of the configuration.
+
+        Returns
+        -------
+        raw : dict
+            Raw contents of the configuration.
+        """
+        return {
+            'namespace': self.namespace,
+            'variable': self.variable.raw(),
+            'kernel': self.kernel.raw(),
+            'app': self.app.raw(),
+            'process': self.process.raw(),
+            'job': self.job.raw(),
+            'logger': self.logger.raw()
+        }
+
+    @classmethod
+    def load(cls, file_paths, raw_namespace, runtime_variables):
+        """
+        Loads JaffleConfig from files with given namespace and variables.
+
+        Parameters
+        ----------
+        file_paths : list[pathlib.Path]
+            List of file paths.
+        raw_namespace : dict
+            Raw namespace for string interpolation.
+        runtime_variables : dict
+            Runtime variables.
+        """
+        data = deep_merge(*(cls._load_file(f) for f in file_paths))
+
+        with (Path(__file__).parent.parent / 'schema' / 'config_schema.json').open() as sf:
+            schema = json.load(sf)
+        jsonschema.validate(data, schema)
+
+        return cls.create(data, raw_namespace, runtime_variables)
+
+    @classmethod
+    def create(cls, data_dict, raw_namespace, runtime_variables):
+        """
+        Creates JaffleConfig from dict data, namespace and variables.
+
+        Parameters
+        ----------
+        data_dict : dict
+            Dict data loaded from config files.
+        raw_namespace : dict
+            Raw namespace for string interpolation.
+        runtime_variables : dict
+            Runtime variables.
+        """
+        namespace = dict(
+            raw_namespace,
+            var=VariablesNamespace(data_dict.get('variable', {}), vars=runtime_variables),
+            **{f.__name__: f for f in functions}
+        )
+        return cls(namespace, **data_dict)
+
+    @classmethod
+    def _load_file(cls, file_path):
+        """
+        Loads config data from a file.
+
+        Parameters
+        ----------
+        file_path : pathlib.Path or str
+            File path.
+
+        Returns
+        -------
+        data : dict
+            Config data.
+        """
+        with Path(file_path).open() as f:
+            return hcl.load(f)
