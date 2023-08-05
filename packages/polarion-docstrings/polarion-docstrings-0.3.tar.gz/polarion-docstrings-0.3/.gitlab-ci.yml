@@ -1,0 +1,61 @@
+# Advise GitLab that these environment vars should be loaded from the Variables config.
+variables:
+    PYPI_USER: SECURE
+    PYPI_PASSWORD: SECURE
+
+stages:
+    - test
+    - deploy
+    - cleanup
+
+before_script:
+    - curl -O https://bootstrap.pypa.io/get-pip.py
+    - python get-pip.py
+    - pip install -r requirements-dev.txt
+
+python2:
+    image: python:2.7
+    stage: test
+    script: tox -e py27
+
+python34:
+    image: python:3.4
+    stage: test
+    script: tox -e py34
+
+python35:
+    image: python:3.5
+    stage: test
+    script: tox -e py35
+
+python36:
+    image: python:3.6
+    stage: test
+    script: tox -e py36
+
+python37:
+    image: python:3.7-rc
+    stage: test
+    script: tox -e py37
+
+deploy_pypi:
+    stage: deploy
+    script:
+        - echo "[server-login]" >> ~/.pypirc
+        - echo "username=" ${PYPI_USER} >> ~/.pypirc
+        - echo "password=" ${PYPI_PASSWORD} >> ~/.pypirc
+        - tox -e release
+    only:
+        - /^v\d+\.\d+(\.\d+([abc]\d*)?)?$/  # PEP-440 compliant
+    except:
+        - branches
+
+cleanup_deploy:
+    stage: cleanup
+    when: always
+    script:
+        - rm -vf ~/.pypirc
+    only:
+        - /^v\d+\.\d+(\.\d+([abc]\d*)?)?$/  # PEP-440 compliant
+    except:
+        - branches
