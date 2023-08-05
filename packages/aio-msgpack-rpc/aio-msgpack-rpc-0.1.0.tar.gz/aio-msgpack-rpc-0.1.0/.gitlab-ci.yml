@@ -1,0 +1,65 @@
+stages:
+  - test
+  - build
+  - deploy
+
+lint:
+  image: python:3.6
+  stage: test
+  script:
+    - pip install tox
+    - tox -e lint
+
+
+test-coverage:
+  stage: test
+  image: python:3.6
+  script:
+      - pip install tox
+      - tox -e cov
+
+  artifacts:
+      paths:
+          - htmlcov
+
+wheel:
+  image: python:3.6
+  stage: build
+  script:
+    - pip install tox
+    - tox -e wheel
+
+  artifacts:
+    paths:
+      - dist
+
+deploy-pypi:
+  stage: deploy
+  image: python:3.6
+  script:   # Configure the PyPI credentials, then push the package, and cleanup the creds.
+    - pip install twine
+    - echo "[distutils]" >> ~/.pypirc
+    - echo "index-servers=pypi" >> ~/.pypirc
+    - echo "[pypi]" >> ~/.pypirc
+    - echo "repository = https://upload.pypi.org/legacy/" >> ~/.pypirc
+    - echo "username=" ${PYPI_USER} >> ~/.pypirc
+    - echo "password=" ${PYPI_PASS} >> ~/.pypirc
+    - twine upload dist/*
+    - python setup.py check sdist bdist upload   # This will fail if your creds are bad.
+    - echo "" > ~/.pypirc && rm ~/.pypirc  # If the above fails, this won't run.
+  only:
+    - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
+  except:
+    - branches
+
+pages:
+  stage: deploy
+  dependencies:
+      - test-coverage
+  script:
+      - mkdir -p public/coverage
+      - mv htmlcov/* public/coverage
+
+  artifacts:
+      paths:
+          - public
