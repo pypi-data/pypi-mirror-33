@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% load staticfiles %}
+{% load mycms_tags %}
+
+{%block PAGE_HEADER %}
+
+<link type="text/css" rel="stylesheet" hrefp="/static/mycms/css/pageadmin.css">
+<link type="text/css" rel="stylesheet" href="/static/mycms/editor/editor.css">
+
+<script>
+var view_json = {{view_object.json_data | safe }}
+</script>
+
+{% endblock PAGE_HEADER %}
+
+{%block META_DESCRIPTION %}{{view_object.introduction}}{% endblock META_DESCRIPTION %}
+{% block TITLE%} {{view_object.title}}{% endblock TITLE %}
+{% block BODY_TITLE%} {{view_object.title}}{% endblock BODY_TITLE %}
+
+
+{% block PAGE_CONTENT %}
+
+<div class="container">
+    <div class="row-fluid">
+
+        <!-- Contents -->
+        <div class="col-md-12 page-content" id="page_content" >
+            <div class="cmsentries">
+                {% for article in view_object.articles %}
+                    <div class="cmsentry">
+                        <h2 class="cmsentry title" style="font-weight:bold;     margin-bottom: 0px;"><a href="/cms/{{article.path}}">{{article.title}}</a></h2>
+                        <span id="span_{{article.slug}}" onclick="datetime_editor_click_handler(this)" slug="{{article.slug}}" article_id={{article.page_object.id}}>{{article.created_timestamp_str}}</span>
+                        <span id="{{article.slug}}" article_id={{article.id}}></span>
+
+                        <p style="display: inline">{{ article.introduction|safe|truncatewords_html:50 }}</p>
+                    </div>
+                {% endfor %}
+            </div> 
+            
+            <ul class="pager">
+            
+            
+            
+        <li class="previous {% if not view_object.articles.has_newer %} disabled {% endif %}"><a href="#">← Newer </a></li>
+        <li class="next {% if not view_object.articles.has_older %} disabled {% endif %}"><a href="?limit={{view_object.articles.limit}}&offset={{view_object.articles.next_offset}}">Older →</a></li>
+</ul>
+        </div> 
+        <!-- end of contents -->
+    </div>
+    {% if view_object.request.user.username == "admin" %}
+    <div id="overlay">    
+        <div class="row-fluid">
+            <div class="col-md-12 page-content" id="page_editor" style="margin-top:10px;">
+    
+                <!-- START PAGE_CONTENT -->    
+                <!--div id="info-container">
+                    <div class="alert alert-warning alert-dismissible" role="alert">
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">×</span></button>
+                        <strong>Warning!</strong> Better check yourself, you're not looking too good.
+                    </div>
+                </div-->
+                <div style="box-shadow: 0px 5px 26px 1px rgba(0,0,0,0.75); border-radius: 5px;">
+                    <ul class="nav nav-pills" id="admin-tabs">
+                       <li class="active"><a data-toggle="pill" href="#home">Home</a></li>
+                       <li><a data-toggle="pill" href="#menu1">Page Assets</a></li>
+                       <li><a data-toggle="pill" href="#menu2">Page Meta</a></li>
+                       <li id="close-admin"><img id="close-admin-overlay-button" src="/static/mycms/editor/close-window-50.png"/ ></li>
+                    </ul>
+
+                    <div class="tab-content" style="background:#ccc;">
+                        <div id="home" class="tab-pane fade in active" style="background: #ccc;">     
+                        
+                        
+                            <!-- put this in a template later???-->
+                            <div class="row" id="category_form">
+                                <form class="form" id="createpage_form">
+                                    <div class="col-sm-4">
+                                        <input id="createpage_title" type="text" placeholder="title" class="form-control">
+                                    </div>
+                                    <div class="col-sm-4">
+                                        <input id="createpage_slug" type="text" placeholder="slug" class="form-control">
+                                    </div>
+                                    <div class="col-sm-2">
+                                        <select id="createpage_pagetype_select" name="createpage_pagetype_select" type="text" class="form-control">
+                                            <option value="1">Single Page HTML</option>
+                                            <option value="2">Category Page</option>
+                                            <option value="3">MultPage Article</option>
+                                            <option value="4">MemberPage Article</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-sm-2">
+                                        <button class="btn btn-primary" type="button" id="create_page_button">Create Page</button>
+                                    </div>
+                                </form>
+                            </div>
+                            
+                             <!-- div class="row">
+                                <div class="col-sm-6"> left </div>
+                                <div class="col-sm-6"> right </div>
+                            </div -->   
+                            
+                            <!-- end put in tempalte -->
+                            <div id="category_editor">
+                                <div col-sm-6> left </div>
+                                <div col-sm-6> right </div>
+                            </div>        
+                    </div>
+    
+                    <div id="menu1" class="tab-pane fade">
+                        <!-- will be loaded as a temlate-->
+                        {% file_upload %}
+                    </div>
+    
+    
+                    <div id="menu2" class="tab-pane fade">
+                        <h3>Article Meta Info</h3>
+                        <p>Not Implemented Yet.</p>
+                    </div>
+    
+                </div>           
+            <!-- END PAGE_CONTENT -->
+            </div>
+    
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+</div>
+
+
+{% if view_object.request.user.username == "admin" %}
+
+    {% verbatim %}
+
+    <script type="text/dust" id="empty_category_editor_template">
+        <div class="row" style="background: #bbb; border-top: 1px solid #dddddd; margin:0px;" >
+            <div class="col-md-2">Category Title</div>
+            <div class="col-md-4">Path URL</div>
+        </div>
+    
+        <div class="row" style="background:#ccc; border-top: 1px solid #dddddd; margin:0px;" >
+            <div class="col-md-12">There are no sub categories!</div>
+        </div>
+      
+    </script>
+    {% endverbatim %}
+    
+    {% Script type="text/javascript" src="/static/mycms/dustjs/dust-full.js" priority=8888 %}  
+    {% Script type="text/javascript" src="/static/mycms/templates.js" priority=8889 %}  
+    {% Script type="text/javascript" src="/static/mycms/editor/category.editors.js" priority=8889 %}  
+      
+{% endif %}
+{% endblock PAGE_CONTENT %}  
+
+
+
+{% block PAGE_BOTTOM %}
+
+
+
+
+
+<script type="text/javascript">
+
+
+
+</script>
+
+{% endblock PAGE_BOTTOM %}
