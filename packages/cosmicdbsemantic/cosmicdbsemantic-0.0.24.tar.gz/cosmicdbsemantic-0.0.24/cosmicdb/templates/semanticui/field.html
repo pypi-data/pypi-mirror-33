@@ -1,0 +1,51 @@
+{% load crispy_forms_field %}
+{% load crispy_forms_filters %}
+{% load l10n %}
+
+{% if field.is_hidden %}
+    {{ field }}
+{% else %}
+    {% if field|is_checkbox %}
+        <div class="field{% if form_show_errors and field.errors %} error{% endif %}{% if field.field.required %} required{% endif %}">
+            {% if field.label and form_show_labels %}<label for="{{ field.id_for_label }}">{{ field.label|safe }}</label>{% endif %}
+            <div class="ui checkbox">
+                {{ field }}
+                <label></label>
+            </div>
+        </div>
+        {% if form_show_errors and field.errors %}
+            {% for error in field.errors %}
+                <div class="row"><span id="error_{{ forloop.counter }}_{{ field.auto_id }}">{{ error }}</span></div>
+            {% endfor %}
+        {% endif %}
+    {% endif %}
+    {% if field|is_radioselect %}
+        <div class="inline fields{% if field.field.required %} required{% endif %}">
+            {% if field.label and form_show_labels %}<label>{{ field.label|safe }}</label>{% endif %}
+            {% for choice in field.field.choices %}
+                <div class="field{% if form_show_errors and field.errors %} error{% endif %}">
+                    <div class="ui radio checkbox">
+                        <input tabindex="0" class="hidden" type="radio" {% if choice.0|stringformat:"s" == field.value|default_if_none:""|stringformat:"s" %} checked="checked"{% endif %} name="{{ field.html_name }}" id="id_{{ field.id_for_label }}_{{ forloop.counter }}" value="{{ choice.0|unlocalize }}" {{ field.field.widget.attrs|flatatt }}>
+                        <label for="id_{{ field.id_for_label }}_{{ forloop.counter }}">{{ choice.1|unlocalize }}</label>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        {% if form_show_errors and field.errors %}
+            {% for error in field.errors %}
+                <div class="row"><span id="error_{{ forloop.counter }}_{{ field.auto_id }}">{{ error }}</span></div>
+            {% endfor %}
+        {% endif %}
+    {% endif %}
+    {% if not field|is_checkbox and not field|is_radioselect %}
+        <div class="field{% if form_show_errors and field.errors %} error{% endif %}{% if field.field.required %} required{% endif %}">
+            {% if field.label and form_show_labels %}<label for="{{ field.id_for_label }}">{{ field.label|safe }}</label>{% endif %}
+            {% crispy_field field %}
+            {% if form_show_errors and field.errors %}
+                {% for error in field.errors %}
+                    <div class="row"><span id="error_{{ forloop.counter }}_{{ field.auto_id }}">{{ error }}</span></div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    {% endif %}
+{% endif %}
