@@ -1,0 +1,53 @@
+=========================
+Evolution to generation 1
+=========================
+
+We will replace the original FlatPathFSStorage with an own storage providing
+a path given from the environment. This alllows us to move the mypypi instance
+to another folder without to loose the stored files.
+
+
+Let's open the original generation 0 database:
+
+  >>> db = getDB('tests/generation-0.fs')
+  >>> rootFolder = getRootFolder(db)
+
+
+Conditions
+----------
+
+Let's get the site and test the existing storage
+
+  >>> site = rootFolder
+  >>> sm = site.getSiteManager()
+  >>> storage = sm['default']['FlatPathFSStorage']
+  >>> storage
+  <FlatPathFSStorage u'' at u'...'>
+
+
+Evolve
+------
+
+Let's now evolve to generation 1:
+
+  >>> from mypypi.generations.testing import ContextStub
+  >>> context = ContextStub(rootFolder, db)
+  >>> from mypypi.generations.evolve1 import evolve
+  >>> evolve(context)
+
+
+Test
+----
+
+Check if our new storage get added:
+
+  >>> storage = sm['default']['FSStorage']
+  >>> storage
+  <FSStorage u'' at u'...'>
+
+and the old storage got removed:
+
+  >>> sm['default']['FlatPathFSStorage']
+  Traceback (most recent call last):
+  ...
+  KeyError: 'FlatPathFSStorage'

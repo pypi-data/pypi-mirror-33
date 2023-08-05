@@ -1,0 +1,226 @@
+=======
+CHANGES
+=======
+
+1.5.1 (2018-06-21)
+------------------
+
+- feature: added support for xml rpc proxy used for fetch package information
+
+- added simple test page for xml rpc proxy setup. See Test menu tab. This page
+  will fetch package names from pypi via xml rpc and list the amount of fetched
+  package names using the pypi url site setup.
+
+
+1.5.0 (2018-06-05)
+------------------
+
+- feature: added proxy support for download packages using a proxy. Switch from
+  urllib to requests.
+
+- feature: added favicon.ico image and view
+
+
+1.4.0 (2018-05-16)
+------------------
+
+- updated package versions
+
+- bugfix: switched from z3c.recipe.paster:serve to p01.recipe.setup recipe.
+
+  You need to rename the following [app] section in your app.cfg;
+
+    site.zcml to zcml
+    zope.conf to conf
+
+  because the new paster script requires a different naming.
+
+  rename:
+
+    [app]
+    recipe = z3c.recipe.paster:serve
+    eggs = mypypi
+    ini = ...
+    zope.conf = ...
+    site.zcml = ...
+
+  to:
+
+    [app]
+    recipe = p01.recipe.setup:paste
+    eggs = mypypi
+    ini = ...
+    conf = ...
+    zcml = ...
+
+- bugfix versions, update some package versions because some package where not
+  fixed to a version e.g. >
+
+- feature: use new fsstorage which uses a relative path. This allows to move
+  the mypypi installation without to break the file reference. Added generation
+  for evolve database and migrate existing storage.
+
+- feature: allow to upload a file to a miror release and enable the release
+  upload menu
+
+- adjust MANIFEST.in file
+
+- needs more work, switch to p01.publisher and testing environment.
+  The current used zope.testbrowser with version 5.0.0 changed the test browser
+  setup. We need to rewrite the browser tests. Currently the browser tests are
+  disabled.
+
+
+1.3.0 (2013-05-31)
+------------------
+
+- switch to new zope.app.testing which is compatible with py 2.7 xmlrpclib and
+  adjust test storage path which was not compatible with new test runner setup.
+
+- switch to newer ZODB3 release version 3.10.5 which is available for
+  python 2.6/2.7 on windows for 32/64 bit.
+
+- bugfix: broken release update because of hard coded http uri. Switched
+  to https uri and make them editable at site and mirror package release.
+  Currently there is no auto migration. Just edit the pypi url in the site
+  edit page and in the package edit page before update a package.
+
+- commit transaction between package downloads
+
+
+1.2.1 (2012-1-18)
+-----------------
+
+- implemented public file management table including public file delete
+
+- bugfix: include missing public.zcml (adjust MANIFEST.in)
+
+
+1.2.0 (2012-07-02)
+------------------
+
+- added MANIFEST.in file
+
+- enhance batch size for simpler navigation
+
+- added an additional ++public++ namspace for public file managment. This is
+  usefull for upload KGS files which can't get downloaded within authentication
+  if you need to use them as buildout extends.
+  Note, since zc.buildout processes extends before extensions, there is no
+  way to patch the buildout Downloader class and inject authentication. This
+  also means lovely.builouthttp doesn't work for extends.
+
+- bugfix: missing docutils if not installed in system python. Also newer
+  docutils version do not provide python.modulparser.py anymore. Implement the
+  missing trim_docstring method in mypypi/api.py
+
+
+1.1.0 (2011-01-05)
+------------------
+
+- bugfix: fix sync error if we try to sync LocalPackage. Note, only
+  MirrorPackage can get synced
+
+- skip old zope.app.* packages and added zopeupdate script. Run the following
+  script:
+
+  bin\zodbupdate.exe -f ......\Data.fs -v --pack > out.txt 2>&1
+
+- moved storage configuration from WSGI config to zope product config since
+  someone broke the WSGI local_conf to zope product configuration chain.
+  And we also changed the fsStorage argument to storage since camel case also
+  seems to be broken.
+
+  NOTE: You need to run configure.py and buildout before you start the
+        server!
+
+  Otherwise the server wdoesn't start because of the misssing storage
+  configuration. (nothing dangerous happens)
+
+- added a second concept for look a release to a single pypi server using the
+  .pypirc configuration file. See README.txt for more information
+
+- use newer zope.* packages
+
+- implemented XML-RPC API like pypi.python.org offers. We currently do only
+  support the important methods like:
+
+  - list_packages
+
+  - package_releases
+
+  - package_urls # deprecated
+
+  - release_urls
+
+  - package_data # deprecated
+
+  - release_data
+
+  we do not support the methods (search, updated_releases, changelog) right now
+  Note: you need to use a domain like http://host:port/ as XML-RPC ServerProxy
+  url. If you don't use the slash a the end the ServerProxy uses /RPC2 as
+  default handler which isn't supported by mypypi.
+
+- removed temporary MultiWidget and TextLinesWidget because I move them
+  to the z3c.form 2.0 release which is now used
+
+- moved management pages from browser to admin package
+
+- imporved configuration script, use getpass for password input and adjust text
+  message
+
+- bugfix, added explicit find-link for lovely.buildouthttp, couldn't find the
+  package during a fresh installation.
+
+- bugfix, added missing buildout.cfg file, same issue as in version 1.0.1.
+  This issue was reported 5 month ago but still not fixed see:
+  http://bugs.python.org/issue6884
+
+
+1.0.3 (2010-11-02)
+------------------
+
+- bugfix, version conflict. Use ZTK 1.0 and zopeapp-versions 1.0 as base versions
+
+- bugifx, dash vs underscore madness. The package wsgi_intercept at python
+  offers a download link to google which defines wsgi-intercept (_ vs -) e.g.
+  http://pypi.python.org/simple/wsgi_intercept/
+  http://code.google.com/p/wsgi-intercept/
+
+- fix typo (sh1 -> sha1) in configure.py script
+
+
+1.0.2 (2010-06-21)
+------------------
+
+- cleanup buildou.cfg and base.cfg files
+
+
+1.0.1 (2010-06-17)
+------------------
+
+- bugfix, buildout.cfg was missing during a setuptools issue. See:
+  http://bugs.python.org/issue6884
+
+- Fix typos
+
+
+1.0.0 (2010-06-16)
+------------------
+
+- Initial pypi release
+
+- Simplify configuration and setup
+
+
+0.6.0 (2009-10-19)
+------------------
+
+- New feature: Project and buildout file support for keas.build
+
+
+0.5.0 (2009-05-19)
+------------------
+
+- Initial Release
