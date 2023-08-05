@@ -1,0 +1,28 @@
+image: alpine:latest
+
+before_script:
+ - apk add --no-cache python3 python2 git
+ - python3 -m ensurepip
+ - python2 -m ensurepip
+ - pip2 install pathlib
+
+test:
+ stage: test
+ script:
+ - pip3 install tox
+ - tox
+ only:
+ - master
+ 
+pages:
+ stage: deploy
+ script:
+ - apk --no-cache add make graphviz
+ - pip3 install sphinx
+ - python3 setup.py build_sphinx -b html
+ - mv dist/html/ public/
+ artifacts:
+   paths:
+   - public
+ only:
+ - master
