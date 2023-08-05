@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static from staticfiles %}
+{% block title %} |
+    {% if swarm.id %}
+        Swarm {{ swarm.shortname }}
+    {% else %}
+        New Swarm
+    {% endif %}
+{% endblock title %}
+{% load formfield %}
+
+{% block content %}
+<form method='post' style='margin-bottom:40px;' class='raptorform'{% if enctype %}enctype="{{ enctype }}"{% endif %}>{% csrf_token %}
+    <div class="row">
+        <div class="col-sm-12">
+        {% if swarm.id %}
+            <h1 class="float">Swarm: {{ swarm.shortname }}</h1>
+        {% else %}
+            <h1>New Swarm</h1>
+        {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+
+        <div class="col-sm-3">
+            <div class="tabbable">
+                <ul class="nav nav-pills nav-stacked">
+                    <li class="active"><a href="#general" data-toggle="tab">General</a></li>
+                    <li><a href="#config" data-toggle="tab">Swarm Config</a></li>
+                    <li><a href="#preview" data-toggle="tab">Config Preview</a></li>
+                    <li><a href="#routing" data-toggle="tab">Routing</a></li>
+                    <li><a href="#versions" data-toggle="tab">Versions</a></li>
+                </ul>
+            </div>
+        {% if swarm.id %}
+            <h3>Deployed procs:</h3>
+            <span id="swarm-container" class="row-fluid"></span>
+        {% endif %}
+        </div>
+
+        <div class="col-sm-9">
+            {% if error_msg %}
+                <div class="alert alert-danger">{{ error_msg }}</div>
+            {% endif %}
+            <div class="tab-content row">
+                <div class="tab-pane active form-horizontal col-sm-8" id="general">
+                    {% include "swarm_tab_general.html" %}
+                </div>
+                <div class="tab-pane form-horizontal col-sm-8" id="config">
+                    {% include "swarm_tab_config.html" %}
+                </div>
+                <div class="tab-pane form-horizontal col-sm-12" id="preview">
+                    {% include "swarm_tab_preview.html" %}
+                </div>
+                <div class="tab-pane form-horizontal col-sm-8" id="routing">
+                    {% include "swarm_tab_routing.html" %}
+                </div>
+                <div class="tab-pane form-horizontal col-sm-12" id="versions">
+                    {% include "version_diffs.html" %}
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Swarm</button>
+
+        </div>
+
+    </div>
+</form>
+{% endblock content %}
+
+{% block script %}
+<script src="{% static 'js/jquery.textarea.min.js' %}"></script>
+<script src="{% static 'js/vrswarm.js' %}"></script>
+<script>
+$(function() {
+{% if swarm.id %}
+  VR.Swarm.init('{{ swarm.id }}', $('#swarm-container'));
+{% endif %}
+  // enable using tabs in the textareas
+  $('.codearea').tabby({tabString:'  '});
+
+  SelectFilter.init('id_config_ingredients', "Ingredients", 0, VR.Urls.static);
+
+  // make sure that pool name checking also works for new swarms
+  VR.Swarm.checkPoolName($('form.raptorform').get(0));
+});
+
+</script>
+{% endblock script %}
