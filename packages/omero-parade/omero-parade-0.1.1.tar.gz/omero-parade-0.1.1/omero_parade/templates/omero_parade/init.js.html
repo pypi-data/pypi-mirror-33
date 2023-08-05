@@ -1,0 +1,45 @@
+{% load common_filters %}
+{% load static %}
+
+<link rel="stylesheet" href="{% static 'omero_parade/css/parade.css' %}"></link>
+<script src="{% static 'omero_parade/js/bundle.js' %}"></script>
+<script>
+
+$(function() {
+
+  var pluginIndex = {{ forloop.counter }};
+
+  $("#omero_parade").omeroweb_center_plugin({
+    plugin_index: pluginIndex,        // From the Django template loop
+    empty_on_sel_change: false,       // Do not completely erase content when changing selection
+    load_plugin_content: function(selected, dtype, oid) {
+      // this may have been called before datatree was initialised...
+      var dataTree = $.jstree.reference('#dataTree');
+      if (!dataTree) {
+        return;
+      }
+      omero_parade.omero_parade(dataTree, {
+        dataprovidersUrl: "{% url 'parade_dataproviders' %}",
+        filtersUrl: "{% url 'parade_filters' %}",
+        indexUrl: "{% url 'parade_index' %}",
+        staticPrefix: "{% get_static_prefix %}",
+        thumbnailsBatch: {{ thumbnails_batch|default:50|json_dumps|safe }},
+        webgatewayBaseUrl: "{% url 'webgateway' %}",
+      });
+    },
+
+    // supported_obj_types: ['dataset', 'image', 'orphaned', 'tag']
+    plugin_enabled: function(selected){
+        return true;
+        // if (selected.length == 0) return false;
+        // var dtype = selected[0]['id'].split('-')[0];
+        //  if (selected.length > 1) {
+        //     return (dtype == "image");
+        // } else {
+        //     return ($.inArray(dtype, ["image", "dataset"]) > -1);
+        // }
+    }
+  });
+});
+
+</script>
