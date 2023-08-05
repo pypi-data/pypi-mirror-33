@@ -1,0 +1,110 @@
+{% extends "cfp/event/base.html" %}
+{% load i18n %}
+{% load rich_text %}
+{% load rules %}
+{% load static %}
+
+{% block title %}{% trans "Your submissions" %} :: {% endblock %}
+
+{% block content %}
+    {% if information %}
+    <h2>{% trans "Important Information" %}</h2>
+    {% for info in information %}
+        <legend>{{ info.title }}</legend>
+        {{ info.text|rich_text }}
+        {% if info.resource %}
+            <a href="{{ info.resource.url }}"><i class="fa fa-file-o"></i> {{ info.resource.name }}</a>
+        {% endif %}
+    {% endfor %}
+    {% endif %}
+    <h2>{% trans "Your submissions" %}</h2>
+    {% if submissions %}
+        <table class="table table-sm table-responsive table-responsive-md">
+            <thead>
+            <tr>
+                <th>{% trans "Title" %}</th>
+                <th>{% trans "State" %}</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for submission in submissions %}
+            {% has_perm 'agenda.view_slot' request.user submission.slot as can_see_slot %}
+                <tr>
+                    <td>
+                        <a href="{{ submission.urls.user_base }}">
+                            {{ submission.title }}
+                        </a>
+                    </td>
+                    <td>
+                        {% include "cfp/event/fragment_state.html" with state=submission.state %}
+                    </td>
+                    <td class="text-right">
+                        {% if submission.review_code %}
+                            <button data-destination="{{ submission.urls.review }}"
+                                    class="btn btn-sm btn-info"
+                                    data-toggle="tooltip" 
+                                    data-placement="top" 
+                                    title="{% trans 'Copy code for review' %}"
+                                    target="_blank">
+                                <i class="fa fa-link"></i>
+                            </button>
+                        {% endif %}
+                        {% if submission.editable %}
+                            <a href="{{ submission.urls.user_base }}"
+                                    class="btn btn-sm btn-info">
+                                <i class="fa fa-edit"></i>
+                            </a>
+                        {% endif %}
+                        {% if submission.state == 'accepted' %}
+                            <a href="{{ submission.urls.confirm }}"
+                                    class="btn btn-sm btn-success">
+                                <i class="fa fa-check"></i> {% trans "Confirm" %}
+                            </a>
+                        {% endif %}
+                        {% if can_see_slot %}
+                            <a href="{{ submission.urls.public }}"
+                                    class="btn btn-sm btn-info">
+                                <i class="fa fa-calendar"></i> {% trans "Schedule" %}
+                            </a>
+                        {% endif %}
+                        {% if submission.does_accept_feedback %}
+                            <a href="{{ submission.urls.feedback }}"
+                                    class="btn btn-sm btn-info">
+                                <i class="fa fa-comments"></i> {% trans "Feedback" %}
+                            </a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <p>
+            {% if request.event.cfp.is_open %}
+                <a class="btn btn-success btn-lg"
+                   href="{{ request.event.urls.submit }}">
+                    {% trans "Create a new submission" %}
+                </a>
+            {% endif %}
+        </p>
+    {% else %}
+        <p class="text-center">
+            {% trans "It seems like you haven't submitted anything to this event yet." %}
+        </p>
+        <p class="text-center">
+            {% trans "If you did, maybe you used a different account? Check your emails!" %}
+        </p>
+        {% if request.event.cfp.is_open %}
+            <p class="text-center">
+                {% trans "If you did not, why not go ahead and create a proposal now? We'd love to hear from you!" %}
+            </p>
+            <p class="text-center">
+                <a class="btn btn-success btn-lg btn-block"
+                        href="{{ request.event.urls.submit }}">
+                    {% trans "Submit something now!" %}
+                </a>
+            </p>
+        {% endif %}
+    {% endif %}
+    <script type="text/javascript" src="{% static "submission/js/review_code.js" %}"></script>
+{% endblock %}

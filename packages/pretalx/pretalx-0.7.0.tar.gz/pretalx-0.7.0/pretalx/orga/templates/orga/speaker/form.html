@@ -1,0 +1,101 @@
+{% extends "orga/cfp/base.html" %}
+{% load bootstrap4 %}
+{% load i18n %}
+{% load rules %}
+{% load staticfiles %}
+
+{% block content %}
+{% has_perm 'orga.change_speaker' request.user form.instance as can_edit_speaker %}
+    <legend>
+        {{ form.instance.user.get_display_name }} ({{ submission_count }}
+        {% blocktrans trimmed count count=submission_count %}
+        submission
+        {% plural %}
+        submissions
+        {% endblocktrans %})
+    </legend>
+    <div class="alert alert-info col-md-9 ml-auto">
+        <span>
+        <h5>{% if submission_count > 1 %}{% trans "Submissions" %}{% else %}{% trans "Submission" %}{% endif %}</h5>
+        <ul>
+            {% for submission in submissions %}
+            <li>
+                <a href="{{ submission.orga_urls.base }}">
+                    {{ submission.title }}
+                    ({% include "cfp/event/fragment_state.html" with state=submission.state %})
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        </span>
+    </div>
+    <form method="post" action="" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="speaker-info avatar-form">
+            <div class="col-md-3 col-form-label">
+                <img
+                  class="avatar float-right"
+                  data-gravatar="{{ form.instance.user.gravatar_parameter }}"
+                  data-avatar="{% if form.instance.user.avatar %}{{ form.instance.user.avatar.url }}{% endif %}"
+                  {% if form.instance.user.get_gravatar %}
+                  src="https://www.gravatar.com/avatar/{{ form.instance.user.gravatar_parameter }}"
+                  {% elif form.instance.user.avatar and form.instance.user.avatar != 'False' %}
+                  src="{{ form.instance.user.avatar.url }}"
+                  {% endif %}
+                />
+            </div>
+            <div class="avatar-form-fields col-md-9">
+                {% bootstrap_field form.get_gravatar layout='event-inline' %}
+                <div class="user-avatar-display">
+                    {% bootstrap_field form.avatar layout='inline' %}
+                </div>
+            </div>
+        </div>
+        {% bootstrap_field form.name layout='event' %}
+        {% bootstrap_field form.email layout='event' %}
+        {% if form.biography %}{% bootstrap_field form.biography layout='event' %}{% endif %}
+        {% bootstrap_field form.availabilities layout='event' %}
+        {% include "orga/submit_row.html" %}
+    </form>
+
+    {% if questions %}
+    <legend>{% trans "Answers" %}</legend>
+    <ul>
+    {% for q_info in questions %}
+        {% if q_info.answers.count %}
+        <li>
+            <strong>{{ q_info.question.question }}</strong>
+            {% if q_info.answers.count == 1 %}{% with answer=q_info.answers.first %}
+                -
+                {% if answer.options.count > 0 %}
+                    {% for option in answer.options.all %}
+                    {{ option }},
+                    {% endfor %}
+                {% else %}
+                    {{ answer.answer }}
+                {% endif %}
+                {% if answer.submission %}({{ answer.submission.title }}){% endif %}
+            {% endwith %}{% else %}
+            <ul>
+                {% for answer in q_info.answers %}
+                <li>
+                    {% if answer.options.count > 0 %}
+                        {% for option in answer.options.all %}
+                        {{ option }},
+                        {% endfor %}
+                    {% else %}
+                        {{ answer.answer }}
+                    {% endif %}
+                    {% if answer.submission %}({{ answer.submission.title }}){% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </li>
+        {% endif %}
+    {% endfor %}
+    </ul>
+    {% endif %}
+
+    <script type="text/javascript" src="{% static "cfp/js/profile.js" %}"></script>
+{% endblock %}
