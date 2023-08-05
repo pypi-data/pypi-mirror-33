@@ -1,0 +1,46 @@
+{% load i18n navsy_tags %}
+{% spaceless %}
+{% if multilanguage %}
+{% get_current_language as CURRENT_LANGUAGE_CODE %}
+{% get_available_languages as LANGUAGES %}
+{% get_language_info_list for LANGUAGES as languages %}
+<div class="navsy-languages-menu">
+    <div class="navsy-change-language-forms">
+    {% for language in languages %}
+        {% if not languages_filter or language.code in languages_filter %}
+        {% language language.code %}
+        <form class="navsy-change-language-{{ language.code }}" action="{% url 'set_language' %}" method="POST" style="display:none;">
+            {% csrf_token %}
+            <input name="language" type="hidden" value="{{ language.code }}" />
+            <input name="next" type="hidden" value="{% navsy_url language=language.code %}" />
+        </form>
+        {% endlanguage %}
+        {% endif %}
+    {% endfor %}
+    </div>
+{% if languages_select %}
+    <select onchange="$(this).closest('.navsy-languages-menu').find(String('form.navsy-change-language-' + $(this).val())).submit(); return false;">
+    {% for language in languages %}
+        {% if not languages_filter or language.code in languages_filter %}
+        {% language language.code %}
+        <option value="{{ language.code }}" {% if language.code == CURRENT_LANGUAGE_CODE %}selected{% endif %}>{% navsy_language_label language languages_label %}</option>
+        {% endlanguage %}
+        {% endif %}
+    {% endfor %}
+    </select>
+{% else %}
+    <ul>
+    {% for language in languages %}
+        {% if not languages_filter or language.code in languages_filter %}
+        {% language language.code %}
+        <li class="{% if language.code == CURRENT_LANGUAGE_CODE %}active{% endif %}">
+            <a href="{% url 'set_language' %}?next={% navsy_url language=language.code %}" onmouseover="$(this).attr('href', '{% navsy_url language=language.code %}');" onclick="$(this).closest('.navsy-languages-menu').find('form.navsy-change-language-{{ language.code }}').submit(); return false;">{% navsy_language_label language languages_label %}</a>
+        </li>
+        {% endlanguage %}
+        {% endif %}
+    {% endfor %}
+    </ul>
+{% endif %}
+</div>
+{% endif %}
+{% endspaceless %}
