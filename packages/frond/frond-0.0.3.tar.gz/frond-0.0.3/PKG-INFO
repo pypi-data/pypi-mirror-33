@@ -1,0 +1,78 @@
+Metadata-Version: 2.1
+Name: frond
+Version: 0.0.3
+Summary: Asynchronous Fan Out/In for Pyramid.
+Home-page: https://gitlab.com/landreville/frond
+Author: Landreville
+Author-email: landreville@heyneat.ca
+License: UNKNOWN
+Description: Run an asyncio loop in it's own thread for scheduling awaitables from
+        within Pyramid views.
+        
+        This adds request property `loop` and request methods `wait_for`,
+        `wait_results`, and `await`.
+        
+        The `loop` property returns the loop running
+        in it's own thread. Use this loop with `asyncio.run_coroutine_threadsafe`
+        to run awaitables. For example:
+        
+        ```python
+            import asyncio
+            from concurrent import futures
+        
+            def my_view(request):
+                running = asyncio.run_coroutine_threadsafe(my_coroutine(), request.loop)
+                done, not_done = futures.wait([running, ...], timeout=3)
+                results = [ftr.result() for ftr in done]
+                return {'done': results}
+        ```
+        
+        The `wait_for` method reduces the above boiler plate by waiting for the
+        futures. Example usage
+        ```python
+            def my_view(request):
+                done, not_done = request.wait_for([my_coroutine(), ...])
+                results = [ftr.result() for ftr in done]
+                return {'done': results}
+        ```
+        
+        The `wait_results` method reduces the boiler plate further by returning
+        the results after waiting. This is useful if you don't care about
+        unfinished tasks. Example usage:
+        
+        ```python
+            def my_view(request):
+                results = request.wait_results([my_coroutine(), ...])
+                return {'done': results}
+        ```
+        
+        The `await` method runs a single awaitable and
+        blocks until it's results are complete or timeout passes.
+        Example usage:
+        
+        ```python
+            from loopworker import AwaitableTimeout
+        
+            def my_view(request):
+                try:
+                    result = request.await(my_coroutine(), timeout=3)
+                except AwaitableTimeout:
+                    result = 'not completed'
+                return {'result': result}
+        ```
+        
+        Use as any other Pyramid plugin:
+        
+        ```python
+            config.include('frond')
+        ```
+        
+        Currently this package only supports Python 3 (and only tested on Python >=3.6).
+        
+Platform: UNKNOWN
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Framework :: Pyramid
+Classifier: Topic :: Internet :: WWW/HTTP
+Classifier: License :: OSI Approved :: MIT License
+Description-Content-Type: text/markdown
