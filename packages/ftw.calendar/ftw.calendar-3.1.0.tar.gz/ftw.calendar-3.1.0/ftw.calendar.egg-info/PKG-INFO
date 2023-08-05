@@ -1,0 +1,417 @@
+Metadata-Version: 2.1
+Name: ftw.calendar
+Version: 3.1.0
+Summary: Calendar view based on fullcalendar
+Home-page: https://github.com/4teamwork/ftw.calendar
+Author: 4teamwork AG
+Author-email: mailto:info@4teamwork.ch
+License: GPL2
+Description: Introduction
+        ============
+        
+        ``ftw.calendar`` is a calendar view based on fullcalendar (http://arshaw.com/fullcalendar).
+        
+        Features
+        ========
+        
+        - Generic: ftw.calendar doesn't care about the event objects, it only needs
+          a collection in which the resulting brains have a start and a end attribute.
+          If the calendar view is on an other content type than a collection, it will
+          show all events (types defined in portal_calendar) below this context.
+        
+        - Lightweight: the only requirement (apart from plone of course) is simplejson.
+          Optionally, if you want to enable resizing of events and the drag and drop functionality,
+          you can install jquery.ui but it is not required.
+        
+        - Internationalized: currently ftw.calendar is available
+          in german, english and czech. Feel free to add more translations.
+        
+        - Integrated: ftw.calendar cares about your calendar settings.
+          First day of the week is respected and displayed accordingly.
+        
+        - Flexible: The calendar source is implemented as an adapter. Override it to modify
+          the title or add css classes.
+        
+        Usage
+        =====
+        
+        - Add ``ftw.calendar`` to your buildout configuration:
+        
+        ::
+        
+            [instance]
+            eggs +=
+                ftw.calendar
+        
+        - Install the generic import profile.
+        
+        
+        Use the ``ftwcalendar_view`` as the new default view on any collection.
+        The default events-collection in a new plone site should work well,
+        you probably should remove the date criterions though,
+        since fullcalendar needs to be able to set them according to the selected month.
+        
+        Calendar Source
+        ===============
+        
+        For easy customization i recommend extending from the default calendar source
+        implementation and override one of the three defined functions.
+        
+        This is an example from `ftw.meeting`:
+        
+        ::
+        
+            from ftw.calendar.browser.calendarupdateview import CalendarJSONSource
+        
+            class MeetingCalendarJSONSource(CalendarJSONSource):
+        
+                def generate_source_dict_from_brain(self, brain):
+                    output = super(MeetingCalendarJSONSource,
+                                   self).generate_source_dict_from_brain(brain)
+        
+                    if brain.Type == 'Meeting' and \
+                       self.memberid in brain.getAttendeesOrUsers:
+        
+                        output['className'] += ' attendee'
+        
+                    return output
+        
+        `configure.zcml`:
+        
+        ::
+        
+            <configure zcml:condition="installed ftw.calendar">
+                <adapter
+                    for="* ftw.meeting.interfaces.IMeetingLayer"
+                    name="ftw_calendar_source"
+                    provides="ftw.calendar.browser.interfaces.IFtwCalendarJSONSourceProvider"
+                    factory=".calendarsource.MeetingCalendarJSONSource"
+                    />
+            </configure>
+        
+        Calendar Event Creator
+        ======================
+        
+        Calendar entries can be created by clicking a date/time on the calendar widget.
+        Since `ftw.calendar` does not know which event type is used in a particular
+        project it has to be defined by the product using `ftw.calendar`. There is no
+        default implementation! It won't work unless you implement it in your product.
+        
+        This is done using an adapter. Here is an example from `ftw.contentpage`:
+        
+        ::
+        
+            from ftw.calendar.browser.interfaces import IFtwCalendarEventCreator
+            from plone import api
+            from zope.interface import implements
+        
+        
+            class CalendarEventPageCreator(object):
+                implements(IFtwCalendarEventCreator)
+        
+                def __init__(self, context, request):
+                    self.context = context
+                    self.request = request
+        
+                def getEventType(self):
+                    return "EventPage"
+        
+                def createEvent(self, title, start_date):
+                    return api.content.create(container=self.context,
+                                              type="EventPage",
+                                              title=title,
+                                              startDate=start_date,
+                                              endDate=start_date)
+        
+        `configure.zcml`
+        ::
+        
+            <adapter
+               for="* *"
+               provides="ftw.calendar.browser.interfaces.IFtwCalendarEventCreator"
+               factory=".adapters.CalendarEventPageCreator"
+               />
+        
+        Troubleshooting
+        ===============
+        
+        Often there are javascript-errors just after installing and trying the calendar view.
+        Normally these are due to javascript caching and can be easily solved
+        by enabling javascript debugging in the js_registry.
+        
+        Credits
+        =======
+        
+        Many thanks to Adam Shaw for jq.fullcalendar.
+        
+        
+        Compatibility
+        -------------
+        
+        Runs with `Plone <http://www.plone.org/>`_ `4.1`, `4.2`.
+        
+        
+        Links
+        =====
+        
+        - Github: https://github.com/4teamwork/ftw.calendar
+        - Issues: https://github.com/4teamwork/ftw.calendar/issues
+        - Pypi: http://pypi.python.org/pypi/ftw.calendar
+        - Continuous integration: https://jenkins.4teamwork.ch/search?q=ftw.calendar
+        
+        
+        Copyright
+        =========
+        
+        This package is copyright by `4teamwork <http://www.4teamwork.ch/>`_.
+        
+        ``ftw.calendar`` is licensed under GNU General Public License, version 2.
+        
+        Changelog
+        =========
+        
+        3.1.0 (2018-06-19)
+        ------------------
+        
+        - Add support for Plone 5.1. [cguardia, jone]
+        - Remove dependency on ftw.testing[splinter] (has been dropped in ftw.testing). [lgraf]
+        
+        
+        3.0.0 (2017-01-24)
+        ------------------
+        
+        - Drop Plone 4.1 support.
+          [lknoepfel]
+        
+        - Add functionality to add events by clicking on a date in the calendar.
+          There is no default implementation. Products have to implement it for their event types.
+          [lknoepfel]
+        
+        - Check edit permission on event to enable drag&drop.
+          [lknoepfel]
+        
+        - Fixed bug where date range was not applied.
+          [lknoepfel]
+        
+        2.1.2 (2016-11-17)
+        ------------------
+        
+        - Fix jQuery / Diazo issue: set proper response headers. [jone]
+        
+        - Added german translation for menuitem.
+          [lknoepfel]
+        
+        
+        2.1.1 (2015-10-23)
+        ------------------
+        
+        - Enable calender view for new-style Plone collections.
+          [mbaechtold]
+        
+        
+        2.1.0 (2015-04-30)
+        ------------------
+        
+        - Refactored calendar source as adapter.
+          [lknoepfel]
+        
+        - Better date formatting of dates displayed in the title and the column
+          headings.
+          [mbaechtold]
+        
+        
+        2.0.0 (2013-11-04)
+        ------------------
+        
+        - Add test setup and a basic test.
+          [mathias.leimgruber]
+        
+        - Plone 4.3 compatibility.
+          [mathias.leimgruber]
+        
+        - Package cleanup (Readme.rst/History.txt/setup.py/.gitignore/license).
+          [mathias.leimgruber]
+        
+        - Pass dates to the javascript in ISO8601 format so it handles timezones
+          correctly.
+          [davisagli]
+        
+        
+        1.15 (2012-01-27)
+        -----------------
+        
+        - Make calendar work with other context than collection.
+          [Julian Infanger]
+        
+        - Set mimetype header for configuration javascript so that it works with
+          Diazo theming.
+          [22.06.2011, yomatters]
+        
+        
+        1.14
+        ----
+        
+        - Added class for ftwcalendar_view, so a viewlet can be registered on this class.
+          [22.06.2011, jinfanger]
+        
+        - Added french translation. Thanks to Francois Hurter.
+          [22.03.2011, fsprenger]
+        
+        - Make sure link color is not overridden by sunburst style
+          [20.06.2011, fsprenger]
+        
+        
+        1.13
+        ----
+        
+        - Fix GS structure (Types -> types and topic.xml -> Topic.xml and added
+          types.xml)
+          [07.03.2011, mathias.leimgruber]
+        
+        - Fixed README.txt [thomasdesvenain]
+        
+        
+        1.12
+        ----
+        
+        - Change default time_format for german language (show H:mm).
+          [14.02.2011, mathias.leimgruber]
+        
+        - Call queryCatalog on context.aq_inner for proper ATRelativePathCriterion
+          support.
+          [14.02.2011, mathias.leimgruber]
+        
+        - PEP8 on calendarupdateview.
+          [14.02.2011, mathias.leimgruber]
+        
+        
+        1.11
+        ----
+        
+        - Updated fullcalendar to version 1.4.10. Changelog for fullcalendar can be
+          found here: http://arshaw.com/js/fullcalendar/changelog.txt
+          [fsprenger]
+        
+        - Fixed a js bug in the configuration
+          [fsprenger]
+        
+        - Fixing Plone 3 compatibility with a zcml.condition
+          [fsprenger]
+        
+        - Made first day of the week option use the setting in Plone's calendar
+          control panel.
+          [yomatters]
+        
+        - Updated product description in install profile.
+          [yomatters]
+        
+        - Changed settings to use Plone's normal i18n machinery.
+          [yomatters]
+        
+        - Improved default styling in Sunburst on Plone 4.
+          [yomatters]
+        
+        - Send drop and resize arguments as JSON for jQuery 1.4 compatibility.
+          [yomatters]
+        
+        
+        1.10
+        ----
+        
+        - solved problem with hidden osx files in previous release
+          [fsprenger]
+        
+        - do not compress fullcallendar.min.js in JSRegistry.
+          [naro]
+        
+        
+        1.9
+        ---
+        
+        - updated fullcalendar to version 1.4.8
+          [fsprenger]
+        
+        
+        1.8
+        ---
+        
+        - added Czech translation
+          [naro]
+        
+        - added menuItem declaration to provide nice and translatable Display menu
+          item
+          [naro]
+        
+        - fixed zcml declarations (added layer)
+          [naro]
+        
+        - added .po files
+          [naro]
+        
+        
+        1.7
+        ---
+        
+        - updated docs for public release
+          [fsprenger]
+        
+        
+        1.6
+        ---
+        
+        - updated fullcalendar to version 1.4.6
+        
+        
+        1.5
+        ---
+        
+        - configured english as a fallback-language if there is no translation for the
+          current language
+        
+        - added a custom css file to override styles defined in fullcalendar.css
+        
+        - highlight the current users own events
+        
+        - use the styles defined in members.css to mark the state of an event
+        
+        - added support for all day events
+        
+        
+        1.4
+        ---
+        
+        - enabled drag and drop in day and week view
+        
+        - enabled resize in day and week view
+        
+        
+        1.3
+        ---
+        
+        - removed jquery plugin integration (was intended for plone 2.5)
+        
+        - fixed a bug in the query, now events that span across several months are displayed correctly
+        
+        
+        1.2
+        ---
+        
+        - fixed time format and set start day to monday
+        
+        
+        1.1
+        ---
+        
+        - Removed a reference to a nonexisting file
+        
+        
+        1.0
+        ---
+        
+        - Initial release
+        
+Platform: UNKNOWN
+Classifier: Framework :: Plone
+Classifier: Framework :: Plone :: 4.2
+Classifier: Programming Language :: Python
+Provides-Extra: tests
