@@ -1,0 +1,1 @@
+This package transforms a bytes into a text string encoded in UTF-8.
