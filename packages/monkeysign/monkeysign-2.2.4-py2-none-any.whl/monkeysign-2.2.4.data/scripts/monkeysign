@@ -1,0 +1,52 @@
+#!python
+# -*- coding: utf-8 -*-
+#
+#    Copyright (C) 2012-2013 Antoine Beaupré <anarcat@orangeseeds.org>
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import sys
+import os
+
+directory, basename = os.path.split(sys.argv[0])
+
+path, directory = os.path.split(os.path.realpath(directory))
+if directory == 'scripts':
+    sys.path.insert(0, os.path.dirname(__file__) + '/..')
+
+if basename == 'monkeysign':
+    from monkeysign.cli import MonkeysignCli as ui
+else:
+    try:
+        from monkeysign.gtkui import MonkeysignScanUi as ui
+    except ImportError as e:
+        print "some modules missing for scanning functionality: %s" % e
+        sys.exit(1)
+
+from monkeysign.gpg import GpgRuntimeError
+
+with ui() as u:
+    try:
+        u.main()
+    except GpgRuntimeError as e:
+        if u.options.debug:
+            print("\n".join(u.sysinfo()))
+            raise # throw full backtrace
+        else:
+            sys.exit(e) # only show error
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as e:
+        print("\n".join(u.sysinfo()))
+        raise
