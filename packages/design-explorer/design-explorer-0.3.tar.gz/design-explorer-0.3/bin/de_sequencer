@@ -1,0 +1,89 @@
+#!/usr/bin/python
+
+import argparse
+import sys
+import os
+import json
+
+# Get the path to the executable
+executablePath = os.path.dirname(os.path.realpath(__file__))
+
+# Import program modules
+sys.path.append(os.path.join(executablePath, '..'))
+from design_explorer import sequencer
+from design_explorer import graph
+from design_explorer import utils
+
+
+def parse_command_line_arguments():
+    '''Parses the command line arguments and returns them.'''
+
+    parser = argparse.ArgumentParser(
+      prog='Design Explorer Sequencer',
+      description='''Generates sequence diagrams from configuration files.''')
+
+    parser.add_argument('-tf',
+                        '--tracefile',
+                        nargs='+',
+                        required=True,
+                        help='JSON trace definition file')
+    parser.add_argument('-tn',
+                        '--tracename',
+                        required=True,
+                        help='Name of trace to create sequence diagram.')
+    parser.add_argument('-uf',
+                        '--umlfile',
+                        required=True,
+                        help='output UML file')
+
+    parser.add_argument('-ex',
+                        '--expand',
+                        nargs='+',
+                        required=False,
+                        help='List of nodes to expand')
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+    else:
+        return parser.parse_args()
+
+
+def write_plantuml_file(lDiagram, sFileName):
+    with open(sFileName, 'w') as oFile:
+        for sString in lDiagram:
+            oFile.write(sString + '\n')
+    oFile.close()
+
+
+def validate_requested_trace_exists(oTraceList, sTraceName):
+
+    if oTraceList.get_item(sTraceName):
+        return True
+    else:
+        print 'ERROR:  Could not find trace ' + sTraceName + ' in JSON file'
+        exit()
+
+
+def main():
+    '''Main routine of the Design Explorer Sequencer program.'''
+
+    commandLineArguments = parse_command_line_arguments()
+
+    dTracefile = utils.read_trace_file(commandLineArguments.tracefile)
+
+    oNodeList = utils.build_node_list(dTracefile)
+    oEdgeList = utils.build_edge_list(dTracefile)
+    oTraceList = utils.build_trace_list(dTracefile)
+
+    validate_requested_trace_exists(oTraceList, commandLineArguments.tracename)
+
+    lNewTrace = graph.trace(commandLineArguments.tracename)
+    utils.process_trace(lNewTrace, oTraceList.get_item(commandLineArguments.tracename), oEdgeList, oTraceList)
+    lDiagram = sequencer.create_plantuml_sequence_diagram(lNewTrace, oNodeList, commandLineArguments.expand)
+
+    write_plantuml_file(lDiagram, commandLineArguments.umlfile)
+
+
+if __name__ == '__main__':
+    main()
