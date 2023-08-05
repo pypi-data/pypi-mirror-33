@@ -1,0 +1,212 @@
+{% extends "base_layout.jinja" %}
+
+{% macro barchart(data) -%}
+    {% if data %}
+        <div class="graph_fancy" data-x-label="digits" data-y-label="">
+            <span class="bar"></span>
+            {% for digit, cnt in data.items() %}
+                <span class="bar" style="height: {{cnt*100}}%;" data-bar-label="{{digit}}" data-bar-value="{{cnt*100 | round}}%"></span>
+            {% endfor %}
+        </div>
+    {% endif %}
+{%- endmacro %}
+
+{% macro table_colum_profile(columnIDs , meta) -%}
+
+<table class="ui teal very compact table">
+    <thead>
+        <tr class="center aligned">
+            <th></th>
+            {% for id in  columnIDs %}
+                <th>{{id}}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for k in ['data_type','data_class','patterns','stats_top_value','stats_num_rows','stats_distinct','stats_empty', 'stats_min_value','stats_max_value'] %}
+            <tr class="right aligned">
+                <td>{{k | replace('stats_', '')}}</td>
+                {% for i in range(0, columnIDs| length,1 ) %}
+                    {% if k in ['data_type','data_class'] %}
+                        <td class="center aligned"><span class="ui basic label"><span class="ui sub header">{{ meta[k]['col'~(i+1)] }}</span></span></td>
+                    {% else %}
+                        {% if meta[k]['col'~(i+1)] is string %}
+                            <td>{{ meta[k]['col'~(i+1)] }}</td>
+                        {% else %}
+                            <td>{{ meta[k]['col'~(i+1)] }}</td>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            </tr>
+        {% endfor %}
+            <tr class="right aligned">
+                <td>value length</td>
+                {% for i in range(0, columnIDs| length,1 ) %}
+                    <td>
+                        <table class="ui small very compact table">
+                            <tbody>
+                                <tr>
+                                    <th>min</th>
+                                    <th>mean</th>
+                                    <th>max</th>
+                                </tr>
+                                <tr>
+                                    <td>{{ meta['stats_min_len']['col'~(i+1)] }}</td>
+                                    <td>{{ meta['stats_mean_len']['col'~(i+1)] |round|int}}</td>
+                                    <td>{{ meta['stats_max_len']['col'~(i+1)] }}</td>
+                                </tr>
+                            </tbody>
+
+                        </table>
+                    </td>
+                {% endfor %}
+            </tr>
+        {% for k in ['stats_constancy','stats_uniqueness','stats_top_value','c_dist_dist','benford_is','benford_chi'] %}
+            <tr class="right aligned">
+                <td>{{k}}</td>
+                {% for i in range(0, columnIDs| length,1 ) %}
+                    {% if k in ['data_type','data_class'] %}
+                        <td class="center aligned"><span class="ui basic olive label">{{ meta[k]['col'~(i+1)] }}</span></td>
+                    {% else %}
+                        {% if meta[k]['col'~(i+1)] is string %}
+                            <td>{{ meta[k]['col'~(i+1)].decode('utf-8') }}</td>
+                        {% else %}
+                            <td>{{ meta[k]['col'~(i+1)] }}</td>
+                        {% endif %}
+
+                    {% endif %}
+                {% endfor %}
+            </tr>
+        {% endfor %}
+        {% for k in ['benford_dist'] %}
+            <tr class="right aligned">
+                <td>{{k}}</td>
+
+                {% for i in range(0, columnIDs| length,1 ) %}
+                        <td>{{ barchart(meta[k]['col'~(i+1)]) }}</td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{%- endmacro %}
+{% macro mini_table(data) -%}
+    <div style="width:100%; overflow-x: scroll;">
+        <table class="ui very compact table" >
+            <thead>
+                <tr>
+                    {% for h in  data[0] %}
+                        <th {% if h|length >5 %}class="ellipsis" {% endif %}>{{h}}</th>
+                    {% endfor %}
+                </th>
+            </thead>
+            <tbody>
+                {% for row in  data[1:] %}
+                <tr>
+                    {% for c in  row %}
+                        <td {% if c|length >5 %}class="ellipsis" {% endif %}>{{c}}</td>
+                    {% endfor %}
+                </th>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{%- endmacro %}
+
+{% block content %}
+
+<div class="ui container">
+    <h2 class="ui divider horizontal header">CSV Profiler</h2>
+
+
+    <div class="ui fluid card" width="100%">
+        <div class="content">
+            <div class="header">
+                <a href="{{basic.uri}}">{{basic.uri.rpartition("/")[-1]}}</a>
+            </div>
+            <div class="meta">
+                {{basic.rows| int}} rows x{{basic.columns | int}} columns
+            </div>
+        </div>
+         <div class="content">
+            <div class="ui mini divided horizontal list">
+                <div class="item">
+                    <div class="center aligned content">
+                        <div class="sub header">Quotechar</div>
+                        {{tmeta.quotechar}}&nbsp;
+                    </div>
+                </div>
+                <div class="item">
+                    <div class="center aligned content">
+                        <div class="sub header">Delimiter</div>
+                        {{tmeta.delimiter}}&nbsp;
+                    </div>
+                </div>
+                <div class="item">
+                    <div class="center aligned content">
+                        <div class="sub header">lineterminator</div>
+                        {{tmeta.lineterminator}}&nbsp;
+                    </div>
+                </div>
+                <div class="item">
+                    <div class="center aligned content">
+                        <div class="sub header">quoting</div>
+                        {{tmeta.quoting}}&nbsp;
+                    </div>
+                </div>
+                <div class="item">
+                    <div class="center aligned content">
+                        <div class="sub header">skipinitialspace</div>
+                        {{tmeta.skipinitialspace}}&nbsp;
+                    </div>
+                </div>
+                <div class="item">
+                    <div class="center aligned content">
+                        <div class="sub header">doublequote</div>
+                        {{tmeta.doublequote}}&nbsp;
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="content">
+            <div class="header">Data</div>
+            {{ mini_table(data) }}
+        </div>
+
+
+        <div class="content">
+            <div class="header">Possible PK</div>
+
+            {#{% for pk in tmeta.fd %}
+                <span class="ui label">[
+                    {% for c in pk %}
+                         {{columnIDs[c|int]}}&nbsp;
+                    {% endfor %}
+                    ]
+                </span>
+            {% endfor %}
+            #}
+        </div>
+        {% if tmeta %}
+            <div class="extra content">
+                <div class="header">Profile</div>
+                <div style="width:100%;overflow-x: scroll;">
+                    {{ table_colum_profile(columnIDs,meta) }}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+
+
+{% block script %}
+
+$("thead").find("th").on("click", function() {
+    $(this).closest("table").find("tbody").toggle(); //you can set delay within toggle as well, like .toggle(500);
+});
+
+{% endblock %}
+
