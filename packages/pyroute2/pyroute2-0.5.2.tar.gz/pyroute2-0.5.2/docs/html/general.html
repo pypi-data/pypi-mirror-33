@@ -1,0 +1,377 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Pyroute2 &#8212; pyroute2 0.5.2 documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <script type="text/javascript" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Changelog" href="changelog.html" />
+    <link rel="prev" title="Pyroute2 netlink library" href="index.html" /> 
+  </head><body>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="changelog.html" title="Changelog"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Pyroute2 netlink library"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item"><a href="http://pyroute2.org">Project home</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">pyroute2 0.5.2 documentation</a> &#187;</li> 
+      </ul>
+        </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="pyroute2">
+<h1>Pyroute2<a class="headerlink" href="#pyroute2" title="Permalink to this headline">¶</a></h1>
+<p>Pyroute2 is a pure Python <strong>netlink</strong> library. It requires only Python stdlib,
+no 3rd party libraries. The library was started as an RTNL protocol
+implementation, so the name is <strong>pyroute2</strong>, but now it supports many netlink
+protocols. Some supported netlink families and protocols:</p>
+<ul class="simple">
+<li><strong>rtnl</strong>, network settings — addresses, routes, traffic controls</li>
+<li><strong>nfnetlink</strong> — netfilter API: <strong>ipset</strong>, <strong>nftables</strong>, …</li>
+<li><strong>ipq</strong> — simplest userspace packet filtering, iptables QUEUE target</li>
+<li><strong>devlink</strong> — manage and monitor devlink-enabled hardware</li>
+<li><dl class="first docutils">
+<dt><strong>generic</strong> — generic netlink families</dt>
+<dd><ul class="first last">
+<li><strong>nl80211</strong> — wireless functions API (basic support)</li>
+<li><strong>taskstats</strong> — extended process statistics</li>
+<li><strong>acpi_events</strong> — ACPI events monitoring</li>
+<li><strong>thermal_events</strong> — thermal events monitoring</li>
+<li><strong>VFS_DQUOT</strong> — disk quota events monitoring</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p>Starting with 0.5.2 the library supports also PF_ROUTE sockets on BSD systems.</p>
+<div class="section" id="supported-systems">
+<h2>Supported systems<a class="headerlink" href="#supported-systems" title="Permalink to this headline">¶</a></h2>
+<p>Pyroute2 runs natively on Linux and emulates some limited subset
+of RTNL netlink API on BSD systems on top of PF_ROUTE notifications
+and standard system tools.</p>
+<p>Other platforms are not supported.</p>
+</div>
+<div class="section" id="the-simplest-usecase">
+<h2>The simplest usecase<a class="headerlink" href="#the-simplest-usecase" title="Permalink to this headline">¶</a></h2>
+<p>The objects, provided by the library, are socket objects with an
+extended API. The additional functionality aims to:</p>
+<ul class="simple">
+<li>Help to open/bind netlink sockets</li>
+<li>Discover generic netlink protocols and multicast groups</li>
+<li>Construct, encode and decode netlink and PF_ROUTE messages</li>
+</ul>
+<p>Maybe the simplest usecase is to monitor events. Disk quota events:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyroute2</span> <span class="k">import</span> <span class="n">DQuotSocket</span>
+<span class="c1"># DQuotSocket automatically performs discovery and binding,</span>
+<span class="c1"># since it has no other functionality beside of the monitoring</span>
+<span class="k">with</span> <span class="n">DQuotSocket</span><span class="p">()</span> <span class="k">as</span> <span class="n">ds</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">get</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Get notifications about network settings changes with IPRoute:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyroute2</span> <span class="k">import</span> <span class="n">IPRoute</span>
+<span class="k">with</span> <span class="n">IPRoute</span><span class="p">()</span> <span class="k">as</span> <span class="n">ipr</span><span class="p">:</span>
+    <span class="c1"># With IPRoute objects you have to call bind() manually</span>
+    <span class="n">ipr</span><span class="o">.</span><span class="n">bind</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">ipr</span><span class="o">.</span><span class="n">get</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="rtnetlink-examples">
+<h2>RTNetlink examples<a class="headerlink" href="#rtnetlink-examples" title="Permalink to this headline">¶</a></h2>
+<p>More samples you can read in the project documentation.</p>
+<p>Low-level <strong>IPRoute</strong> utility — Linux network configuration.
+The <strong>IPRoute</strong> class is a 1-to-1 RTNL mapping. There are no implicit
+interface lookups and so on.</p>
+<p>Some examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">socket</span> <span class="k">import</span> <span class="n">AF_INET</span>
+<span class="kn">from</span> <span class="nn">pyroute2</span> <span class="k">import</span> <span class="n">IPRoute</span>
+
+<span class="c1"># get access to the netlink socket</span>
+<span class="n">ip</span> <span class="o">=</span> <span class="n">IPRoute</span><span class="p">()</span>
+
+<span class="c1"># no monitoring here -- thus no bind()</span>
+
+<span class="c1"># print interfaces</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ip</span><span class="o">.</span><span class="n">get_links</span><span class="p">())</span>
+
+<span class="c1"># create VETH pair and move v0p1 to netns &#39;test&#39;</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">link</span><span class="p">(</span><span class="s1">&#39;add&#39;</span><span class="p">,</span> <span class="n">ifname</span><span class="o">=</span><span class="s1">&#39;v0p0&#39;</span><span class="p">,</span> <span class="n">peer</span><span class="o">=</span><span class="s1">&#39;v0p1&#39;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;veth&#39;</span><span class="p">)</span>
+<span class="n">idx</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">link_lookup</span><span class="p">(</span><span class="n">ifname</span><span class="o">=</span><span class="s1">&#39;v0p1&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">link</span><span class="p">(</span><span class="s1">&#39;set&#39;</span><span class="p">,</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">idx</span><span class="p">,</span>
+        <span class="n">net_ns_fd</span><span class="o">=</span><span class="s1">&#39;test&#39;</span><span class="p">)</span>
+
+<span class="c1"># bring v0p0 up and add an address</span>
+<span class="n">idx</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">link_lookup</span><span class="p">(</span><span class="n">ifname</span><span class="o">=</span><span class="s1">&#39;v0p0&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">link</span><span class="p">(</span><span class="s1">&#39;set&#39;</span><span class="p">,</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">idx</span><span class="p">,</span>
+        <span class="n">state</span><span class="o">=</span><span class="s1">&#39;up&#39;</span><span class="p">)</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">addr</span><span class="p">(</span><span class="s1">&#39;add&#39;</span><span class="p">,</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">idx</span><span class="p">,</span>
+        <span class="n">address</span><span class="o">=</span><span class="s1">&#39;10.0.0.1&#39;</span><span class="p">,</span>
+        <span class="n">broadcast</span><span class="o">=</span><span class="s1">&#39;10.0.0.255&#39;</span><span class="p">,</span>
+        <span class="n">prefixlen</span><span class="o">=</span><span class="mi">24</span><span class="p">)</span>
+
+<span class="c1"># create a route with metrics</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;add&#39;</span><span class="p">,</span>
+         <span class="n">dst</span><span class="o">=</span><span class="s1">&#39;172.16.0.0/24&#39;</span><span class="p">,</span>
+         <span class="n">gateway</span><span class="o">=</span><span class="s1">&#39;10.0.0.10&#39;</span><span class="p">,</span>
+         <span class="n">metrics</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;mtu&#39;</span><span class="p">:</span> <span class="mi">1400</span><span class="p">,</span>
+                  <span class="s1">&#39;hoplimit&#39;</span><span class="p">:</span> <span class="mi">16</span><span class="p">})</span>
+
+<span class="c1"># create MPLS lwtunnel</span>
+<span class="c1"># $ sudo modprobe mpls_iptunnel</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;add&#39;</span><span class="p">,</span>
+         <span class="n">dst</span><span class="o">=</span><span class="s1">&#39;172.16.0.0/24&#39;</span><span class="p">,</span>
+         <span class="n">oif</span><span class="o">=</span><span class="n">idx</span><span class="p">,</span>
+         <span class="n">encap</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;mpls&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;labels&#39;</span><span class="p">:</span> <span class="s1">&#39;200/300&#39;</span><span class="p">})</span>
+
+<span class="c1"># create MPLS route: push label</span>
+<span class="c1"># $ sudo modprobe mpls_router</span>
+<span class="c1"># $ sudo sysctl net.mpls.platform_labels=1024</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;add&#39;</span><span class="p">,</span>
+         <span class="n">family</span><span class="o">=</span><span class="n">AF_MPLS</span><span class="p">,</span>
+         <span class="n">oif</span><span class="o">=</span><span class="n">idx</span><span class="p">,</span>
+         <span class="n">dst</span><span class="o">=</span><span class="mh">0x200</span><span class="p">,</span>
+         <span class="n">newdst</span><span class="o">=</span><span class="p">[</span><span class="mh">0x200</span><span class="p">,</span> <span class="mh">0x300</span><span class="p">])</span>
+
+<span class="c1"># create SEG6 tunnel encap mode</span>
+<span class="c1"># Kernel &gt;= 4.10</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;add&#39;</span><span class="p">,</span>
+         <span class="n">dst</span><span class="o">=</span><span class="s1">&#39;2001:0:0:10::2/128&#39;</span><span class="p">,</span>
+         <span class="n">oif</span><span class="o">=</span><span class="n">idx</span><span class="p">,</span>
+         <span class="n">encap</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;seg6&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;mode&#39;</span><span class="p">:</span> <span class="s1">&#39;encap&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;segs&#39;</span><span class="p">:</span> <span class="s1">&#39;2000::5,2000::6&#39;</span><span class="p">})</span>
+
+<span class="c1"># create SEG6 tunnel inline mode</span>
+<span class="c1"># Kernel &gt;= 4.10</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;add&#39;</span><span class="p">,</span>
+         <span class="n">dst</span><span class="o">=</span><span class="s1">&#39;2001:0:0:10::2/128&#39;</span><span class="p">,</span>
+         <span class="n">oif</span><span class="o">=</span><span class="n">idx</span><span class="p">,</span>
+         <span class="n">encap</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;seg6&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;mode&#39;</span><span class="p">:</span> <span class="s1">&#39;inline&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;segs&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;2000::5&#39;</span><span class="p">,</span> <span class="s1">&#39;2000::6&#39;</span><span class="p">]})</span>
+
+<span class="c1"># create SEG6 tunnel inline mode with hmac</span>
+<span class="c1"># Kernel &gt;= 4.10</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;add&#39;</span><span class="p">,</span>
+         <span class="n">dst</span><span class="o">=</span><span class="s1">&#39;2001:0:0:22::2/128&#39;</span><span class="p">,</span>
+         <span class="n">oif</span><span class="o">=</span><span class="n">idx</span><span class="p">,</span>
+         <span class="n">encap</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;seg6&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;mode&#39;</span><span class="p">:</span> <span class="s1">&#39;inline&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;segs&#39;</span><span class="p">:</span><span class="s1">&#39;2000::5,2000::6,2000::7,2000::8&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;hmac&#39;</span><span class="p">:</span><span class="mh">0xf</span><span class="p">})</span>
+
+<span class="c1"># release Netlink socket</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>High-level transactional interface, <strong>IPDB</strong>, a network settings DB:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyroute2</span> <span class="k">import</span> <span class="n">IPDB</span>
+<span class="c1">#</span>
+<span class="c1"># The `with` statement automatically calls `IPDB.release()`</span>
+<span class="c1"># in the case of an exception.</span>
+<span class="k">with</span> <span class="n">IPDB</span><span class="p">()</span> <span class="k">as</span> <span class="n">ip</span><span class="p">:</span>
+    <span class="c1">#</span>
+    <span class="c1"># Create bridge and add ports and addresses.</span>
+    <span class="c1">#</span>
+    <span class="c1"># Transaction will be started by `with` statement</span>
+    <span class="c1"># and will be committed at the end of the block</span>
+    <span class="k">with</span> <span class="n">ip</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s1">&#39;bridge&#39;</span><span class="p">,</span> <span class="n">ifname</span><span class="o">=</span><span class="s1">&#39;rhev&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">i</span><span class="p">:</span>
+        <span class="n">i</span><span class="o">.</span><span class="n">add_port</span><span class="p">(</span><span class="s1">&#39;em1&#39;</span><span class="p">)</span>
+        <span class="n">i</span><span class="o">.</span><span class="n">add_port</span><span class="p">(</span><span class="s1">&#39;em2&#39;</span><span class="p">)</span>
+        <span class="n">i</span><span class="o">.</span><span class="n">add_ip</span><span class="p">(</span><span class="s1">&#39;10.0.0.2/24&#39;</span><span class="p">)</span>
+    <span class="c1"># --&gt; &lt;-- Here the system state is as described in</span>
+    <span class="c1">#         the transaction, if no error occurs. If</span>
+    <span class="c1">#         there is an error, all the changes will be</span>
+    <span class="c1">#         rolled back.</span>
+</pre></div>
+</div>
+<p>The IPDB arch allows to use it transparently with network
+namespaces:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyroute2</span> <span class="k">import</span> <span class="n">IPDB</span>
+<span class="kn">from</span> <span class="nn">pyroute2</span> <span class="k">import</span> <span class="n">NetNS</span>
+
+<span class="c1"># Create IPDB to work with the &#39;test&#39; ip netns.</span>
+<span class="c1">#</span>
+<span class="c1"># Pls notice, that IPDB itself will work in the</span>
+<span class="c1"># main netns, only the netlink transport is</span>
+<span class="c1"># working in the namespace `test`.</span>
+<span class="n">ip</span> <span class="o">=</span> <span class="n">IPDB</span><span class="p">(</span><span class="n">nl</span><span class="o">=</span><span class="n">NetNS</span><span class="p">(</span><span class="s1">&#39;test&#39;</span><span class="p">))</span>
+
+<span class="c1"># Wait until someone will set up ipaddr 127.0.0.1</span>
+<span class="c1"># in the netns on the loopback device</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">interfaces</span><span class="o">.</span><span class="n">lo</span><span class="o">.</span><span class="n">wait_ip</span><span class="p">(</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">)</span>
+
+<span class="c1"># The IPDB object must be released before exit to</span>
+<span class="c1"># sync all the possible changes that are in progress.</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The project contains several modules for different types of
+netlink messages, not only RTNL.</p>
+</div>
+<div class="section" id="network-namespace-examples">
+<h2>Network namespace examples<a class="headerlink" href="#network-namespace-examples" title="Permalink to this headline">¶</a></h2>
+<p>Network namespace manipulation:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyroute2</span> <span class="k">import</span> <span class="n">netns</span>
+<span class="c1"># create netns</span>
+<span class="n">netns</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;test&#39;</span><span class="p">)</span>
+<span class="c1"># list</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">netns</span><span class="o">.</span><span class="n">listnetns</span><span class="p">())</span>
+<span class="c1"># remove netns</span>
+<span class="n">netns</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;test&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Create <strong>veth</strong> interfaces pair and move to <strong>netns</strong>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyroute2</span> <span class="k">import</span> <span class="n">IPDB</span>
+
+<span class="n">ip</span> <span class="o">=</span> <span class="n">IPDB</span><span class="p">()</span>
+<span class="c1"># create interface pair</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">ifname</span><span class="o">=</span><span class="s1">&#39;v0p0&#39;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;veth&#39;</span><span class="p">,</span> <span class="n">peer</span><span class="o">=</span><span class="s1">&#39;v0p1&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+<span class="c1"># move peer to netns</span>
+<span class="k">with</span> <span class="n">ip</span><span class="o">.</span><span class="n">interfaces</span><span class="o">.</span><span class="n">v0p1</span> <span class="k">as</span> <span class="n">veth</span><span class="p">:</span>
+    <span class="n">veth</span><span class="o">.</span><span class="n">net_ns_fd</span> <span class="o">=</span> <span class="s1">&#39;test&#39;</span>
+<span class="c1"># don&#39;t forget to release before exit</span>
+<span class="n">ip</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>List interfaces in some <strong>netns</strong>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyroute2</span> <span class="k">import</span> <span class="n">NetNS</span>
+<span class="kn">from</span> <span class="nn">pprint</span> <span class="k">import</span> <span class="n">pprint</span>
+
+<span class="n">ns</span> <span class="o">=</span> <span class="n">NetNS</span><span class="p">(</span><span class="s1">&#39;test&#39;</span><span class="p">)</span>
+<span class="n">pprint</span><span class="p">(</span><span class="n">ns</span><span class="o">.</span><span class="n">get_links</span><span class="p">())</span>
+<span class="n">ns</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>More details and samples see in the documentation.</p>
+</div>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p><cite>make install</cite> or <cite>pip install pyroute2</cite></p>
+</div>
+<div class="section" id="requirements">
+<h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
+<p>Python &gt;= 2.7</p>
+<p>The pyroute2 testing framework requires  <strong>flake8</strong>, <strong>coverage</strong>,
+<strong>nosetests</strong>.</p>
+</div>
+<div class="section" id="links">
+<h2>Links<a class="headerlink" href="#links" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>home: <a class="reference external" href="https://pyroute2.org/">https://pyroute2.org/</a></li>
+<li>srcs: <a class="reference external" href="https://github.com/svinota/pyroute2">https://github.com/svinota/pyroute2</a></li>
+<li>bugs: <a class="reference external" href="https://github.com/svinota/pyroute2/issues">https://github.com/svinota/pyroute2/issues</a></li>
+<li>pypi: <a class="reference external" href="https://pypi.python.org/pypi/pyroute2">https://pypi.python.org/pypi/pyroute2</a></li>
+<li>docs: <a class="reference external" href="http://docs.pyroute2.org/">http://docs.pyroute2.org/</a></li>
+<li>list: <a class="reference external" href="https://groups.google.com/d/forum/pyroute2-dev">https://groups.google.com/d/forum/pyroute2-dev</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Pyroute2</a><ul>
+<li><a class="reference internal" href="#supported-systems">Supported systems</a></li>
+<li><a class="reference internal" href="#the-simplest-usecase">The simplest usecase</a></li>
+<li><a class="reference internal" href="#rtnetlink-examples">RTNetlink examples</a></li>
+<li><a class="reference internal" href="#network-namespace-examples">Network namespace examples</a></li>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#requirements">Requirements</a></li>
+<li><a class="reference internal" href="#links">Links</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Pyroute2 netlink library</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="changelog.html"
+                        title="next chapter">Changelog</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/general.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="changelog.html" title="Changelog"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Pyroute2 netlink library"
+             >previous</a> |</li>
+        <li class="nav-item"><a href="http://pyroute2.org">Project home</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">pyroute2 0.5.2 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2013, Peter V. Saveliev.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.2.
+    </div>
+  </body>
+</html>
