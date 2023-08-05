@@ -1,0 +1,103 @@
+#!/usr/bin/env python3.6
+from argparse import ArgumentParser
+import coloredlogs
+import sys
+import os
+from pathlib import Path
+
+# TODO: This should not be done, but I'm unsure what makes astrality
+# un-importable in this setting.
+PROJECT_DIR = Path(__file__).absolute().parents[1]
+sys.path.append(str(PROJECT_DIR))
+
+from astrality.astrality import main
+from astrality.config import resolve_config_directory, create_config_directory
+from astrality.persistence import ExecutedActions, CreatedFiles
+
+config_dir = resolve_config_directory()
+
+parser = ArgumentParser(
+    prog='Astrality',
+    description='Compile configuration templates at predefined times.',
+    epilog=f'''The location of Astralitys configuration directory is:
+               "{str(config_dir)}".
+               You can change this by setting $ASTRALITY_CONFIG_HOME or $XDG_CONFIG_HOME.
+            '''
+)
+parser.add_argument(
+    '--create-example-config',
+    help='Create astrality configuration folder with example content.',
+    action='store_true',
+)
+parser.add_argument(
+    '--create-empty-config',
+    help='Create empty astrality configuration folder.',
+    action='store_true',
+)
+parser.add_argument(
+    '--dry-run',
+    help='Print and skip actions that will be performed.',
+    action='store_true',
+    default=False,
+)
+parser.add_argument(
+    '-m',
+    '--module',
+    help='Manually define enabled module.',
+    action='append',
+)
+parser.add_argument(
+    '--reset-setup',
+    help='Re-execute module setup actions on next run.',
+    action='append',
+    default=[],
+)
+parser.add_argument(
+    '--cleanup',
+    help='Delete files created by module.',
+    action='append',
+    default=[],
+)
+parser.add_argument(
+    '-l',
+    '--logging-level',
+    help='Set the degree of logging of the application. Default: INFO.',
+    choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+    default='INFO',
+    const='INFO',
+    nargs='?',
+)
+args = parser.parse_args()
+dry_run = args.dry_run
+
+# The CLI endpoint uses colored logs
+coloredlogs.install(
+    level=os.environ.get(
+        'ASTRALITY_LOGGING_LEVEL',
+        args.logging_level,
+    ),
+    fmt='%(asctime)s %(name)8s %(levelname)s\n%(message)s\n',
+)
+
+if args.reset_setup:
+    for module_name in args.reset_setup:
+        ExecutedActions(module_name=module_name).reset()
+
+if args.cleanup:
+    created_files = CreatedFiles()
+    for module_name in args.cleanup:
+        created_files.cleanup(module=module_name, dry_run=dry_run)
+
+if args.reset_setup or args.cleanup:
+    sys.exit(0)
+
+if args.create_example_config:
+    create_config_directory(empty=False)
+elif args.create_empty_config:
+    create_config_directory(empty=True)
+else:
+    logging_level = args.logging_level
+    modules = args.module
+    main(modules=modules, logging_level=logging_level, dry_run=dry_run)
+
+# vim:filetype=python
