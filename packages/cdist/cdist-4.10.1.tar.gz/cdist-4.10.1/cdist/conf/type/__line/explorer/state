@@ -1,0 +1,95 @@
+#!/bin/sh -e
+#
+# 2018 Steven Armstrong (steven-cdist at armstrong.cc)
+#
+# This file is part of cdist.
+#
+# cdist is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# cdist is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with cdist. If not, see <http://www.gnu.org/licenses/>.
+#
+
+if [ -f "$__object/parameter/before" ]; then
+   position="before"
+elif [ -f "$__object/parameter/after" ]; then
+   position="after"
+else
+   # By default we append to the end of the file.
+   position="end"
+fi
+
+if [ -f "$__object/parameter/regex" ]; then
+   needle="regex"
+else
+   needle="line"
+fi
+
+if [ -f "$__object/parameter/file" ]; then
+   file="$(cat "$__object/parameter/file")"
+else
+   file="/$__object_id"
+fi
+
+if [ ! -f "$file" ]; then
+  echo "file_missing"
+  exit 0
+fi
+
+awk -v position="$position" -v needle="$needle" '
+function _find(_text, _pattern) {
+   if (needle == "regex") {
+      return match(_text, _pattern)
+   } else {
+      return index(_text, _pattern)
+   }
+}
+BEGIN {
+   getline anchor < (ENVIRON["__object"] "/parameter/" position)
+   getline pattern < (ENVIRON["__object"] "/parameter/" needle)
+   state = "absent"
+}
+{
+   if (position == "after") {
+      if (match($0, anchor)) {
+         getline
+         if (_find($0, pattern)) {
+            state = "present"
+         }
+         else {
+            state = "wrongposition"
+         }
+         exit 0
+      }
+   }
+   else if (position == "before") {
+      if (_find($0, pattern)) {
+         getline
+         if (match($0, anchor)) {
+            state = "present"
+         }
+         else {
+            state = "wrongposition"
+         }
+         exit 0
+      }
+   }
+   else {
+      if (_find($0, pattern)) {
+         state = "present"
+         exit 0
+      }
+   }
+}
+END {
+   print state
+}
+' "$file"
