@@ -1,0 +1,83 @@
+{% load bee_django_mission_filter %}
+{% load bootstrap3 %}
+{% if perms.bee_django_mission.can_reset_user_mission %}
+    {% if user_stage %}
+        <div class="text-right">
+            <a href="#" id="update_mssion_{{ user_stage.id }}"
+               data-confirm="{% url "bee_django_mission:user_stage_update_mission" user_stage.id %}"
+               onclick="click_update(this)" class="btn btn-default">重置学生任务</a>
+        </div>
+    {% endif %}
+{% endif %}
+<div class="text-center"><h3>
+    【{{ user }}】{{ user_stage.user_line.line.name }} {{ user_stage.get_name }}
+</h3>
+
+
+</div>
+{% include 'bee_django_mission/messages.html' %}
+{% if add_user_line %}
+    <a href="{% url 'bee_django_mission:user_line_add' user_id=user.id %}">添加任务线</a>
+{% endif %}
+<h3>
+    {% if user_stage %}
+        {% if user_stage.stutas == 1 %}
+            已于{{ user_stage.finish_at }}完成
+        {% elif user_stage.stutas == 2 %}
+            未完成
+        {% elif user_stage.stutas == 3 %}
+            可完成，但未完成
+        {% else %}
+            进行中
+        {% endif %}</h3>
+    {% endif %}
+<table class="table">
+
+    <thead>
+    <tr>
+        <th>类型</th>
+        <th>任务</th>
+        <th>要求</th>
+        <th>完成</th>
+        <th>状态</th>
+        <th></th>
+
+    </tr>
+    </thead>
+    {% for user_mission in user_mission_list %}
+        <tr>
+            <td>{{ user_mission.mission.mission_type.name }}</td>
+            <td>{{ user_mission.get_name }}</td>
+            <td>{{ user_mission.get_user_mission_progress.2 }}</td>
+            <td>{{ user_mission.get_user_mission_progress.1 }}</td>
+            <td>
+                {% if user_mission.get_user_mission_progress.0 %} 已完成
+                {% else %}
+                    未完成
+                {% endif %}
+            </td>
+            <td>
+                {% if user_stage.user_line.line.is_week_line %}
+                    {% if perms.bee_django_mission.add_customusermission %}
+                        <a href="{% url 'bee_django_mission:user_stage_update' pk=user_mission.id %}">自定义</a>
+                    {% endif %}
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+</table>
+
+{% block scripts %}
+    <script>
+        function click_update(_this) {
+            if (!confirm('确认要执行这个操作？')) {
+                return false;
+            }
+            var url = $(_this).attr('data-confirm');
+            $.post(url).done(function (data) {
+                alert(data.msg);
+                location.reload();
+            });
+        }
+    </script>
+{% endblock %}
