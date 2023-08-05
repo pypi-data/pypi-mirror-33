@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% import "bootstrap/wtf.html" as wtf %}
+{% import "bootstrap/fixes.html" as fixes %}
+{% import "bootstrap/utils.html" as util %}
+
+{% block title %}Pathway Details{% endblock %}
+{% block styles %}
+    {{ super() }}
+    <style>
+        .pathways ul {
+            margin: 1em 0;
+            padding: 0 0 0 40px;
+        }
+
+        .pathways li {
+            margin: 1em 0;
+        }
+
+        #button-row {
+            padding-bottom: 20px;
+        }
+
+        #info-table {
+            border-radius: 5px;
+            width: 95%;
+            margin: 0px auto;
+            float: none;
+        }
+
+        /* Modal loading */
+        .loading_modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            background: rgba(255, 255, 255, .8) url(/../../static/img/gif/loading.gif) 50% 50% no-repeat;
+        }
+
+        body.loading {
+            overflow: hidden;
+        }
+
+        body.loading .loading_modal {
+            display: block;
+        }
+
+
+    </style>
+{% endblock %}
+
+
+
+
+{% block scripts %}
+    {{ super() }}
+    {% include "dependencies/common.html" %}
+    <script type="text/javascript"
+            src="{{ url_for('static', filename='js/pathway_controller.js', version='20181004') }}"></script>
+
+    <script>
+        // Initializes popover
+        $(function () {
+            $('[data-toggle="popover"]').popover({
+                placement: 'top',
+                trigger: 'hover'
+            })
+        });
+
+        var resource = "{{resource}}";
+        var pathwayName = "{{ pathway.name }}";
+        var pathwayId = "{{pathway.resource_id }}";
+
+    </script>
+{% endblock %}
+
+{% import "macros.html" as compath %}
+
+
+{% block content %}
+    <div class="container" style="margin-top: 50px">
+        {{ util.flashed_messages(dismissible=True, container=False) }}
+
+        <div class="panel panel-default">
+            <div class="panel-heading">{{ pathway.name }} - Pathway Page</div>
+            <div class="panel-body">
+
+                <table id="pathway-info" class="table table-bordered table-striped table-hover">
+                    <tbody>
+                    <tr>
+                        <td>Name</td>
+                        <td>
+                            <a href="{{ pathway.url }}">{{ pathway }}</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Resource</td>
+                        <td>
+                            {{ compath.stylize_plugin_name(STYLED_NAMES, resource) }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Genes</td>
+                        <td>
+                            {% for hgnc_symbol in pathway.get_gene_set() %}
+
+                                {% if submitted_gene_set and hgnc_symbol in submitted_gene_set %}
+                                    <a href="https://www.ncbi.nlm.nih.gov/gene/?term={{ hgnc_symbol }}"
+                                       style="color: red;">{{ hgnc_symbol }}</a>
+                                {% else %}
+                                    <a href="https://www.ncbi.nlm.nih.gov/gene/?term={{ hgnc_symbol }}">{{ hgnc_symbol }}</a>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Size</td>
+                        <td> {{ pathway.get_gene_set()|length }}
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+
+                {{ compath.write_pathways(equivalent_pathways, "Equivalent Pathways") }}
+                {{ compath.write_pathways(super_pathways, "Super-Pathways") }}
+                {{ compath.write_pathways(sub_pathways, "Sub-Pathways") }}
+
+                <div class="row" id="button-row">
+                    <div class="text-center">
+                        <div class="btn-group btn-space">
+                            <button class="btn btn-primary" id="suggest-by-content"
+                                    data-toggle="popover" title="Suggest Pathways"
+                                    data-content="Suggests the most similar pathways according to content">
+                                Suggest Mappings By Content
+                            </button>
+                            <button class="btn btn-primary" id="suggest-by-name"
+                                    data-toggle="popover" title="Suggest Pathways"
+                                    data-content="Suggests the most similar pathways according to name similarity">
+                                Suggest Mappings By Name
+                            </button>
+                            <button class="btn btn-primary" id="infer-mappings"
+                                    data-toggle="popover" title="Infer Hierarchical Mappings in other Databases"
+                                    data-content="Search for hierarchical mappings based on their equivalent pathways
+                                    in other databases">Infer Hierarchical Mappings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <table id="info-table" class="table table-bordered table-hover table-responsive"></table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="loading_modal"><!-- Spinner div --></div>
+
+    {% include "meta/footer.html" %}
+{% endblock %}

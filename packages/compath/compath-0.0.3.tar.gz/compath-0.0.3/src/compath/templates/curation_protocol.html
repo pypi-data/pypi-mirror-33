@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% import "bootstrap/wtf.html" as wtf %}
+{% import "bootstrap/fixes.html" as fixes %}
+{% import "bootstrap/utils.html" as util %}
+
+{% block title %}About{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script type="text/javascript">
+        var maxHeight = 0;
+        $(".panel-body").find(".row").find(".col-sm-6").find(".thumbnail").each(function (idx, item) {
+            var height = $(item).height();
+            maxHeight = maxHeight > height ? maxHeight : height;
+        });
+        $(".panel-body").find(".row").find(".col-sm-6").find(".thumbnail").height(maxHeight);
+    </script>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        {{ util.flashed_messages(dismissible=True, container=False) }}
+
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">Curation Protocol</h3>
+            </div>
+            <div class="panel-body">
+                <p>As an application scenario, ComPath was used to generate the pathway mappings between three of the
+                    major public pathway databases (<a href="http://www.kegg.jp/">KEGG</a>, <a
+                            href="https://reactome.org/">Reactome</a>,
+                    and <a href="https://www.wikipathways.org/index.php/WikiPathways">WikiPathways</a>). The protocol
+                    established for the mapping is described below.
+                </p>
+
+                <h4>Mapping Files</h4>
+
+                <p>A total of 3 mapping files were curated, one for each pairwise comparison:
+                </p>
+
+                <ul>
+                    <li>KEGG vs Reactome</li>
+                    <li>KEGG vs WikiPathways</li>
+                    <li>Reactome vs WikiPathways</li>
+                </ul>
+
+                <h4>Description</h4>
+
+                <p>
+                    For each pairwise pathway database comparison (resource 1 vs resource 2), we generated all possible
+                    mappings between pathways in each database (KEGG-WikiPathways, KEGG-Reactome, and
+                    WikiPathways-Reactome) and prioritized them based on the follow two independent metrics that have
+                    been proposed to calculate pathway similarity (Belinky et al., 2015):
+
+                </p>
+
+                <ol>
+                    <li>Lexical similarity between each pair of pathways' names was calculated using the Levenshtein
+                        distance (Levenshtein, 1966).
+                    </li>
+
+                    <li>Content similarity between each pair of pathways' genes was calculated using the previously
+                        described Szymkiewicz-Simpson coefficient.
+                    </li>
+
+                </ol>
+
+                <p>
+                    With the help of this prioritization exercise, three curators from different areas of expertise
+                    (neuroscience, medicine, and biology) independently assigned the mapping types and mark false
+                    positives after evaluating the equivalent scope in both pathway descriptions. Links to the pathway
+                    descriptions were attached so that the curator can confirm that the focus and context of the
+                    pathways remain the same, even if the both have high similarity or name.
+                    Furthermore, we investigated possible intra-database mappings within KEGG and WikiPathways since
+                    these resources do not yet contain hierarchical relationships.
+                </p>
+
+                <h4>Inter-curator agreement</h4>
+
+                <p>
+                    The final step of the curation exercise was to agree on the proposed mappings. Therefore, all three
+                    curators examined together one by one the combination of all mappings independently generated to
+                    reach a consensus on a final set of mappings that are available at
+                    <a href="https://github.com/ComPath/resources">ComPath Resources</a> under the MIT License.
+                </p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">Types of Mappings</h3>
+            </div>
+            <div class="panel-body">
+
+                <p>ComPath curation interface allows for two types of mappings: equivalentTo and isPartOf.</p>
+
+                <ul>
+
+                    <li><b>equivalentTo</b>. An undirected relationship denoting both pathways refer to the same
+                        biological process. The requirements for this relationship are:
+
+                        <ul>
+                            <li>
+                                <b>Scope:</b> both pathways represent the same biological pathway information.
+                            </li>
+                            <li>
+                                <b>Similarity:</b> both pathways must share at minimum of one overlapping gene.
+                            </li>
+                            <li>
+                                <b>Context:</b> both pathways should take place in the same context (e.g., cell line,
+                                physiology).
+                            </li>
+
+                        </ul>
+                    </li>
+
+                    <li><b>isPartOf</b>. A directed relationship denoting the hierarchical relationship between the
+                        pathway 1 (child) and 2 (parent). The requirements are:
+
+                        <ul>
+                            <li>
+                                <b>Subset:</b> The subject (pathway 1) is a subset of pathway 2 (e.g., Reactome pathway
+                                hierarchy).
+                            </li>
+                            <li>
+                                <b>Similarity:</b> same as above.
+                            </li>
+                            <li>
+                                <b>Context:</b> same as above.
+                            </li>
+
+                        </ul>
+                    </li>
+                </ul>
+
+
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">References</h3>
+            </div>
+            <div class="panel-body">
+                <ul>
+                    <li>
+                        Belinky, F., et al. PathCards: multi-source consolidation of human biological pathways.
+                        Database, 2015 (2015).
+                    </li>
+
+                    <li>
+                        Levenshtein, V. I. Binary codes capable of correcting deletions, insertions, and reversals.
+                        Soviet Physics Doklady. 10 (8): 707–710 (1966).
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+
+    </div>
+    {% include "meta/footer.html" %}
+{% endblock %}

@@ -1,0 +1,481 @@
+{% extends "base.html" %}
+
+{% import "bootstrap/wtf.html" as wtf %}
+{% import "bootstrap/fixes.html" as fixes %}
+{% import "bootstrap/utils.html" as util %}
+
+{% block title %}ComPath Overview{% endblock %}
+
+
+{% block styles %}
+    {{ super() }}
+    <link rel="stylesheet" type="text/css" href='https://code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css'/>
+
+    <style>
+        /* VennDiagram CSS */
+
+        #coverage-venn-diagram svg text {
+            fill: white;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            font-size: 16px !important;
+        }
+
+        .venntooltip {
+            position: absolute;
+            text-align: center;
+            width: 128px;
+            height: 25px;
+            background: #333;
+            color: #ddd;
+            padding: 2px;
+            border: 0px;
+            border-radius: 8px;
+            opacity: 0;
+        }
+
+        /* Histogram CSS */
+
+        .bar rect {
+            fill: steelblue;
+        }
+
+        .bar text {
+            fill: #fff;
+            font: 10px sans-serif;
+        }
+
+        .bar:hover {
+            fill: brown;
+        }
+
+        .toolTip {
+            position: absolute;
+            display: none;
+            min-width: 80px;
+            height: auto;
+            background: none repeat scroll 0 0 #ffffff;
+            border: 1px solid #6F257F;
+            padding: 14px;
+            text-align: center;
+        }
+
+        #gene-pathways-table_filter {
+            margin-top: 10px;
+        }
+
+    </style>
+
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    {% include "dependencies/common.html" %}
+    {% include "dependencies/venn.html" %}
+    {% include "dependencies/datatables.html" %}
+
+    <script>
+
+        // Hide Table Header
+        $('#gene-pathways-table').hide();
+
+        // Venn Diagram Script
+
+        var data = {{ managers_overlap|safe }};
+
+        var div = d3.select("#coverage-venn-diagram");
+
+        div.attr("align", "center"); // Align center the diagram
+
+        var vennD = venn.VennDiagram(); // Plot the Venn Diagram
+        div.datum(data).call(vennD); // Stick data
+
+        // Colors the circles depending on the name of the db
+        var databaseToChangeColor = {
+            'REACTOME': '#df3f18',
+            'WIKIPATHWAYS': '#5bc0de',
+            'KEGG': '#5cb85c',
+            'MSIG': '#de5b7d',
+            'GENE UNIVERSE': '#f4ce42'
+        };
+
+        var databaseToChangeName = {
+            'NEUROMMSIG_AD': 'NMMSIG AD',
+            'NEUROMMSIG_PD': 'NMMSIG PD'
+        };
+
+        var circles = d3.select("body").selectAll(".venn-circle");
+
+        circles.nodes().forEach(function (element) {
+
+
+            var dataBase = element.childNodes[1].textContent;
+
+            // Change the name of the database so it is not too long
+            if (dataBase in databaseToChangeName) {
+                element.childNodes[1].innerHTML = databaseToChangeName[dataBase];
+            }
+
+            // Change to default database colors to match with the other visualizations
+            if (dataBase in databaseToChangeColor) {
+                element.childNodes[1].style.fill = databaseToChangeColor[dataBase];
+                element.childNodes[0].style.fill = databaseToChangeColor[dataBase];
+            }
+        });
+
+        // add a tooltip
+        var tooltip = d3.select("body").append("div")
+            .attr("class", "venntooltip");
+
+        // add listeners to all the groups to display tooltip on mouseover
+        div.selectAll("g")
+            .on("mouseover", function (d, i) {
+                // sort all the areas relative to the current item
+                venn.sortAreas(div, d);
+
+                // Display a tooltip with the current size
+                tooltip.transition().duration(400).style("opacity", .9);
+                tooltip.text(d.size + " genes");
+
+                // highlight the current path
+                var selection = d3.select(this).transition("tooltip").duration(400);
+                selection.select("path")
+                    .style("stroke-width", 3)
+                    .style("fill-opacity", d.sets.length == 1 ? .4 : .1)
+                    .style("stroke-opacity", 1);
+            })
+
+            .on("mousemove", function () {
+                tooltip.style("left", (d3.event.pageX) + "px")
+                    .style("top", (d3.event.pageY - 28) + "px");
+            })
+
+            .on("mouseout", function (d, i) {
+                tooltip.transition().duration(400).style("opacity", 0);
+                var selection = d3.select(this).transition("tooltip").duration(400);
+                selection.select("path")
+                    .style("stroke-width", 0)
+                    .style("fill-opacity", d.sets.length == 1 ? .25 : .0)
+                    .style("stroke-opacity", 0);
+            });
+
+    </script>
+
+    <script>
+        {% for resource, distribution in distributions.items() %}
+
+            var distribution = {{ distribution|safe }};
+            var resource = "{{ resource|safe }}";
+
+            /* Plot Histogram */
+
+            var histogramData = [];
+            $.each(distribution, function (key, value) {
+                histogramData.push(value)
+            });
+
+            var formatCount = d3.format(",.0f");
+
+            var svg = d3.select("#" + resource + "-svg"),
+                margin = {
+                    top: 10,
+                    right: 30,
+                    bottom: 30,
+                    left: 30
+                },
+                width = +svg.attr("width") - margin.left - margin.right,
+                height = +svg.attr("height") - margin.top - margin.bottom,
+                g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            var tooltipHistogram = d3.select("body").append("div").attr("class", "toolTip");
+
+            svg.append("text")
+                .attr("x", (width / 2))
+                .attr("y", 0 - (margin.top / 2))
+                .attr("text-anchor", "middle")
+                .style("font-size", "16px")
+                .text(resource);
+
+            var x = d3.scaleLinear()
+                .domain(d3.extent(histogramData))
+                .rangeRound([0, width]);
+
+            var histogram = d3.histogram()
+                .domain(x.domain())
+                .thresholds(x.ticks(60));
+
+            var bins = histogram(histogramData);
+
+            var y = d3.scaleLinear()
+                .domain([0, d3.max(bins, function (d) {
+                    return d.length;
+                })])
+                .range([height, 0]);
+
+            var bar = g.selectAll(".bar")
+                .data(bins)
+                .enter().append("g")
+                .attr("class", "bar")
+                .attr("transform", function (d) {
+                    return "translate(" + x(d.x0) + "," + y(d.length) + ")";
+                })
+                .on("mousemove", function (d) {
+                    tooltipHistogram
+                        .style("left", d3.event.pageX - 50 + "px")
+                        .style("top", d3.event.pageY - 70 + "px")
+                        .style("display", "inline-block")
+                        .html((d.length) + "<br>" + "Pathways");
+                })
+                .on("mouseout", function (d) {
+                    tooltipHistogram.style("display", "none");
+                });
+
+            bar.append("rect")
+                .attr("x", 1)
+                .attr("width", x(bins[0].x1) - x(bins[0].x0) - 1)
+                .attr("height", function (d) {
+                    return height - y(d.length);
+                });
+
+            bar.append("text")
+                .attr("dy", ".75em")
+                .attr("y", 6)
+                .attr("x", (x(bins[0].x1) - x(bins[0].x0)) / 2)
+                .attr("text-anchor", "middle")
+                .text(function (d) {
+                    return formatCount(d.length);
+                });
+
+            g.append("g")
+                .attr("class", "axis axis--x")
+                .attr("transform", "translate(0," + height + ")")
+                .call(d3.axisBottom(x));
+
+        {% endfor %}
+
+        /////////////////////
+        // Pathway Search //
+        ////////////////////
+        $('#pathway-autocompletion').autocomplete({
+            source: function (request, response) {
+                $.getJSON("/api/autocompletion/pathway/" + request.term, function (data) {
+                    response($.map(data, function (pathwayInfo, key) {
+                        return {
+                            label: pathwayInfo[1] + " (" + pathwayInfo[0] + ")",
+                            value: "/pathway/" + pathwayInfo[0] + "/" + pathwayInfo[2]
+                        }
+                    }));
+                });
+            },
+            minLength: 4,
+            delay: 100
+        });
+
+        //Action go to pathway page
+        $("#pathway-info").on("click", function () {
+
+            var selectedPathway = $("#pathway-autocompletion").val();
+
+            if (selectedPathway) {
+                window.location = selectedPathway;
+            }
+            else {
+                alert("Please select a pathway before")
+            }
+        });
+
+        /////////////////
+        // Gene Search //
+        /////////////////
+
+        $('#gene-autocompletion').autocomplete({
+            source: function (request, response) {
+                $.getJSON("/api/autocompletion/gene_symbol?q=" + request.term, function (data) {
+                    response($.map(data, function (gene) {
+                        return {
+                            label: gene,
+                            value: gene
+                        }
+                    }));
+                });
+            },
+            minLength: 2,
+            delay: 100
+        });
+
+        /**
+         * Adds  a new row in Pathway Information table
+         * @param {object} table: table object
+         * @param {string} column1: string for column1
+         * @param {string} column2: string for column2
+         * @param {string} column3: string for column3
+         * @param {string} column4: string for column4
+         */
+        function insertRow(table, column1, column2, column3, column4) {
+            table.append("<tr><td>" + column1 + "</td><td>" + column2 + "</td>   <td>" + column3 + "</td> <td>" + column4 + "</td></tr>");
+        }
+
+        /**
+         * Renders pathway info table
+         * @param {object} data object
+         */
+        function populateTable(data) {
+
+            var tableBody = $('#table-body');
+
+            tableBody.empty();
+
+            $.each(data, function (dbName, value) {
+                $.each(value, function (index, pathwayTuple) {
+                    insertRow(tableBody, dbName, pathwayTuple[0], pathwayTuple[1], pathwayTuple[2]);
+                });
+            });
+
+            var table = $('#gene-pathways-table');
+
+            table.DataTable(); // Create DataTable
+            table.show(); // Make it visible
+        }
+
+        //Action go to pathway page
+        $("#gene-info").on("click", function () {
+
+            var selectedGene = $("#gene-autocompletion").val();
+
+            $.ajax({
+                url: "/api/get_pathways_by_gene/" + selectedGene,
+                dataType: "json",
+                success: function (response) {
+
+                    if ($.isEmptyObject(response)) {
+                        alert("The selected gene was not found in the database")
+                    }
+                    else {
+                        populateTable(response);
+
+                    }
+                }
+            });
+        });
+
+
+    </script>
+{% endblock %}
+
+{
+{% import "macros.html" as compath %}
+
+
+{% block content %}
+    <div class="container">
+        {{ util.flashed_messages(dismissible=True, container=False) }}
+
+        <div class="panel panel-default">
+            <div class="panel-heading">ComPath Overview</div>
+            <div class="panel-body">
+                <p>Summary of the pathway databases loaded in ComPath and their content</p>
+
+                <table class="table table-striped table-hover">
+                    <thead>
+                    <tr>
+                        <th class="first-row">Resource</th>
+                        <th class="first-row">Pathways</th>
+                        <th class="first-row">Genes</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+
+                    {% for resource, (number_of_pathways, number_of_genes) in resource_overview.items() %}
+                        <tr>
+                            <td> {{ compath.stylize_plugin_name(STYLED_NAMES, resource) }}</td>
+                            <td>{{ number_of_pathways }}</td>
+                            <td>{{ number_of_genes }}</td>
+                        </tr>
+                    {% endfor %}
+
+                    </tbody>
+
+                </table>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-heading">Pathway Knowledge Coverage and Ignorome</div>
+            <div class="panel-body">
+                <p>This Euler diagram shows the genetic coverage over all HGNC symbols known for all databases.</p>
+                <div id="coverage-venn-diagram">
+                </div>
+            </div>
+        </div>
+
+
+        <div class="panel panel-default">
+            <div class="panel-heading">Pathway Database Distributions</div>
+            <div class="panel-body">
+                <p>
+                    Analyze the distribution of the pathways and genes for each individual database. By clicking in the
+                    button of the databases below, you can see analyze the gene promiscuity and pathway size for that
+                    particular database. The distributions below can be zoomed after going into the dedicated pathway
+                    database page.
+                </p>
+                <p>
+                    {% for resource in managers %}
+                        {% if resource not in BLACK_LIST %}
+                            <a href="{{ url_for('analysis.database_distributions', resource=resource) }}"
+                               class="btn btn-primary">
+                                {{ compath.stylize_plugin_name(STYLED_NAMES, resource) }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                </p>
+
+                {% for resource in managers %}
+                    {% if resource not in BLACK_LIST %}
+                        <svg id="{{ resource }}-svg" width="300" height="300"></svg>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-heading">Pathway and Gene Information</div>
+            <div class="panel-body">
+                <p>
+                    Browse over all pathways and genes loaded in ComPath. Select the Pathway of interest to access its
+                    page. Similarly, you can investigate what are the pathways associated with a particular gene.
+                </p>
+
+                <div class="form-inline">
+                    <label for="pathway-autocompletion"></label><input
+                        id="pathway-autocompletion" type="text"
+                        class="form-control"
+                        placeholder="Type a pathway name"
+                        style="max-width: 500px; min-width: 400px">
+                    <input class="btn btn-primary" value="Explore Pathway" id="pathway-info" type="submit">
+                </div>
+
+                <div class="form-inline" style="margin-top: 10px;">
+                    <label for="gene-autocompletion"></label><input
+                        id="gene-autocompletion" type="text"
+                        class="form-control"
+                        placeholder="Type a gene symbol"
+                        style="max-width: 500px; min-width: 400px">
+                    <input class="btn btn-primary" value="Explore Gene" id="gene-info" type="submit">
+                </div>
+                <table id="gene-pathways-table" class="table table-bordered table-hover table-responsive">
+                    <thead>
+                    <tr>
+                        <th class="first-row">Database</th>
+                        <th class="first-row">Identifier</th>
+                        <th class="first-row">Name</th>
+                        <th class="first-row">Pathway Size</th>
+                    </tr>
+                    </thead>
+                    <tbody id="table-body">
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    </div>
+    {% include "meta/footer.html" %}
+{% endblock %}

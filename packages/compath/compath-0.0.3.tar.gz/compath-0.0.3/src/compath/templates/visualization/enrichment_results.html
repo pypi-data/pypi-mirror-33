@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% import "bootstrap/wtf.html" as wtf %}
+{% import "bootstrap/fixes.html" as fixes %}
+{% import "bootstrap/utils.html" as util %}
+
+{% block title %}Enriched Pathways{% endblock %}xz
+
+
+{% block styles %}
+    {{ super() }}
+    <style>
+        td {
+            overflow: hidden;
+            max-width: 200px;
+            word-wrap: break-word;
+        }
+    </style>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    {% include "dependencies/datatables.html" %}
+
+
+    <script>
+
+        $(document).ready(function () {
+
+            var tables = [];
+
+            {% for resource_name in query_results.keys() %}
+
+                var table = $("#{{ resource_name }}" + "-table").DataTable(
+                    {
+                        dom: "<'row'<'col-sm-2'l><'col-sm-3'f><'col-sm-5'B>>" +
+                        "<'row'<'col-sm-12'tr>>" +
+                        "<'row'<'col-sm-5'i><'col-sm-7'p>>",
+                        buttons: [
+                            'copy', 'csv', 'excel', 'pdf', 'print'
+                        ]
+                    }
+                );
+
+                tables.push(table);
+
+            {% endfor %}
+
+            var form = $('#compare-pathways-form');
+
+            // Controls that at least two pathways have been selected
+            $('button[type="submit"]').on('click', function (e) {
+                e.preventDefault(); // Prevent the default submission
+
+                // In case the user comes back from the analysis page, make sure the added inputs are deleted so there are no duplicates
+                form.empty();
+
+                // Add the analysis info from the clicked button
+                $(form).append(
+                    $('<input>')
+                        .attr('type', 'hidden')
+                        .attr('name', $(this).attr("name"))
+                        .val($(this).val())
+                );
+
+                // For each table add a hidden input to the form with the checked boxes
+                $.each(tables, function (index, table) {
+
+                    $.each(table.$('input'), function (index, input) {
+
+                        if (input.checked) {
+                            $(form).append(
+                                $('<input>')
+                                    .attr('type', 'hidden')
+                                    .attr('name', input.name)
+                                    .val(input.value)
+                            );
+                        }
+                    });
+                });
+
+                // Check there are at least 2 pathways selected (so the analysis input plus two more (3))
+                if (form.children().length <= 2) {
+                    alert('Please select at least two pathways for comparison.');
+                    return false;
+                }
+
+                // Submit form
+                form.submit();
+
+            });
+
+            // Clicks all buttons in all tables
+            $('#selectAll').click(function (e) {
+
+                var boolean = $(this).prop('checked');
+
+                // For each table add a hidden input to the form with the checked boxes
+                $.each(tables, function (index, table) {
+                    $.each(table.$('input'), function (index, input) {
+                        input.checked = boolean;
+                    });
+                });
+            });
+
+
+        });
+    </script>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <div class="page-header">
+            <h1>Query Results </h1>
+            <h3><i class="glyphicon glyphicon-info-sign"
+                   data-toggle="modal"
+                   data-target="#legend"></i>
+            </h3>
+            <hr>
+            {{ util.flashed_messages(dismissible=True, container=False) }}
+
+            <table class="table table-bordered table-striped table-hover">
+                <tbody>
+                <tr>
+                    <td>Gene Symbols Submitted ({{ submitted_gene_set|length }})</td>
+                    <td>
+                        {% for hgnc_symbol in submitted_gene_set %}
+                            <a href="https://www.ncbi.nlm.nih.gov/gene/?term={{ hgnc_symbol }}">{{ hgnc_symbol }}</a>
+                            {{ "," if not loop.last }}
+                        {% endfor %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Genes not in any pathway ({{ genes_not_in_pathways|length }})</td>
+                    <td>
+                        {% for hgnc_symbol in genes_not_in_pathways %}
+                            <a href="https://www.ncbi.nlm.nih.gov/gene/?term={{ hgnc_symbol }}">{{ hgnc_symbol }}</a>
+                            {{ "," if not loop.last }}
+                        {% endfor %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Number of Pathways Mapped</td>
+                    <td>{{ number_of_pathways }}</td>
+                </tr>
+                <tr>
+                    <td>Select All Pathways</td>
+                    <td>
+                        <input type="checkbox" id="selectAll"/>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <form id="compare-pathways-form" method="get" action="{{ url_for('analysis.compare_pathways') }}">
+        </form>
+
+        <p>
+            First, select your pathways of interest and then, choose the type of analysis to perform. The "Overlap
+            View" displays the boundaries between the selected pathways represented as Venn or Euler diagrams. The
+            "Cluster View" renders an interactive dendrogram of the pathways clustered based on their distances.
+            Finally, the "Network View" displays the knowledge around the selected pathways as well as the similarity
+            between them enabling to identify interplays.
+        </p>
+        <div class="text-center">
+            <button class="btn btn-primary" name="analysis" value="venn" type="submit">Overlap View</button>
+            <button class="btn btn-primary" name="analysis" value="dendrogram" type="submit">Cluster View</button>
+            <button class="btn btn-primary" name="analysis" value="network" type="submit">Network View</button>
+        </div>
+
+        <hr>
+        {% for resource_name, pathway_dict in query_results.items() %}
+
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title">{{ resource_name|upper }}</h3>
+                </div>
+                <div class="panel-body">
+
+                    <table class="table table-hover table-responsive table-striped" id="{{ resource_name }}-table">
+                        <thead>
+                        <tr>
+                            <th></th>
+                            <th>Pathway Name</th>
+                            <th>Resource Identifier</th>
+                            <th>Adjusted <i>p</i>-value</th>
+                            <th>Genes Mapped</th>
+                            <th>Pathway Size</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for pathway_id, enriched_pathway in pathway_dict.items() %}
+                            <tr>
+                                <td>
+                                    <label>
+                                        <input type="checkbox" name="pathways[]"
+                                               value="{{ resource_name }}|{{ enriched_pathway["pathway_name"] }}"/>
+                                    </label>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for("model.pathway_view",resource=resource_name, identifier=enriched_pathway["pathway_id"], gene_set=submitted_gene_set ) }}">
+                                        {{ enriched_pathway["pathway_name"] }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if resource_name == "reactome" %}
+                                        <a href="https://reactome.org/PathwayBrowser/#/{{ enriched_pathway["pathway_id"] }}">
+                                            {{ enriched_pathway["pathway_id"] }}
+                                        </a>
+                                    {% elif resource_name == "kegg" %}
+                                        <a href="http://www.kegg.jp/kegg-bin/show_pathway?map=map{{ enriched_pathway["pathway_id"]|remove_prefix('path:hsa') }}&show_description=show">
+                                            {{ enriched_pathway["pathway_id"] }}
+                                        </a>
+                                    {% elif resource_name == "wikipathways" %}
+                                        <a href="https://www.wikipathways.org/index.php/Pathway:{{ enriched_pathway["pathway_id"] }}">
+                                            {{ enriched_pathway["pathway_id"] }}
+                                        </a>
+                                    {% elif resource_name == "msig" %}
+                                        <a href="http://www.broadinstitute.org/gsea/msigdb/cards/{{ enriched_pathway["pathway_id"] }}">
+                                            {{ enriched_pathway["pathway_id"] }}
+                                        </a>
+                                    {% else %}
+                                        {{ enriched_pathway["pathway_id"] }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {{ enriched_pathway["q_value"] }}
+                                </td>
+                                <td>
+                                    {{ enriched_pathway["mapped_proteins"] }}
+                                </td>
+                                <td>
+                                    {{ enriched_pathway["pathway_size"] }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Modal -->
+    <div id="legend" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Pathway Enrichment Legend</h4>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        The enriched pathways are presented in different tables for each resource loaded into ComPath.
+                        Each table presents the following information:
+                    </p>
+
+                    <table id="pathway-info" class="table table-bordered table-striped table-hover">
+                        <thead>
+                        <tr>
+                            <td>Column 1</td>
+                            <td>Column 2</td>
+                            <td>Column 3</td>
+                            <td>Column 4</td>
+                            <td>Column 5</td>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>Pathway name and link to the ComPath pathway page.
+                            </td>
+                            <td>Pathway identifier and link to the pathway description.
+                            </td>
+                            <td>Adjusted <i>p</i>-values) by performing a Fisher's Exact Test for each mapped pathway in
+                                all resources and adjusting the <i>p</i>-values for multiple testing using
+                                Benjamini & Hochberg correction (rounded to 4 decimal places)
+                            </td>
+                            <td>Number of genes in the pathway from the query
+                            </td>
+                            <td>Number of genes in the pathway
+                            </td>
+                        </tr>
+
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    {% include "meta/footer.html" %}
+{% endblock %}

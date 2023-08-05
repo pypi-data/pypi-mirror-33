@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% import "bootstrap/wtf.html" as wtf %}
+{% import "bootstrap/fixes.html" as fixes %}
+{% import "bootstrap/utils.html" as util %}
+
+{% block title %}Mapping Catalog{% endblock %}
+{% block styles %}
+    {{ super() }}
+    <style>
+        .btn-group {
+            display: flex;
+        }
+
+        .label {
+            margin-right: 5px;
+        }
+    </style>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    {% include "dependencies/common.html" %}
+    {% include "dependencies/datatables.html" %}
+
+    <script>
+        $("#mapping-table").DataTable(
+            {
+                dom: "<'row'<'col-sm-2'l><'col-sm-3'f><'col-sm-5'B>>" +
+                "<'row'<'col-sm-12'tr>>" +
+                "<'row'<'col-sm-5'i><'col-sm-7'p>>",
+                buttons: [
+                    'copy', 'csv', 'excel', 'pdf', 'print'
+                ]
+            }
+        );
+    </script>
+{% endblock %}
+
+{% import "macros.html" as compath %}
+
+
+{% block content %}
+    <div class="container" style="margin-top: 50px">
+        {{ util.flashed_messages(dismissible=True, container=False) }}
+
+        <div class="panel panel-default">
+            <div class="panel-heading">Mapping Catalog</div>
+            <div class="panel-body">
+                <p>The following table lists all the proposed and accepted mappings by the users/curators between a pair
+                    of pathways. Registered users can use the voting system to reach a consensus about a given mapping.
+                    If this mapping has been proposed/voted for three independent users, the status of the mapping will
+                    change to accepted (last column). You can filter the mappings using the table or using the buttons
+                    below. Mappings can be downloaded for programmatic usage using the buttons located on the bottom of
+                    the page.
+                </p>
+                <div class="row">
+                    <div class="col-sm-offset-3 col-sm-6 text-center">
+                        <div class="btn-group btn-space">
+                            <a href="{{ url_for("curation.catalog", isPartOf=True) }}" class="btn btn-primary">Only
+                                Hierarchical Mappings
+                            </a>
+                            <a href="{{ url_for("curation.catalog", equivalentTo=True) }}" class="btn btn-primary">
+                                Only Equivalent Mappings
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div>
+                    <table id="mapping-table" class="table table-bordered table-striped table-hover">
+                        <thead>
+                        <tr>
+                            <th>Pathway 1</th>
+                            <th>Relation</th>
+                            <th>Pathway 2</th>
+                            {% if current_user.is_authenticated %}
+                                <th>Vote</th>
+                            {% endif %}
+                            <th>Accepted</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+
+                        {% for mapping in mappings %}
+                            <tr>
+                                <td>
+                                    <span class="label {{ compath.write_label(mapping.service_1_name) }}">
+                                        {{ compath.stylize_plugin_name(STYLED_NAMES, mapping.service_1_name) }}
+                                    </span>
+                                    <a href="{{ url_for("model.pathway_view",resource=mapping.service_1_name, identifier=mapping.service_1_pathway_id ) }}">
+                                        {{ mapping.service_1_pathway_name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {{ compath.translate_relation(mapping.type ) }}
+                                </td>
+                                <td>
+                                     <span class="label {{ compath.write_label(mapping.service_2_name) }}">
+                                        {{ compath.stylize_plugin_name(STYLED_NAMES, mapping.service_2_name) }}
+                                    </span>
+                                    <a href="{{ url_for("model.pathway_view",resource=mapping.service_2_name, identifier=mapping.service_2_pathway_id ) }}">
+                                        {{ mapping.service_2_pathway_name }}
+                                    </a>
+                                </td>
+                                {% if current_user.is_authenticated %}
+                                    <td>
+                                        <div class="btn-group">
+                                            {% set vote=mapping.get_user_vote(current_user) %}
+
+                                            <a class="btn btn-{% if vote is none or vote.type == False %}default{% else %}primary{% endif %}"
+                                               href="{{ url_for('curation.process_vote',mapping_id=mapping.id, type=1) }}">
+                                                <span class="badge"> {{ mapping.count_up_votes }}</span>
+                                                <span class="glyphicon glyphicon-thumbs-up"></span>
+                                            </a>
+                                            <a class="btn btn-{% if vote is none or vote.type == True %}default{% else %}danger{% endif %}"
+                                               href="{{ url_for('curation.process_vote',mapping_id=mapping.id, type=0) }}">
+                                                <span class="badge"> {{ mapping.count_down_votes }}</span>
+                                                <span class="glyphicon glyphicon-thumbs-down"></span>
+                                            </a>
+                                        </div>
+                                    </td>
+                                {% endif %}
+                                <td>
+                                    <div class="text-center">
+                                        {% if mapping.accepted %}
+                                            <span class="glyphicon glyphicon-ok"></span>
+
+                                        {% elif current_user.is_admin %}
+                                            <a class="btn btn-default"
+                                               href="{{ url_for('curation.accept_mapping',mapping_id=mapping.id) }}">
+                                                <span class="glyphicon glyphicon-remove"></span>
+                                            </a>
+                                            <a class="btn btn-default"
+                                               href="{{ url_for('db.delete_mapping',identifier=mapping.id) }}">
+                                                Delete Mapping
+                                            </a>
+                                        {% else %}
+                                            <span class="glyphicon glyphicon-remove"></span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="row">
+                    <div class="col-sm-offset-3 col-sm-6 text-center">
+                        <div class="btn-group btn-space">
+                            <a href="{{ url_for("curation.export_mappings") }}" class="btn btn-primary">Download
+                                Accepted Mappings
+                            </a>
+                            <a href="{{ url_for("curation.export_mappings", all=all) }}" class="btn btn-primary">
+                                Download All Mappings
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% include "meta/footer.html" %}
+{% endblock %}
