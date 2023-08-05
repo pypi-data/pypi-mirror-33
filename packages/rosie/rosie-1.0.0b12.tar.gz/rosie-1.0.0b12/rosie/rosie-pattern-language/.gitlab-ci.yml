@@ -1,0 +1,33 @@
+# Rosie Pattern Language
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_STRATEGY: fetch
+  
+before_script:
+  - apt-get -y update
+  - apt-get install -y gcc git libreadline-dev make python python-pip readline-common
+
+image: ubuntu
+
+stages:
+  - build
+  - test
+
+make:
+  stage: build
+  script: "make LUADEBUG=1"
+  artifacts:
+    expire_in: 20 minutes
+    paths:
+      - src/librosie/binaries
+      - bin
+      - lib
+
+wb_test:
+  stage: test
+  script: make test
+  only:
+    - /^beta-.*$/
+    - master
+
