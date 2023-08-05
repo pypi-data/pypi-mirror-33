@@ -1,0 +1,7 @@
+__title__ = 'Librarian'
+__description__ = 'Only ever scrape a site for its html once.'
+__url__ = 'https://github.com/alexsieusahai/Librarian'
+__version__ = '0.0.1'
+__author__ = 'Alex Sieusahai'
+__author_email__ = 'alexsieu14@gmail.com'
+__license__ = 'MIT License'
