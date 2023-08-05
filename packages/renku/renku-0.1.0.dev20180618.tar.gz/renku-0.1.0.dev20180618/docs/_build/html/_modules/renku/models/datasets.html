@@ -1,0 +1,293 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>renku.models.datasets &#8212; Renku 0.1.0.dev20180613 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+  
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  <link href="https://fonts.googleapis.com/css?family=Raleway:100,200,300,400,500,600,700,800,900,300italic,400italic" rel="stylesheet" type="text/css">
+  <link rel="dns-prefetch" href="//fonts.googleapis.com">
+  </head><body>
+  <div class="git-ribbon">
+    <a href="http://github.com/SwissDataScienceCenter" rel="me">Join us on GitHub</a>
+  </div>
+  
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for renku.models.datasets</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1">#</span>
+<span class="c1"># Copyright 2017-2018 - Swiss Data Science Center (SDSC)</span>
+<span class="c1"># A partnership between École Polytechnique Fédérale de Lausanne (EPFL) and</span>
+<span class="c1"># Eidgenössische Technische Hochschule Zürich (ETHZ).</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="sd">&quot;&quot;&quot;Model objects representing datasets.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
+
+<span class="kn">import</span> <span class="nn">attr</span>
+<span class="kn">from</span> <span class="nn">attr.validators</span> <span class="k">import</span> <span class="n">instance_of</span>
+<span class="kn">from</span> <span class="nn">dateutil.parser</span> <span class="k">import</span> <span class="n">parse</span> <span class="k">as</span> <span class="n">parse_date</span>
+
+<span class="kn">from</span> <span class="nn">renku._compat</span> <span class="k">import</span> <span class="n">Path</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">_jsonld</span> <span class="k">as</span> <span class="n">jsonld</span>
+
+<span class="n">NoneType</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+<span class="n">_path_attr</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+    <span class="n">jsonld</span><span class="o">.</span><span class="n">ib</span><span class="p">,</span>
+    <span class="n">converter</span><span class="o">=</span><span class="n">Path</span><span class="p">,</span>
+    <span class="n">validator</span><span class="o">=</span><span class="k">lambda</span> <span class="n">i</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">Path</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span><span class="o">.</span><span class="n">is_file</span><span class="p">()</span>
+<span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_deserialize_set</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Deserialize a list of dicts into classes.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">set</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">from_jsonld</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s1">&#39;from_jsonld&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="bp">cls</span><span class="p">(</span><span class="o">**</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">s</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_deserialize_dict</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Deserialize a list of dicts into classes.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="n">k</span><span class="p">:</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_jsonld</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s1">&#39;from_jsonld&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="bp">cls</span><span class="p">(</span><span class="o">**</span><span class="n">v</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+    <span class="p">}</span>
+
+
+<div class="viewcode-block" id="Author"><a class="viewcode-back" href="../../../datasets.html#renku.models.datasets.Author">[docs]</a><span class="nd">@jsonld</span><span class="o">.</span><span class="n">s</span><span class="p">(</span>
+    <span class="nb">type</span><span class="o">=</span><span class="s1">&#39;dcterms:creator&#39;</span><span class="p">,</span>
+    <span class="n">context</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;foaf&#39;</span><span class="p">:</span> <span class="s1">&#39;http://xmlns.com/foaf/0.1/&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;dcterms&#39;</span><span class="p">:</span> <span class="s1">&#39;http://purl.org/dc/terms/&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;scoro&#39;</span><span class="p">:</span> <span class="s1">&#39;http://purl.org/spar/scoro/&#39;</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">class</span> <span class="nc">Author</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represent the author of a resource.&quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">jsonld</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">validator</span><span class="o">=</span><span class="n">instance_of</span><span class="p">(</span><span class="nb">str</span><span class="p">),</span> <span class="n">context</span><span class="o">=</span><span class="s1">&#39;dcterms:name&#39;</span><span class="p">)</span>
+    <span class="n">email</span> <span class="o">=</span> <span class="n">jsonld</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">context</span><span class="o">=</span><span class="s1">&#39;dcterms:email&#39;</span><span class="p">)</span>
+    <span class="n">affiliation</span> <span class="o">=</span> <span class="n">jsonld</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="s1">&#39;scoro:affiliate&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Author.check_email"><a class="viewcode-back" href="../../../datasets.html#renku.models.datasets.Author.check_email">[docs]</a>    <span class="nd">@email</span><span class="o">.</span><span class="n">validator</span>
+    <span class="k">def</span> <span class="nf">check_email</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check that the email is valid.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[^@]+@[^@]+\.[^@]+&quot;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Email address is invalid.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Author.from_git"><a class="viewcode-back" href="../../../datasets.html#renku.models.datasets.Author.from_git">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_git</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">git</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create an instance from a Git repo.&quot;&quot;&quot;</span>
+        <span class="n">git_config</span> <span class="o">=</span> <span class="n">git</span><span class="o">.</span><span class="n">config_reader</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">git_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;user&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">),</span>
+            <span class="n">email</span><span class="o">=</span><span class="n">git_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;user&#39;</span><span class="p">,</span> <span class="s1">&#39;email&#39;</span><span class="p">),</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Author.from_commit"><a class="viewcode-back" href="../../../datasets.html#renku.models.datasets.Author.from_commit">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_commit</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">commit</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create an instance from a Git commit.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">commit</span><span class="o">.</span><span class="n">author</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">email</span><span class="o">=</span><span class="n">commit</span><span class="o">.</span><span class="n">author</span><span class="o">.</span><span class="n">email</span><span class="p">,</span>
+        <span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="DatasetFile"><a class="viewcode-back" href="../../../datasets.html#renku.models.datasets.DatasetFile">[docs]</a><span class="nd">@jsonld</span><span class="o">.</span><span class="n">s</span><span class="p">(</span>
+    <span class="nb">type</span><span class="o">=</span><span class="s1">&#39;http://schema.org/DigitalDocument&#39;</span><span class="p">,</span>
+    <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">class</span> <span class="nc">DatasetFile</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represent a file in a dataset.&quot;&quot;&quot;</span>
+
+    <span class="n">path</span> <span class="o">=</span> <span class="n">_path_attr</span><span class="p">()</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="n">jsonld</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">context</span><span class="o">=</span><span class="s1">&#39;http://schema.org/url&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">authors</span> <span class="o">=</span> <span class="n">jsonld</span><span class="o">.</span><span class="n">container</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">Author</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="n">added</span> <span class="o">=</span> <span class="n">jsonld</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">context</span><span class="o">=</span><span class="s1">&#39;http://schema.org/dateCreated&#39;</span><span class="p">,</span> <span class="p">)</span>
+
+    <span class="nd">@added</span><span class="o">.</span><span class="n">default</span>
+    <span class="k">def</span> <span class="nf">_now</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Define default value for datetime fields.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span></div>
+
+
+<span class="n">_deserialize_files</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">_deserialize_dict</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="n">DatasetFile</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_parse_date</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convert date to datetime.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">value</span>
+    <span class="k">return</span> <span class="n">parse_date</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Dataset"><a class="viewcode-back" href="../../../datasets.html#renku.models.datasets.Dataset">[docs]</a><span class="nd">@jsonld</span><span class="o">.</span><span class="n">s</span><span class="p">(</span>
+    <span class="nb">type</span><span class="o">=</span><span class="s1">&#39;dctypes:Dataset&#39;</span><span class="p">,</span>
+    <span class="n">context</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;dcterms&#39;</span><span class="p">:</span> <span class="s1">&#39;http://purl.org/dc/terms/&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;dctypes&#39;</span><span class="p">:</span> <span class="s1">&#39;http://purl.org/dc/dcmitypes/&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;foaf&#39;</span><span class="p">:</span> <span class="s1">&#39;http://xmlns.com/foaf/0.1/&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;prov&#39;</span><span class="p">:</span> <span class="s1">&#39;http://www.w3.org/ns/prov#&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;scoro&#39;</span><span class="p">:</span> <span class="s1">&#39;http://purl.org/spar/scoro/&#39;</span><span class="p">,</span>
+    <span class="p">},</span>
+<span class="p">)</span>
+<span class="k">class</span> <span class="nc">Dataset</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Repesent a dataset.&quot;&quot;&quot;</span>
+
+    <span class="n">SUPPORTED_SCHEMES</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;http&#39;</span><span class="p">,</span> <span class="s1">&#39;https&#39;</span><span class="p">)</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">jsonld</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s1">&#39;string&#39;</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="s1">&#39;dcterms:name&#39;</span><span class="p">)</span>
+
+    <span class="n">created</span> <span class="o">=</span> <span class="n">jsonld</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span>
+        <span class="n">converter</span><span class="o">=</span><span class="n">_parse_date</span><span class="p">,</span>
+        <span class="n">context</span><span class="o">=</span><span class="s1">&#39;http://schema.org/dateCreated&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">identifier</span> <span class="o">=</span> <span class="n">jsonld</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="n">attr</span><span class="o">.</span><span class="n">Factory</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">),</span>
+        <span class="n">converter</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">uuid</span><span class="o">.</span><span class="n">UUID</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span>
+        <span class="n">context</span><span class="o">=</span><span class="p">{</span>
+            <span class="s1">&#39;@id&#39;</span><span class="p">:</span> <span class="s1">&#39;dctypes:Dataset&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;@id&#39;</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">)</span>
+    <span class="n">authors</span> <span class="o">=</span> <span class="n">jsonld</span><span class="o">.</span><span class="n">container</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">Author</span><span class="p">)</span>
+    <span class="n">files</span> <span class="o">=</span> <span class="n">jsonld</span><span class="o">.</span><span class="n">container</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">DatasetFile</span><span class="p">)</span>
+
+    <span class="nd">@created</span><span class="o">.</span><span class="n">default</span>
+    <span class="k">def</span> <span class="nf">_now</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Define default value for datetime fields.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><p class="logo">
+  <a href="../../../index.html">
+    <h1 class="logo logo-name">
+      Renku
+      <span class="renku">連句</span>
+    </h1>
+  </a>
+</p>
+
+
+<p class="blurb">Python API and CLI for the Renku platform.</p>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../cli.html">Renku Command Line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../projects.html">Projects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../datasets.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cwl.html">Tools and Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../client.html">Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">Low-level API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes.html">Changes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+</ul>
+
+
+<hr />
+<ul>
+    
+    <li class="toctree-l1"><a href="https://github.com/SwissDataScienceCenter/renku-python">renku-python@GitHub</a></li>
+    
+    <li class="toctree-l1"><a href="https://pypi.python.org/pypi/renku/">renku-python@PyPI</a></li>
+    
+    <li class="toctree-l1"><a href="https://github.com/SwissDataScienceCenter/renku">renku@GitHub</a></li>
+    
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Swiss Data Science Center.
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

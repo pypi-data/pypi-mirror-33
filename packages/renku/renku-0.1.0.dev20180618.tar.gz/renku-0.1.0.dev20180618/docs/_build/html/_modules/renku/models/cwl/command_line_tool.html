@@ -1,0 +1,567 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>renku.models.cwl.command_line_tool &#8212; Renku 0.1.0.dev20180613 documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+  
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  <link href="https://fonts.googleapis.com/css?family=Raleway:100,200,300,400,500,600,700,800,900,300italic,400italic" rel="stylesheet" type="text/css">
+  <link rel="dns-prefetch" href="//fonts.googleapis.com">
+  </head><body>
+  <div class="git-ribbon">
+    <a href="http://github.com/SwissDataScienceCenter" rel="me">Join us on GitHub</a>
+  </div>
+  
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for renku.models.cwl.command_line_tool</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1">#</span>
+<span class="c1"># Copyright 2018 - Swiss Data Science Center (SDSC)</span>
+<span class="c1"># A partnership between École Polytechnique Fédérale de Lausanne (EPFL) and</span>
+<span class="c1"># Eidgenössische Technische Hochschule Zürich (ETHZ).</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="sd">&quot;&quot;&quot;Represent a ``CommandLineTool`` from the Common Workflow Language.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">fnmatch</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">shlex</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="k">import</span> <span class="n">contextmanager</span>
+
+<span class="kn">import</span> <span class="nn">attr</span>
+
+<span class="kn">from</span> <span class="nn">renku</span> <span class="k">import</span> <span class="n">errors</span>
+<span class="kn">from</span> <span class="nn">renku._compat</span> <span class="k">import</span> <span class="n">Path</span>
+
+<span class="kn">from</span> <span class="nn">._ascwl</span> <span class="k">import</span> <span class="n">CWLClass</span><span class="p">,</span> <span class="n">mapped</span>
+<span class="kn">from</span> <span class="nn">.parameter</span> <span class="k">import</span> <span class="n">CommandInputParameter</span><span class="p">,</span> <span class="n">CommandLineBinding</span><span class="p">,</span> \
+    <span class="n">CommandOutputParameter</span>
+<span class="kn">from</span> <span class="nn">.process</span> <span class="k">import</span> <span class="n">Process</span>
+<span class="kn">from</span> <span class="nn">.types</span> <span class="k">import</span> <span class="n">File</span>
+
+
+<div class="viewcode-block" id="CommandLineTool"><a class="viewcode-back" href="../../../../cwl.html#renku.models.cwl.command_line_tool.CommandLineTool">[docs]</a><span class="nd">@attr</span><span class="o">.</span><span class="n">s</span>
+<span class="k">class</span> <span class="nc">CommandLineTool</span><span class="p">(</span><span class="n">Process</span><span class="p">,</span> <span class="n">CWLClass</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represent a command line tool.&quot;&quot;&quot;</span>
+
+    <span class="c1"># specialize inputs and outputs with Command{Input,Output}Parameter</span>
+
+    <span class="n">baseCommand</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+        <span class="n">validator</span><span class="o">=</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">cmd</span><span class="p">:</span> <span class="nb">bool</span><span class="p">(</span><span class="n">cmd</span><span class="p">),</span>
+    <span class="p">)</span>  <span class="c1"># str or list(str) -&gt; shutil.split()</span>
+    <span class="n">arguments</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="n">attr</span><span class="o">.</span><span class="n">Factory</span><span class="p">(</span><span class="nb">list</span><span class="p">),</span>
+        <span class="n">converter</span><span class="o">=</span><span class="k">lambda</span> <span class="n">cmd</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span> <span class="k">else</span> <span class="n">shlex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cmd</span><span class="p">),</span>
+    <span class="p">)</span>  <span class="c1"># list(string, Expression, CommandLineBinding)</span>
+
+    <span class="n">stdin</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="n">stdout</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="n">stderr</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="n">inputs</span> <span class="o">=</span> <span class="n">mapped</span><span class="p">(</span><span class="n">CommandInputParameter</span><span class="p">)</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="n">mapped</span><span class="p">(</span><span class="n">CommandOutputParameter</span><span class="p">)</span>
+
+    <span class="n">successCodes</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="n">attr</span><span class="o">.</span><span class="n">Factory</span><span class="p">(</span><span class="nb">list</span><span class="p">))</span>  <span class="c1"># list(int)</span>
+    <span class="n">temporaryFailCodes</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="n">attr</span><span class="o">.</span><span class="n">Factory</span><span class="p">(</span><span class="nb">list</span><span class="p">))</span>  <span class="c1"># list(int)</span>
+    <span class="n">permanentFailCodes</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="n">attr</span><span class="o">.</span><span class="n">Factory</span><span class="p">(</span><span class="nb">list</span><span class="p">))</span>  <span class="c1"># list(int)</span>
+
+<div class="viewcode-block" id="CommandLineTool.get_output_id"><a class="viewcode-back" href="../../../../cwl.html#renku.models.cwl.command_line_tool.CommandLineTool.get_output_id">[docs]</a>    <span class="k">def</span> <span class="nf">get_output_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
+        <span class="sd">&quot;&quot;&quot;Return an id of the matching path from default values.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">output</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">{</span><span class="s1">&#39;stdout&#39;</span><span class="p">,</span> <span class="s1">&#39;stderr&#39;</span><span class="p">}:</span>
+                <span class="n">stream</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">stream</span> <span class="o">==</span> <span class="n">path</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">id</span>
+            <span class="k">elif</span> <span class="n">output</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;File&#39;</span><span class="p">:</span>
+                <span class="n">glob</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">outputBinding</span><span class="o">.</span><span class="n">glob</span>
+                <span class="c1"># TODO better support for Expression</span>
+                <span class="k">if</span> <span class="n">glob</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;$(inputs.&#39;</span><span class="p">):</span>
+                    <span class="n">input_id</span> <span class="o">=</span> <span class="n">glob</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="s1">&#39;$(inputs.&#39;</span><span class="p">):</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="n">input_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">input_</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">input_id</span> <span class="ow">and</span> <span class="n">input_</span><span class="o">.</span><span class="n">default</span> <span class="o">==</span> <span class="n">path</span><span class="p">:</span>
+                            <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">id</span>
+                <span class="k">elif</span> <span class="n">fnmatch</span><span class="o">.</span><span class="n">fnmatch</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">glob</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">id</span></div>
+
+<div class="viewcode-block" id="CommandLineTool.to_argv"><a class="viewcode-back" href="../../../../cwl.html#renku.models.cwl.command_line_tool.CommandLineTool.to_argv">[docs]</a>    <span class="k">def</span> <span class="nf">to_argv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generate arguments for system call.&quot;&quot;&quot;</span>
+        <span class="n">argv</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">baseCommand</span>
+                <span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">baseCommand</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="nb">list</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">baseCommand</span>
+                <span class="p">)</span>
+
+        <span class="n">args</span> <span class="o">=</span> <span class="p">[(</span><span class="n">a</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="n">a</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">arguments</span><span class="p">]</span>
+        <span class="n">args</span> <span class="o">+=</span> <span class="p">[(</span><span class="n">i</span><span class="o">.</span><span class="n">inputBinding</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="k">if</span> <span class="n">i</span><span class="o">.</span><span class="n">inputBinding</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+            <span class="n">argv</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">to_argv</span><span class="p">())</span>
+
+        <span class="k">return</span> <span class="n">argv</span></div></div>
+
+
+<div class="viewcode-block" id="CommandLineToolFactory"><a class="viewcode-back" href="../../../../cwl.html#renku.models.cwl.command_line_tool.CommandLineToolFactory">[docs]</a><span class="nd">@attr</span><span class="o">.</span><span class="n">s</span>
+<span class="k">class</span> <span class="nc">CommandLineToolFactory</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Command Line Tool Factory.&quot;&quot;&quot;</span>
+
+    <span class="n">_RE_SUBCOMMAND</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^[A-Za-z]+(-[A-Za-z]+)?$&#39;</span><span class="p">)</span>
+
+    <span class="n">command_line</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span>
+        <span class="n">converter</span><span class="o">=</span><span class="k">lambda</span> <span class="n">cmd</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">))</span> <span class="k">else</span> <span class="n">shlex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cmd</span><span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="n">directory</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span>
+        <span class="n">default</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span>
+        <span class="n">converter</span><span class="o">=</span><span class="k">lambda</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">(),</span>
+    <span class="p">)</span>
+
+    <span class="n">stdin</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>  <span class="c1"># null, str, Expression</span>
+    <span class="n">stderr</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>  <span class="c1"># null, str, Expression</span>
+    <span class="n">stdout</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>  <span class="c1"># null, str, Expression</span>
+
+    <span class="n">baseCommand</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">arguments</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">inputs</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">init</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__attrs_post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Derive basic informations.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">baseCommand</span><span class="p">,</span> <span class="n">detect</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_command_and_args</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">arguments</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stdin</span><span class="p">:</span>
+            <span class="n">input_</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">guess_inputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stdin</span><span class="p">))</span>
+            <span class="k">assert</span> <span class="n">input_</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;File&#39;</span>
+            <span class="n">input_</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="s1">&#39;input_stdin&#39;</span>
+            <span class="n">input_</span><span class="o">.</span><span class="n">inputBinding</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># do not include in tool arguments</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">input_</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stdin</span> <span class="o">=</span> <span class="s1">&#39;$(inputs.</span><span class="si">{0}</span><span class="s1">.path)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">input_</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">stream_name</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;stdout&#39;</span><span class="p">,</span> <span class="s1">&#39;stderr&#39;</span><span class="p">):</span>
+            <span class="n">stream</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">stream</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_candidate</span><span class="p">(</span><span class="n">stream</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">CommandOutputParameter</span><span class="p">(</span>
+                        <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;output_</span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">stream_name</span><span class="p">),</span>
+                        <span class="nb">type</span><span class="o">=</span><span class="n">stream_name</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">input_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">guess_inputs</span><span class="p">(</span><span class="o">*</span><span class="n">detect</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_</span><span class="p">,</span> <span class="n">CommandLineBinding</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">arguments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">input_</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">input_</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CommandLineToolFactory.generate_tool"><a class="viewcode-back" href="../../../../cwl.html#renku.models.cwl.command_line_tool.CommandLineToolFactory.generate_tool">[docs]</a>    <span class="k">def</span> <span class="nf">generate_tool</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return an instance of command line tool.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">CommandLineTool</span><span class="p">(</span>
+            <span class="n">stdin</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stdin</span><span class="p">,</span>
+            <span class="n">stderr</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span>
+            <span class="n">stdout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stdout</span><span class="p">,</span>
+            <span class="n">baseCommand</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">baseCommand</span><span class="p">,</span>
+            <span class="n">arguments</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">arguments</span><span class="p">,</span>
+            <span class="n">inputs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span>
+            <span class="n">outputs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="CommandLineToolFactory.watch"><a class="viewcode-back" href="../../../../cwl.html#renku.models.cwl.command_line_tool.CommandLineToolFactory.watch">[docs]</a>    <span class="nd">@contextmanager</span>
+    <span class="k">def</span> <span class="nf">watch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">repo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">no_output</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Watch a Renku repository for changes to detect outputs.&quot;&quot;&quot;</span>
+        <span class="n">tool</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_tool</span><span class="p">()</span>
+        <span class="n">git</span> <span class="o">=</span> <span class="n">repo</span><span class="o">.</span><span class="n">git</span>
+
+        <span class="k">yield</span> <span class="n">tool</span>
+
+        <span class="k">if</span> <span class="n">git</span><span class="p">:</span>
+            <span class="c1"># List of all output paths.</span>
+            <span class="n">paths</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="c1"># Keep track of unmodified output files.</span>
+            <span class="n">unmodified</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+            <span class="c1"># Possible output paths.</span>
+            <span class="n">candidates</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">git</span><span class="o">.</span><span class="n">untracked_files</span><span class="p">)</span>
+            <span class="n">candidates</span> <span class="o">|=</span> <span class="p">{</span><span class="n">item</span><span class="o">.</span><span class="n">a_path</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">git</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="kc">None</span><span class="p">)}</span>
+
+            <span class="n">inputs</span> <span class="o">=</span> <span class="p">{</span><span class="nb">input</span><span class="o">.</span><span class="n">id</span><span class="p">:</span> <span class="nb">input</span> <span class="k">for</span> <span class="nb">input</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">}</span>
+            <span class="n">outputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">tool</span><span class="o">.</span><span class="n">outputs</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">output</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">guess_outputs</span><span class="p">(</span><span class="n">candidates</span><span class="p">):</span>
+                <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+                <span class="n">paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="nb">input</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">input</span><span class="o">.</span><span class="n">id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Inconsistent input name.&#39;</span><span class="p">)</span>
+
+                    <span class="n">inputs</span><span class="p">[</span><span class="nb">input</span><span class="o">.</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="nb">input</span>
+
+            <span class="k">for</span> <span class="n">stream_name</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;stdout&#39;</span><span class="p">,</span> <span class="s1">&#39;stderr&#39;</span><span class="p">):</span>
+                <span class="n">stream</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream_name</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">stream</span> <span class="ow">and</span> <span class="n">stream</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+                    <span class="n">unmodified</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">stream</span><span class="p">:</span>
+                    <span class="n">paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">unmodified</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">UnmodifiedOutputs</span><span class="p">(</span><span class="n">repo</span><span class="p">,</span> <span class="n">unmodified</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">no_output</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">paths</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">OutputsNotFound</span><span class="p">(</span><span class="n">repo</span><span class="p">,</span> <span class="n">inputs</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+            <span class="n">tool</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+            <span class="n">tool</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="n">outputs</span>
+            <span class="n">repo</span><span class="o">.</span><span class="n">track_paths_in_storage</span><span class="p">(</span><span class="o">*</span><span class="n">paths</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CommandLineToolFactory.validate_command_line"><a class="viewcode-back" href="../../../../cwl.html#renku.models.cwl.command_line_tool.CommandLineToolFactory.validate_command_line">[docs]</a>    <span class="nd">@command_line</span><span class="o">.</span><span class="n">validator</span>
+    <span class="k">def</span> <span class="nf">validate_command_line</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check the command line structure.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">value</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Command line can not be empty.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CommandLineToolFactory.validate_path"><a class="viewcode-back" href="../../../../cwl.html#renku.models.cwl.command_line_tool.CommandLineToolFactory.validate_path">[docs]</a>    <span class="nd">@directory</span><span class="o">.</span><span class="n">validator</span>
+    <span class="k">def</span> <span class="nf">validate_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Path must exists.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">value</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Directory must exist.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CommandLineToolFactory.file_candidate"><a class="viewcode-back" href="../../../../cwl.html#renku.models.cwl.command_line_tool.CommandLineToolFactory.file_candidate">[docs]</a>    <span class="k">def</span> <span class="nf">file_candidate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">candidate</span><span class="p">,</span> <span class="n">ignore</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a path instance if it exists in current directory.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">ignore</span> <span class="ow">and</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">ignore</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">candidate</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">candidate</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">candidate</span><span class="o">.</span><span class="n">is_absolute</span><span class="p">():</span>
+            <span class="n">candidate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">directory</span> <span class="o">/</span> <span class="n">candidate</span>
+
+        <span class="k">if</span> <span class="n">candidate</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">candidate</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="CommandLineToolFactory.split_command_and_args"><a class="viewcode-back" href="../../../../cwl.html#renku.models.cwl.command_line_tool.CommandLineToolFactory.split_command_and_args">[docs]</a>    <span class="k">def</span> <span class="nf">split_command_and_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return tuple with command and args from command line arguments.&quot;&quot;&quot;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">command_line</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">command_line</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="c1"># only guess subcommand for more arguments</span>
+            <span class="k">return</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">args</span>
+
+        <span class="k">while</span> <span class="n">args</span> <span class="ow">and</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_RE_SUBCOMMAND</span><span class="p">,</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> \
+                <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_candidate</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">cmd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">args</span></div>
+
+<div class="viewcode-block" id="CommandLineToolFactory.guess_type"><a class="viewcode-back" href="../../../../cwl.html#renku.models.cwl.command_line_tool.CommandLineToolFactory.guess_type">[docs]</a>    <span class="k">def</span> <span class="nf">guess_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">ignore_filenames</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return new value and CWL parameter type.&quot;&quot;&quot;</span>
+        <span class="n">candidate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_candidate</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">ignore</span><span class="o">=</span><span class="n">ignore_filenames</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">candidate</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">File</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">candidate</span><span class="p">),</span> <span class="s1">&#39;File&#39;</span><span class="p">,</span> <span class="kc">None</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="c1"># The candidate points to a file outside the working</span>
+                <span class="c1"># directory</span>
+                <span class="c1"># TODO suggest that the file should be imported to the repo</span>
+                <span class="k">pass</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">value</span><span class="p">,</span> <span class="s1">&#39;int&#39;</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="s1">&#39;,&#39;</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">),</span> <span class="s1">&#39;string[]&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span>
+
+        <span class="k">return</span> <span class="n">value</span><span class="p">,</span> <span class="s1">&#39;string&#39;</span><span class="p">,</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="CommandLineToolFactory.guess_inputs"><a class="viewcode-back" href="../../../../cwl.html#renku.models.cwl.command_line_tool.CommandLineToolFactory.guess_inputs">[docs]</a>    <span class="k">def</span> <span class="nf">guess_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">arguments</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Yield command input parameters and command line bindings.&quot;&quot;&quot;</span>
+        <span class="n">position</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">output_streams</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream_name</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">stream_name</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;stdout&#39;</span><span class="p">,</span> <span class="s1">&#39;stderr&#39;</span><span class="p">)</span>
+        <span class="p">}</span>
+
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">argument</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">arguments</span><span class="p">):</span>
+            <span class="n">itemSeparator</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="k">if</span> <span class="n">prefix</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">argument</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">):</span>
+                    <span class="n">position</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">yield</span> <span class="n">CommandLineBinding</span><span class="p">(</span>
+                        <span class="n">position</span><span class="o">=</span><span class="n">position</span><span class="p">,</span>
+                        <span class="n">valueFrom</span><span class="o">=</span><span class="n">prefix</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">prefix</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="k">if</span> <span class="n">argument</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;--&#39;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="s1">&#39;=&#39;</span> <span class="ow">in</span> <span class="n">argument</span><span class="p">:</span>
+                    <span class="n">prefix</span><span class="p">,</span> <span class="n">default</span> <span class="o">=</span> <span class="n">argument</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="n">prefix</span> <span class="o">+=</span> <span class="s1">&#39;=&#39;</span>
+                    <span class="n">default</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">itemSeparator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">guess_type</span><span class="p">(</span>
+                        <span class="n">default</span><span class="p">,</span> <span class="n">ignore_filenames</span><span class="o">=</span><span class="n">output_streams</span>
+                    <span class="p">)</span>
+                    <span class="c1"># TODO can be output</span>
+
+                    <span class="n">position</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">yield</span> <span class="n">CommandInputParameter</span><span class="p">(</span>
+                        <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;input_</span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">position</span><span class="p">),</span>
+                        <span class="nb">type</span><span class="o">=</span><span class="nb">type</span><span class="p">,</span>
+                        <span class="n">default</span><span class="o">=</span><span class="n">default</span><span class="p">,</span>
+                        <span class="n">inputBinding</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                            <span class="n">position</span><span class="o">=</span><span class="n">position</span><span class="p">,</span>
+                            <span class="n">itemSeparator</span><span class="o">=</span><span class="n">itemSeparator</span><span class="p">,</span>
+                            <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">,</span>
+                            <span class="n">separate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="n">prefix</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">prefix</span> <span class="o">=</span> <span class="n">argument</span>
+
+            <span class="k">elif</span> <span class="n">argument</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">argument</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="s1">&#39;=&#39;</span> <span class="ow">in</span> <span class="n">argument</span><span class="p">:</span>
+                        <span class="n">prefix</span><span class="p">,</span> <span class="n">default</span> <span class="o">=</span> <span class="n">argument</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                        <span class="n">prefix</span> <span class="o">+=</span> <span class="s1">&#39;=&#39;</span>
+                        <span class="n">default</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">itemSeparator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">guess_type</span><span class="p">(</span>
+                            <span class="n">default</span><span class="p">,</span> <span class="n">ignore_filenames</span><span class="o">=</span><span class="n">output_streams</span>
+                        <span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># possibly a flag with value</span>
+                        <span class="n">prefix</span> <span class="o">=</span> <span class="n">argument</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>
+                        <span class="n">default</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">itemSeparator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">guess_type</span><span class="p">(</span>
+                            <span class="n">argument</span><span class="p">[</span><span class="mi">2</span><span class="p">:],</span> <span class="n">ignore_filenames</span><span class="o">=</span><span class="n">output_streams</span>
+                        <span class="p">)</span>
+
+                    <span class="n">position</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">yield</span> <span class="n">CommandInputParameter</span><span class="p">(</span>
+                        <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;input_</span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">position</span><span class="p">),</span>
+                        <span class="nb">type</span><span class="o">=</span><span class="nb">type</span><span class="p">,</span>
+                        <span class="n">default</span><span class="o">=</span><span class="n">default</span><span class="p">,</span>
+                        <span class="n">inputBinding</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                            <span class="n">position</span><span class="o">=</span><span class="n">position</span><span class="p">,</span>
+                            <span class="n">itemSeparator</span><span class="o">=</span><span class="n">itemSeparator</span><span class="p">,</span>
+                            <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">,</span>
+                            <span class="n">separate</span><span class="o">=</span><span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">argument</span><span class="p">[</span><span class="mi">2</span><span class="p">:]),</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="n">prefix</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">prefix</span> <span class="o">=</span> <span class="n">argument</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">default</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">itemSeparator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">guess_type</span><span class="p">(</span>
+                    <span class="n">argument</span><span class="p">,</span> <span class="n">ignore_filenames</span><span class="o">=</span><span class="n">output_streams</span>
+                <span class="p">)</span>
+                <span class="c1"># TODO can be output</span>
+
+                <span class="c1"># TODO there might be an array</span>
+                <span class="n">position</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">yield</span> <span class="n">CommandInputParameter</span><span class="p">(</span>
+                    <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;input_</span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">position</span><span class="p">),</span>
+                    <span class="nb">type</span><span class="o">=</span><span class="nb">type</span><span class="p">,</span>
+                    <span class="n">default</span><span class="o">=</span><span class="n">default</span><span class="p">,</span>
+                    <span class="n">inputBinding</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                        <span class="n">position</span><span class="o">=</span><span class="n">position</span><span class="p">,</span>
+                        <span class="n">itemSeparator</span><span class="o">=</span><span class="n">itemSeparator</span><span class="p">,</span>
+                        <span class="n">prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">prefix</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">prefix</span><span class="p">:</span>
+            <span class="n">position</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">yield</span> <span class="n">CommandLineBinding</span><span class="p">(</span>
+                <span class="n">position</span><span class="o">=</span><span class="n">position</span><span class="p">,</span>
+                <span class="n">valueFrom</span><span class="o">=</span><span class="n">prefix</span><span class="p">,</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="CommandLineToolFactory.guess_outputs"><a class="viewcode-back" href="../../../../cwl.html#renku.models.cwl.command_line_tool.CommandLineToolFactory.guess_outputs">[docs]</a>    <span class="k">def</span> <span class="nf">guess_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">paths</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Yield detected output and changed command input parameter.&quot;&quot;&quot;</span>
+        <span class="n">input_candidates</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="nb">str</span><span class="p">(</span><span class="nb">input</span><span class="o">.</span><span class="n">default</span><span class="p">):</span> <span class="nb">input</span>
+            <span class="k">for</span> <span class="nb">input</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="k">if</span> <span class="nb">input</span><span class="o">.</span><span class="n">type</span> <span class="o">!=</span> <span class="s1">&#39;File&#39;</span>
+        <span class="p">}</span>  <span class="c1"># inputs that need to be changed if an output is detected</span>
+
+        <span class="n">conflicting_paths</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="nb">str</span><span class="p">(</span><span class="nb">input</span><span class="o">.</span><span class="n">default</span><span class="p">):</span> <span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="nb">input</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="nb">input</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="k">if</span> <span class="nb">input</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;File&#39;</span>
+        <span class="p">}</span>  <span class="c1"># names that can not be outputs because they are already inputs</span>
+
+        <span class="n">streams</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">path</span>
+            <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;stdout&#39;</span><span class="p">,</span> <span class="s1">&#39;stderr&#39;</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">}</span>
+
+        <span class="c1"># TODO group by a common prefix</span>
+
+        <span class="k">for</span> <span class="n">position</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">paths</span><span class="p">):</span>
+            <span class="n">candidate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_candidate</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">candidate</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Path &quot;</span><span class="si">{0}</span><span class="s1">&quot; does not exist.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+
+            <span class="n">glob</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">candidate</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">glob</span> <span class="ow">in</span> <span class="n">streams</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">new_input</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="k">if</span> <span class="n">glob</span> <span class="ow">in</span> <span class="n">conflicting_paths</span><span class="p">:</span>
+                <span class="c1"># it means that it is rewriting a file</span>
+                <span class="n">index</span><span class="p">,</span> <span class="nb">input</span> <span class="o">=</span> <span class="n">conflicting_paths</span><span class="p">[</span><span class="n">glob</span><span class="p">]</span>
+                <span class="n">new_input</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">evolve</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s1">&#39;string&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">glob</span><span class="p">)</span>
+                <span class="n">input_candidates</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">glob</span><span class="p">)]</span> <span class="o">=</span> <span class="n">new_input</span>
+
+                <span class="k">del</span> <span class="n">conflicting_paths</span><span class="p">[</span><span class="n">glob</span><span class="p">]</span>
+                <span class="c1"># TODO add warning (&#39;Output already exists in inputs.&#39;)</span>
+
+            <span class="k">if</span> <span class="n">glob</span> <span class="ow">in</span> <span class="n">input_candidates</span><span class="p">:</span>
+                <span class="nb">input</span> <span class="o">=</span> <span class="n">input_candidates</span><span class="p">[</span><span class="n">glob</span><span class="p">]</span>
+
+                <span class="k">yield</span> <span class="p">(</span>
+                    <span class="n">CommandOutputParameter</span><span class="p">(</span>
+                        <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;output_</span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">position</span><span class="p">),</span>
+                        <span class="nb">type</span><span class="o">=</span><span class="s1">&#39;File&#39;</span><span class="p">,</span>
+                        <span class="n">outputBinding</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                            <span class="n">glob</span><span class="o">=</span><span class="s1">&#39;$(inputs.</span><span class="si">{0}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">input</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
+                        <span class="p">),</span>
+                    <span class="p">),</span> <span class="n">new_input</span><span class="p">,</span> <span class="n">path</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="p">(</span>
+                    <span class="n">CommandOutputParameter</span><span class="p">(</span>
+                        <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;output_</span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">position</span><span class="p">),</span>
+                        <span class="nb">type</span><span class="o">=</span><span class="s1">&#39;File&#39;</span><span class="p">,</span>
+                        <span class="n">outputBinding</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">glob</span><span class="o">=</span><span class="n">glob</span><span class="p">,</span> <span class="p">),</span>
+                    <span class="p">),</span> <span class="kc">None</span><span class="p">,</span> <span class="n">path</span>
+                <span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><p class="logo">
+  <a href="../../../../index.html">
+    <h1 class="logo logo-name">
+      Renku
+      <span class="renku">連句</span>
+    </h1>
+  </a>
+</p>
+
+
+<p class="blurb">Python API and CLI for the Renku platform.</p>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cli.html">Renku Command Line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../projects.html">Projects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../datasets.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cwl.html">Tools and Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../client.html">Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api.html">Low-level API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../changes.html">Changes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../authors.html">Authors</a></li>
+</ul>
+
+
+<hr />
+<ul>
+    
+    <li class="toctree-l1"><a href="https://github.com/SwissDataScienceCenter/renku-python">renku-python@GitHub</a></li>
+    
+    <li class="toctree-l1"><a href="https://pypi.python.org/pypi/renku/">renku-python@PyPI</a></li>
+    
+    <li class="toctree-l1"><a href="https://github.com/SwissDataScienceCenter/renku">renku@GitHub</a></li>
+    
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Swiss Data Science Center.
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
