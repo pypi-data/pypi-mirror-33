@@ -1,0 +1,2 @@
+class AtmosphereUnboundError(Exception):
+    pass
