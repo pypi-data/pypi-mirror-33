@@ -1,0 +1,109 @@
+_equals:
+# CHECK if 'before' equals 'after', given the values in 'vals'
+* get 'variables' if given, else use 'x'
+* get_variables from 'after'
+* while variants:
+*  try: after, before = eval(after,locals_), eval(before,locals_)
+*  except:
+*    val = variants.pop()
+*    [locals_.update({k:v+val}) for k,v in locals_.items() if k in _vars]
+* else:
+*   after, before = eval(after,locals_), eval(before,locals_)
+* return before is after
+#XXX: return None when ZeroDivisionError? or throw Error? or ???
+#     e.g. is 'A*B == 1' and 'B == 1/A' True, False, None, or Error for B=0?
+
+
+_simplify:
+# simplify to a single variable on the lhs
+* get comparator
+* replace comparator with '=', and 'solve' to isolate a single variable
+* replace '=' with comparator in solved equation
+* if there are no '<' or '>', return the simplified equation
+
+##### (REDO use check denom>0, not X>0)
+# get 'before' and 'after' equations
+* get comparator (from solved equation)
+* set before as equation 'before' simplification (and ensure '==' not '=')
+* set after as equation 'after' simplification (and ensure '==' not '=')
+
+# evaluate expression to check if comparator needs flipping
+* get_variables from 'before'
+* generate empty 'keep' and 'invert' lists  #FIXME: also 'ZERO'
+* split 'after' to lhs and rhs
+* get the variables in lhs
+* get the variables in rhs
+
+# build dicts of test variables, with all combinations of +/-
+* produce all possible variants of tuple of +1/-1 for # of variables in rhs
+* get testvars with lhs+rhs as keys and (1,)+(+1/-1 * rand() for all in rhs)
+#XXX: better to use list of tuples instead of a dict... to maintain order?
+
+# classify as flipped or unflipped
+* for test_dict in test_dicts:
+*   keys = tuple (k>0 if v>0 else k<0) for all k in rhs (k = name, v = float)
+*   keep.append(keys) if _equals(before,after,test_dict) else invert.append
+#   FIXME: if ZeroDivisionError (or None?) append to ZERO
+
+#FIXME: the above produces tuples of k>0 (and <0) not denom>0 (and <0)
+#       find where ZeroDivisionError, tweak to get +/- domains (HOW?) ???
+#       (see 'get_blob', below)
+#####
+num,denom = rhs.split('/',1) #XXX: misses '* X**(-n)' and '*f(X)' where neg
+get_blob: #(similar to already in pyIDL?)
+  recursive parse into denom
+  get next single variable or everything in the next paren
+    start at non-operator, keep count of ( and ), stop when count=0
+    should include trailing '**' (and ???)?
+#####
+
+# condense 'keep' and 'invert' to simplest representation (and ZERO?)
+#FIXME: condense should be better. now only condenses exact matches
+
+##### (END use check denom>0, not X>0)
+
+# prepare and return the results
+* get after equation with and without inequality comparator flipped
+* default is choose flipped if both flipped and kept are found
+#FIXME: chosing the default is ad-hoc. Should do better
+# convert results to a tuple of multiline strings
+* chain(kept + join(all eqn in keep), flipped + join(all eqn in invert))
+* if len=1, return str instead of tuple
+* if len=0, return default
+
+
+simplify:
+# cycle through constraints, simplifying one line at a time
+* initalize empty 'eqns' and 'used'
+* split equations into single equation (in for loop)
+*   get 'variables' in the equation
+*   sort variables by count (number of times appearing in equation)
+*   override variables with target, if given
+*   if cycle, sort 'unused' variables before 'used' variables
+*   while variables:
+*     _simplify to a single variable, using 'variables' as target
+*     append simplified equation(s?) to 'eqns'
+*     ensure simplified equation is in result tuple
+*     select only the zeroth member of the result tuple 
+*     append the variable on the lhs of the first of the simplified equations
+*     break
+*     if ValueError (on above block), remove first item from vars
+*   else: (the above fails to simplify)
+*     _simplify to a single variable, using 'target' as target
+*     append simplified equation(s?) to 'eqns'
+#   (What exactly is the below doing...?)
+*   get all permutations of eqns (eqns are possible simplified equations)
+*   regroup equations into a (nested?) tuple, each sub-item joined by '\n'   
+*   do an exclusive merge on each sub-item (after splitting on '\n')
+*   if all results are None, then return None (is due to an Error thrown)
+*   join all elements of each item of the tuple with '\n', except where None
+*   if len(eqns) > 1:
+*     if all=True, return all the eqns
+*     else, return eqns[random.randint(0,len(eqns)-1)]  (pick a random one)
+*   else:
+*     if len(eqns), return eqns[0] (the first one)
+*     else, return an empty string
+
+
+### ALSO: should replace 'inner'/'outer' with 'and_'
+###       should give and_,or_,not_ same interface as inner/outer

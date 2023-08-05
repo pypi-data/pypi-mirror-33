@@ -1,0 +1,71 @@
+>>> x = 1
+>>> 
+>>> class Foo(object):
+...   def __init__(self, y):
+...     self.y = y+x
+...   def __call__(self, z):
+...     return self.y + z
+... 
+>>> f = Foo(1)
+>>> f(2)
+4
+>>> x = 0
+>>> # 'old' instance sees 'old' x
+>>> f(2)
+4
+>>> # new instance 'sees' new x
+>>> f = Foo(1)
+>>> f(2)
+3
+>>> 
+>>> import dill
+>>> 
+>>> _file = open('foo.pkl', 'wb')
+>>> dill.dump(f, _file)
+>>> _file.close()
+>>> 
+############### NEW SESSION ##################
+dude@hilbert>$ python
+Python 2.7.6 (default, Nov 12 2013, 13:26:39) 
+[GCC 4.2.1 Compatible Apple Clang 4.1 ((tags/Apple/clang-421.11.66))] on darwin
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import dill
+>>> _file = open('foo.pkl', 'rb')
+>>> f = dill.load(_file)
+>>> # still 'sees' Foo and x
+>>> f
+<__main__.Foo object at 0x1031047d0>
+>>> f(10)
+11
+>>> # however, __main__.Foo is not there
+>>> Foo
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+NameError: name 'Foo' is not defined
+>>> import __main__ as _main_module
+>>> f               
+<__main__.Foo object at 0x1031047d0>
+>>> f.__class__ 
+<class '__main__.Foo'>
+>>> f.__class__.__name__
+'Foo'
+>>> 
+>>> # try creating a new Foo instance
+>>> q = f.__class__(5)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "<stdin>", line 3, in __init__
+NameError: global name 'x' is not defined
+>>> # works if you create an 'x'
+>>> x = 100
+>>> q = f.__class__(5)
+>>> q
+<__main__.Foo object at 0x1031ea950>
+>>> q(1)
+106
+>>> # however, 'old' instance still sees 'old' x
+>>> f
+<__main__.Foo object at 0x1031047d0>
+>>> f(1)
+2
+
