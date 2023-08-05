@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+from setuptools import setup, find_packages
+import os
+
+
+def read(fname):
+    """
+    Read file (README).
+    """
+    try:
+        with open(os.path.join(os.path.dirname(__file__), fname)) as handle:
+            return handle.read()
+    except IOError:
+        return ''
+
+
+setup(
+    name='azure_translator_python3',
+    version='0.0.3',
+    description='Python SDK for Azure Translator API.',
+    long_description=read('README.md'),
+    long_description_content_type="text/markdown",
+    author='Christopher Stone',
+    author_email='alpha_command@hotmail.co.uk',
+    url='https://github.com/unison/azure-translator-python-sdk',
+    packages=find_packages(),
+    license='Apache',
+    classifiers=[
+        'Development Status :: 3 - Alpha',
+        'Intended Audience :: Developers',
+        'Topic :: Software Development :: Build Tools',
+        'License :: OSI Approved :: Apache Software License',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+    ],
+    install_requires=[
+        "requests>=2.12.0",
+    ],
+    test_suite='nose.collector',
+    tests_require=[
+        'mock',
+        'nose'
+    ]
+)
