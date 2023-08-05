@@ -1,0 +1,73 @@
+{% extends "bee_django_course/base.html" %}
+
+{% block content %}
+
+    <h4>{{ user_course.course.name }} | 学生：{{ user_course.user.username }}</h4>
+
+    <table class="table">
+        <thead>
+        <tr>
+            <th>课件</th>
+            <th>状态</th>
+            <th>得分</th>
+            <th>作业</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for e in section_list %}
+            <tr>
+                <td>
+                    {{ e.section.name }}
+                </td>
+                <td>
+                    {% if e.status == 0 %}
+                        未开始
+                    {% elif e.status == 1 %}
+                        学习中
+                    {% elif e.status == 2 %}
+                        已通过
+                    {% elif e.status == 3 %}
+                        退回重修
+                    {% elif e.status == 4 %}
+                        已提交
+                    {% endif %}
+                </td>
+                <td>{{ e.score | default:'' }}</td>
+                <td>
+                    {% if not e.status == 0 %}
+                        <a href="{% url 'bee_django_course:user_assignment' ucs_id=e.id %}"
+                           class="btn btn-success">查看</a>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if e.status == 0 %}
+                        <a href="#" class="btn btn-danger create_ucs"
+                           data-confirm="{% url 'bee_django_course:open_user_course_section' ucs_id=e.id %}">
+                            开启
+                        </a>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+{% endblock content %}
+
+{% block scripts %}
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $('.create_ucs').click(function (e) {
+                if (confirm('确定开启此课吗?')) {
+                    e.preventDefault();
+                    var url = $(this).attr('data-confirm');
+                    $.post(url).done(function (data) {
+                        alert(data['message']);
+                        window.location.href = data['new_url'];
+                    });
+                }
+            });
+        });
+    </script>
+{% endblock scripts %}

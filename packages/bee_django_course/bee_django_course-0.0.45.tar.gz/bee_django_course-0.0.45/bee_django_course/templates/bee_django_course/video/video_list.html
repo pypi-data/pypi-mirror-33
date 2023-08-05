@@ -1,0 +1,64 @@
+{% extends "bee_django_course/base.html" %}
+{% load bee_django_course_filter %}
+{% block content %}
+    <div class="text-center"><h3>
+        视频列表
+    </h3>
+    </div>
+    <div class="text-right">
+        {% if video_provider_name == 'cc' %}
+            <a class="btn btn-default" href="{% url 'bee_django_course:video_upload' %}">cc添加视频</a>
+        {% endif %}
+    </div>
+    <div>共{{ paginator.count }}个</div>
+    <table class="table">
+        <thead>
+        <tr>
+            <th></th>
+            <th>id</th>
+            <th>标题</th>
+            <th>说明</th>
+            <th>时长</th>
+            <th>上传时间</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for video in video_list %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ video.video_id }}</td>
+                <td>{{ video.title }}</td>
+                <td>{{ video.info | linebreaks }}</td>
+                <td>{{ video.duration }}</td>
+                <td>{{ video.created_at|local_datetime|date:"Y-m-d H:i" }}</td>
+
+                <td>
+                    <a href="{% url 'bee_django_course:video_detail' video.id %}">观看</a>
+                    <a href="{% url 'bee_django_course:video_update' video.id %}">修改视频信息</a>
+                    {#                <a href="{% url 'bee_django_course:section_update' section.id %}  ">修改</a>#}
+                    {#                    <a href="#" id="delete_{{ section.id }}"#}
+                    {#                       data-confirm="{% url "bee_django_course:section_delete" section.id %}"#}
+                    {#                       onclick="click_del(this)">删除</a>#}
+                    {#                </td>#}
+            </tr>
+
+        {% endfor %}
+        </tbody>
+    </table>
+    {% include 'bee_django_course/paginator.html' %}
+{% endblock %}
+{% block scripts %}
+    <script>
+        function click_del(_this) {
+            if (!confirm('确认要执行这个操作？')) {
+                return false;
+            }
+            var url = $(_this).attr('data-confirm');
+            $.post(url).done(function (data) {
+                alert('删除成功!');
+                location.reload();
+            });
+        }
+    </script>
+{% endblock %}
