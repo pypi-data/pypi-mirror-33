@@ -1,0 +1,94 @@
+#!/bin/sh
+#
+# An example hook script to verify what is about to be committed.
+# Called by "git commit" with no arguments.  The hook should
+# exit with non-zero status after issuing an appropriate message if
+# it wants to stop the commit.
+#
+# To enable this hook, rename this file to "pre-commit".
+
+# if git rev-parse --verify HEAD >/dev/null 2>&1
+# then
+#   against=HEAD
+# else
+#   # Initial commit: diff against an empty tree object
+#   against=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+# fi
+
+
+
+# echo $(pwd)
+# echo $(pwd)
+
+basefilepath=`pwd`
+# echo $basefilepath
+# 获取暂存区修改的文件列表
+file_name=`git diff --cached --name-only`
+
+# echo "start-----"
+file_path_join=""
+for element in $file_name
+do
+    # 后缀名为m
+    if [ "${element##*.}"x = "m"x ] || [ "${element##*.}"x = "h"x ] ;then    	
+		absolute_path=$basefilepath"/"$element
+		if [[ -z "$file_path_join" ]]; then
+			file_path_join=$absolute_path
+		else
+			file_path_join=$file_path_join";"$absolute_path
+		fi
+    fi
+done
+
+
+# echo $file_path_join
+# cd CodeDetection
+rm -rf QBCodeToolsResult.html
+# 输出python print的内容
+# python ObjCCheckMain_dynimic.py $file_path_join $basefilepath
+# 不输出python print的内容
+# x=`python ObjCCheckMain_dynimic.py $file_path_join $basefilepath`
+
+
+# 没有需要检测的文件
+if [[ -z "$file_path_join" ]]; then
+	exit 0
+fi
+
+# QBCodeSpecs $file_path_join $basefilepath
+
+# 如果使用默认配置使用下面命令启动检测
+QBCodeSpecs -i $file_path_join
+# 如果自定义配置使用下面的命令启动检测
+# QBCodeSpecs -i $file_path_join -config config.json
+
+
+
+no_error=$?
+echo $no_error
+
+if [[ $no_error -eq 0 ]]; then
+	# echo '-----代码符合规范-----'
+	exit 0
+else
+	echo '-----代码不符合规范-----'
+
+	if [ -f ./QBCodeToolsResult.html ]; then 
+		open -a "/Applications/Safari.app" QBCodeToolsResult.html
+	fi
+
+	echo "可能存在误检，是否强制提交？[y/n]"
+	exec < /dev/tty
+	read answer
+	# read prompt
+	if [[ $answer = 'y' ]] || [[ $answer = 'Y' ]]; then
+		echo "已选择强制提交"
+		exit 0
+	else
+		echo "已放弃提交"
+		exit 1
+	fi
+fi
+
+# no error
+exit 0
