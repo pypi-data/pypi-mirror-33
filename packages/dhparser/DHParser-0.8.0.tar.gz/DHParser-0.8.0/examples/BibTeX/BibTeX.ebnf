@@ -1,0 +1,48 @@
+# BibTeX-Grammar
+
+
+#######################################################################
+#
+#  EBNF-Directives
+#
+######################################################################
+
+@ whitespace  = /\s*/
+@ ignorecase  = True
+@ comment     = /%.*(?:\n|$)/
+
+
+#######################################################################
+#
+#  Bib-file Structure and Components
+#
+#######################################################################
+
+bibliography = { preamble | comment | entry }
+
+preamble      = "@Preamble{" /"/ pre_code /"/~ §"}"
+pre_code      = { /[^"%]+/ | /%.*\n/ }
+
+comment       = "@Comment{" text §"}"
+
+entry         = /@/ type "{" key { "," field §"=" content } §"}"
+type          = WORD
+key           = NO_BLANK_STRING
+field         = WORD_
+content       = "{" text "}" | plain_content
+
+plain_content = COMMA_TERMINATED_STRING
+text          = { CONTENT_STRING | "{" text "}" }
+
+
+#######################################################################
+#
+#  Regular Expressions
+#
+#######################################################################
+
+WORD          = /\w+/
+WORD_         = /\w+/~
+NO_BLANK_STRING         = /[^ \t\n,%]+/~
+COMMA_TERMINATED_STRING = { /[^,%]+/ | /(?=%)/~ }
+CONTENT_STRING = { /[^{}%]+/ | /(?=%)/~ }+
