@@ -1,0 +1,48 @@
+git:
+  submodules: false
+before_install:
+  - git submodule update --init --recursive
+
+language: python
+python: "3.6"
+cache: pip 
+
+install:
+  - make install
+
+script:
+  - make test
+  - make sdist
+  - make wheel
+
+before_deploy:
+  - pip install twine
+  - git config --global user.name "Travis"
+  - git config --global user.email "builds@travis-ci.org"
+  - export TAG=$(make tag-minor)
+  - git tag -f $TAG
+
+deploy:
+  - provider: releases
+    api_key: ${GITHUB_TOKEN}
+    skip_cleanup: true
+    on:
+      branch: master
+      tags: false
+  - provider: script
+    script: make deploy
+    skip_cleanup: true
+    on:
+      branch: master
+      tags: false
+
+notifications:
+  webhooks:
+    urls:
+      - "$WEBHOOKS_URL"
+    on_success: change 
+    on_failure: always  
+    on_start: change 
+    on_cancel: always 
+    on_error: always
+    
