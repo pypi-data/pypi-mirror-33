@@ -1,0 +1,416 @@
+ABuS is a script for backing up (and restoring) your files to a local disk.
+
+The backups are encrypted, compressed, and deduplicated.
+It is assumed that another program (e.g. rsync) is used to make off-site
+copies of the backups (see below).
+
+Content of this document:
+
+- Caveats_
+- Installation_
+- Documentation_
+
+  - Purging_
+  - Restoring_
+  - `Off-site copies`_
+  - `Index Database`_
+  - `Configuration file`_
+  - `Command line switches`_
+- `History`_
+
+
+=======
+Caveats
+=======
+
+ABuS only works on Windows.
+
+ABuS only backs up file content. In particular the backups do not
+include permissions, symbolic links, hard links, or special files.
+
+If you use ABuS in anger (inspite of the lack of guarantees in the licence),
+please pay particular attention to what the documentation below says about
+
+- off-site backups
+- the ``password`` option
+
+
+============
+Installation
+============
+
+1. Install Python 3.6 from python.org
+
+   - include pip
+   - it helps to add python to path
+
+2. From the command line, "as administrator" if python has been
+   installed "for all users"::
+
+    c:\path\to\python36\scripts\pip install abus
+
+3. Create minimal config file, e.g.::
+
+    logfile c:/my/home/abus.log
+    archive e:/backups
+    password password1234 just kidding!
+    [include]
+    c:/my/home
+
+4. Initialise the backup directory and the index database with::
+
+    c:\path\to\python36\scripts\abus.exe -f c:/my/home/abus.cfg --init
+
+5. Add to Task Scheduler::
+
+    c:\path\to\python36\scripts\abus.exe -f c:/my/home/abus.cfg --backup
+
+   If there are any problems that prevent ABuS from getting as far as opening
+   the log file (and Windows permissions can cause many such problems), then
+   use cmd.exe to allow redirection::
+
+    cmd /c
+      c:\path\to\python36\scripts\abus.exe -f c:/my/home/abus.cfg --backup
+      >c:\abus.err 2>&1
+
+
+=============
+Documentation
+=============
+
+Overview
+++++++++
+
+ABuS is a single script for handling backups. Its command line parameters
+determine whether the backups are to be created, listed, or restored. The
+backups are stored in subdirectories of the *backup directory* which must be on
+a local filesystem. For off-site copies another program is to be used, for
+example rsync.
+
+**Warning:** Off-site copies must be made correctly to minimise the risk of
+propagating any local corruption (see below).
+
+A configuration file is used to point to the backup directory, define the backup
+set, and some options. ABuS finds the configuration file either via a command
+line parameter or an environment variable.
+
+
+Purging
++++++++
+
+Old backup files are deleted after every backup.
+In order to determine which backups are deleted, time is divided into slots and
+only the latest version of a file in each slot is retained while the others are
+subject to purging. As slots get old they are combined into bigger slots.
+
+The configuration file defines the slot sizes using *freq*/*age* pairs of
+numbers, which define that 1 version in *freq* days is to be retained for
+backups up to *age* days old.
+
+For example, if the retention values are 1 7, 7 30, 28 150, then
+for each file one version a day is kept from the versions that are up
+to 7 days old, one a week is kept for versions up to 30 days old, and one every
+four weeks is kept up to 150 days.
+
+There is also a single slot older than the highest *age* defined, called "slot 0".
+In the example above one file older than 150 days will be kept as well.
+
+Purging of deleted files
+------------------------
+
+The time that a file deletion is detected
+(i.e. a file previously backed up no longer exists)
+must fall into slot 0
+before the last backup of the file is purged.
+E.g. with default retention values,
+150 days after a file is deleted its backups will be purged.
+
+
+Restoring
++++++++++
+
+Backup files can be restored from the backups using the `--restore` command line option.
+
+By default the backups to be restored are the latest version of each known file.
+The set of files can be restricted using "glob" positional arguments. As for
+exclusions, a `*` matches the directory separator. A backup is restored if its
+path matches any of the glob arguments.
+Slashes and backslashes can be used interchangeably.
+
+With the `-d` option the latest version of each backup before the given time is
+restored rather than the latest version before now.
+With `-a` all versions (before the cut-off time) are restored and a timestamp is
+added to the restored files' names.
+
+After the set of restore files has been determined, ABuS removes the common part
+of their paths and creates the remaining relative paths in the current
+directory. E.g. if these the files were to be restored::
+
+ c:/home/project/file_a
+ c:/home/project/src/file_b
+ c:/home/project/src/file_c
+
+Then they would be restored as::
+
+ ./file_a
+ ./src/file_b
+ ./src/file_c
+
+Deletions
+---------
+
+Files that have been deleted at the cut-off time are not restored.
+Note, however, that ABuS does not track historic deletions; for example, assume
+a certain file was last changed on Monday, deleted on Tuesday, and recreated on
+Wednesday. A restore with an end-of-Tuesday cut-off would restore the Monday
+version.
+
+Listing
+-------
+
+The `--listing` option lists backed up files. It takes the same options as
+`--restore` and lists exactly those backup versions that would be restored.
+
+The `--listing` option is implied if any of the restore filters are used without a
+`--restore`.
+
+
+Off-site copies
++++++++++++++++
+
+ABuS only backs up to local filesystems. This means that the backups themselves
+are at risk of corruption, for example from ramsomware. It is important that
+another copy of the backup is made and that it fulfills these criteria:
+
+* It must not be on a locally accessible filesystem or network share, so that
+  the machine being backed up cannot corrupt it.
+* Files must never be overwritten, once created, so that any local corruption
+  does not propagate.
+* As a consequence, partially transferred files must be removed at the
+  destination.
+
+The following is an example of an rsync command that would copy the local
+backup directory to an off-site location::
+
+ rsync --recursive --ignore-existing            \
+       --exclude index.sl3 --exclude '*.part'   \
+       /my/local/backups/  me@offsite:/backups/
+
+``index.sl3`` need not be transferred because it changes and it can be rebuilt
+from the static files. Files with ``.part`` extension are backup files that are
+currently being written and will be renamed once complete. Excluding them
+ensures that incomplete backup files are not transferred.
+
+Off-site purging
+----------------
+
+Since it is not advisable to propagate changed files - and therefor deletions -
+to the off-site copy of the backup files, these must be purged independently.
+
+To that end ABuS creates a *content file* in the backup directory which lists
+all backup files. The content file is compressed with gzip and its file name is
+that of the last backup run with a .gz
+extension. When such a file is written, the previous one is
+removed. Since the run names are basically ISO dates, a script on the off-site
+server can easily pick up the latest and remove all backup files that are not
+listed in it.
+
+**N.B.:** The following is only an outline of such a script to convey the idea.
+You must not use it without checking it first::
+
+ cd .../offsite-copy
+ keep_list=$(ls *.gz | tail -n 1)
+ (find -type f -printf '%P\n'; zcat $keep_list $keep_list) | sort | uniq -u >/tmp/remove
+ [[ $(wc -l /tmp/remove) -lt 50 ]] || exit # sanity check
+ xargs rm </tmp/remove
+
+
+Index Database
+++++++++++++++
+
+The index database duplicates backup meta data for quicker access.
+Since it is changed during normal operation, it cannot be included in the
+off-site copy.
+There are therefore command line options to rebuild the index database from the
+backup files.
+
+**Important:** Before rebuilding the index database, check the integrity of the
+content file, for example by comparing it with its off-site copy.
+
+It is important that the index database be not rebuilt from corrupt backup data.
+Since the backup files are encrypted, corruption would normally show,
+but a *missing* backup file would not.
+The integrity of the content file (see `Off-site purging`_ above),
+which is not encrypted,
+must therefore be ascertained before rebuilding the index database.
+
+
+Configuration file
+++++++++++++++++++
+
+The file has three sections
+
+* parameters at the beginning
+* inclusions
+* exclusions
+
+ABuS uses slashes as path separators internally. All filenames given in the
+config file or on the command line may use backslashes or slashes; all
+backslashes are converted to slashes.
+
+Parameters
+----------
+The first word of each line is a parameter name, the following words form the
+value. Leading and trailing spaces are trimmed while spaces within the value are
+preserved.
+
+``logfile``
+   Specifies the path of a file to which all log entries are made. The parameter
+   should be given first so that any subsequent errors in the configuration can
+   be reported to the log.
+
+``archive``
+   Specifies the path to the root backup directory containing all backup files.
+
+``indexdb``
+   Specifies the path to the index database. By default this is ``index.sl3``
+   inside the backup directory, but it might be preferable to place it on a
+   faster disk, for example.
+
+``password``
+   Specifies the encryption password to be used for all backup files. The
+   encryption allows copying the backup archive to an off-site location.
+
+   **N.B.:** Make sure the the config file is UTF-8 encoded, so that any special
+   characters in the password are interpreted in a well-defined way.
+
+   **N.B.:** Once a backup has been created the password must not be changed,
+   since ABuS does no keep track of which backup files use which password (obviously).
+   If you want to change the password, you need to create a new archive.
+
+``retain``
+   Specifies how old backups are pruned. The keyword is followed by a
+   space-separated list of numbers forming *freq* and *age* pairs, meaning:
+   "keep one backup per *freq* days for files up to *age* days old". See
+   Purging_ above.
+
+   The *age* values must not repeat and the *freq* values must be multiples of
+   each other. *freq* can be a float, e.g. ``0.25`` for six hours.
+
+   The retention values default to::
+
+    retain  1 7  56 150
+
+``compressed_extensions``
+   Space-separated list of file extensions that ABuS assumes belong to files
+   that are already compressed. All other files will be compressed before they
+   are encrypted.
+
+   The extensions are shell global patterns and are matched ignoring case. Thus
+   ``jp*g`` is matched by ``jpg``, ``JPG``, and ``jpeg``;
+   ``*`` would switch compression off completely.
+
+   Defaults to:
+
+    7z arj avi bz2 flac gif gz jar jpeg jpg lz lzmo lzo
+    mov mp3 mp4 png rar tgz tif tiff wma xz zip
+
+``threads``
+   Sets the maximum number simultaneous backups in order to limit the strain on CPU,
+   IO, and memory. The default value is one less than the number of hardware threads
+   on the system, but at most 8.
+
+Inclusions
+----------
+A line containing the header ``[include]`` starts the inclusion section,
+each line of which is a directory path which will be backed up recursively.
+There must be at least one inclusion.
+
+Exclusions
+----------
+A line containing the header ``[exclude]`` starts the exclusion section,
+each line of which is a shell global pattern. All file paths that would be
+backed up (or directory paths that would be searched for files) are skipped if
+they match any of the patterns.
+
+A * in the patterns also matches the directory separators.
+``*.bak`` ignores any file with the extension .bak;
+``*/~*`` ignores any file or directory starting with a tilde.
+
+
+Command line switches
++++++++++++++++++++++
+
+Run ``abus --help`` for detailed command line switch help.
+
+
+=======
+History
+=======
+
+v11 2018-06-21
+
+- Configuration option for maximum number of simultaneous backups
+  (fixes MemoryError in lzma module on 32-bit Python)
+- fix: possible ZeroDivisionError at restore "progress bar"
+
+v10 2018-06-17
+
+- configuration option for extensions of already-compressed files
+- fix: matching of already-compressed extensions was case-sensitive
+- fix: uncaught exceptions when writing encrypted files
+
+v9 2017-12-31
+
+- handling deletions correctly at list, restore, and rebuild
+- default action is to report version rather than list all files
+- list/restore glob argument now case-insensitive and allows backslashes
+- fix: list and restore were not including all files when used without a date
+  argument
+- fix: restore did not allow restoring single file
+
+v8 (beta) 2017-12-10
+
+- purges backups of deleted files (see above)
+- much reduced size of index database
+
+v7 (beta) 2017-11-19
+
+- fix: index database on different drive caused exception at purge
+- fix: restore could not handle paths from different drives
+- fix: exception for u64 file numbers
+
+v6 (beta) 2017-11-12
+
+- retries if file changes while reading
+- config file option "indexdb" to set location of index database
+- improved restore performance
+- progress indicators during restore
+- fix: exception when no files matched during restore
+
+v5 (beta) 2017-11-05
+
+- feature: content files allow safe purging of off-site copies
+- index database upgrades ifself on startup
+- fix: spaces in filenames caused index-rebuild to fall over
+
+v4 (alpha) 2017-10-22
+
+- feature: purging of old backups
+- fix: -a and -d options didn't work with --list
+- fix: timestamp rounding error at index-rebuild
+- fix: --init could not create backup directory
+
+v3 (alpha) 2017-10-15
+
+- feature: rebuilding of index database from backup meta data
+
+v2 (alpha) 2017-10-07
+
+- not excruciatingly slow any more
+
+v1 (alpha) 2017-10-04
+
+- first version
+
+.. vim:tw=80:ft=rst
