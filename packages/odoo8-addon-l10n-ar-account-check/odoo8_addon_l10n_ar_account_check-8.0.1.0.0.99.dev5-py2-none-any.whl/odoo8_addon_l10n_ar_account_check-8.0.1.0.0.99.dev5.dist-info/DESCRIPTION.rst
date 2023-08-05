@@ -1,0 +1,3 @@
+Allows to manage checks
+
+
