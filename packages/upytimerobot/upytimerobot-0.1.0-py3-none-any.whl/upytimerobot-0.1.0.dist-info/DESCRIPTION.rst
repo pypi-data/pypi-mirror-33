@@ -1,0 +1,90 @@
+Python Module for Uptime Robot
+==============================
+
+Python3 module to interact with UptimeRobot API
+
+Installation
+------------
+
+To get the latest stable release from PyPi
+
+.. code:: bash
+
+   $ pip install upytimerobot
+
+To get the latest commit from GitLab
+
+.. code:: bash
+
+   $ pip install -e git+git://gitlab.com/fboaventura/upytimerobot.git#egg=uptimerobot
+
+Usage
+-----
+
+Use with Python:
+
+.. code:: python
+
+   >>> from upytimerobot import UptimeRobot
+   >>> up = UptimeRobot(api_key=UPTIME_ROBOT_API_KEY)
+   >>> up.get_monitors()
+   {'stat': 'ok', 'pagination': {'offset': 0, 'limit': 1, 'total': 4}, 'monitors': [{'id': 90909090, 'friendly_name': 'my_monitor', 'url': '127.0.0.1', 'type': 3, 'sub_type': '', 'keyword_type': '', 'keyword_value': '', 'http_username': '', 'http_password': '', 'port': '', 'interval': 300, 'status': 2, 'ssl': {'brand': '', 'product': None, 'expires': 0}, 'create_datetime': 1480809958}]}
+
+ToDo
+----
+- Add support to add new Monitors
+- Add support to edit existing Monitors
+- Add support to delete existing Monitors
+- Add support to add new Alert Contacts
+- Add support to edit existing Alert Contacts
+- Add support to delete existing Alert Contacts
+- Add support to add new Maintenance Windows
+- Add support to edit existing Maintenance Windows
+- Add support to delete existing Maintenance Windows
+- Add support to add new Public Status Pages
+- Add support to edit existing Public Status Pages
+- Add support to delete existing Public Status Pages
+- Make the module work as a standalone script
+
+History
+-------
+## [0.1.0] - 2018-06-18
+This is functional module already, one can query all the information regarding `account`, `monitors`, `alert contacts`, `maintenance windows` and `public status pages`.
+
+Also, the functions are all well documented, containing all the possible parameters that can be used to each of the queries available.
+
+Added
+-----
+- Add `constants` file to hold parameters options
+- `.get_monitors_by_type`: Fetch and return all the results that match a defined type
+- `.get_monitors_by_status`: Fetch and return all the results that match a defined status
+
+Change
+------
+- Renamed some internal usage methods to differentiate from the public ones
+- Improved documentation on the existing methods
+- Way of import some of the libraries
+- `.get_monitors_by_name`: Changed validation if a monitor was recovered
+- `.get_monitors_by_id`: Changed validation if a monitor was recovered
+
+0.0.1 - 2018-06-15
+------------------
+The very beginning of this module, it arrives with all possible queries already done.  There are few documentation regarding the class and methods being implemented.
+
+Added
+~~~~~
+-  Initial commit
+-  Config file to host API key and other options
+-  All read only API calls are implemented:
+   -  getMonitors => ``.get_monitors()``
+   -  getAccountDetails => ``.get_account_details()``
+   -  getAlertContacts => ``.get_alert_contacts()``
+   -  getMWindows => ``.get_mwindows()``
+   -  getPSPs => ``.get_pdpd()``
+
+About the API
+-------------
+
+The full API is documented here: https://uptimerobot.com/api
+
+
