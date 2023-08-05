@@ -1,0 +1,171 @@
+Metadata-Version: 2.1
+Name: spare
+Version: 0.2.3
+Summary: One S3 backup, encrypted on the fly.
+Home-page: http://github.com/seantis/spare
+Author: Seantis GmbH
+Author-email: info@seantis.ch
+License: MIT
+Platform: any
+Classifier: Intended Audience :: System Administrators
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: Unix
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: System :: Archiving :: Backup
+Requires-Python: >=3.6.2
+Provides-Extra: test
+Requires-Dist: boto3
+Requires-Dist: cached-property
+Requires-Dist: click
+Requires-Dist: cryptography
+Requires-Dist: logbook
+Requires-Dist: miscreant
+Requires-Dist: ulid-py
+Provides-Extra: test
+Requires-Dist: hypothesis; extra == 'test'
+Requires-Dist: mirakuru; extra == 'test'
+Requires-Dist: flake8; extra == 'test'
+Requires-Dist: port-for; extra == 'test'
+Requires-Dist: pytest; extra == 'test'
+Requires-Dist: pytest-cov; extra == 'test'
+Requires-Dist: pytest-flake8; extra == 'test'
+Requires-Dist: pytest-logbook; extra == 'test'
+
+
+
+Description
+-----------
+
+This tool is used at Seantis to create backups stored on various S3 compatible
+services using a very limited subset of S3 commands.
+
+This is what you need to know:
+
+* Spare should not be used in production yet! **Use at your own risk.**
+
+* Buckets should be managed by spare exclusively, other files are deleted!
+
+* Each hostname must have a separate bucket for each backed up path.
+
+* Spare stores exactly one copy of your data.
+
+* Files are compressed using LZMA and encrypted on the client using AES-SIV.
+
+* During upload, spare is limited to one core and less than 100MiB of memory.
+
+* Duplicated files are stored only once.
+
+* If you forget your password, you cannot restore your files.
+
+* Spare is meant to be used with configuration management, the cli is minimal.
+
+* Python 3.6.2+ is required.
+
+Usage
+-----
+
+To install spare::
+
+    pip install spare
+
+To set the connection parameters::
+
+    export SPARE_ENDPOINT=host
+    export SPARE_ACCESS_KEY=access-key
+    export SPARE_SECRET_KEY=secret-key
+
+To backup a folder::
+
+    spare create --password my-password --bucket my-bucket --path /my-path
+
+To restore a backup::
+
+    spare restore --password my-password --bucket my-bucket --path /my-path
+
+To verify the backup (downloads everything!)::
+
+    spare verify --password my-password --bucket my-bucket --path /my-path
+
+Run the Tests
+-------------
+
+Spare uses `Minio <https://www.minio.io>` to run tests against a real object
+storage server. As a result it can take a bit for the first test run to
+complete, as Minio is downloaded and stored in the pytest cache directory::
+
+    pip install -e '.[test]'
+    py.test
+
+Build Status
+------------
+
+.. image:: https://travis-ci.org/seantis/spare.png
+  :target: https://travis-ci.org/seantis/spare
+  :alt: Build Status
+
+License
+-------
+spare is released under the MIT license
+
+Changelog
+---------
+
+0.2.3 (2018-06-20)
+~~~~~~~~~~~~~~~~~~~~~
+
+- Fixes large snapshots getting pruned after creation.
+  [href]
+
+0.2.2 (2018-05-25)
+~~~~~~~~~~~~~~~~~~~~~
+
+- Fixes tests.
+  [href]
+
+0.2.1 (2018-05-25)
+~~~~~~~~~~~~~~~~~~~~~
+
+- Delay sigterm handling during backup and restore operations.
+  [href]
+
+- Changes '--force' into a flag.
+  [href]
+
+0.2.0 (2018-05-11)
+~~~~~~~~~~~~~~~~~~~~~
+
+- Adds the inode to the snapshot identity to ensure that a newly setup host
+  doesn't overwrite existing backups.
+  [href]
+
+0.1.3 (2018-05-10)
+~~~~~~~~~~~~~~~~~~~~~
+
+- Adds the ability to exclude files from the backup.
+  [href]
+
+0.1.2 (2018-05-10)
+~~~~~~~~~~~~~~~~~~~~~
+
+- Increases the download speed during restore operations.
+  [href]
+
+- Shows a warning when a user/group could not be found during restore.
+  [href]
+
+- Lowers the timeouts and retry rates.
+  [href]
+
+0.1.1 (2018-05-04)
+~~~~~~~~~~~~~~~~~~~~~
+
+- Lowers the number of requests needed to upload data.
+  [href]
+
+0.1.0 (2018-04-26)
+~~~~~~~~~~~~~~~~~~~~~
+
+- Initial Release.
+  [href]
+
+
