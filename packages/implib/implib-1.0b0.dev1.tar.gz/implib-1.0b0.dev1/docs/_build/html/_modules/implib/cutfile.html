@@ -1,0 +1,293 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>implib.cutfile &#8212; ImpLib 1.0a3 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0a3',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+  <body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">ImpLib 1.0a3 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for implib.cutfile</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">strftime</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">__version__</span>
+<span class="kn">from</span> <span class="nn">.cutfileutils</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">.fileutils</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">.mathext</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">.cutcmds</span> <span class="k">import</span> <span class="n">HeaderCmd</span><span class="p">,</span> <span class="n">HeaderExtCmd</span><span class="p">,</span> <span class="n">PointCmd</span><span class="p">,</span> <span class="n">OrientCmd</span><span class="p">,</span> <span class="n">Line5XCmd</span><span class="p">,</span> <span class="n">MoveCmd</span><span class="p">,</span> <span class="n">InfoCmd</span>
+<span class="c1"># TODO: should probably just import __all__ from cutcmds</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;CutFile&#39;</span><span class="p">]</span>
+
+
+<span class="c1"># TODO: add logger</span>
+
+<div class="viewcode-block" id="CutFile"><a class="viewcode-back" href="../../implib.html#implib.cutfile.CutFile">[docs]</a><span class="k">class</span> <span class="nc">CutFile</span><span class="p">:</span>
+
+	<span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+		<span class="c1"># TODO: Add doc string</span>
+		<span class="c1"># TODO: Will error out if cmd_list isn&#39;t properly formatted</span>
+		<span class="k">if</span> <span class="n">cmd_list</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="k">elif</span> <span class="n">is_cmd_list</span><span class="p">(</span><span class="n">cmd_list</span><span class="p">):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span> <span class="o">=</span> <span class="n">cmd_list</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">_read_file_path</span> <span class="o">=</span> <span class="kc">None</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">name</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="n">version</span>
+
+<div class="viewcode-block" id="CutFile.read"><a class="viewcode-back" href="../../implib.html#implib.cutfile.CutFile.read">[docs]</a>	<span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">set_cmd_list</span><span class="p">(</span><span class="n">read_cut_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">))</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_read_file_path</span> <span class="o">=</span> <span class="n">file_path</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="n">get_file_name</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">exclude_ext</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CutFile.write"><a class="viewcode-back" href="../../implib.html#implib.cutfile.CutFile.write">[docs]</a>	<span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dir_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cut</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">cbf</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="bp">cls</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">dir_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_file_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+				<span class="c1"># TODO: this might actually be fine, just means file never read.</span>
+				<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Failed to infer directory path.&#39;</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">dir_path</span> <span class="o">=</span> <span class="n">get_dir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_file_path</span><span class="p">)</span>
+
+		<span class="n">ext</span> <span class="o">=</span> <span class="kc">None</span>
+		<span class="k">if</span> <span class="n">file_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+				<span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Failed to infer file name.&#39;</span><span class="p">)</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span>
+				<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_file_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+					<span class="n">ext</span> <span class="o">=</span> <span class="n">get_ext</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_file_path</span><span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">if</span> <span class="n">has_ext</span><span class="p">(</span><span class="n">file_name</span><span class="p">):</span>
+				<span class="n">ext</span> <span class="o">=</span> <span class="n">get_ext</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+
+		<span class="k">if</span> <span class="n">ext</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="c1"># TODO: think this will fail if file_name has ext</span>
+			<span class="n">temp_fname</span> <span class="o">=</span> <span class="n">file_name</span> <span class="o">+</span> <span class="n">ext</span>
+			<span class="k">if</span> <span class="n">is_cut_file_name</span><span class="p">(</span><span class="n">temp_fname</span><span class="p">):</span>
+				<span class="n">cut</span> <span class="o">=</span> <span class="kc">True</span>
+			<span class="k">if</span> <span class="n">is_cbf_file_name</span><span class="p">(</span><span class="n">temp_fname</span><span class="p">):</span>
+				<span class="n">cbf</span> <span class="o">=</span> <span class="kc">True</span>
+			<span class="k">if</span> <span class="n">is_cls_file_name</span><span class="p">(</span><span class="n">temp_fname</span><span class="p">):</span>
+				<span class="bp">cls</span> <span class="o">=</span> <span class="kc">True</span>
+
+		<span class="k">if</span> <span class="n">cut</span> <span class="ow">or</span> <span class="n">cbf</span> <span class="ow">or</span> <span class="bp">cls</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">set_header</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_name</span><span class="p">)</span>
+
+		<span class="k">if</span> <span class="n">cut</span><span class="p">:</span>
+			<span class="n">file_path</span> <span class="o">=</span> <span class="n">make_file_name</span><span class="p">(</span><span class="n">dir_path</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;CUT&#39;</span><span class="p">,</span> <span class="n">ext_upper</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+			<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+				<span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">:</span>
+					<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">cmd</span><span class="o">.</span><span class="n">get_cut</span><span class="p">()</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">cbf</span><span class="p">:</span>
+			<span class="n">file_path</span> <span class="o">=</span> <span class="n">make_file_name</span><span class="p">(</span><span class="n">dir_path</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;cbf&#39;</span><span class="p">)</span>
+			<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">HeaderCmd</span><span class="p">):</span>  <span class="c1"># TODO: this should always be true now after calling set_header.</span>
+				<span class="n">hdr_ext</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">HeaderExtCmd</span><span class="p">)</span>
+				<span class="n">cmd_start_idx</span> <span class="o">=</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">hdr_ext</span> <span class="k">else</span> <span class="mi">1</span>
+
+				<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+					<span class="n">checksum</span><span class="p">,</span> <span class="n">num_cmds</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
+					<span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">128</span><span class="p">)</span>  <span class="c1"># leave room for the header</span>
+					<span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">[</span><span class="n">cmd_start_idx</span><span class="p">:]:</span>
+						<span class="n">cmd_bytes</span> <span class="o">=</span> <span class="n">cmd</span><span class="o">.</span><span class="n">get_cbf</span><span class="p">()</span>
+						<span class="n">checksum</span> <span class="o">+=</span> <span class="n">compute_checksum</span><span class="p">(</span><span class="n">cmd_bytes</span><span class="p">)</span>
+						<span class="n">cmd_bytes</span> <span class="o">=</span> <span class="n">u_int_to_bytes</span><span class="p">(</span><span class="n">num_cmds</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">cmd_bytes</span>
+						<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">cmd_bytes</span><span class="p">)</span>
+						<span class="n">num_cmds</span> <span class="o">+=</span> <span class="mi">1</span>
+					<span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># go back to beginning to fill in header</span>
+					<span class="n">hdr_ext</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">hdr_ext</span> <span class="k">else</span> <span class="kc">None</span>
+					<span class="n">hdr_bytes</span> <span class="o">=</span> <span class="n">make_cbf_header</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+					                            <span class="n">checksum</span><span class="p">,</span>
+					                            <span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
+					                            <span class="n">num_cmds</span><span class="p">,</span>
+					                            <span class="n">hdr_ext</span><span class="p">)</span>
+					<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">hdr_bytes</span><span class="p">)</span>
+		<span class="k">if</span> <span class="bp">cls</span><span class="p">:</span>
+			<span class="n">file_path</span> <span class="o">=</span> <span class="n">make_file_name</span><span class="p">(</span><span class="n">dir_path</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;cls&#39;</span><span class="p">)</span>
+			<span class="c1"># TODO: need to call set_cutter for each phase command</span>
+			<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+				<span class="n">loc</span><span class="p">,</span> <span class="n">ori</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+				<span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">:</span>
+					<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">PointCmd</span><span class="p">):</span>
+						<span class="n">loc</span> <span class="o">=</span> <span class="n">cmd</span><span class="o">.</span><span class="n">start_pt</span>
+						<span class="k">if</span> <span class="n">loc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">ori</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+							<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">make_goto_cmd</span><span class="p">(</span><span class="n">loc</span><span class="p">,</span> <span class="n">ori</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+					<span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">OrientCmd</span><span class="p">):</span>
+						<span class="n">ori</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">cmd</span><span class="o">.</span><span class="n">start_dir</span>
+						<span class="k">if</span> <span class="n">loc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">ori</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+							<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">make_goto_cmd</span><span class="p">(</span><span class="n">loc</span><span class="p">,</span> <span class="n">ori</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+					<span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">Line5XCmd</span><span class="p">):</span>
+						<span class="n">loc</span> <span class="o">=</span> <span class="n">cmd</span><span class="o">.</span><span class="n">start_pt</span>
+						<span class="n">ori</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">cmd</span><span class="o">.</span><span class="n">start_dir</span>
+						<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">make_goto_cmd</span><span class="p">(</span><span class="n">loc</span><span class="p">,</span> <span class="n">ori</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+						<span class="n">loc</span> <span class="o">=</span> <span class="n">cmd</span><span class="o">.</span><span class="n">end_pt</span>
+						<span class="n">ori</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">cmd</span><span class="o">.</span><span class="n">end_dir</span>
+						<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">make_goto_cmd</span><span class="p">(</span><span class="n">loc</span><span class="p">,</span> <span class="n">ori</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+					<span class="k">else</span><span class="p">:</span>
+						<span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">cmd</span><span class="o">.</span><span class="n">get_cls</span><span class="p">()</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CutFile.set_header"><a class="viewcode-back" href="../../implib.html#implib.cutfile.CutFile.set_header">[docs]</a>	<span class="k">def</span> <span class="nf">set_header</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">implant_pn</span><span class="p">):</span>
+		<span class="n">time_stamp</span> <span class="o">=</span> <span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%x</span><span class="s1"> </span><span class="si">%X</span><span class="s1">&#39;</span><span class="p">)</span>
+		<span class="n">pkg_ver</span> <span class="o">=</span> <span class="n">__version__</span>
+		<span class="n">cut_file_ver</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span>
+		<span class="n">args</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> CUT:</span><span class="si">%s</span><span class="s1"> ImpLib:</span><span class="si">%s</span><span class="s1"> date:</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">implant_pn</span><span class="p">,</span>
+		                                        <span class="n">cut_file_ver</span><span class="p">,</span>
+		                                        <span class="n">pkg_ver</span><span class="p">,</span>
+		                                        <span class="n">time_stamp</span><span class="p">)</span>
+		<span class="n">hdr</span> <span class="o">=</span> <span class="n">HeaderCmd</span><span class="p">([</span><span class="n">args</span><span class="p">])</span>
+
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">HeaderCmd</span><span class="p">):</span>
+			<span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">hdr</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CutFile.get_name"><a class="viewcode-back" href="../../implib.html#implib.cutfile.CutFile.get_name">[docs]</a>	<span class="k">def</span> <span class="nf">get_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span></div>
+
+<div class="viewcode-block" id="CutFile.set_name"><a class="viewcode-back" href="../../implib.html#implib.cutfile.CutFile.set_name">[docs]</a>	<span class="k">def</span> <span class="nf">set_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+		<span class="k">pass</span></div>
+
+<div class="viewcode-block" id="CutFile.get_cmd_list"><a class="viewcode-back" href="../../implib.html#implib.cutfile.CutFile.get_cmd_list">[docs]</a>	<span class="k">def</span> <span class="nf">get_cmd_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="c1"># TODO: add cmd filter to get_cmd_list</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span></div>
+
+<div class="viewcode-block" id="CutFile.set_cmd_list"><a class="viewcode-back" href="../../implib.html#implib.cutfile.CutFile.set_cmd_list">[docs]</a>	<span class="k">def</span> <span class="nf">set_cmd_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd_list</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">is_cmd_list</span><span class="p">(</span><span class="n">cmd_list</span><span class="p">,</span> <span class="n">raise_err</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span> <span class="o">=</span> <span class="n">cmd_list</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="c1"># TODO: what to do when cmd_list isn&#39;t a command list?</span>
+			<span class="k">pass</span></div>
+
+<div class="viewcode-block" id="CutFile.equals"><a class="viewcode-back" href="../../implib.html#implib.cutfile.CutFile.equals">[docs]</a>	<span class="k">def</span> <span class="nf">equals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">,</span> <span class="n">hdr</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">moves</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">info</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+		<span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">return</span> <span class="kc">False</span>
+
+		<span class="n">other_cmds</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">get_cmd_list</span><span class="p">()</span>
+		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">other_cmds</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="k">return</span> <span class="kc">True</span>
+
+		<span class="k">if</span> <span class="n">hdr</span><span class="p">:</span>
+			<span class="c1"># TODO: add filter to get_cmd_list()</span>
+			<span class="n">this_hdr_chunk</span> <span class="o">=</span> <span class="p">[</span><span class="n">cmd</span> <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span>
+			                  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">HeaderCmd</span><span class="p">)</span>
+			                  <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">HeaderExtCmd</span><span class="p">)]</span>
+			<span class="n">other_hdr_chunk</span> <span class="o">=</span> <span class="p">[</span><span class="n">cmd</span> <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">other_cmds</span>
+			                   <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">HeaderCmd</span><span class="p">)</span>
+			                   <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">HeaderExtCmd</span><span class="p">)]</span>
+			<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">this_hdr_chunk</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">other_hdr_chunk</span><span class="p">):</span>
+				<span class="k">return</span> <span class="kc">False</span>
+			<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">this_hdr_chunk</span><span class="p">)):</span>
+				<span class="k">if</span> <span class="n">this_hdr_chunk</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">!=</span> <span class="n">other_hdr_chunk</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+					<span class="k">return</span> <span class="kc">False</span>
+
+		<span class="k">if</span> <span class="n">moves</span><span class="p">:</span>
+			<span class="n">this_move_chunk</span> <span class="o">=</span> <span class="p">[</span><span class="n">cmd</span> <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">MoveCmd</span><span class="p">)]</span>
+			<span class="n">other_move_chunk</span> <span class="o">=</span> <span class="p">[</span><span class="n">cmd</span> <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">other_cmds</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">MoveCmd</span><span class="p">)]</span>
+			<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">this_move_chunk</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">other_move_chunk</span><span class="p">):</span>
+				<span class="k">return</span> <span class="kc">False</span>
+			<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">this_move_chunk</span><span class="p">)):</span>
+				<span class="k">if</span> <span class="n">this_move_chunk</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">!=</span> <span class="n">other_move_chunk</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+					<span class="k">return</span> <span class="kc">False</span>
+
+		<span class="k">if</span> <span class="n">info</span><span class="p">:</span>
+			<span class="n">this_info_chunk</span> <span class="o">=</span> <span class="p">[</span><span class="n">cmd</span> <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">MoveCmd</span><span class="p">)]</span>
+			<span class="n">other_info_chunk</span> <span class="o">=</span> <span class="p">[</span><span class="n">cmd</span> <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">other_cmds</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">MoveCmd</span><span class="p">)]</span>
+			<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">this_info_chunk</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">other_info_chunk</span><span class="p">):</span>
+				<span class="k">return</span> <span class="kc">False</span>
+			<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">this_info_chunk</span><span class="p">)):</span>
+				<span class="k">if</span> <span class="n">this_info_chunk</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">!=</span> <span class="n">other_info_chunk</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+					<span class="k">return</span> <span class="kc">False</span>
+
+		<span class="k">return</span> <span class="kc">True</span></div>
+
+	<span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+			<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">_cmds</span><span class="p">):</span>
+				<span class="k">return</span> <span class="kc">False</span>
+			<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">)):</span>
+				<span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cmds</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">!=</span> <span class="n">other</span><span class="o">.</span><span class="n">_cmds</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+					<span class="k">return</span> <span class="kc">False</span>
+			<span class="k">return</span> <span class="kc">True</span>
+		<span class="k">return</span> <span class="bp">NotImplemented</span>
+
+	<span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+		<span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="bp">NotImplemented</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">result</span>
+		<span class="k">return</span> <span class="ow">not</span> <span class="n">result</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">ImpLib 1.0a3 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, C.J. Geering.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.6.
+    </div>
+  </body>
+</html>
