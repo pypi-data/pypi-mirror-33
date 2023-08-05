@@ -1,0 +1,305 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>debinterface.adapterValidation &#8212; Debinterface 3.3.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '3.3.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="top" title="Debinterface 3.3.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Debinterface 3.3.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for debinterface.adapterValidation</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;The NetworkAdapterValidation tries to validate data before writting,</span>
+<span class="sd">but it is by no means fool proof as it is impossible to have checks</span>
+<span class="sd">for everything as any package can add its keys.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">with_statement</span><span class="p">,</span> <span class="n">absolute_import</span>
+<span class="kn">import</span> <span class="nn">socket</span>
+
+
+<span class="n">VALID_OPTS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;hotplug&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">bool</span><span class="p">},</span>  <span class="c1"># Beware, option is really called allow-hotplug</span>
+    <span class="s1">&#39;auto&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">bool</span><span class="p">},</span>
+    <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;required&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span>
+    <span class="s1">&#39;address&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;IP&#39;</span><span class="p">},</span>
+    <span class="s1">&#39;netmask&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;IP&#39;</span><span class="p">},</span>
+    <span class="s1">&#39;network&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;IP&#39;</span><span class="p">},</span>
+    <span class="s1">&#39;server&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;IP&#39;</span><span class="p">},</span>
+    <span class="s2">&quot;endpoint&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;IP&#39;</span><span class="p">},</span>
+    <span class="s2">&quot;dstaddr&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;IP&#39;</span><span class="p">},</span>
+    <span class="s2">&quot;local&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;IP&#39;</span><span class="p">},</span>
+    <span class="s1">&#39;broadcast&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;BROADCAST_IP&#39;</span><span class="p">},</span>
+    <span class="s1">&#39;gateway&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;IP&#39;</span><span class="p">},</span>
+    <span class="s1">&#39;dad-attempts&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">},</span>
+    <span class="s1">&#39;metric&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">},</span>
+    <span class="s1">&#39;mtu&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">},</span>
+    <span class="s1">&#39;unit&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">},</span>
+    <span class="s1">&#39;autoconf&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">},</span>
+    <span class="s1">&#39;leasehours&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">},</span>
+    <span class="s1">&#39;accept_ra&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">},</span>
+    <span class="s1">&#39;leasetime&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">},</span>
+    <span class="s1">&#39;privext&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="s2">&quot;in&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]},</span>
+    <span class="s1">&#39;preferred-lifetime&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">},</span>
+    <span class="s2">&quot;loopback&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;in&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;on&quot;</span><span class="p">,</span> <span class="s2">&quot;off&quot;</span><span class="p">]},</span>
+    <span class="s2">&quot;listenonly&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;in&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;on&quot;</span><span class="p">,</span> <span class="s2">&quot;off&quot;</span><span class="p">]},</span>
+    <span class="s2">&quot;triple&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;in&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;on&quot;</span><span class="p">,</span> <span class="s2">&quot;off&quot;</span><span class="p">]},</span>
+    <span class="s2">&quot;oneshot&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;in&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;on&quot;</span><span class="p">,</span> <span class="s2">&quot;off&quot;</span><span class="p">]},</span>
+    <span class="s2">&quot;berr&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;in&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;on&quot;</span><span class="p">,</span> <span class="s2">&quot;off&quot;</span><span class="p">]},</span>
+    <span class="s1">&#39;bridge-opts&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">},</span>
+    <span class="s1">&#39;dns-nameservers&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;IPList&#39;</span><span class="p">},</span>
+    <span class="s1">&#39;dns-search&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;URIList&#39;</span><span class="p">},</span>
+    <span class="s2">&quot;mode&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;in&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;GRE&quot;</span><span class="p">,</span> <span class="s2">&quot;IPIP&quot;</span><span class="p">]},</span>
+    <span class="s1">&#39;scope&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;in&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;global&#39;</span><span class="p">,</span> <span class="s1">&#39;link&#39;</span><span class="p">,</span> <span class="s1">&#39;host&#39;</span><span class="p">,</span> <span class="s1">&#39;site&#39;</span><span class="p">,</span> <span class="s1">&#39;host&#39;</span><span class="p">]},</span>
+    <span class="s1">&#39;addrFam&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;in&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;inet&#39;</span><span class="p">,</span> <span class="s1">&#39;inet6&#39;</span><span class="p">,</span> <span class="s1">&#39;ipx&#39;</span><span class="p">,</span> <span class="s1">&#39;can&#39;</span><span class="p">]},</span>
+    <span class="s1">&#39;source&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;in&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;dhcp&#39;</span><span class="p">,</span> <span class="s1">&#39;static&#39;</span><span class="p">,</span> <span class="s1">&#39;loopback&#39;</span><span class="p">,</span> <span class="s1">&#39;manual&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;bootp&#39;</span><span class="p">,</span> <span class="s1">&#39;ppp&#39;</span><span class="p">,</span> <span class="s1">&#39;wvdial&#39;</span><span class="p">,</span> <span class="s1">&#39;dynamic&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;ipv4ll&#39;</span><span class="p">,</span> <span class="s1">&#39;v4tunnel&#39;</span><span class="p">,</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="s2">&quot;6to4&quot;</span><span class="p">,</span> <span class="s2">&quot;tunnel&quot;</span><span class="p">]},</span>
+    <span class="s1">&#39;hostapd&#39;</span><span class="p">:</span> <span class="p">{},</span>
+    <span class="s1">&#39;up&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">},</span>
+    <span class="s1">&#39;pre-up&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">},</span>
+    <span class="s1">&#39;post-up&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">},</span>
+    <span class="s1">&#39;down&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">},</span>
+    <span class="s1">&#39;pre-down&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">},</span>
+    <span class="s1">&#39;post-down&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">}</span>
+<span class="p">}</span>
+<span class="n">REQUIRED_FAMILY_OPTS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;inet&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;loopback&quot;</span><span class="p">:</span> <span class="p">(),</span>
+        <span class="s2">&quot;static&quot;</span><span class="p">:</span> <span class="p">(</span>
+            <span class="c1"># Address (dotted quad/netmask) required</span>
+            <span class="s2">&quot;address&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="s2">&quot;manual&quot;</span><span class="p">:</span> <span class="p">(),</span>
+        <span class="s2">&quot;dhcp&quot;</span><span class="p">:</span> <span class="p">(),</span>
+        <span class="s2">&quot;bootp&quot;</span><span class="p">:</span> <span class="p">(),</span>
+        <span class="s2">&quot;tunnel&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;address&quot;</span><span class="p">,</span> <span class="s2">&quot;mode&quot;</span><span class="p">,</span> <span class="s2">&quot;endpoint&quot;</span><span class="p">),</span>
+        <span class="s2">&quot;ppp&quot;</span><span class="p">:</span> <span class="p">(),</span>
+        <span class="s2">&quot;wvdial&quot;</span><span class="p">:</span> <span class="p">(),</span>
+        <span class="s2">&quot;ipv4ll&quot;</span><span class="p">:</span> <span class="p">()</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;ipx&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;static&quot;</span><span class="p">:</span> <span class="p">(),</span>
+        <span class="s2">&quot;dynamic&quot;</span><span class="p">:</span> <span class="p">()</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;inet6&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;auto&quot;</span><span class="p">:</span> <span class="p">(),</span>
+        <span class="s2">&quot;loopback&quot;</span><span class="p">:</span> <span class="p">(),</span>
+        <span class="s2">&quot;static&quot;</span><span class="p">:</span> <span class="p">(),</span>
+        <span class="s2">&quot;manual&quot;</span><span class="p">:</span> <span class="p">(),</span>
+        <span class="s2">&quot;dhcp&quot;</span><span class="p">:</span> <span class="p">(),</span>
+        <span class="s2">&quot;v4tunnel&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;address&quot;</span><span class="p">,</span> <span class="p">),</span>
+        <span class="s2">&quot;6to4&quot;</span><span class="p">:</span> <span class="p">()</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;can&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;static&quot;</span><span class="p">:</span> <span class="p">(</span>
+            <span class="c1"># bitrate (1..1000000) required</span>
+            <span class="s2">&quot;bitrate&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="NetworkAdapterValidation"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapterValidation.NetworkAdapterValidation">[docs]</a><span class="k">class</span> <span class="nc">NetworkAdapterValidation</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class to validate an adapter. It validates some options for:</span>
+<span class="sd">        - presence</span>
+<span class="sd">        - type</span>
+<span class="sd">        - authorized values</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="NetworkAdapterValidation.validate_all"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapterValidation.NetworkAdapterValidation.validate_all">[docs]</a>    <span class="k">def</span> <span class="nf">validate_all</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">if_attributes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Not thorough validations... and quick coded.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                if_attributes (dict): the dict representation of the interface</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">option</span><span class="p">,</span> <span class="n">option_validations</span> <span class="ow">in</span> <span class="n">VALID_OPTS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">option_value</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">option</span> <span class="ow">in</span> <span class="n">if_attributes</span><span class="p">:</span>
+                <span class="n">option_value</span> <span class="o">=</span> <span class="n">if_attributes</span><span class="p">[</span><span class="n">option</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span><span class="n">option</span><span class="p">,</span> <span class="n">option_validations</span><span class="p">,</span> <span class="n">option_value</span><span class="p">)</span>
+
+        <span class="c1"># Logic checks from man interfaces</span>
+        <span class="k">if</span> <span class="s2">&quot;addrFam&quot;</span> <span class="ow">in</span> <span class="n">if_attributes</span><span class="p">:</span>
+            <span class="n">family_opts</span> <span class="o">=</span> <span class="n">REQUIRED_FAMILY_OPTS</span><span class="p">[</span><span class="n">if_attributes</span><span class="p">[</span><span class="s2">&quot;addrFam&quot;</span><span class="p">]]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">source_opts</span> <span class="o">=</span> <span class="n">family_opts</span><span class="p">[</span><span class="n">if_attributes</span><span class="p">[</span><span class="s2">&quot;source&quot;</span><span class="p">]]</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Family </span><span class="si">{}</span><span class="s2"> must have a source in </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">if_attributes</span><span class="p">[</span><span class="s2">&quot;addrFam&quot;</span><span class="p">],</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">family_opts</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+                <span class="p">))</span>
+            <span class="k">for</span> <span class="n">source_opt</span> <span class="ow">in</span> <span class="n">source_opts</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">source_opt</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">if_attributes</span><span class="p">:</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Option </span><span class="si">{}</span><span class="s2"> is required for source </span><span class="si">{}</span><span class="s2"> in family </span><span class="si">{}</span><span class="s2">.&quot;</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">source_opt</span><span class="p">,</span>
+                        <span class="n">if_attributes</span><span class="p">[</span><span class="s2">&quot;source&quot;</span><span class="p">],</span>
+                        <span class="n">if_attributes</span><span class="p">[</span><span class="s2">&quot;addrFam&quot;</span><span class="p">]</span>
+                    <span class="p">))</span></div>
+
+<div class="viewcode-block" id="NetworkAdapterValidation.validate_one"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapterValidation.NetworkAdapterValidation.validate_one">[docs]</a>    <span class="k">def</span> <span class="nf">validate_one</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">opt</span><span class="p">,</span> <span class="n">validations</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Not thorough validations... and quick coded.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                opt (str): key name of the option</span>
+<span class="sd">                validations (dict): contains the validations to checks</span>
+<span class="sd">                val (any): the option value</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">validations</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">val</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;required&#39;</span> <span class="ow">in</span> <span class="n">validations</span> <span class="ow">and</span> <span class="n">validations</span><span class="p">[</span><span class="s1">&#39;required&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> is a required option&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">opt</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span>
+
+        <span class="k">if</span> <span class="s1">&#39;type&#39;</span> <span class="ow">in</span> <span class="n">validations</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">validations</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;IP&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">validate_ip</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">opt</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">validations</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;IPList&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">ip</span> <span class="ow">in</span> <span class="n">val</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">validate_ip</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">opt</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">validate_ip</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">opt</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">validations</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;BROADCAST_IP&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">validate_broadcast_ip</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">opt</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">validations</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;URIList&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">search</span> <span class="ow">in</span> <span class="n">val</span><span class="p">:</span>
+                        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">search</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">validations</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]):</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> should be </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="n">validations</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">])</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;in&#39;</span> <span class="ow">in</span> <span class="n">validations</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">val</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">validations</span><span class="p">[</span><span class="s1">&#39;in&#39;</span><span class="p">]:</span>
+                <span class="n">valid_values</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">validations</span><span class="p">[</span><span class="s1">&#39;in&#39;</span><span class="p">])</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> should be in </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="n">valid_values</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="NetworkAdapterValidation.validate_ip"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapterValidation.NetworkAdapterValidation.validate_ip">[docs]</a>    <span class="k">def</span> <span class="nf">validate_ip</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">opt</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validate an IP Address. Works for subnet masks too.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                ip (str): the IP as a string</span>
+<span class="sd">                opt (str): the opt name</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: on invalid IP</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">socket</span><span class="o">.</span><span class="n">inet_aton</span><span class="p">(</span><span class="n">ip</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">socket</span><span class="o">.</span><span class="n">inet_pton</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">AF_INET6</span><span class="p">,</span> <span class="n">ip</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> should be a valid IP (got : </span><span class="si">{1}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="n">ip</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="NetworkAdapterValidation.validate_broadcast_ip"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapterValidation.NetworkAdapterValidation.validate_broadcast_ip">[docs]</a>    <span class="k">def</span> <span class="nf">validate_broadcast_ip</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">opt</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validate an IP Address. Works for subnet masks too.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                ip (str): the IP as a string</span>
+<span class="sd">                opt (str): the opt name</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: on invalid IP</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">ip</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;+&quot;</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">NetworkAdapterValidation</span><span class="o">.</span><span class="n">validate_ip</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">opt</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> should be a valid IP or a &#39;+&#39; or &#39;-&#39;&quot;</span>
+                       <span class="s2">&quot;(got : </span><span class="si">{1}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="n">ip</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Debinterface 3.3.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Nathan Mustaki.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+  </body>
+</html>

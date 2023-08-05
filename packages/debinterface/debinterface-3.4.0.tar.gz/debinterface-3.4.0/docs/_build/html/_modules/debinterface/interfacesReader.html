@@ -1,0 +1,259 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>debinterface.interfacesReader &#8212; Debinterface 3.3.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '3.3.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="top" title="Debinterface 3.3.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Debinterface 3.3.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for debinterface.interfacesReader</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># A class representing the contents of /etc/network/interfaces</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">with_statement</span><span class="p">,</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">.adapter</span> <span class="k">import</span> <span class="n">NetworkAdapter</span>
+
+
+<div class="viewcode-block" id="InterfacesReader"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesReader.InterfacesReader">[docs]</a><span class="k">class</span> <span class="nc">InterfacesReader</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Short lived class to read interfaces file &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interfaces_path</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_interfaces_path</span> <span class="o">=</span> <span class="n">interfaces_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_header_comments</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">header_comments</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_comments</span>
+
+<div class="viewcode-block" id="InterfacesReader.parse_interfaces"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesReader.InterfacesReader.parse_interfaces">[docs]</a>    <span class="k">def</span> <span class="nf">parse_interfaces</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">read_comments</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Read /etc/network/interfaces (or specified file).</span>
+<span class="sd">            Save adapters</span>
+<span class="sd">            Return an array of networkAdapter instances.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_read_lines</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_list</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">adapter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">adapter</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">entry</span><span class="p">:</span>
+                    <span class="n">adapter</span><span class="o">.</span><span class="n">setAuto</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hotplug_list</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">adapter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">adapter</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">entry</span><span class="p">:</span>
+                    <span class="n">adapter</span><span class="o">.</span><span class="n">setHotplug</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span></div>
+
+    <span class="k">def</span> <span class="nf">_read_lines</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Open up the interfaces file. Read only.</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_interfaces_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">interfaces</span><span class="p">:</span>
+            <span class="c1"># When the first non-comment line is parsed, header</span>
+            <span class="c1"># comments have been read in.</span>
+            <span class="n">header_parsed</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="c1"># Loop through the interfaces file.</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">interfaces</span><span class="p">:</span>
+                <span class="c1"># 1. Identify the clauses by analyzing the first</span>
+                <span class="c1"># word of each line.</span>
+                <span class="c1"># 2. Go to the next line if the current line is a comment.</span>
+                <span class="c1"># line = line.strip().replace(&quot;\n&quot;, &quot;&quot;)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="p">:</span>
+                    <span class="k">pass</span>
+                <span class="k">elif</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">header_parsed</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_header_comments</span> <span class="o">+=</span> <span class="n">line</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Header comments can no longer</span>
+                    <span class="c1"># be parsed in when the first interfaces</span>
+                    <span class="c1"># line is parsed in.</span>
+                    <span class="n">header_parsed</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_parse_iface</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                    <span class="c1"># Ignore blank lines.</span>
+                    <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">isspace</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                        <span class="k">pass</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_details</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_read_auto</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_read_hotplug</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_parse_iface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">line</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;iface&#39;</span><span class="p">):</span>
+            <span class="n">sline</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="c1"># Update the self._context when an iface clause is encountered.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_context</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">NetworkAdapter</span><span class="p">(</span><span class="n">sline</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">setAddressSource</span><span class="p">(</span><span class="n">sline</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">setAddrFam</span><span class="p">(</span><span class="n">sline</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">_parse_details</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">line</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">isspace</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">sline</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span>
+
+            <span class="k">if</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;address&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">setAddress</span><span class="p">(</span><span class="n">sline</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;netmask&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">setNetmask</span><span class="p">(</span><span class="n">sline</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;gateway&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">setGateway</span><span class="p">(</span><span class="n">sline</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;broadcast&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">setBroadcast</span><span class="p">(</span><span class="n">sline</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;network&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">setNetwork</span><span class="p">(</span><span class="n">sline</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;hostapd&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">setHostapd</span><span class="p">(</span><span class="n">sline</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;wpa-conf&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">setWpaConf</span><span class="p">(</span><span class="n">sline</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;dns-nameservers&#39;</span><span class="p">:</span>
+                <span class="n">nameservers</span> <span class="o">=</span> <span class="n">sline</span>
+                <span class="k">del</span> <span class="n">nameservers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">nameservers</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">nameservers</span> <span class="o">=</span> <span class="n">nameservers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">setDnsNameservers</span><span class="p">(</span><span class="n">nameservers</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;dns-search&#39;</span><span class="p">:</span>
+                <span class="n">searchUri</span> <span class="o">=</span> <span class="n">sline</span>
+                <span class="k">del</span> <span class="n">searchUri</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">setDnsSearch</span><span class="p">(</span><span class="n">searchUri</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;bridge&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="n">opt</span> <span class="o">=</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span>
+                <span class="n">sline</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">ifs</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sline</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">replaceBropt</span><span class="p">(</span><span class="n">opt</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">ifs</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="p">(</span><span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;up&#39;</span>
+                  <span class="ow">or</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;down&#39;</span>
+                  <span class="ow">or</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;pre-up&#39;</span>
+                  <span class="ow">or</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;pre-down&#39;</span>
+                  <span class="ow">or</span> <span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;post-down&#39;</span><span class="p">):</span>
+                <span class="n">ud</span> <span class="o">=</span> <span class="n">sline</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">cmd</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sline</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">ud</span> <span class="o">==</span> <span class="s1">&#39;up&#39;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">appendUp</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">ud</span> <span class="o">==</span> <span class="s1">&#39;down&#39;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">appendDown</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">ud</span> <span class="o">==</span> <span class="s1">&#39;pre-up&#39;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">appendPreUp</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">ud</span> <span class="o">==</span> <span class="s1">&#39;pre-down&#39;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">appendPreDown</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">ud</span> <span class="o">==</span> <span class="s1">&#39;post-down&#39;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">appendPostDown</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># store as if so as not to loose it</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_context</span><span class="p">]</span><span class="o">.</span><span class="n">setUnknown</span><span class="p">(</span><span class="n">sline</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sline</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+<div class="viewcode-block" id="InterfacesReader._read_auto"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesReader.InterfacesReader._read_auto">[docs]</a>    <span class="k">def</span> <span class="nf">_read_auto</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">line</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Identify which adapters are flagged auto. &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;auto&#39;</span><span class="p">):</span>
+            <span class="n">sline</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span>
+            <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">sline</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">word</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">:</span>
+                    <span class="k">pass</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_auto_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">word</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="InterfacesReader._read_hotplug"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesReader.InterfacesReader._read_hotplug">[docs]</a>    <span class="k">def</span> <span class="nf">_read_hotplug</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">line</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Identify which adapters are flagged allow-hotplug. &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;allow-hotplug&#39;</span><span class="p">):</span>
+            <span class="n">sline</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span>
+            <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">sline</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">word</span> <span class="o">==</span> <span class="s1">&#39;allow-hotplug&#39;</span><span class="p">:</span>
+                    <span class="k">pass</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_hotplug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">word</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Initialize a place to store created networkAdapter objects.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Keep a list of adapters that have the auto or</span>
+        <span class="c1"># allow-hotplug flags set.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auto_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hotplug_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Store the interface context.</span>
+        <span class="c1"># This is the index of the adapters collection.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_context</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Debinterface 3.3.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Nathan Mustaki.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+  </body>
+</html>

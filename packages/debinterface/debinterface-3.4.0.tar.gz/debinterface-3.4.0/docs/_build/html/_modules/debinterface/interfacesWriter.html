@@ -1,0 +1,361 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>debinterface.interfacesWriter &#8212; Debinterface 3.3.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '3.3.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="top" title="Debinterface 3.3.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Debinterface 3.3.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for debinterface.interfacesWriter</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># Write interface</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">with_statement</span><span class="p">,</span> <span class="n">absolute_import</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">string</span> <span class="k">import</span> <span class="n">Template</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">toolutils</span>
+
+
+<div class="viewcode-block" id="InterfacesWriter"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesWriter.InterfacesWriter">[docs]</a><span class="k">class</span> <span class="nc">InterfacesWriter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Short lived class to write interfaces file &quot;&quot;&quot;</span>
+
+    <span class="c1"># Define templetes for blocks used in /etc/network/interfaces.</span>
+    <span class="n">_auto</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="s1">&#39;auto $name</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">_hotplug</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="s1">&#39;allow-hotplug $name</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">_iface</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="s1">&#39;iface $name $addrFam $source</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">_cmd</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">$varient $value</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">_comment</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span><span class="s1">&#39;# $line</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="n">_addressFields</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;address&#39;</span><span class="p">,</span> <span class="s1">&#39;network&#39;</span><span class="p">,</span> <span class="s1">&#39;netmask&#39;</span><span class="p">,</span> <span class="s1">&#39;broadcast&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;gateway&#39;</span><span class="p">,</span> <span class="s1">&#39;dns-nameservers&#39;</span><span class="p">,</span> <span class="s1">&#39;dns-search&#39;</span>
+    <span class="p">]</span>
+    <span class="n">_prepFields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;pre-up&#39;</span><span class="p">,</span> <span class="s1">&#39;up&#39;</span><span class="p">,</span> <span class="s1">&#39;down&#39;</span><span class="p">,</span> <span class="s1">&#39;pre-down&#39;</span><span class="p">,</span> <span class="s1">&#39;post-down&#39;</span><span class="p">]</span>
+    <span class="n">_bridgeFields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ports&#39;</span><span class="p">,</span> <span class="s1">&#39;fd&#39;</span><span class="p">,</span> <span class="s1">&#39;hello&#39;</span><span class="p">,</span> <span class="s1">&#39;maxage&#39;</span><span class="p">,</span> <span class="s1">&#39;stp&#39;</span><span class="p">,</span> <span class="s1">&#39;maxwait&#39;</span><span class="p">]</span>
+    <span class="n">_plugins</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;hostapd&#39;</span><span class="p">,</span> <span class="s1">&#39;wpa-conf&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapters</span><span class="p">,</span> <span class="n">interfaces_path</span><span class="p">,</span> <span class="n">backup_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">header_comment</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; if backup_path is None =&gt; no backup &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span> <span class="o">=</span> <span class="n">adapters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_interfaces_path</span> <span class="o">=</span> <span class="n">interfaces_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backup_path</span> <span class="o">=</span> <span class="n">backup_path</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">is_str</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">header_comment</span><span class="p">,</span> <span class="n">basestring</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">NameError</span><span class="p">:</span>
+            <span class="n">is_str</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">header_comment</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">is_str</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_header_comment</span> <span class="o">=</span> <span class="n">header_comment</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_header_comment</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span>
+
+    <span class="nd">@adapters</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="InterfacesWriter.write_interfaces"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesWriter.InterfacesWriter.write_interfaces">[docs]</a>    <span class="k">def</span> <span class="nf">write_interfaces</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Back up the old interfaces file.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backup_interfaces</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Prepare to write the new interfaces file.</span>
+            <span class="k">with</span> <span class="n">toolutils</span><span class="o">.</span><span class="n">atomic_write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_interfaces_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">interfaces</span><span class="p">:</span>
+                <span class="c1"># Write any header comments.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_write_header_comment</span><span class="p">(</span><span class="n">interfaces</span><span class="p">)</span>
+                <span class="c1"># Loop through the provided networkAdaprers and</span>
+                <span class="c1"># write the new file.</span>
+                <span class="k">for</span> <span class="n">adapter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">:</span>
+                    <span class="c1"># Get dict of details about the adapter.</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_write_adapter</span><span class="p">(</span><span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_interfaces</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_interfaces_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="c1"># Any error, let&#39;s roll back</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_restore_interfaces</span><span class="p">()</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="InterfacesWriter._check_interfaces"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesWriter.InterfacesWriter._check_interfaces">[docs]</a>    <span class="k">def</span> <span class="nf">_check_interfaces</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interfaces_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Uses ifup to check interfaces file. If it is not in the</span>
+<span class="sd">            default place, each interface must be checked one by one.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                interfaces_path (string) : the path to interfaces file</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError : if invalid network interfaces</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">interfaces_path</span> <span class="o">==</span> <span class="s2">&quot;/etc/network/interfaces&quot;</span><span class="p">:</span>
+            <span class="n">ret</span><span class="p">,</span> <span class="n">output</span> <span class="o">=</span> <span class="n">toolutils</span><span class="o">.</span><span class="n">safe_subprocess</span><span class="p">([</span>
+                <span class="s2">&quot;/sbin/ifup&quot;</span><span class="p">,</span> <span class="s2">&quot;-a&quot;</span><span class="p">,</span> <span class="s2">&quot;--no-act&quot;</span>
+            <span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">adapter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">:</span>
+                <span class="n">ret</span><span class="p">,</span> <span class="n">output</span> <span class="o">=</span> <span class="n">toolutils</span><span class="o">.</span><span class="n">safe_subprocess</span><span class="p">([</span>
+                    <span class="s2">&quot;/sbin/ifup&quot;</span><span class="p">,</span> <span class="s2">&quot;--no-act&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;--interfaces=</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">interfaces_path</span><span class="p">),</span>
+                    <span class="n">adapter</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+                <span class="p">])</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">ret</span><span class="p">:</span>
+                    <span class="k">break</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">ret</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid network interfaces file &quot;</span>
+                             <span class="s2">&quot;written to disk, restoring to previous &quot;</span>
+                             <span class="s2">&quot;one : </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span></div>
+
+    <span class="k">def</span> <span class="nf">_write_header_comment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interfaces</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_comment</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_comment</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">):</span>
+                <span class="c1"># Check the beginning of the line for a comment field</span>
+                <span class="c1"># if it does not exist, add it.</span>
+                <span class="k">if</span> <span class="n">line</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;# &quot;</span><span class="p">:</span>
+                    <span class="n">line</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_comment</span><span class="o">.</span><span class="n">substitute</span><span class="p">(</span><span class="n">line</span><span class="o">=</span><span class="n">line</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># split strips the newline, add it back</span>
+                    <span class="n">line</span> <span class="o">=</span> <span class="n">line</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="n">interfaces</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+
+            <span class="c1"># Create a blank line between comment and start of interfaces</span>
+            <span class="n">interfaces</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_write_adapter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">adapter</span><span class="o">.</span><span class="n">validateAll</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="k">raise</span>
+
+        <span class="n">ifAttributes</span> <span class="o">=</span> <span class="n">adapter</span><span class="o">.</span><span class="n">export</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_auto</span><span class="p">(</span><span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_hotplug</span><span class="p">(</span><span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_addrFam</span><span class="p">(</span><span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_addressing</span><span class="p">(</span><span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_bridge</span><span class="p">(</span><span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_plugins</span><span class="p">(</span><span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_callbacks</span><span class="p">(</span><span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_unknown</span><span class="p">(</span><span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">)</span>
+        <span class="n">interfaces</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="InterfacesWriter._write_auto"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesWriter.InterfacesWriter._write_auto">[docs]</a>    <span class="k">def</span> <span class="nf">_write_auto</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Write if applicable &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">adapter</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;auto&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">ifAttributes</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+                <span class="n">interfaces</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_auto</span><span class="o">.</span><span class="n">substitute</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="InterfacesWriter._write_hotplug"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesWriter.InterfacesWriter._write_hotplug">[docs]</a>    <span class="k">def</span> <span class="nf">_write_hotplug</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Write if applicable &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">ifAttributes</span><span class="p">[</span><span class="s1">&#39;hotplug&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">ifAttributes</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+                <span class="n">interfaces</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hotplug</span><span class="o">.</span><span class="n">substitute</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="InterfacesWriter._write_addrFam"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesWriter.InterfacesWriter._write_addrFam">[docs]</a>    <span class="k">def</span> <span class="nf">_write_addrFam</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Construct and write the iface declaration.</span>
+<span class="sd">            The addrFam clause needs a little more processing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Write the source clause.</span>
+        <span class="c1"># Will not error if omitted. Maybe not the best plan.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">ifAttributes</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+                    <span class="ow">or</span> <span class="ow">not</span> <span class="n">ifAttributes</span><span class="p">[</span><span class="s2">&quot;addrFam&quot;</span><span class="p">]</span>
+                    <span class="ow">or</span> <span class="ow">not</span> <span class="n">ifAttributes</span><span class="p">[</span><span class="s2">&quot;source&quot;</span><span class="p">]):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid field content&quot;</span><span class="p">)</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">ifAttributes</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span>
+                     <span class="n">addrFam</span><span class="o">=</span><span class="n">ifAttributes</span><span class="p">[</span><span class="s1">&#39;addrFam&#39;</span><span class="p">],</span>
+                     <span class="n">source</span><span class="o">=</span><span class="n">ifAttributes</span><span class="p">[</span><span class="s1">&#39;source&#39;</span><span class="p">])</span>
+            <span class="n">interfaces</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_iface</span><span class="o">.</span><span class="n">substitute</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">pass</span></div>
+
+    <span class="k">def</span> <span class="nf">_write_addressing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_addressFields</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">ifAttributes</span><span class="p">[</span><span class="n">field</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">value</span> <span class="ow">and</span> <span class="n">value</span> <span class="o">!=</span> <span class="s1">&#39;None&#39;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                        <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">varient</span><span class="o">=</span><span class="n">field</span><span class="p">,</span>
+                                 <span class="n">value</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ifAttributes</span><span class="p">[</span><span class="n">field</span><span class="p">]))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">varient</span><span class="o">=</span><span class="n">field</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">ifAttributes</span><span class="p">[</span><span class="n">field</span><span class="p">])</span>
+                    <span class="n">interfaces</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmd</span><span class="o">.</span><span class="n">substitute</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+            <span class="c1"># Keep going if a field isn&#39;t provided.</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+<div class="viewcode-block" id="InterfacesWriter._write_bridge"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesWriter.InterfacesWriter._write_bridge">[docs]</a>    <span class="k">def</span> <span class="nf">_write_bridge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Write the bridge information. &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bridgeFields</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">ifAttributes</span><span class="p">[</span><span class="s1">&#39;bridge-opts&#39;</span><span class="p">][</span><span class="n">field</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">value</span> <span class="ow">and</span> <span class="n">value</span> <span class="o">!=</span> <span class="s1">&#39;None&#39;</span><span class="p">:</span>
+                    <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">varient</span><span class="o">=</span><span class="s2">&quot;bridge_&quot;</span> <span class="o">+</span> <span class="n">field</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
+                    <span class="n">interfaces</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmd</span><span class="o">.</span><span class="n">substitute</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+            <span class="c1"># Keep going if a field isn&#39;t provided.</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="InterfacesWriter._write_callbacks"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesWriter.InterfacesWriter._write_callbacks">[docs]</a>    <span class="k">def</span> <span class="nf">_write_callbacks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Write the up, down, pre-up, and post-down clauses. &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepFields</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">ifAttributes</span><span class="p">[</span><span class="n">field</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">item</span> <span class="ow">and</span> <span class="n">item</span> <span class="o">!=</span> <span class="s1">&#39;None&#39;</span><span class="p">:</span>
+                        <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">varient</span><span class="o">=</span><span class="n">field</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">item</span><span class="p">)</span>
+                        <span class="n">interfaces</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmd</span><span class="o">.</span><span class="n">substitute</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="c1"># Keep going if a field isn&#39;t provided.</span>
+                <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="InterfacesWriter._write_plugins"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesWriter.InterfacesWriter._write_plugins">[docs]</a>    <span class="k">def</span> <span class="nf">_write_plugins</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Write plugins options, currently hostapd. &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_plugins</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">ifAttributes</span> <span class="ow">and</span> <span class="n">ifAttributes</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;None&#39;</span><span class="p">:</span>
+                    <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">varient</span><span class="o">=</span><span class="n">field</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">ifAttributes</span><span class="p">[</span><span class="n">field</span><span class="p">])</span>
+                    <span class="n">interfaces</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmd</span><span class="o">.</span><span class="n">substitute</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+            <span class="c1"># Keep going if a field isn&#39;t provided.</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="InterfacesWriter._write_unknown"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesWriter.InterfacesWriter._write_unknown">[docs]</a>    <span class="k">def</span> <span class="nf">_write_unknown</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interfaces</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">ifAttributes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Write unknowns options &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">ifAttributes</span><span class="p">[</span><span class="s1">&#39;unknown&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">v</span><span class="p">:</span>
+                    <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">varient</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+                    <span class="n">interfaces</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmd</span><span class="o">.</span><span class="n">substitute</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">KeyError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+            <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="InterfacesWriter._backup_interfaces"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesWriter.InterfacesWriter._backup_interfaces">[docs]</a>    <span class="k">def</span> <span class="nf">_backup_interfaces</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Backup interfaces file is the file exists</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                True/False, command output</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                IOError : if the copy fails and the source file exists</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backup_path</span><span class="p">:</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_interfaces_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backup_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">IOError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+            <span class="c1"># Only raise if source actually exists</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_interfaces_path</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">ex</span></div>
+
+<div class="viewcode-block" id="InterfacesWriter._restore_interfaces"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfacesWriter.InterfacesWriter._restore_interfaces">[docs]</a>    <span class="k">def</span> <span class="nf">_restore_interfaces</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Restore interfaces file is the file exists</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                True/False, command output</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                IOError : if the copy fails and the source file exists</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backup_path</span><span class="p">:</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_backup_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interfaces_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">IOError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+            <span class="c1"># Only raise if source actually exists</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_backup_path</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">ex</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Debinterface 3.3.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Nathan Mustaki.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+  </body>
+</html>

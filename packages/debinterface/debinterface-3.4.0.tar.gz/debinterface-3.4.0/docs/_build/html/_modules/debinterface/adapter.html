@@ -1,0 +1,621 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>debinterface.adapter &#8212; Debinterface 3.3.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '3.3.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="top" title="Debinterface 3.3.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Debinterface 3.3.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for debinterface.adapter</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;The NetworkAdapter class represents an interface and its configuration</span>
+<span class="sd">from the /etc/network/interfaces.</span>
+<span class="sd">It tries to validate data before writting, but it is by no means fool proof.</span>
+<span class="sd">It has setter for many common options, but it is impossible to have setter for</span>
+<span class="sd">every options on earth !</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">with_statement</span><span class="p">,</span> <span class="n">absolute_import</span>
+<span class="kn">import</span> <span class="nn">socket</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">.adapterValidation</span> <span class="k">import</span> <span class="n">NetworkAdapterValidation</span><span class="p">,</span> <span class="n">VALID_OPTS</span>
+
+
+<div class="viewcode-block" id="NetworkAdapter"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter">[docs]</a><span class="k">class</span> <span class="nc">NetworkAdapter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; A representation a network adapter. &quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">attributes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span>
+
+<div class="viewcode-block" id="NetworkAdapter.get_attr"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.get_attr">[docs]</a>    <span class="k">def</span> <span class="nf">get_attr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.validateAll"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.validateAll">[docs]</a>    <span class="k">def</span> <span class="nf">validateAll</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Not thorough validations... and quick coded.</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.validateOne"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.validateOne">[docs]</a>    <span class="k">def</span> <span class="nf">validateOne</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">opt</span><span class="p">,</span> <span class="n">validations</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Not thorough validations... and quick coded.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                opt (str): key name of the option</span>
+<span class="sd">                validations (dict): contains the validations to checks</span>
+<span class="sd">                val (any): the option value</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="n">validations</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span></div>
+
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="NetworkAdapter.validateIP"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.validateIP">[docs]</a>    <span class="k">def</span> <span class="nf">validateIP</span><span class="p">(</span><span class="n">ip</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validate an IP Address. Works for subnet masks too.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                ip (str): the IP as a string</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                socket.error on invalid IP</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">socket</span><span class="o">.</span><span class="n">inet_aton</span><span class="p">(</span><span class="n">ip</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+            <span class="n">socket</span><span class="o">.</span><span class="n">inet_pton</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">AF_INET6</span><span class="p">,</span> <span class="n">ip</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setName"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setName">[docs]</a>    <span class="k">def</span> <span class="nf">setName</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the name option of an interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                name (str): the name of the interface</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span> <span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setAddrFam"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setAddrFam">[docs]</a>    <span class="k">def</span> <span class="nf">setAddrFam</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">address_family</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set the address family option of an interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                address_family (str): one of &#39;inet&#39;, &#39;inet6&#39;, &#39;ipx&#39;</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span>
+            <span class="s1">&#39;addrFam&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;addrFam&#39;</span><span class="p">],</span> <span class="n">address_family</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;addrFam&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">address_family</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setAddressSource"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setAddressSource">[docs]</a>    <span class="k">def</span> <span class="nf">setAddressSource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">address_source</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set the address source for an interface.</span>
+
+<span class="sd">        Valid values are : dhcp, static, loopback, manual,</span>
+<span class="sd">        bootp, ppp, wvdial, dynamic, ipv4ll, v4tunnel</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                address_source (string): address source for an interface</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span>
+            <span class="s1">&#39;source&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;source&#39;</span><span class="p">],</span> <span class="n">address_source</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;source&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">address_source</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setAddress"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setAddress">[docs]</a>    <span class="k">def</span> <span class="nf">setAddress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ip_address</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set the ipaddress of an interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                ip_address (str): the IP as a string</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span>
+            <span class="s1">&#39;address&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;address&#39;</span><span class="p">],</span> <span class="n">ip_address</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;address&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ip_address</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setNetmask"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setNetmask">[docs]</a>    <span class="k">def</span> <span class="nf">setNetmask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">netmask</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set the netmask of an interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                netmask (str): the netmask IP as a string</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span>
+            <span class="s1">&#39;netmask&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;netmask&#39;</span><span class="p">],</span> <span class="n">netmask</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;netmask&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">netmask</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setGateway"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setGateway">[docs]</a>    <span class="k">def</span> <span class="nf">setGateway</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gateway</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set the default gateway of an interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                gateway (str): the gateway IP as a string</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span>
+            <span class="s1">&#39;gateway&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;gateway&#39;</span><span class="p">],</span> <span class="n">gateway</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;gateway&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gateway</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setBroadcast"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setBroadcast">[docs]</a>    <span class="k">def</span> <span class="nf">setBroadcast</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">broadcast</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set the broadcast address of an interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                broadcast (str): the broadcast IP as a string</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span>
+            <span class="s1">&#39;broadcast&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;broadcast&#39;</span><span class="p">],</span> <span class="n">broadcast</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;broadcast&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">broadcast</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setNetwork"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setNetwork">[docs]</a>    <span class="k">def</span> <span class="nf">setNetwork</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set the network identifier of an interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                network (str): the IP as a string</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span>
+            <span class="s1">&#39;network&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;network&#39;</span><span class="p">],</span> <span class="n">network</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;network&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">network</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setAuto"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setAuto">[docs]</a>    <span class="k">def</span> <span class="nf">setAuto</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">auto</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set the option to autostart the interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                auto (bool): interface will be set as auto if True</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span>
+            <span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;auto&#39;</span><span class="p">],</span> <span class="n">auto</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;auto&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">auto</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setHotplug"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setHotplug">[docs]</a>    <span class="k">def</span> <span class="nf">setHotplug</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hotplug</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set the option to allow hotplug on the interface.</span>
+<span class="sd">        Beware, option is really called allow-hotplug, that&#39;s a</span>
+<span class="sd">        small historic cruft...</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                hotplug (bool): interface hotplug will be set if True</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;hotplug key will be renamed into allow-hotplug in 4.0&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="ne">DeprecationWarning</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span>
+            <span class="s1">&#39;hotplug&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;hotplug&#39;</span><span class="p">],</span> <span class="n">hotplug</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;hotplug&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">hotplug</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setHostapd"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setHostapd">[docs]</a>    <span class="k">def</span> <span class="nf">setHostapd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostapd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set the wifi conf file on the interface.</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span>
+            <span class="s1">&#39;hostapd&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;hostapd&#39;</span><span class="p">],</span> <span class="n">hostapd</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;hostapd&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">hostapd</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setDnsNameservers"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setDnsNameservers">[docs]</a>    <span class="k">def</span> <span class="nf">setDnsNameservers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nameservers</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set the dns nameservers on the interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                nameservers (str): the IP as a string</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span>
+            <span class="s1">&#39;dns-nameservers&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;dns-nameservers&#39;</span><span class="p">],</span> <span class="n">nameservers</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;dns-nameservers&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">nameservers</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setDnsSearch"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setDnsSearch">[docs]</a>    <span class="k">def</span> <span class="nf">setDnsSearch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">searchUri</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set the dns default search URI.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                searchURI (str): The default search domain</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span>
+            <span class="s1">&#39;dns-search&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;dns-search&#39;</span><span class="p">],</span> <span class="n">searchUri</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;dns-search&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">searchUri</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setBropts"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setBropts">[docs]</a>    <span class="k">def</span> <span class="nf">setBropts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">opts</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the bridge options of an interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                opts (dict): a dictionary mapping option names and values.</span>
+<span class="sd">                    In the interfaces file, options will have a bridge prefix.</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if there is a validation error</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span><span class="o">.</span><span class="n">validate_one</span><span class="p">(</span>
+            <span class="s1">&#39;bridge-opts&#39;</span><span class="p">,</span> <span class="n">VALID_OPTS</span><span class="p">[</span><span class="s1">&#39;bridge-opts&#39;</span><span class="p">],</span> <span class="n">opts</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;bridge-opts&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">opts</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setWpaConf"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setWpaConf">[docs]</a>    <span class="k">def</span> <span class="nf">setWpaConf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conf_path</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Set the wpa supplicant configuration path for supplicant</span>
+<span class="sd">        config for wireless interfaces.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            conf_path (str): Path at which the supplicant config is located.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;wpa-conf&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">conf_path</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.replaceBropt"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.replaceBropt">[docs]</a>    <span class="k">def</span> <span class="nf">replaceBropt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set a discrete bridge option key with value</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                key (str): the option key in the bridge option</span>
+<span class="sd">                value (any): the value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;bridge-opts&#39;</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.appendBropts"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.appendBropts">[docs]</a>    <span class="k">def</span> <span class="nf">appendBropts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set a discrete bridge option key with value</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                key (str): the option key in the bridge option</span>
+<span class="sd">                value (any): the value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_value</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;bridge-opts&#39;</span><span class="p">]:</span>
+            <span class="n">new_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;bridge-opts&#39;</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">+</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replaceBropt</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">new_value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setUp"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">up</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set and add to the up commands for an interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                up (list): list of shell commands</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">up</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;up&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">up</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;up&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">up</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.appendUp"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.appendUp">[docs]</a>    <span class="k">def</span> <span class="nf">appendUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Append a shell command to run when the interface is up.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                cmd (str): a shell command</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">,</span> <span class="s2">&quot;up&quot;</span><span class="p">,</span> <span class="n">cmd</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setDown"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setDown">[docs]</a>    <span class="k">def</span> <span class="nf">setDown</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">down</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set and add to the down commands for an interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                down (list): list of shell commands</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">down</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;down&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">down</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;down&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">down</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.appendDown"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.appendDown">[docs]</a>    <span class="k">def</span> <span class="nf">appendDown</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Append a shell command to run when the interface is down.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                cmd (str): a shell command</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">,</span> <span class="s2">&quot;down&quot;</span><span class="p">,</span> <span class="n">cmd</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setPreUp"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setPreUp">[docs]</a>    <span class="k">def</span> <span class="nf">setPreUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pre</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set and add to the pre-up commands for an interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                pre (list): list of shell commands</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pre</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;pre-up&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pre</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;pre-up&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">pre</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.appendPreUp"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.appendPreUp">[docs]</a>    <span class="k">def</span> <span class="nf">appendPreUp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Append a shell command to run when the interface is pre-up.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                cmd (str): a shell command</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">,</span> <span class="s2">&quot;pre-up&quot;</span><span class="p">,</span> <span class="n">cmd</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setPreDown"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setPreDown">[docs]</a>    <span class="k">def</span> <span class="nf">setPreDown</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pre</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set and add to the pre-down commands for an interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                pre (list): list of shell commands</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pre</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;pre-down&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pre</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;pre-down&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">pre</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.appendPreDown"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.appendPreDown">[docs]</a>    <span class="k">def</span> <span class="nf">appendPreDown</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Append a shell command to run when the interface is pre-down.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                cmd (str): a shell command</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">,</span> <span class="s2">&quot;pre-down&quot;</span><span class="p">,</span> <span class="n">cmd</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setPostDown"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setPostDown">[docs]</a>    <span class="k">def</span> <span class="nf">setPostDown</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">post</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set and add to the post-down commands for an interface.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                post (list): list of shell commands</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;post-down&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">post</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.appendPostDown"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.appendPostDown">[docs]</a>    <span class="k">def</span> <span class="nf">appendPostDown</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Append a shell command to run when the interface is pre-down.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                cmd (str): a shell command</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">,</span> <span class="s2">&quot;post-down&quot;</span><span class="p">,</span> <span class="n">cmd</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.setUnknown"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.setUnknown">[docs]</a>    <span class="k">def</span> <span class="nf">setUnknown</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Stores uncommon options as there are with no special handling</span>
+<span class="sd">        It&#39;s impossible to know about all available options</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                key (str): the option name</span>
+<span class="sd">                val (any): the option value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s1">&#39;unknown&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;unknown&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;unknown&#39;</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.export"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.export">[docs]</a>    <span class="k">def</span> <span class="nf">export</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">options_list</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Return the ifAttributes data structure. as dict.</span>
+<span class="sd">        You may pass a list of options you want</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                options_list (list, optional): a list of options you want</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                dict: the ifAttributes data structure, optionaly filtered</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">options_list</span><span class="p">:</span>
+            <span class="n">ret</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">options_list</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">ret</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="n">ret</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="n">ret</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.display"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.display">[docs]</a>    <span class="k">def</span> <span class="nf">display</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Display a (kind of) human readable representation of the adapter.&quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;============&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;: &#39;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="n">item</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;: &#39;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">value</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="n">item</span> <span class="o">+</span> <span class="s1">&#39;: &#39;</span> <span class="o">+</span> <span class="n">value</span><span class="p">[</span><span class="n">item</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;============&#39;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Initialize attribute storage structre.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span> <span class="o">=</span> <span class="n">NetworkAdapterValidation</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_valid</span> <span class="o">=</span> <span class="n">VALID_OPTS</span>  <span class="c1"># For backward compatibility</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+
+<div class="viewcode-block" id="NetworkAdapter.reset"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Initialize attribute storage structure. &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;bridge-opts&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;up&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;down&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;pre-up&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;pre-down&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;post-up&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ifAttributes</span><span class="p">[</span><span class="s1">&#39;post-down&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="NetworkAdapter.set_options"><a class="viewcode-back" href="../../debinterface.html#debinterface.adapter.NetworkAdapter.set_options">[docs]</a>    <span class="k">def</span> <span class="nf">set_options</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set options, either only the name if options is a str,</span>
+<span class="sd">        or all given options if options is a dict</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                options (str/dict): historical code... only set</span>
+<span class="sd">                    the name if options is a str, or all given</span>
+<span class="sd">                    options if options is a dict</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                ValueError: if validation error</span>
+<span class="sd">                socket.error: if validation error of an IP</span>
+<span class="sd">                Exception: if anything weird happens</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Set the name of the interface.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">setName</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+
+        <span class="c1"># If a dictionary of options is provided, populate the adapter options.</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">roseta</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setName</span><span class="p">,</span>
+                    <span class="s1">&#39;addrFam&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setAddrFam</span><span class="p">,</span>
+                    <span class="s1">&#39;source&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setAddressSource</span><span class="p">,</span>
+                    <span class="s1">&#39;address&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setAddress</span><span class="p">,</span>
+                    <span class="s1">&#39;netmask&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setNetmask</span><span class="p">,</span>
+                    <span class="s1">&#39;gateway&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setGateway</span><span class="p">,</span>
+                    <span class="s1">&#39;broadcast&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setBroadcast</span><span class="p">,</span>
+                    <span class="s1">&#39;network&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setNetwork</span><span class="p">,</span>
+                    <span class="s1">&#39;auto&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setAuto</span><span class="p">,</span>
+                    <span class="s1">&#39;allow-hotplug&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setHotplug</span><span class="p">,</span>
+                    <span class="s1">&#39;hotplug&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setHotplug</span><span class="p">,</span>
+                    <span class="s1">&#39;bridgeOpts&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setBropts</span><span class="p">,</span>
+                    <span class="s1">&#39;bridge-opts&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setBropts</span><span class="p">,</span>
+                    <span class="s1">&#39;up&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setUp</span><span class="p">,</span>
+                    <span class="s1">&#39;down&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setDown</span><span class="p">,</span>
+                    <span class="s1">&#39;pre-up&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setPreUp</span><span class="p">,</span>
+                    <span class="s1">&#39;pre-down&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setPreDown</span><span class="p">,</span>
+                    <span class="s1">&#39;post-down&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setPostDown</span><span class="p">,</span>
+                    <span class="s1">&#39;hostapd&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setHostapd</span><span class="p">,</span>
+                    <span class="s1">&#39;dns-nameservers&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setDnsNameservers</span><span class="p">,</span>
+                    <span class="s1">&#39;dns-search&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setDnsSearch</span><span class="p">,</span>
+                    <span class="s1">&#39;wpa-conf&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setWpaConf</span>
+                <span class="p">}</span>
+                <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">options</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">roseta</span><span class="p">:</span>
+                        <span class="c1"># keep KeyError for validation errors</span>
+                        <span class="n">roseta</span><span class="p">[</span><span class="n">key</span><span class="p">](</span><span class="n">value</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># Store as if</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">setUnknown</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+                <span class="k">raise</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;No arguments given. Provide a name or options dict.&quot;</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_ensure_list</span><span class="p">(</span><span class="n">dic</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Ensure the data for the given key will be in a list.</span>
+<span class="sd">        If value is a list, it will be flattened</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                dic (dict): source dict</span>
+<span class="sd">                key (string): key to use in dic</span>
+<span class="sd">                value (any): the data. Will be appended into a</span>
+<span class="sd">                    list if it&#39;s not one</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dic</span><span class="p">:</span>
+            <span class="n">dic</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dic</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">dic</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="n">dic</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">tmp</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">dic</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">+=</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">dic</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Debinterface 3.3.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Nathan Mustaki.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+  </body>
+</html>

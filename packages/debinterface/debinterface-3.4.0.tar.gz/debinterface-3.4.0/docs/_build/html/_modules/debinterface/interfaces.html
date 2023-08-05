@@ -1,0 +1,259 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>debinterface.interfaces &#8212; Debinterface 3.3.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '3.3.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="top" title="Debinterface 3.3.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Debinterface 3.3.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for debinterface.interfaces</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># A class representing the contents of /etc/network/interfaces</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">with_statement</span><span class="p">,</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">.interfacesWriter</span> <span class="k">import</span> <span class="n">InterfacesWriter</span>
+<span class="kn">from</span> <span class="nn">.interfacesReader</span> <span class="k">import</span> <span class="n">InterfacesReader</span>
+<span class="kn">from</span> <span class="nn">.adapter</span> <span class="k">import</span> <span class="n">NetworkAdapter</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">toolutils</span>
+
+
+<div class="viewcode-block" id="Interfaces"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfaces.Interfaces">[docs]</a><span class="k">class</span> <span class="nc">Interfaces</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">_interfaces_path</span> <span class="o">=</span> <span class="s1">&#39;/etc/network/interfaces&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update_adapters</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">interfaces_path</span><span class="o">=</span><span class="s1">&#39;/etc/network/interfaces&#39;</span><span class="p">,</span>
+                 <span class="n">backup_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">header_comment</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; By default read interface file on init</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                update_adapters (bool, optional): load adapters from interface</span>
+<span class="sd">                    file. Default True</span>
+<span class="sd">                interfaces_path (str, optional): default to</span>
+<span class="sd">                    /etc/network/interfaces</span>
+<span class="sd">                backup_path (str, optional): default to</span>
+<span class="sd">                    /etc/network/interfaces.bak</span>
+<span class="sd">                header_comment(str, optional): default to</span>
+<span class="sd">                    none, otherwise sets comments at the</span>
+<span class="sd">                    top of the interfaces file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_paths</span><span class="p">(</span><span class="n">interfaces_path</span><span class="p">,</span> <span class="n">backup_path</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">update_adapters</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">updateAdapters</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_header_comment</span> <span class="o">=</span> <span class="n">header_comment</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">interfaces_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interfaces_path</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">backup_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backup_path</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">header_comment</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_comment</span>
+
+<div class="viewcode-block" id="Interfaces.updateAdapters"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfaces.Interfaces.updateAdapters">[docs]</a>    <span class="k">def</span> <span class="nf">updateAdapters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; (re)read interfaces file and save adapters &quot;&quot;&quot;</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">InterfacesReader</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_interfaces_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">parse_interfaces</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span> <span class="o">=</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="Interfaces.writeInterfaces"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfaces.Interfaces.writeInterfaces">[docs]</a>    <span class="k">def</span> <span class="nf">writeInterfaces</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; write adapters to interfaces file &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">InterfacesWriter</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_interfaces_path</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_backup_path</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_header_comment</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">write_interfaces</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Interfaces.getAdapter"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfaces.Interfaces.getAdapter">[docs]</a>    <span class="k">def</span> <span class="nf">getAdapter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Find adapter by interface name</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                name (str): the name of the interface</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                NetworkAdapter: the new adapter or None if not found</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">next</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span>
+                <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">name</span>
+            <span class="p">),</span>
+            <span class="kc">None</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Interfaces.addAdapter"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfaces.Interfaces.addAdapter">[docs]</a>    <span class="k">def</span> <span class="nf">addAdapter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Insert a NetworkAdapter before the given index</span>
+<span class="sd">            or at the end of the list.</span>
+<span class="sd">            Options should be a string (name) or a dict</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                options (string or dict): options to build a network adaptator</span>
+<span class="sd">                index (integer, optional): index to insert the NetworkAdapter</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                NetworkAdapter: the new adapter</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">adapter</span> <span class="o">=</span> <span class="n">NetworkAdapter</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+        <span class="n">adapter</span><span class="o">.</span><span class="n">validateAll</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">adapter</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">adapter</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">adapter</span></div>
+
+<div class="viewcode-block" id="Interfaces.removeAdapter"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfaces.Interfaces.removeAdapter">[docs]</a>    <span class="k">def</span> <span class="nf">removeAdapter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Remove the adapter at the given index.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                index (int): the position of the adapter</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">index</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Interfaces.removeAdapterByName"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfaces.Interfaces.removeAdapterByName">[docs]</a>    <span class="k">def</span> <span class="nf">removeAdapterByName</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Remove the adapter with the given name.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                name (str): the name of the interface</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adapters</span>
+            <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">name</span>
+        <span class="p">]</span></div>
+
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Interfaces.upAdapter"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfaces.Interfaces.upAdapter">[docs]</a>    <span class="k">def</span> <span class="nf">upAdapter</span><span class="p">(</span><span class="n">if_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Uses ifup</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                if_name (str): the name of the interface</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool, str: True/False, command output.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="n">toolutils</span><span class="o">.</span><span class="n">safe_subprocess</span><span class="p">([</span><span class="s2">&quot;/sbin/ifup&quot;</span><span class="p">,</span> <span class="n">if_name</span><span class="p">])</span></div>
+
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Interfaces.downAdapter"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfaces.Interfaces.downAdapter">[docs]</a>    <span class="k">def</span> <span class="nf">downAdapter</span><span class="p">(</span><span class="n">if_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Uses ifdown</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                if_name (str): the name of the interface</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool, str: True/False, command output.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="n">toolutils</span><span class="o">.</span><span class="n">safe_subprocess</span><span class="p">([</span><span class="s2">&quot;/sbin/ifdown&quot;</span><span class="p">,</span> <span class="n">if_name</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="Interfaces._set_paths"><a class="viewcode-back" href="../../debinterface.html#debinterface.interfaces.Interfaces._set_paths">[docs]</a>    <span class="k">def</span> <span class="nf">_set_paths</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interfaces_path</span><span class="p">,</span> <span class="n">backup_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Either use user input or defaults</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                interfaces_path (str): path to interfaces file</span>
+<span class="sd">                backup_path (str): default to interfaces_path + .bak</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">interfaces_path</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_interfaces_path</span> <span class="o">=</span> <span class="n">interfaces_path</span>
+
+        <span class="k">if</span> <span class="n">backup_path</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_backup_path</span> <span class="o">=</span> <span class="n">backup_path</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># self._interfaces_path is never None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_backup_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interfaces_path</span> <span class="o">+</span> <span class="s2">&quot;.bak&quot;</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Debinterface 3.3.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Nathan Mustaki.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+  </body>
+</html>

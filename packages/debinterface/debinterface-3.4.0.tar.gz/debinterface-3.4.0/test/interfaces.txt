@@ -1,0 +1,95 @@
+# Used by ifup(8) and ifdown(8). See the interfaces(5) manpage or
+# /usr/share/doc/ifupdown/examples for more information.
+auto lo
+iface lo inet loopback
+
+
+# mac80211-based drivers
+auto wlan0
+iface wlan0 inet static
+        address 10.1.10.1
+        netmask 255.255.255.0
+        broadcast 10.1.10.255
+        hostapd /etc/hostapd/hostapd.wlan0.conf
+#   up ( iw dev wlan0 interface add wlan1 type station && ifconfig wlan1 hw ether 92:a4:de:bd:a3:dc && ifup wlan1) || true
+#        up nat.sh wlan0 wlan1 "10.1.10.0/24"
+#        down ( ifdown wlan1 && iw wlan1 del ) || true
+         up nat.sh wlan0 eth0 "10.1.10.0/24"
+
+#auto wlan1
+iface wlan1 inet dhcp
+   hwaddress ether 02:1b:b1:ef:b0:01
+   wpa-ssid SSID
+   wpa-psk ipassw
+
+#auto eth0
+iface eth0 inet dhcp
+
+iface eth1 inet static
+    address 10.1.20.1
+    netmask 255.255.255.0
+    dns-nameservers 8.8.8.8
+
+
+##########################################################
+#   Sample ath0 with wpa_supplicant settings
+
+auto ath0
+iface ath0 inet dhcp
+        madwifi-base wifi0
+        wireless-mode Managed
+        wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
+
+##########################################################
+#   Sample WDS Bridge Settings
+
+# madwifi-ng WDS Bridge
+auto br0
+iface br0 inet static
+       address 192.168.1.2
+       netmask 255.255.255.0
+       network 192.168.1.0
+       broadcast 192.168.1.255
+       gateway 192.168.1.1
+       bridge_ports eth0 ath0 ath1
+       pre-up wlanconfig ath0 create wlandev wifi0 wlanmode ap
+       pre-up wlanconfig ath1 create wlandev wifi0 wlanmode wds
+       pre-up iwpriv ath0 mode 11g
+       pre-up iwpriv ath0 bintval 1000
+       pre-up iwconfig ath0 essid "voyage-wds" channel 1
+       up ifconfig ath0 down ; ifconfig ath0 up # this is a workaround
+       up iwpriv ath1 wds 1
+       up iwpriv ath1 wds_add AA:BB:CC:DD:EE:FF
+       post-up ifconfig ath1 down ; ifconfig ath1 up # this is a workaround
+       post-down wlanconfig ath0 destroy
+       pre-down wlanconfig ath1 destroy
+
+##########################################################
+#   Sample Ad-hoc Settings
+
+# madwifi-ng Ad-hoc
+auto ath2
+iface ath2 inet static
+       address 10.1.10.1
+       netmask 255.255.255.0
+       broadcast 10.1.10.255
+       # gateway 10.1.10.1
+       #pre-up wlanconfig ath create wlandev wifi0 wlanmode adhoc
+       madwifi-base wifi0
+       wireless-channel 1
+       wireless-essid voyage-adhoc
+       wireless-mode Ad-hoc
+       # NAT not needed for node
+       up nat.sh ath2 eth0 "10.1.10.0/24"
+
+auto eth2
+iface eth2 inet static
+   address 172.20.1.23
+   netmask 255.255.255.0
+   gateway 172.20.1.1
+   dns-nameservers 172.16.1.1 172.16.1.2
+   dns-search mydomain.com myotherdomain.com
+
+auto wlan2
+iface wlan2 inet dhcp
+   wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf

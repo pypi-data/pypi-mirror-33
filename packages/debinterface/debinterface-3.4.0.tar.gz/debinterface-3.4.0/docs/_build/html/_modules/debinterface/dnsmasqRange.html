@@ -1,0 +1,329 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>debinterface.dnsmasqRange &#8212; Debinterface 3.3.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '3.3.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="top" title="Debinterface 3.3.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Debinterface 3.3.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for debinterface.dnsmasqRange</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">with_statement</span><span class="p">,</span> <span class="n">absolute_import</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">from</span> <span class="nn">socket</span> <span class="k">import</span> <span class="n">inet_aton</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">toolutils</span>
+
+
+<span class="n">DEFAULT_CONFIG</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;dhcp-range&#39;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s1">&#39;interface&#39;</span><span class="p">:</span> <span class="s1">&#39;wlan0&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;start&#39;</span><span class="p">:</span> <span class="s1">&#39;10.1.10.11&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;end&#39;</span><span class="p">:</span> <span class="s1">&#39;10.1.10.250&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;lease_time&#39;</span><span class="p">:</span> <span class="s1">&#39;24h&#39;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="s1">&#39;interface&#39;</span><span class="p">:</span> <span class="s1">&#39;eth1&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;start&#39;</span><span class="p">:</span> <span class="s1">&#39;10.1.20.10&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;end&#39;</span><span class="p">:</span> <span class="s1">&#39;10.1.20.250&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;lease_time&#39;</span><span class="p">:</span> <span class="s1">&#39;24h&#39;</span>
+        <span class="p">}</span>
+    <span class="p">],</span>
+    <span class="s1">&#39;dhcp-leasefile&#39;</span><span class="p">:</span> <span class="s1">&#39;/var/tmp/dnsmasq.leases&#39;</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="DnsmasqRange"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange">[docs]</a><span class="k">class</span> <span class="nc">DnsmasqRange</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Basic dnsmasq conf of the more file which holds the ip ranges</span>
+<span class="sd">        per interface.</span>
+<span class="sd">        Made for handling very basic dhcp-range options</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">backup_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">leases_path</span><span class="o">=</span><span class="s1">&#39;/var/tmp/dnsmasq.leases&#39;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_path</span> <span class="o">=</span> <span class="n">path</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">backup_path</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">backup_path</span> <span class="o">=</span> <span class="n">path</span> <span class="o">+</span> <span class="s2">&quot;.bak&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">backup_path</span> <span class="o">=</span> <span class="n">backup_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_leases_path</span> <span class="o">=</span> <span class="n">leases_path</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span>
+
+<div class="viewcode-block" id="DnsmasqRange.set"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.set">[docs]</a>    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;dhcp-range&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;dhcp-range&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="s2">&quot;dhcp-range&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_range_info</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">value</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_itf_range</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="s2">&quot;interface&quot;</span><span class="p">]):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">update_range</span><span class="p">(</span>
+                        <span class="n">interface</span><span class="o">=</span><span class="n">value</span><span class="p">[</span><span class="s2">&quot;interface&quot;</span><span class="p">],</span>
+                        <span class="n">start</span><span class="o">=</span><span class="n">value</span><span class="p">[</span><span class="s2">&quot;start&quot;</span><span class="p">],</span>
+                        <span class="n">end</span><span class="o">=</span><span class="n">value</span><span class="p">[</span><span class="s2">&quot;end&quot;</span><span class="p">],</span>
+                        <span class="n">lease_time</span><span class="o">=</span><span class="n">value</span><span class="p">[</span><span class="s2">&quot;lease_time&quot;</span><span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="s2">&quot;dhcp-range&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="n">value</span></div>
+
+<div class="viewcode-block" id="DnsmasqRange.validate"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.validate">[docs]</a>    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">required</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;interface&quot;</span><span class="p">,</span> <span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="s2">&quot;end&quot;</span><span class="p">,</span> <span class="s2">&quot;lease_time&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">rng</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="s2">&quot;dhcp-range&quot;</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">required</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">rng</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Missing option : </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">inet_aton</span><span class="p">(</span><span class="n">rng</span><span class="p">[</span><span class="s2">&quot;end&quot;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">inet_aton</span><span class="p">(</span><span class="n">rng</span><span class="p">[</span><span class="s2">&quot;start&quot;</span><span class="p">]):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Start IP range must be before end IP&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="n">itf_names</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">data</span><span class="p">[</span><span class="s2">&quot;interface&quot;</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="s2">&quot;dhcp-range&quot;</span><span class="p">]</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">itf_names</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">set</span><span class="p">(</span><span class="n">itf_names</span><span class="p">):</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Multiple interfaces with the same name&quot;</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">pass</span>  <span class="c1"># dhcp-range is not mandatory</span></div>
+
+<div class="viewcode-block" id="DnsmasqRange.update_range"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.update_range">[docs]</a>    <span class="k">def</span> <span class="nf">update_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interface</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">lease_time</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update existing range based on the interface name</span>
+<span class="sd">            If does not exist will be created</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                interface (str): interface name</span>
+<span class="sd">                start (str) : start ip of range</span>
+<span class="sd">                end (str) : end ip of range</span>
+<span class="sd">                lease_time (str) : lease_time</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool: True if configuration was updated or created,</span>
+<span class="sd">                            False otherwise</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">current_range</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_itf_range</span><span class="p">(</span><span class="n">interface</span><span class="p">)</span>
+        <span class="n">new_range</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;interface&#39;</span><span class="p">:</span> <span class="n">interface</span><span class="p">,</span> <span class="s1">&#39;lease_time&#39;</span><span class="p">:</span> <span class="n">lease_time</span><span class="p">,</span>
+            <span class="s2">&quot;start&quot;</span><span class="p">:</span> <span class="n">start</span><span class="p">,</span> <span class="s2">&quot;end&quot;</span><span class="p">:</span> <span class="n">end</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="n">current_range</span> <span class="ow">and</span> <span class="p">(</span><span class="n">current_range</span> <span class="o">==</span> <span class="n">new_range</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rm_itf_range</span><span class="p">(</span><span class="n">interface</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;dhcp-range&quot;</span><span class="p">,</span> <span class="n">new_range</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="DnsmasqRange.get_itf_range"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.get_itf_range">[docs]</a>    <span class="k">def</span> <span class="nf">get_itf_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">if_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; If no interface, return None &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;dhcp-range&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="s1">&#39;dhcp-range&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;interface&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">if_name</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">v</span></div>
+
+<div class="viewcode-block" id="DnsmasqRange.rm_itf_range"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.rm_itf_range">[docs]</a>    <span class="k">def</span> <span class="nf">rm_itf_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">if_name</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39; Rm range info for the given interface</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                if_name (str) : interface name</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool: True if configuration was updated, False otherwise</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="k">if</span> <span class="s2">&quot;dhcp-range&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">:</span>
+            <span class="n">current_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="s1">&#39;dhcp-range&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="s1">&#39;dhcp-range&#39;</span><span class="p">][:]</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="s1">&#39;dhcp-range&#39;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;interface&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">if_name</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="s1">&#39;dhcp-range&#39;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">current_len</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="DnsmasqRange.set_defaults"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.set_defaults">[docs]</a>    <span class="k">def</span> <span class="nf">set_defaults</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Defaults for my needs, you should probably override this one &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">DEFAULT_CONFIG</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DnsmasqRange.read"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_path</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">dnsmasq</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">dnsmasq</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">or</span> <span class="n">line</span> <span class="o">==</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="ow">or</span> <span class="n">line</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="c1"># No \n allowed here</span>
+                <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">and</span> <span class="n">value</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DnsmasqRange.write"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_path</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">backup</span><span class="p">()</span>
+
+        <span class="k">with</span> <span class="n">toolutils</span><span class="o">.</span><span class="n">atomic_write</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">dnsmasq</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;dhcp-range&quot;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">v</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
+                        <span class="n">line</span> <span class="o">=</span> <span class="s2">&quot;dhcp-range=interface:</span><span class="si">{0}</span><span class="s2">,</span><span class="si">{1}</span><span class="s2">,</span><span class="si">{2}</span><span class="s2">,</span><span class="si">{3}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">r</span><span class="p">[</span><span class="s2">&quot;interface&quot;</span><span class="p">],</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;start&quot;</span><span class="p">],</span>
+                            <span class="n">r</span><span class="p">[</span><span class="s2">&quot;end&quot;</span><span class="p">],</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;lease_time&quot;</span><span class="p">]</span>
+                        <span class="p">)</span>
+                        <span class="n">dnsmasq</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                    <span class="n">dnsmasq</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">=</span><span class="si">{1}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span></div>
+
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="DnsmasqRange.controlService"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.controlService">[docs]</a>    <span class="k">def</span> <span class="nf">controlService</span><span class="p">(</span><span class="n">action</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; return True/False, command output &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">action</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="s2">&quot;stop&quot;</span><span class="p">,</span> <span class="s2">&quot;restart&quot;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;Invalid action&quot;</span>
+        <span class="k">return</span> <span class="n">toolutils</span><span class="o">.</span><span class="n">safe_subprocess</span><span class="p">([</span><span class="s2">&quot;/etc/init.d/dnsmasq&quot;</span><span class="p">,</span> <span class="n">action</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="DnsmasqRange.clear_leases"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.clear_leases">[docs]</a>    <span class="k">def</span> <span class="nf">clear_leases</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;rm /var/tmp/dnsmasq.leases&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_leases_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="DnsmasqRange.backup"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.backup">[docs]</a>    <span class="k">def</span> <span class="nf">backup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; return True/False, command output &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">backup_path</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">backup_path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DnsmasqRange.restore"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.restore">[docs]</a>    <span class="k">def</span> <span class="nf">restore</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; return True/False, command output &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">backup_path</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backup_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DnsmasqRange.delete"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.delete">[docs]</a>    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; return True/False, command output &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">backup_path</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_path</span><span class="p">)</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_extract_range_info</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">breaked</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+            <span class="n">ret</span><span class="p">[</span><span class="s2">&quot;interface&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">breaked</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">ret</span><span class="p">[</span><span class="s2">&quot;start&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">breaked</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">ret</span><span class="p">[</span><span class="s2">&quot;end&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">breaked</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">ret</span><span class="p">[</span><span class="s2">&quot;lease_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">breaked</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">ret</span>
+
+<div class="viewcode-block" id="DnsmasqRange.apply_changes"><a class="viewcode-back" href="../../debinterface.html#debinterface.dnsmasqRange.DnsmasqRange.apply_changes">[docs]</a>    <span class="k">def</span> <span class="nf">apply_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write changes to fs and restart daemon&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">controlService</span><span class="p">(</span><span class="s2">&quot;stop&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clear_leases</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">controlService</span><span class="p">(</span><span class="s2">&quot;start&quot;</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Debinterface 3.3.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Nathan Mustaki.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+  </body>
+</html>
