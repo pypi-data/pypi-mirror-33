@@ -1,0 +1,22 @@
+input { stdin { type => haproxy }}
+output { stdout { codec => json_lines }}
+filter {
+  if [type] == "haproxy" {
+    grok {
+      patterns_dir => "/opt/logstash/patterns"
+      match => { "message" => "%{HAPROXYHTTP}( )?(%{DATA:request_id)?" }
+    }
+    mutate {
+      remove_field => ["haproxy_year", "haproxy_time", "haproxy_hour", "haproxy_minute", "haproxy_second", "haproxy_milleseconds", "haproxy_month", "haproxy_monthdate", "haproxy_milliseconds", "haproxy_monthday"]
+    }
+
+    date {
+      match => ["accept_date", "dd/MMM/YYYY:HH:mm:ss.SSS"]
+    }
+
+    mutate {
+      remove_field => ["accept_date"]
+    }
+  }
+}
+
