@@ -1,0 +1,10 @@
+#include "cons.h"
+
+DOUBLE MASS_UNIT = 1.0;
+DOUBLE G = 1.0;
+DOUBLE TAU = 1.0;
+DOUBLE dt = 0.001;
+DOUBLE EPSILON = 0.001;
+
+char FILE_PREFIX[100];
+int FRAMES_EVERY = 100;
