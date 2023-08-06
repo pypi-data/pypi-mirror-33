@@ -1,0 +1,79 @@
+![inmation header](http://www.inmation.com/images/inmation_github_header.png "inmation")
+
+# inmation API Client
+This API client can only be used with the new inmation Web API server.
+
+## Installation
+Install with `pip install inmation-api-client`.
+
+## Dependencies
+* [websockets](https://github.com/aaugustin/websockets) ^5.0, added to the requirements in setup.py.
+
+## Usage
+
+```python
+import asyncio
+from inmation_api_client import Client, Options, Item
+
+def create_api_client(ioloop):
+    WS_URL = 'ws://127.0.0.1:8000/ws'
+    OPTIONS = Options("USERNAME", "PASSWORD")
+    client = Client(ioloop)
+    ioloop.run_until_complete(client.connect_ws(WS_URL, OPTIONS))
+
+    def connection_changed(conn_info):
+        """ closure """
+        print('Connection state: {}, authenticated: {}'.format(conn_info.state_string, conn_info.authenticated))
+    client.on_ws_connection_changed(connection_changed)
+
+    def on_error(err):
+        if err:
+            print("Error: {}".format(err.message))
+    client.on_error(on_error)
+
+    return client
+
+EVENT_LOOP = asyncio.get_event_loop()
+CLIENT = create_api_client(EVENT_LOOP)
+
+async def read_items_at_once(items):
+    def read_cbk(*args):
+        """read items callback"""
+        err = args[0]
+        if err:
+            print(err.message)
+        else:
+            _items = args[1]
+            if isinstance(_items, list):
+                print("{} - {}".format('Item', 'Value'))
+                for item in _items:
+                    if 'error' in item:
+                        print('Error: {}'.format(item['error']['msg']))
+                    else:
+                        item_val = item['v'] if 'v' in item else 'No Value'
+                        print("{} - {}".format(item['p'], item_val))    
+    await CLIENT.read(items, read_cbk)
+
+def main():
+    items_path = "/System/Core/"
+    items = [
+        Item(items_path + 'Item01'),
+        Item(items_path + 'Item02'),
+        Item(items_path + 'Item03'),
+    ]    
+    # Read items
+    EVENT_LOOP.run_until_complete(read_items_at_once(items))
+
+if __name__ == '__main__':
+    main()
+```
+
+# inmation
+
+inmation is a vendor-independent industrial system-integration specialist. Dedicated to modern technologies such as OPC UA (Unified Architecture) and document-oriented schema-less repositories, inmation opens up new horizons for enterprise real-time data management.
+
+More information on [inmation.com](https://inmation.com)
+
+## License
+
+MIT
