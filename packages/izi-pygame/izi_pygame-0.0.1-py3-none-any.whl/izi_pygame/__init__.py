@@ -1,0 +1,1 @@
+name = "izi_pygame"
