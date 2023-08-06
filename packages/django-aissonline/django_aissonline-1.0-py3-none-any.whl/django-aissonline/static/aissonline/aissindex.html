@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>aiss</title>
+    <link href="https://cdn.bootcss.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"></script>
+    <script src="https://unpkg.com/imagesloaded@4/imagesloaded.pkgd.min.js"></script>
+    <script>
+        var AISSCONFIG;
+        var IsUpdate = false;
+        var PAGE = 1;
+        var PICID;
+
+        function loadMore() {
+            if ($(document).height() - $(this).scrollTop() - $(this).height() < 100) {
+                getSuiteList();
+            }
+        }
+
+        function showPicture(element) {
+            PICID = element.id;
+            $(window).unbind('scroll');
+            $("#view1").css("display", 'none');
+            $(".navbar").css("display", '');
+            $("#view2").css("display", 'inline');
+            $('html,body').scrollTop(0);
+            var title = element.getAttribute('picTitle');
+            var picCount = element.getAttribute('pictureCount');
+            var pic_url_header = element.getAttribute('pic_url_header');
+            $('#picTitle').html(title);
+            for (var i = 0; i < picCount; i++) {
+                $('#bigPic').append('<img src="' + pic_url_header + i + '.jpg" class="img-fluid col-md-6 col-xs-12" alt="' + title + '_' + i + '">');
+            }
+        }
+
+        function closePicture() {
+            $("#view2").css("display", 'none');
+            $(".navbar").css("display", 'none');
+            $("#view1").css("display", 'inline');
+            $("html,body").scrollTop($("#" + PICID).offset().top);
+            $("#bigPic").empty();
+            $(window).bind('scroll', loadMore);
+        }
+
+        function myajax(url, sfun) {
+            $.ajax({
+                url: url,
+                type: 'GET',
+                async: true,
+                ContentType: 'application/json',
+                dataType: 'json',
+                success: function (data) {
+                    sfun(data);
+                },
+                error: function (data) {
+                    console.log("请求出错");
+                }
+            })
+        }
+
+        function getImgUrl(val) {
+            if (/^\d+\.jpg/.test(val.headImageFilename)) {
+                return AISSCONFIG.picture_url_header + val.source.catalog + '/' + val.issue + '/' + val.headImageFilename;
+            } else {
+                return AISSCONFIG.header_url_header + val.headImageFilename;
+            }
+        }
+
+        function getPictureUrl(val) {
+            return '/aissonline/picture/' + val.source.catalog + '/' + val.issue + '/' + val.pictureCount + '/';
+        }
+
+        function listWorker(list) {
+            list.data.list.forEach(element => {
+                var $newHtml = $('<div id="' + element.id + '" ' +
+                    'class="card grid-item col-md-3 col-sm-6 col-xs-12"' +
+                    'picTitle="' + element.title + '"' +
+                    'pic_url_header="' + AISSCONFIG.picture_url_header + element.source.catalog + '/' + element.issue + '/"' +
+                    'pictureCount="' + element.pictureCount + '"' +
+                    ' onclick="showPicture(this);">' +
+                    '        <img class="card-img-top" src="' + getImgUrl(element) + '">\n' +
+                    '        <div class="card-body">' +
+                    '            <p class="card-text">' + element.title + '</p>' +
+                    '        </div>' +
+                    '    </div>');
+                $('.grid').append($newHtml).imagesLoaded().always(function () {
+                    $('.grid').masonry('appended', $newHtml);
+                });
+            });
+
+            PAGE++;
+            IsUpdate = false;
+        }
+
+        function getAissConfig() {
+            myajax('/aissonline/aissconfig/', function (data) {
+            // myajax('http://127.0.0.1:8000/aissconfig/', function (data) {
+                AISSCONFIG = data.data;
+            });
+        }
+
+        function getSuiteList() {
+            if (!IsUpdate) {
+                IsUpdate = true;
+                myajax('/aissonline/suitelist/' + PAGE + '/', listWorker);
+                // myajax('http://127.0.0.1:8000/suitelist/' + PAGE + '/', listWorker);
+
+            }
+
+        }
+
+        function getSuiteListFirst() {
+            myajax('/aissonline/suitelist/' + PAGE + '/', function (data) {
+            // myajax('http://127.0.0.1:8000/suitelist/' + PAGE + '/', function (data) {
+                var newHtml = '';
+                data.data.list.forEach(element => {
+                    newHtml += '<div id="' + element.id + '" ' +
+                        'class="card grid-item col-md-3 col-sm-6 col-sm-12"' +
+                        'picTitle="' + element.title + '"' +
+                        'pic_url_header="' + AISSCONFIG.picture_url_header + element.source.catalog + '/' + element.issue + '/"' +
+                        'pictureCount="' + element.pictureCount + '"' +
+                        ' onclick="showPicture(this);">' +
+                        '        <img class="card-img-top" src="' + getImgUrl(element) + '">\n' +
+                        '        <div class="card-body">' +
+                        '            <p class="card-text">' + element.title + '</p>' +
+                        '        </div>' +
+                        '    </div>';
+                });
+                var $newHtml = $(newHtml);
+                $('.grid').append($newHtml).imagesLoaded().progress(function () {
+                    $('.grid').masonry({itemSelector: '.grid-item', horizontalOrder: true});
+                });
+                PAGE++;
+                IsUpdate = false;
+            });
+        }
+
+        $(document).ready(function () {
+            getAissConfig();
+            $(function () {
+                /*初始化*/
+                var page = 1;
+                var notIsUpdate = true;
+                var count = 0
+                /*首次加载*/
+
+                getSuiteListFirst();
+                $(window).bind('scroll', loadMore);
+            });
+        });
+
+
+    </script>
+    <style>
+        #view1,
+        #view2 {
+            position: absolute;
+            width: 100%;
+        }
+
+        .card {
+            padding: 0 0;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container-fluid p-0">
+    <div id="view1" style="display: inline;">
+        <div class="grid">
+        </div>
+    </div>
+    <div id="view2" style="display: none;">
+        <div class="navbar fixed-top bg-dark" style="display: none;">
+            <button type="button" class="btn btn-outline-secondary col-2" onclick="closePicture()">返回</button>
+            <h2 id="picTitle" class="text-white text-nowrap col-10">title</h2>
+        </div>
+        <div id="bigPic" style="margin-top: 4rem;"></div>
+    </div>
+
+</div>
+</body>
+
+</html>
