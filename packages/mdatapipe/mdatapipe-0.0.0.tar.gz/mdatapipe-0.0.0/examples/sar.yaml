@@ -1,0 +1,20 @@
+- collect:
+    - when:
+        - repeat: {interval: 5s}
+    - from:
+        - command:
+            env: [TZ: "UTC", LC_TIME: "C"]
+            cmd: sar -pA 1 1
+- parse:
+    - how:
+        - splitlines
+        - sar
+
+- output:
+    - into:
+        - influxdb:
+            buffer_size: 1
+            dbname: mydb
+            measurement: sar
+            tag_set: [ hostname, component, metric_name, metric_category ]
+            field_set: [ value ]

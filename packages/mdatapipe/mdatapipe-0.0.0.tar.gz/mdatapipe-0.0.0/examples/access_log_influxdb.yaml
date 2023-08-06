@@ -1,0 +1,20 @@
+- collect:
+    - from: [ file: { path: /tmp/large_access_log } ]
+
+- parse:
+    - how:
+        - grok:
+            '
+            %{IPORHOST:client_host} %{NOTSPACE} %{NOTSPACE}
+            \[%{HTTPDATE:timestamp}\] %{QUOTEDSTRING:request}
+            %{NUMBER:http_status_code} (%{NUMBER:bystes_sent}|-) %{QUOTEDSTRING:referer} %{QUOTEDSTRING:user_agent}
+            '
+
+- output:
+    - into:
+        - influxdb:
+            dbname: mydb
+            buffer_size: 1000
+            measurement: access_log
+            tag_set: [ client_host, http_status_code ]
+            field_set: [ bytes_sent ]
