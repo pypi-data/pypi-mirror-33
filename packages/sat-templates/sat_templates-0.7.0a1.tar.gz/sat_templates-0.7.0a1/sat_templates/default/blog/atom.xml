@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns='http://www.w3.org/2005/Atom'>
+    {% if title is defined %}
+        <title>{{title}}</title>
+    {% elif target_profile is defined %}
+        <title>{% trans name=target_profile%}{{name}}'s blog{% endtrans %}</title>
+    {% else %}
+        <title>{% trans app_name=C.APP_NAME%}{{app_name}} blog{% endtrans %}</title>
+    {% endif %}
+    <link href='{{request_uri}}' type='application/atom+xml' rel='self'/>
+    <link href='{{http_uri}}' type='text/html' rel='alternate'/>
+    <link href='{{xmpp_uri}}' type='application/atom+xml' rel='alternate'/>
+    <id>{{xmpp_uri}}</id>
+    <updated>{{updated|date_fmt('iso')}}</updated>
+    {% for item in items %}
+        <entry>
+            {% if item.title_xhtml %}
+                <title type='xhtml'>{{item.title_xhtml}}</title>
+            {% else %}
+                <title>{{item.title|default(item.content|truncate(80, True, '…'), True)}}</title>
+            {% endif %}
+            <link href='{{items_http_uri[item.id]}}' type='text/html' rel='alternate'/>
+            <link href='{{item.uri}}' type='application/atom+xml' rel='alternate'/>
+            <id>{{item.uri}}</id>
+            <updated>{{item.updated|date_fmt('iso')}}</updated>
+            <published>{{item.published|date_fmt('iso')}}</published>
+            <author>
+                <name>{{item.author}}</name>
+                <uri>xmpp:{{item.author_jid}}</uri>
+            </author>
+            {% for tag in item.tags %}
+                <category term="{{tag}}"/>
+            {% endfor %}
+            {% if item.content_xhtml %}
+                <content type='xhtml'>
+                    <div xmlns='http://www.w3.org/1999/xhtml'>
+                    {{item.content_xhtml}}
+                    </div>
+                </content>
+            {% else %}
+                <content type='text'>
+                    {{item.content_txt}}
+                </content>
+            {% endif %}
+        </entry>
+    {% endfor %}
+</feed>

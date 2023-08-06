@@ -1,0 +1,73 @@
+{# display a single ticket
+
+    @variable item(xmlui_item): ticket to display
+    @variable comments(data_object.BlogItems): comments of the ticket
+    @variable comments_service(unicode): service for adding comments
+    @variable comments_node(unicode): node for adding comments
+#}
+
+{% set category_menu = [('merge-requests', url_tickets_list),
+                        ('merge-request_new', url_tickets_new)] %}
+{% if not embedded %}{% extends 'base/base.html' %}{% endif %}
+{% import 'input/xmlui.html' as xmlui with context %}
+{% import 'blog/macros.html' as blog with context %}
+{% import 'input/textbox.html' as textbox with context %}
+
+{% block title %}{{item|adv_format('[{value.widget_value.id}] {value.widget_value.title}') }}{% endblock %}
+
+{% block confirm_message %}
+    {% trans %}Your comment has been sent{% endtrans %}
+{% endblock confirm_message %}
+
+{% block body %}
+{{ icon_defs('pencil') }}
+<div class="tab_container">
+    <div class="tab_header">
+        <ul>
+            <li class="tab_button clicked" onclick='toggle_clicked_class_sel(".tab_button,.tab_page")'>{% trans %}Description{% endtrans %}</li>
+            <li class="tab_button" onclick='toggle_clicked_class_sel(".tab_button,.tab_page")'>{% trans %}Patches{% endtrans %}</li>
+        </ul>
+    </div>
+    <div class="tab_page clicked" id="tab_description">
+        <div id="{{ item.widget_value['id'] }}" class="view single ticket box">
+            {% if url_ticket_edit is defined %}
+                <p class="box__tools">
+                    <a href="{{url_ticket_edit}}">
+                    {{ icon('pencil', cls='icon--small') }}
+                    edit
+                    </a>
+                </p>
+            {% endif %}
+            {{ xmlui.generate(item,
+                form=false,
+                filters={'created': {'filters': ['date_fmt'], 'filters_args':[{'fmt': 'short'}]},
+                         'updated': {'filters': ['date_fmt'], 'filters_args':[{'fmt': 'short'}]},
+                         'body': {'filters': ['urlize'], 'filters_args':[{'nofollow': True, 'rel': 'noopener noreferrer'}]}},
+                )}}
+        </div>
+        {% if comments is defined %}
+        <div id="blog_items">
+            {{ blog.show_items(comments|reverse, expanded=true) }}
+        </div>
+        {% endif %}
+        {% if comments_node is defined %}
+            <div class="comment_post">
+                {{- textbox.comment_or_login(service=comments_service, node=comments_node) -}}
+            </div>
+        {% endif %}
+    </div>
+    <div class="tab_page" id="tab_patches">
+        {% for patch in patches %}
+            <div class="patch">
+                <header class="box">
+                    <div class="author"><label>{% trans %}author:{% endtrans %} </label>{{patch.author}}</div>
+                    <p class="commit_msg">{{patch.commit_msg}}</p>
+                </header>
+                <div class="diff">
+                    {{- patch.diff|highlight('diff') -}}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock body %}

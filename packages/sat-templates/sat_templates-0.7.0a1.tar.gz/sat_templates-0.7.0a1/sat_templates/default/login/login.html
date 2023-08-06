@@ -1,0 +1,59 @@
+{% if not embedded %}{% extends 'base/base.html' %}{% endif %}
+{% import 'input/form.html' as form with context %}
+{% import 'input/field.html' as field with context %}
+
+{% block title %}{{C.APP_NAME}} login{% endblock %}
+
+{% block body %}
+<div id="login_container">
+<div id="login_box">
+    <div id="login_left">
+        <img src="{{media_path}}libervia/register_left.png">
+    </div>
+    <div id="login_right">
+        {% block login_right_top %}{% endblock %}
+        {% if login_error is defined %}
+            {# error messages displayed in case of failing attempt to login #}
+            <div id="login_error">
+                <p>
+                {% block login_error_message %}
+                {% if login_error == S_C.PROFILE_AUTH_ERROR %}
+                    {%- trans %}Your login and/or password is incorrect. Please try again.{% endtrans -%}
+                {% elif login_error == S_C.XMPP_AUTH_ERROR %}
+                    {%- trans %}Your XMPP account failed to connect. Did you enter the good password? If you have changed your XMPP password since your last connection on Libervia, please use another SàT frontend to update your profile.{% endtrans -%}
+                {% elif login_error == S_C.NO_REPLY %}
+                    {%- trans %}Did not received a reply (the timeout expired or the connection is broken).{% endtrans -%}
+                {% else %}
+                    {%- trans %}An unknown error occurred, please contact your service administrator.{% endtrans -%}
+                {% endif %}
+                {% endblock login_error_message %}
+                </p>
+            </div>
+        {% endif %}
+
+        <div id="login_form">
+            {% block login_form %}
+            {% call form.form() %}
+                {{ field.meta('type', 'login') }}
+                {{ field.text("login", _("Login"),
+                              required=true,
+                              value=login,
+                              )}}
+                {{ field.password("password", _("Password"), required=not empty_password_allowed) }}
+                {{ field.submit(_("Log in")) }}
+            {% endcall %}
+            {% endblock login_form %}
+        </div>
+        {% block login_right_bottom %}
+        {% if register_url is defined %}
+            <div id="create_account_link">
+                <p>
+                    <a href="{{register_url}}">{% trans %}No account yet? Create a new one!{% endtrans %}</a>
+                </p>
+            </div>
+        {% endif %}
+        {% endblock login_right_bottom %}
+    </div>
+</div>
+</div>
+{% endblock body %}

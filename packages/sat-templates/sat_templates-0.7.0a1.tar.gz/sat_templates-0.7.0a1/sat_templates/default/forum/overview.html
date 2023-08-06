@@ -1,0 +1,35 @@
+{% extends 'base/base.html' %}
+
+{% macro generate_forums(forums_data, level=0) %}
+    {% set panel_type = "main" if level==0 else "sub" %}
+    <ul class="forum forum__panel_{{panel_type}}">
+    {% for forum in forums_data %}
+        <li class="forum forum__cat_{{panel_type}} forum__level_{{level}}">
+            {% if 'http_url' in forum %}
+                <a href="{{forum['http_url']}}" class="forum_active">
+            {% else %}
+                <a>
+            {% endif %}
+                <span class="forum_title">{{ forum.title }}</span>
+                {% if 'short-desc' in forum %}
+                    <p class="forum_short-desc">{{ forum['short-desc'] }}</p>
+                {% endif %}
+            </a>
+
+            {% if 'sub-forums' in forum %}
+                {{ generate_forums(forum['sub-forums'], level=level+1) }}
+            {% endif %}
+        </li>
+    {% endfor %}
+    </ul>
+{% endmacro %}
+
+{% block body %}
+{% if not forums %}
+    <p class="message--info">{% trans %}No forums found on this server!{% endtrans %}</p>
+{% else %}
+    <div class="forums">
+        {{ generate_forums(forums) }}
+    </div>
+{% endif %}
+{% endblock body %}

@@ -1,0 +1,98 @@
+{# display a blog item which can be expanded/retracted by clicking on it
+
+    if the locale differs from item language, it will be totally reduced, and will need a click to be displayed
+
+    @variable item(data_object.BlogItem): item to display
+    @variable identities(data_object.Identities): identities which can be used to display info on item author
+    @variable dates_format(unicode): format of the date to use (see date_fmt filter)
+#}
+
+{% block item %}
+
+{% if item.language and locale and locale.language != item.language %}
+    {# we may display items in different language in a specific way #}
+    {% set other_lang = " other_lang" %}
+{% endif %}
+
+{% if expanded %}
+    {# FIXME: the style attribute is not nice, but due to the use of clicked_mh_fix. A cleaner way would be welcomed #}
+    <article id="{{item.id}}" class="init box{{other_lang}} clicked" style="max-height: none">
+{% else %}
+    <article id="{{item.id}}" class="init box{{other_lang}}" >
+{% endif %}
+
+    {# following message is displayed if item lang is different from page locale #}
+    {% if other_lang is defined %}
+        <div class="info"><p>{% trans language=locale.language_name %}This message is not in {{language}}, click to display anyway{% endtrans %}</p></div>
+    {% endif %}
+
+    {# we put a reduce button at the top #}
+    <div class="expand_box box_top" onclick="clicked_mh_fix('{{item.id}}')">
+        <p>
+            <span class='hide'>{% trans %}Click to reduce…{% endtrans %}</span>
+        </p>
+    </div>
+
+    <header>
+        {% block header %}
+        {# title and publication date link to a HTTP page if items_http_uri is set #}
+        {% set item_http_uri = items_http_uri.get(item.id) if items_http_uri is defined else none %}
+
+        <div class="title">
+            {% block blog_title scoped %}
+                {% set title = item.title_xhtml or item.title or '' %}
+                {% if item_http_uri %}
+                    <a href="{{item_http_uri}}">{{title}}</a>
+                {% else %}
+                    {{title}}
+                {% endif %}
+            {% endblock %}
+        </div>
+            {% block metadata scoped %}
+            <div class="metadata">
+            {% if identities is defined %}
+                <span class="author">{{identities[item.author_jid].nick | default(item.author)}}</span>
+            {% else %}
+                <span class="author">{{item.author}}</span>
+            {% endif %}
+            {% set published = item.published|date_fmt(fmt=dates_format) %}
+            {% if item_http_uri %}
+                <span class="blog_data"><a href="{{item_http_uri}}">{{published}}</a></span>
+            {% else %}
+                {{- published -}}
+            {% endif %}
+            </div>
+            {% if item.tags %}
+                <div class="labels">
+                    {% if tags_http_uri is defined %}
+                        {% for tag in item.tags %}
+                            <a href="{{tags_http_uri[tag]}}"><span>{{tag}}</span></a>
+                        {% endfor %}
+                    {% else %}
+                        {% for tag in item.tags %}
+                            <span>{{tag}}</span>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            {% endif %}
+            {% endblock metadata %}
+        {% endblock header %}
+    </header>
+
+    <div class="content{{' text' if not item.content_xhtml}}">
+        {% block content %}
+        {{- item.content_xhtml or item.content|urlize or '' -}}
+        {% endblock content %}
+    </div>
+
+    {# and the bottom button to expand/reduce the article #}
+    <div class="expand_box box_bottom" onclick="clicked_mh_fix('{{item.id}}')">
+        <p>
+            <span class='show'>{% trans %}Click to expand…{% endtrans %}</span>
+            <span class='hide'>{% trans %}Click to reduce…{% endtrans %}</span>
+        </p>
+    </div>
+
+</article>
+
+{% endblock item %}

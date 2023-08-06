@@ -1,0 +1,237 @@
+{% import 'input/field.html' as field %}
+
+{# generate methods #}
+
+{% macro generate_container(cont, config) %}
+    {% if cont.type == 'vertical' %}
+        {{ vertical_container(cont, config) }}
+    {% elif cont.type == 'pairs' %}
+        {{ pairs_container(cont, config) }}
+    {% elif cont.type == 'label' %}
+        {{ label_container(cont, config) }}
+    {% endif %}
+{% endmacro %}
+
+{% macro generate_widget(wid, config, id=none) %}
+    {% if wid.type == 'text' %}
+        {{ text_widget(wid, config, id=id) }}
+    {% elif wid.type == 'label' %}
+        {{ label_widget(wid, config) }}
+    {% elif wid.type == 'string' %}
+        {{ string_widget(wid, config, id=id) }}
+    {% elif wid.type == 'jid' %}
+        {# TODO: proper JID widget #}
+        {{ string_widget(wid, config, id=id) }}
+    {% elif wid.type == 'textbox' %}
+        {{ textbox_widget(wid, config, id=id) }}
+    {% elif wid.type == 'list' %}
+        {{ list_widget(wid, config, id=id) }}
+    {% endif %}
+{% endmacro %}
+
+{% macro generate_children(cont, config) %}
+    {% for child in cont.children %}
+        {% if child.category == 'container' %}
+            {{ generate_container(child, config) }}
+        {% else %}
+            {{ generate_widget(child, config) }}
+        {% endif %}
+    {% endfor %}
+
+{% endmacro %}
+
+{% macro generate(xmlui, form=true, filters=none, attributes=none) %}
+{# generate HTML from XMLUI
+    @param xmlui(template_xmlui.XMLUIPanel): xmlui to use
+    @param form(bool): if true will generate form elements
+    @param filters(dict,none): filters as expected by item_filter
+    @param attributes(dict,none): extra attributes to put on named widgets
+#}
+    {% set config = {'form':form, 'filters':filters or {}, 'attrs': attributes or {}} %}
+    {{ generate_container(xmlui.main_cont, config) }}
+{% endmacro %}
+
+{% macro generate_table(xmlui_items, fields, formatters, tr_class_fields, on_click) %}
+{# generate a HTML table from requested widgets names
+    @param xmlui_items(iterable[unicode]): list of xmlui to show (one per row)
+    @param fields(tuple[unicode,unicode]): fields to show (name, label)
+    @param formatters(dict): dictionary of templates to format values:
+        field_name => template
+        if no formatter is set (or None is used) for a field, it will be used unmodified.
+        current xmlui items will be set as "item" key
+    @param tr_class_fields(iterable[unicode]): name of fields to use as class
+        class will be "{name}_{value}" where name is field name, and value field value
+        all lowercase/stripped
+    @param on_click(data_objects.OnClick): thing to do when clicking on a row
+#}
+    {% if formatters is undefined %}
+        {% set formatters = {} %}
+    {% endif %}
+    {% if on_click is undefined %}
+        {% set on_click = {} %}
+    {% endif %}
+    <table>
+        <thead>
+            <tr>
+                {% for name,label in fields %}
+                    <th>{{ label }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for xmlui in xmlui_items %}
+                {% set link=on_click.formatUrl(item=xmlui.widget_value) if on_click.url else none %}
+                <tr {{ {'class': xmlui|xmlui_class(tr_class_fields)}|xmlattr }}>
+
+                    {% for name,label in fields %}
+                        <td {{ {'class': 'td_'+name}|xmlattr }}>
+                            {% for value in xmlui.widgets[name].values %}
+                                <a {{ {'href':link}|xmlattr }}>{{ value|adv_format(formatters.get(name),item=xmlui.widget_value) }}</a>
+                            {% endfor %}
+                        </td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endmacro %}
+
+
+
+
+{% macro generate_list(xmlui_items, fields, formatters, item_class_fields, on_click) %}
+{# generate a list of rendered XMLUI from requested widgets names
+    very similar to generate_table but generate a list instead of a tabme
+    @param xmlui_items(iterable[unicode]): list of xmlui to show
+    @param fields(tuple[unicode,unicode]): fields to show (name, label)
+    @param formatters(dict): dictionary of templates to format values:
+        field_name => template
+        if no formatter is set (or None is used) for a field, it will be used unmodified.
+        current xmlui items will be set as "item" key for the template
+    @param item_class_fields(iterable[unicode]): name of fields to use as class
+        class will be "{name}_{value}" where name is field name, and value field value
+        all lowercase/stripped
+    @param on_click(data_objects.OnClick): thing to do when clicking on a row
+#}
+    {% if formatters is undefined %}
+        {% set formatters = {} %}
+    {% endif %}
+    {% if on_click is undefined %}
+        {% set on_click = {} %}
+    {% endif %}
+    <ul class="xmlui_list">
+        {% for xmlui in xmlui_items %}
+            <li>
+            {% set link=on_click.formatUrl(item=xmlui.widget_value) if on_click.url else none %}
+                <a {{ {'class': xmlui|xmlui_class(item_class_fields),
+                        'href':link}|xmlattr }}>
+                    {% for name,label in fields %}
+                        <span {{ {'class': 'xmlui_field__'+name}|xmlattr }}>
+                            {% for label in xmlui.widgets.get(name, {}).labels %}
+                                <span>{{ label|adv_format(formatters.get(name),item=xmlui.widget_value) }}</span>
+                            {% endfor %}
+                        </span>
+                    {% endfor %}
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+{% endmacro %}
+
+
+
+
+
+{# containers #}
+
+{% macro vertical_container(cont, config) %}
+    <div class="xmlui_cont xmlui_cont_vertical">
+        {{ generate_children(cont, config) }}
+    </div>
+{% endmacro %}
+
+{% macro pairs_container(cont, config) %}
+    {# TODO: proper impelmentation (do the same as vertical container for now #}
+    <div class="xmlui_cont xmlui_cont_vertical">
+        {{ generate_children(cont, config) }}
+    </div>
+{% endmacro %}
+
+{% macro label_container(cont, config) %}
+    <div class="xmlui_cont xmlui_cont_vertical">
+        {% for child in cont.children %}
+            {% if loop.index is odd %}
+                {# label #}
+                {% if child.type == 'label' %}
+                    {% set for_ = ('wid_' + (child.for_name or child.name or '_noname'))|next_gidx %}
+                    {{ label_widget(child, config, for=for_) }}
+                {% endif %}
+            {% else %}
+                {# widget #}
+                {% set id = ('wid_' + (child.name or '_noname'))|cur_gidx %}
+                {{ generate_widget(child, config, id=id) }}
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endmacro %}
+
+
+{# widgets #}
+
+{% macro text_widget(wid, config, id=none) %}
+    <p class="xmlui_widget xmlui_text" {{ {'id':id}|xmlattr }}>
+        {{- wid|item_filter(config.filters)|default('\u00A0',true) -}}
+    </p>
+{% endmacro%}
+
+{% macro label_widget(wid, config, for=none) %}
+    {% if config.form %}
+        <label class="xmlui_widget xmlui_label" {{ {'for':for}|xmlattr }}>
+            {{wid|item_filter(config.filters)}}
+        </label>
+    {% else %}
+        <span class="xmlui_widget xmlui_label" {{ {'id':none if not for else 'label_%s'|format(for)}|xmlattr }}>{{wid|item_filter(config.filters)}}</span>
+    {% endif %}
+{% endmacro%}
+
+{% macro string_widget(wid, config, id=none) %}
+    {% if config.form %}
+        <input class="xmlui_widget xmlui_string" type="text" {{ {'name':wid.name, 'id':id, 'value':wid|item_filter(config.filters)}|dict_ext(config.attrs, wid.name)|xmlattr }}>
+    {% else %}
+        <div class="xmlui_widget xmlui_string"  {{ {'id':id}|xmlattr }}>
+            {{- wid|item_filter(config.filters)|default('\u00A0',true) -}}
+        </div>
+    {% endif %}
+{% endmacro%}
+
+{% macro textbox_widget(wid, config, id=none) %}
+    {% if config.form %}
+        <textarea class="xmlui_widget xmlui_textbox" rows="10" cols="50" {{ {'name':wid.name, 'id':id}|dict_ext(config.attrs, wid.name)|xmlattr }}>
+            {{- wid|item_filter(config.filters) -}}
+        </textarea>
+    {% else %}
+        <p class="xmlui_widget xmlui_textbox" {{ {'id':id}|xmlattr }}>
+            {{- wid|item_filter(config.filters) -}}
+        </p>
+    {% endif %}
+{% endmacro%}
+
+{% macro list_widget(wid, config, id=none) %}
+    {% if config.form %}
+        <select class="xmlui_widget xmlui_list" {{ {'name':wid.name, 'id':id}|dict_ext(config.attrs, wid.name)|xmlattr }}>
+            {% for value,label in wid.options %}
+                <option {{ {'value':value}|xmlattr }} {{ 'selected' if value in wid.selected }}>
+                    {{- label -}}
+                </option>
+            {% endfor %}
+        </select>
+    {% else %}
+        <div class="xmlui_widget xmlui_list" {{ {'id':id}|xmlattr }}>
+            {% for value,label in wid.items %}
+                <span class="xmlui_list_item value_{{value|attr_escape}}">
+                    {{- label -}}
+                </span>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endmacro%}

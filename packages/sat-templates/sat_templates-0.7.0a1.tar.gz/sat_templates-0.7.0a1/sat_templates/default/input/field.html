@@ -1,0 +1,76 @@
+{# macros to create form fields #}
+
+{% macro field(type, name, label="", required=false) %}
+    {# generic field
+       "class" keyword can be used to add classes
+       additional kwargs will be passed as attributes #}
+    <span class="form_input {{kwargs.pop('class', '')}}">
+        {% set cur_id = name|next_gidx %}
+        {% if label %}
+            <label for="{{cur_id}}" {{'class="required"'|safe if required}}>{{label}}</label>
+        {% endif %}
+        <input id="{{cur_id}}" type="{{type}}" name="{{name}}" {{"required" if required}} {{kwargs|xmlattr}}>
+    </span>
+{% endmacro %}
+
+{% macro choices(name, choices_list, checked=none) %}
+    {% for choice, label in choices_list %}
+        <div class="form_input {{kwargs.pop('class', '')}}">
+            <input id="{{name|next_gidx}}" type="radio" name="{{name}}" value="{{choice}}"{{" checked" if checked==choice}}><label for="{{name|cur_gidx}}">{{label}}</label>
+        </div>
+    {% endfor %}
+{% endmacro %}
+
+{% macro int(name, label="", init=0) %}
+    {{ field("number", name=name, label=label, value=init, step=1, min=0, **kwargs) }}
+{% endmacro %}
+
+{% macro checkbox(name, label="", checked=false) %}
+    {% if checked %}
+        {{ field("checkbox", name=name, label=label, checked="checked", **kwargs) }}
+    {% else %}
+        {{ field("checkbox", name=name, label=label, **kwargs) }}
+    {% endif %}
+{% endmacro %}
+
+{% macro text(name, label="", placeholder="", required=false) %}
+    {{ field("text", name=name, label=label, required=required, placeholder=placeholder, **kwargs) }}
+{% endmacro %}
+
+{% macro password(name, label="", required=false) %}
+    {{ field("password", name=name, label=label, required=required, **kwargs) }}
+{% endmacro %}
+
+{% macro email(name, label="", required=false) %}
+    {{ field("email", name=name, label=label, required=required, **kwargs) }}
+{% endmacro %}
+
+{% macro date(name, label="", required=false) %}
+    {{ field("date", name=name, label=label, required=required, **kwargs) }}
+{% endmacro %}
+
+{% macro url(name, label="", required=false) %}
+    {{ field("url", name=name, label=label, required=required, **kwargs) }}
+{% endmacro %}
+
+{% macro file(name, label="", required=false) %}
+    {{ field("file", name=name, label=label, required=required, **kwargs) }}
+{% endmacro %}
+
+{% macro textarea(name, label="", rows=10, cols=50, placeholder='', required=false) %}
+    <div class="form_input {{kwargs.pop('class', '')}}">
+        {% set cur_id = name|next_gidx %}
+        {% if label %}
+            <label for="{{cur_id}}" {{'class="required"'|safe if required}}>{{label}}</label>
+        {% endif %}
+        <textarea id="{{cur_id}}" name="{{name}}" rows="{{rows}}" cols="{{cols}}" placeholder="{{placeholder}}" {{"required" if required}} class="{{kwargs.pop('class', '')}}"></textarea>
+    </div>
+{% endmacro %}
+
+{% macro meta(name, value) %}
+    <input type="hidden" name="{{name}}" value="{{value}}">
+{% endmacro %}
+
+{% macro submit(text=_("Send")) %}
+    <input class="form_submit button" type="submit" value="{{text}}" class="{{kwargs.pop('class', '')}}">
+{% endmacro %}

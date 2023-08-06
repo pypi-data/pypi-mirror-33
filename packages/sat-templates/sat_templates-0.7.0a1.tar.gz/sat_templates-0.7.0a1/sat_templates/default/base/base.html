@@ -1,0 +1,84 @@
+{% set embedded = True %} {# embedded is set to avoid including base.html several times if a generic page is included (e.g. blog/articles.html) #}
+{% import 'components/common.html' as component with context %}
+{{ script.include('common', '') }} {# common.js is a common script, so it's useful to import it here #}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    {% if norobots %}
+        <meta name="robots" content="noindex, nofollow">
+    {% endif %}
+
+    <title>{% block title %}{{C.APP_NAME}}{% endblock %}</title>
+
+    {% if css_content is defined %}
+        <style type="text/css">
+            {{css_content}}
+        </style>
+    {% else %}
+        {% for css_file in css_files %}
+            <link rel='stylesheet' type="text/css" href='{{root_path}}{{css_file}}'>
+        {% endfor %}
+    {% endif %}
+
+    {% if xmpp_uri is defined %}
+        <link rel="alternate" type="application/atom+xml" href="{{xmpp_uri}}" >
+    {% endif %}
+
+    {% if dynamic_style is defined %}
+    {# be extra careful about dynamic style, insure escaping if you use untrusted values ! #}
+        <style type="text/css">
+        {{dynamic_style}}
+        </style>
+    {% endif %}
+
+    {# JS handling #}
+    {% if websocket is defined %}
+        {{ script.include('websocket', '') }}
+    {% endif %}
+    {{ script.generate_scripts() }}
+    {% if websocket is defined %}
+        <script>var socket=new WSHandler("{{websocket.url}}", "{{websocket.token}}", {{websocket.debug}});</script>
+    {% endif %}
+
+    {% block favicon %}
+        <link rel="icon" href="{{media_path}}icons/apps/64/sat.png">
+    {% endblock favicon %}
+</head>
+<body>
+    {% if main_menu is defined %}
+        {% block main_menu %}
+            {{ component.menu(main_menu, class="main_menu") }}
+        {% endblock main_menu %}
+    {% endif %}
+
+    <main id='main_area'>
+        <header>
+            {% if confirm %}
+            {# confirmation message used when post data has been handled correctly #}
+                {% block confirm %}
+                    <div class="box post_confirm">
+                        {% block confirm_message %}
+                            {% trans %}Your data has been sent correctly.{% endtrans %}
+                        {% endblock confirm_message %}
+                    </div>
+                {% endblock confirm %}
+            {% endif %}
+
+        </header>
+
+        <div id="body">
+        {% block category_menu scoped %}
+            {% if category_menu is defined %}
+                {{ component.menu(category_menu, class="category_menu") }}
+            {% endif %}
+        {% endblock category_menu %}
+        {% block body %}
+        {% endblock body %}
+        </div>
+        <footer>{% block footer %}<span>{% trans app_name=C.APP_NAME %}Powered by {{app_name}}{% endtrans %}</span>{% endblock %}</footer>
+    </main>
+</body>
+</html>
