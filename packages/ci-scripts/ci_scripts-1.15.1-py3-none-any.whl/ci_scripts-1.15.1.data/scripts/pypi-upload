@@ -1,0 +1,61 @@
+#!python
+"""LICENSE
+Copyright 2017 Hermann Krumrey <hermann@krumreyh.com>
+
+This file is part of ci-scripts.
+
+ci-scripts is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+ci-scripts is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with ci-scripts.  If not, see <http://www.gnu.org/licenses/>.
+LICENSE"""
+
+
+import os
+import glob
+import argparse
+from shutil import rmtree
+from ci_scripts.common import process_call
+
+
+def main():
+    """
+    Uploads the current python project to pypi. Also allows the use of
+    pypitest using the --test flag
+    :return: None
+    """
+
+    process_call(["pip", "install",
+                  "wheel", "twine", "setuptools",
+                  "--upgrade"])
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-t", "--test", action="store_true",
+                        help="Uploads to pypitest instead")
+    test = parser.parse_args().test
+
+    for path in ["dist", "build"]:
+        if os.path.isdir(path):
+            rmtree(path)
+
+    username = os.environ["PYPI_USERNAME"]
+    password = os.environ["PYPI_PASSWORD"]
+    repo = "pypitest" if test else "pypi"
+
+    process_call(["python", "setup.py", "bdist_wheel", "sdist"])
+    process_call(["twine", "upload",
+                  "-r", repo,
+                  "-u", username,
+                  "-p", password] + glob.glob("dist/*"))
+
+
+if __name__ == "__main__":
+    main()
