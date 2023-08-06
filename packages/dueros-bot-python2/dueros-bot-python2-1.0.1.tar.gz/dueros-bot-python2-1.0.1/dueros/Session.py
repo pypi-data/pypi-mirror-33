@@ -1,0 +1,62 @@
+#!/usr/bin/env python2
+# -*- coding=utf-8 -*-
+
+# description:
+# author:jack
+# create_time: 2017/12/30
+
+"""
+Session相关 暂未搞
+"""
+
+from dueros.Base import Base
+
+class Session(Base):
+
+    def __init__(self, data):
+
+        super(Session,self).__init__()
+
+        self.data = {}
+
+        if 'attributes' in data and isinstance(data['attributes'], list) and len(data['attributes']) > 0:
+            self.data = data['attributes']
+
+        if 'attributes' in data and isinstance(data['attributes'], dict):
+            self.data = data['attributes']
+
+        if 'sessionId' in data:
+            self.sessionId = data['sessionId']
+        else:
+            self.sessionId = None
+
+        if 'new' in data:
+            self.isNew = data['new']
+        else:
+            self.isNew = False
+
+    def clear(self):
+        self.data = {}
+
+    def toResponse(self):
+
+        return {
+            'attributes': self.data
+        }
+
+    def getData(self, field, default=''):
+
+        if field and field in self.data:
+            return self.data[field]
+        else:
+            return default
+
+    def setData(self, field, value, default=''):
+        if value:
+            self.data[field] = value
+        else:
+            self.data[field] = default
+
+
+if __name__ == '__main__':
+    pass
