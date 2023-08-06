@@ -1,0 +1,137 @@
+notifications:
+  irc: "chat.freenode.net#meta-toolkit"
+
+language: cpp
+
+sudo: false
+
+cache:
+  directories:
+    deps/icu
+
+addons:
+  apt:
+    packages: &default-packages
+      - libjemalloc-dev
+      - zlib1g-dev
+
+matrix:
+  include:
+    # Linux/GCC 4.8
+    - os: linux
+      env: COMPILER=gcc GCC_VERSION=4.8
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - *default-packages
+            - gcc-4.8
+            - g++-4.8
+
+    # Linux/GCC 4.9
+    - os: linux
+      env: COMPILER=gcc GCC_VERSION=4.9
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - *default-packages
+            - gcc-4.9
+            - g++-4.9
+
+    # Linux/GCC 5
+    - os: linux
+      env: COMPILER=gcc GCC_VERSION=5
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - *default-packages
+            - gcc-5
+            - g++-5
+
+    # Linux/GCC 6
+    - os: linux
+      env: COMPILER=gcc GCC_VERSION=6
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - *default-packages
+            - gcc-6
+            - g++-6
+
+    # Linux/Clang 3.5
+    - os: linux
+      env: COMPILER=clang CLANG_VERSION=3.5
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - *default-packages
+            - clang-3.5
+            - libc++-dev
+            - libc++abi-dev
+
+    # Linux/Clang 3.9 + libc++-3.9
+    - os: linux
+      env:
+        - COMPILER=clang
+        - CLANG_VERSION=3.9
+        - LLVM_TAG=RELEASE_390
+        - LIBCXX_EXTRA_CMAKE_FLAGS=-DLIBCXX_INSTALL_EXPERIMENTAL_LIBRARY=On
+        - CMAKE_VERSION=3.4.3
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - *default-packages
+            - clang-3.9
+
+    # OS X 10.10 + Xcode 6.4 (this is the only 10.10 image on Travis)
+    - os: osx
+      osx_image: xcode6.4
+      env: COMPILER=clang
+
+    # OS X 10.11 + Xcode 7.3
+    - os: osx
+      osx_image: xcode7.3
+      env: COMPILER=clang
+
+    # OS X 10.12 + Xcode 8.3
+    - os: osx
+      osx_image: xcode8.3
+      env: COMPILER=clang
+
+    # OS X 10.12 + Xcode 8.3 w/ Xcode generator
+    - os: osx
+      osx_image: xcode8.3
+      env:
+        - COMPILER=clang
+        - CMAKE_EXTRA_ARGS=-GXcode
+        - BUILD_CMD="cmake --build . --config Release"
+        - TEST_CMD="Release/unit-test --reporter=spec"
+
+    # OS X/GCC 7
+    - os: osx
+      osx_image: xcode7.3
+      env: COMPILER=gcc
+
+install:
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then source travis/install_linux.sh; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then source travis/install_osx.sh; fi
+
+before_script:
+  - mkdir build
+  - cd build
+  - cp ../config.toml ./
+
+script:
+  - git submodule update --init --recursive
+  - ../travis/build.sh
