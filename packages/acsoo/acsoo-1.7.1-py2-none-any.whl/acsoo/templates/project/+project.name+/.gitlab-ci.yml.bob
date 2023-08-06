@@ -1,0 +1,111 @@
+stages:
+  - code quality
+  - build
+  - test
+  - deploy
+
+before_script:
+  - |
+    function install_acsoo {
+        virtualenv --python=$(which {{{ python_version }}}) venv-acsoo
+        venv-acsoo/bin/pip install acsoo
+        ln -s venv-acsoo/bin/acsoo
+    }
+    function start_ssh_agent {
+        eval $(ssh-agent -s)
+        ssh-add <(echo "$SSH_DEPLOY_KEY")
+        echo "${SSH_AGENT_PID}" > ssh-agent.pid
+    }
+    function makepot {
+        # if you use weblate, remove --msgmerge here and install the msgmerge addon on weblate
+        venv/bin/click-odoo-makepot -c odoo-ci.cfg -d ${DB_NAME} --commit --msgmerge --addons-dir=$(pwd)/odoo/addons
+        git push "git@gitlab.acsone.eu:${CI_PROJECT_PATH}" "HEAD:${CI_COMMIT_REF_NAME}"
+    }
+
+after_script:
+  # important to cleanup after ourselves to avoid
+  # leaving ssh agents running on the shell executor
+  - if [ -f ssh-agent.pid ] ; then kill $(cat ssh-agent.pid) ; fi
+  - dropdb --if-exists ${DB_NAME}
+  - rm -fr ${HOME}/.local/share/Odoo/filestore/${DB_NAME}
+
+variables:
+  DB_NAME: "${CI_PROJECT_NAME}-${CI_JOB_ID}"
+
+pylint:
+  stage: code quality
+  tags:
+    - python
+  script:
+    - install_acsoo
+    - ./acsoo pylint
+
+flake8:
+  stage: code quality
+  tags:
+    - python
+  script:
+    - install_acsoo
+    - ./acsoo flake8
+
+build:
+  stage: build
+  # use odoo-{{{ odoo.series }}} runner so we have the pre-cloned odoo
+  # except for that optimization, we don't need odoo dependencies for this job
+  tags:
+    - odoo-{{{ odoo.series }}}
+  script:
+    - install_acsoo
+    - start_ssh_agent
+    - ./acsoo wheel
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - release/
+    name: "${CI_PROJECT_NAME}-${CI_JOB_ID}-build"
+
+{{% if odoo.series in ['8.0', '9.0'] %}}
+{{% set odoocmd = 'openerp-server' %}}
+{{% else %}}
+{{% set odoocmd = 'odoo' %}}
+{{% endif %}}
+test:
+  stage: test
+  tags:
+    - odoo-{{{ odoo.series }}}
+  script:
+    - install_acsoo
+    - start_ssh_agent  # for pushing translations
+    - virtualenv --python=$(which {{{ python_version }}}) venv
+    - venv/bin/pip install coverage
+    # use --no-index so missing dependencies that would not be in *.whl are detected
+    - venv/bin/pip install --no-index release/*.whl
+    # although the project is part of *.whl, install it in editable mode so coverage sees it
+    - venv/bin/pip install --no-index -e .
+    - ADDONS_INIT=$(./acsoo addons list-depends)
+    - echo Installing ${ADDONS_INIT}
+    - unbuffer venv/bin/click-odoo-initdb -c odoo-ci.cfg --new-database ${DB_NAME} --cache-prefix {{{ project.trigram }}} -m ${ADDONS_INIT} | ./acsoo checklog
+    # do not test server_environment_files because server_environment depends on it,
+    # so testing server_environment_files implies testing server_environment,
+    # and the server_environment tests require a very specific server_environment_files
+    - ADDONS_TEST=$(./acsoo addons --exclude server_environment_files list)
+    - echo Testing ${ADDONS_TEST}
+    - unbuffer venv/bin/coverage run venv/bin/{{{ odoocmd }}} -c odoo-ci.cfg -d ${DB_NAME} --stop-after-init --no-xmlrpc -i ${ADDONS_TEST} --test-enable | ./acsoo checklog
+    - venv/bin/coverage report
+    - if [ "${CI_COMMIT_REF_NAME}" = "master" ] ; then makepot ; fi
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
+  dependencies:
+    - build
+
+deploy-test:
+  stage: deploy
+  script:
+    - start_ssh_agent
+    - ./deploy-test
+  environment:
+    name: test
+    url: https://odoo-{{{ project.name }}}-test.acsone.eu
+  only:
+    - /^\d+\.\d+\.\d+$/
+  dependencies:
+    - build
