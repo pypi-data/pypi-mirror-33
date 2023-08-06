@@ -1,0 +1,136 @@
+<html>
+<head>
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+circle,
+path {
+  cursor: pointer;
+}
+
+circle {
+  fill: none;
+  pointer-events: all;
+}
+
+#tooltip { background-color: white;
+              padding: 3px 5px;
+              border: 1px solid black;
+              text-align: center;}
+
+html {
+    font-family: sans-serif;
+}
+
+</style>
+<script src="d3.js"></script>
+<script src="h5utils.js"></script>
+
+<title> Virtual Microbe (metabolism) </title>
+  <link href="viewer.css" rel="stylesheet">
+</head>
+<body>
+
+
+<center><b><font size="6">Metabolism movies<br></font><a href="metabolism.html">(back to webapp)</a></b>
+<br>
+<div class="subtitle" style="display:inline-block;width:700">Metabolome most fecundant </div>
+<div class="subtitle" style="display:inline-block;width:700;padding-left:100px;">Pan metabolome  </div>
+<p id="time"> </p>
+<video id="one" width="780" height="" autoplay autobuffer preload>
+<source src="../plots/Metabolome/Metabolome.png.mp4">
+Sorry, your browse:wr does not support the video tag.
+</video>
+
+<video id="two" width="780" height="" autoplay autobuffer preload>
+<source src="../plots/Metabolome/Metabolome_pan.png.mp4">
+Sorry, your browse:wr does not support the video tag.
+</video>
+<p id="controls">
+    <input type="button" id="play" value="pause">
+    <span id="position">00:00</span> / <span id="duration">loading...</span>
+    <input type="range" style="width:600px" value="0" step=0.2 id="scrub" />
+  </p>
+This scrubber keeps the videos in synch. Playback after pausing still a bit glitchy, so just hit f5 if this happens. You're welcome.
+<script>
+var video = document.querySelector('#one'),
+    video2 = document.querySelector('#two'),
+    togglePlay = document.querySelector('#play'),
+    position = document.querySelector('#position'),
+    ready = false,
+    controls = document.querySelector('#controls'),
+    scrub = document.querySelector('#scrub');
+
+addEvent(togglePlay, 'click', function () {
+  if (ready) {
+    video.playbackRate = 0.2;
+    if (video.paused) {
+      if (video.ended) {
+        video.currentTime = 0;
+        video2.currentTime = 0;
+      }
+      video2.currentTime = video.currentTime;
+      video.play();
+      this.value = "pause";
+    } else {
+      video.pause();
+      this.value = "play";
+    }
+  }
+});
+
+function seek() {
+  scrub.value = video2.currentTime = this.currentTime;
+}
+
+addEvent(video, 'seeking', seek);
+addEvent(video, 'seeked', seek);
+
+addEvent(video, 'play', function () {
+  video2.play();
+});
+
+addEvent(video, 'pause', function () {
+  video2.pause();
+})
+
+addEvent(video, 'timeupdate', function () {
+  position.innerHTML = asTime(this.currentTime);
+  scrub.value = this.currentTime;
+});
+
+addEvent(video, 'ended', function () {
+  togglePlay.value = "play";
+});
+
+addEvent(video, 'canplay', function () {
+  video.muted = true;
+  ready = true;
+  document.querySelector('#duration').innerHTML = asTime(this.duration);
+
+  scrub.setAttribute('max', this.duration);
+  addEvent(scrub, 'change', function () {
+    video.currentTime = this.value;
+    video2.currentTime = this.value;
+  });
+});
+
+function asTime(t) {
+  t = Math.round(t);
+  var s = t % 60;
+  var m = Math.round(t / 60);
+  
+  return two(m) + ':' + two(s);
+}
+
+function two(s) {
+  s += "";
+  if (s.length < 2) s = "0" + s;
+  return s;
+}
+</script>
+
+	</center>
+</body>
+</html>
