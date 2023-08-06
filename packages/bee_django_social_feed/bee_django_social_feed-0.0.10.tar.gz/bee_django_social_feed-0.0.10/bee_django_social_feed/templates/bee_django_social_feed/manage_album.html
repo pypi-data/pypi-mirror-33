@@ -1,0 +1,42 @@
+{% extends 'bee_django_social_feed/base.html' %}
+
+{% block content %}
+
+    <div class="col-md-12">
+        <h3>
+            <a href="{% url 'bee_django_social_feed:manage_albums' %}" class="btn btn-default">返回</a>
+        </h3>
+        <h5>{{ album.user.first_name | default:album.user.username }}</h5>
+        {% for e in album.albumphoto_set.all %}
+            <img src="{{ e.image.url }}"/>
+        {% endfor %}
+        {{ e.note | linebreaks }}
+
+        <a href="#" class="btn btn-primary score_button" data-confirm="{{ request.path }}" data-adds="1">普通</a>
+        <a href="#" class="btn btn-success score_button" data-confirm="{{ request.path }}" data-adds="2">优秀</a>
+        <a href="#" class="btn btn-danger score_button" data-confirm="{{ request.path }}" data-adds="3">阻止</a>
+    </div>
+
+
+{% endblock content %}
+
+{% block scripts %}
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $('.score_button').click(function (e) {
+                e.preventDefault();
+                var text = $(e.target).html();
+                var level = $(this).attr('data-adds');
+                if (confirm('确定给予' + text + "?")) {
+                    var url = $(this).attr('data-confirm');
+                    $.post(url, {level: level}).done(function (data) {
+                        var message = data['message'];
+                        alert(message);
+                        window.location.href = "{% url 'bee_django_social_feed:manage_albums' %}";
+                    })
+                }
+
+            });
+        })
+    </script>
+{% endblock scripts %}
