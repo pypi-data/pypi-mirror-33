@@ -1,0 +1,101 @@
+#!/bin/sh
+
+export PYTHONPATH=/usr/local/bin:/usr/bin
+CELERY_PID="$HOME/.clustermgr/celery.pid"
+CELERY_BEAT_PID="$HOME/.clustermgr/celery-beat.pid"
+GUNICORN_PID="$HOME/.clustermgr/gunicorn.pid"
+PW_FILE="$HOME/.clustermgr/.pw"
+NEW_UUID=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
+app=`which clusterapp.py`
+
+
+start() { 
+    echo "Upgrading Database"
+    $app db upgrade
+    
+    echo "Starting Celery Worker"
+    if [ -f "$CELERY_PID" ]
+    then
+        echo "Celery Worker pid file $CELERY_PID exists, not starting"
+    else
+        NEW_UUID=$NEW_UUID celery multi start worker -A clusterapp.celery --pidfile=$CELERY_PID --logfile="$HOME/.clustermgr/logs/celery.log" --detach
+    fi
+    
+    echo "Starting Celery Beat"
+    if [ -f "$CELERY_BEAT_PID" ]
+    then
+        echo "Celery Beat pid file $CELERY_BEAT_PID exists, not starting"
+    else
+        NEW_UUID=$NEW_UUID celery beat -A clusterapp.celery --pidfile=$CELERY_BEAT_PID --logfile="$HOME/.clustermgr/logs/celery-beat.log" -s "$HOME/.clustermgr/celerybeat-schedule" --detach
+    fi
+
+    echo "Starting Gunicorn Web Server"
+    if [ -f "$GUNICORN_PID" ]
+    then
+        echo "Gunicorn pid file $GUNICORN_PID exists, not starting"
+    else
+        NEW_UUID=$NEW_UUID gunicorn --daemon --pid $GUNICORN_PID  --error-logfile "$HOME/.clustermgr/logs/gunicorn_error.log"   -w 2 -b 127.0.0.1:5000 clusterapp:app
+    fi
+}
+
+stop() {
+    
+    echo "Stopping Celery Workers"
+    ps auxww | grep '[c]elery worker' | awk '{print $2}' | xargs kill -9
+    
+    if [ -f "$CELERY_PID" ]
+    then
+        rm "$CELERY_PID"
+    fi
+
+    
+    echo "Stopping Celery Beats"
+    ps auxww | grep '[c]elery beat' | awk '{print $2}' | xargs kill -9
+
+    if [ -f "$CELERY_BEAT_PID" ]
+    then
+        rm "$CELERY_BEAT_PID"
+    fi
+
+
+    echo "Stopping Gunicorn Web Server"
+    ps auxww | grep '[g]unicorn --daemon' | awk '{print $2}' | xargs kill -9
+
+    if [ -f "$GUNICORN_PID" ]
+    then
+        rm "$GUNICORN_PID"
+    fi
+
+    if [ -f "$PW_FILE" ]
+    then
+        rm "$PW_FILE"
+    fi
+
+}
+
+restart() {
+    stop
+    start
+}
+
+
+
+case "$1" in
+    start)
+        start
+    ;;
+
+    stop)
+        stop
+    ;;
+
+
+    restart)
+        restart
+    ;;
+
+    *)
+        echo "Usage: clustermgr-cli {start|stop|restart}"
+        exit 64
+    ;;
+esac

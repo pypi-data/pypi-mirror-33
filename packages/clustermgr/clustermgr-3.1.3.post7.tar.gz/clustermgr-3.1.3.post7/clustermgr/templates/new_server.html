@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from 'macros.html' import render_field, render_checkbox_field, render_form %}
+
+{% block header %}
+    <h1> {{ header }}</h1>
+  <ol class="breadcrumb">
+    <li><i class="fa fa-home"></i> <a href="{{ url_for('index.home') }}">Home</a></li>
+    <li><i class="fa fa-blocks"></i> <a href="#">Cluster</a></li>
+    <li class="active">New Server</li>
+  </ol>
+{% endblock header %}
+
+{% block  content %}
+<div class="box box-primary">
+    <div class="box-body">
+        {{ render_form(form, action_url='', btn_class='btn btn-primary') }}
+        
+    </div>
+
+    {% if server_id %}
+        <div class="panel-body">
+
+            <form id="upload_setup_properties" action="{{url_for('server.upload_setup_properties', server_id=server_id)}}" method="POST" enctype="multipart/form-data">
+                {{ setup_properties_form.csrf_token }}
+                <div class="row">
+                    <div class="col-md-3">
+                        {{ setup_properties_form.setup_properties }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ setup_properties_form.upload(class="btn btn-success") }}
+                    </div>
+                </div>
+            </form>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+
+{% block modals %}
+
+{% include 'passphrase_modal.html' %}
+
+{% endblock %}
+
+
+{% block js %}
+<script>
+{% if ask_passphrase %}
+
+    $("#passphrase_modal").modal("show");
+
+{% endif %}
+
+$('#submit_passphrase').click(function(e){
+      e.preventDefault();
+      $.post('{{request.host_url}}setpassphrase/', 
+         $('#passphrase_form').serialize(), 
+         function(data, status, xhr){
+           console.log("Status: " + status);
+         });
+    $("#passphrase_modal").modal("hide");
+});
+
+</script>
+{% endblock %}
+
