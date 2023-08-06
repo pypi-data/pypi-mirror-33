@@ -1,0 +1,254 @@
+<?xml version='1.0' encoding='ASCII'?>
+<flow xmlns="http://www.sysess.org/sympathyfordata/workflow/1.0" cls="Flow" height="50.0" id="" is_locked="False" uuid="{dd87add2-a28b-4522-af39-c59dca922871}" width="50.0" x="0.0" y="0.0">
+  <label></label>
+  <description></description>
+  <author></author>
+  <copyright></copyright>
+  <version></version>
+  <min_version></min_version>
+  <aggregation type="json">null</aggregation>
+  <libraries type="json">[]</libraries>
+  <pythonpaths type="json">[]</pythonpaths>
+  <overrides type="json">{}</overrides>
+  <environment type="json">{}</environment>
+  <parameters type="json">{"environment": {}}</parameters>
+  <ports/>
+  <node id="org.sysess.sympathy.machinelearning.crossval_kfold" uuid="{1907918a-0d9b-4091-abb2-9bdd8f935b95}" x="2450.0" y="2275.0">
+    <label>K-fold cross validation</label>
+    <description>Gives splits for K-fold cross validation</description>
+    <author>Mathias Broxvall</author>
+    <copyright>(C) 2017 System Engineering Software Society</copyright>
+    <version>0.1</version>
+    <parameters type="json">{"type": "group", "n_splits": {"description": "Number of folds, must be atleast 2", "editor": null, "label": "Number of splits", "order": 0, "type": "integer", "value": 3}, "shuffle": {"description": "Shuffle the data before splitting", "editor": null, "label": "Shuffle", "order": 1, "type": "boolean", "value": true}}</parameters>
+    <ports>
+      <input key="X" scheme="hdf5" type="table" type_base="table" uuid="{a322802b-b09c-4351-a855-ce9fe652c4e9}">
+        <label>X</label>
+        <description>X</description>
+      </input>
+      <input key="Y" scheme="hdf5" type="table" type_base="table" uuid="{f0f11484-a269-4d02-a6af-173460a57663}">
+        <label>Y</label>
+        <description>Y</description>
+      </input>
+      <output key="out" scheme="hdf5" type="[(table, table)]" type_base="[(table, table)]" uuid="{7866d043-8369-45cb-b145-4a2cc5f51eed}">
+        <label>out</label>
+        <description>out</description>
+      </output>
+    </ports>
+  </node>
+  <node id="org.sysess.sympathy.machinelearning.pipeline" uuid="{1d9d8e54-294d-4382-81fc-e97750fd980d}" x="2400.0" y="2025.0">
+    <label>Pipeline</label>
+    <description>Applies one model on the output of another</description>
+    <author>Mathias Broxvall</author>
+    <copyright>(C) 2017 System Engineering Software Society</copyright>
+    <version>0.1</version>
+    <parameters type="json">{"type": "group", "names": {"description": "Comma separated list of model names, eg. Rescale, SVC", "editor": null, "label": "Model names: ", "order": 0, "type": "string", "value": "pre, NN"}, "flatten": {"description": "Flattens multiple pipeline objects into a single pipeline containing all models", "editor": null, "label": "Flatten: ", "order": 1, "type": "boolean", "value": true}}</parameters>
+    <ports>
+      <input key="models" scheme="hdf5" type="model" type_base="model" uuid="{7eb48c95-0c00-46fd-abc1-203ceb9d57aa}">
+        <label>models</label>
+        <description>models</description>
+      </input>
+      <input key="models" scheme="hdf5" type="model" type_base="model" uuid="{f192283b-6f45-4a69-9fcb-364663e74419}">
+        <label>models</label>
+        <description>models</description>
+      </input>
+      <output key="out-model" scheme="hdf5" type="model" type_base="model" uuid="{2aa283de-d333-4467-a56d-460e8530ff9c}">
+        <label>Output model</label>
+        <description>Output model</description>
+      </output>
+    </ports>
+  </node>
+  <node id="org.sysess.sympathy.create.createtable" uuid="{2569d9c5-d1fa-4eb5-a21b-890428a8a1af}" x="2200.0" y="2225.0">
+    <label>Hyper parameters</label>
+    <description></description>
+    <author>Magnus Sand&#233;n &lt;magnus.sanden@combine.se&gt;</author>
+    <copyright>(c) 2016 System Engineering Software Society</copyright>
+    <version>1.0</version>
+    <parameters type="json">{"type": "group", "json_table": {"description": "Configuration window", "editor": null, "label": "GUI", "order": 0, "type": "string", "value": "[[\"NN__hidden_layer_sizes\", \"U\", [\"42\", \"11\", \"12\"]], [\"NN__activation\", \"U\", [\"relu\", \"tanh\", null]]]"}}</parameters>
+    <ports>
+      <output key="port0" scheme="hdf5" type="table" type_base="table" uuid="{635b3bec-1dbe-4418-98ad-ba361d2ed1c0}">
+        <label>Manually created table</label>
+        <description>Manually created table</description>
+      </output>
+    </ports>
+  </node>
+  <node id="org.sysess.sympathy.machinelearning.binarizer" uuid="{4b6911f5-9a44-4769-874c-fab96aec4dab}" x="2225.0" y="1925.0">
+    <label>Binarizer</label>
+    <description>
+Binarize data (set feature values to 0 or 1) according to a threshold.
+
+Values greater than the threshold map to 1, while values less than or
+equal to the threshold map to 0. With the default threshold of 0, only
+positive values map to 1. Binarization is a common operation on text
+count data where the analyst can decide to only consider the presence
+or absence of a feature rather than a quantified number of occurrences
+for instance. It can also be used as a pre-processing step for
+estimators that consider boolean random variables (e.g. modelled using
+the Bernoulli distribution in a Bayesian setting).</description>
+    <author>Mathias Broxvall</author>
+    <copyright>(C) 2017 System Engineering Software Society</copyright>
+    <version>0.1</version>
+    <parameters type="json">{"type": "group", "threshold": {"description": "Feature values below or equal to this are replaced by 0, above it by 1.\nThreshold may not be less than 0 for operations on sparse matrices.\n", "editor": null, "label": "threshold", "order": 0, "type": "string", "value": "10"}}</parameters>
+    <ports>
+      <output key="model" scheme="hdf5" type="model" type_base="model" uuid="{e50aec98-79a9-4e0a-a980-4ae91e221646}">
+        <label>Model</label>
+        <description>Model</description>
+      </output>
+    </ports>
+  </node>
+  <node id="org.sysess.sympathy.create.createtable" uuid="{7c6b3528-4c0f-4e4f-82f5-bc9fa4d59046}" x="2200.0" y="2150.0">
+    <label>Hyper parameters</label>
+    <description></description>
+    <author>Magnus Sand&#233;n &lt;magnus.sanden@combine.se&gt;</author>
+    <copyright>(c) 2016 System Engineering Software Society</copyright>
+    <version>1.0</version>
+    <parameters type="json">{"type": "group", "json_table": {"description": "Configuration window", "editor": null, "label": "GUI", "order": 0, "type": "string", "value": "[[\"NN__hidden_layer_sizes\", \"U\", [\"50\", \"100\", \"50, 50\"]], [\"NN__activation\", \"U\", [\"relu\", \"tanh\", null]], [\"NN__beta_1\", \"f\", [0.9, 0.99, null]]]"}}</parameters>
+    <ports>
+      <output key="port0" scheme="hdf5" type="table" type_base="table" uuid="{61f1b2be-d073-412b-9872-45461e870a57}">
+        <label>Manually created table</label>
+        <description>Manually created table</description>
+      </output>
+    </ports>
+  </node>
+  <node id="org.sysess.sympathy.machinelearning.mlp__classifier" uuid="{a8245e98-540e-4bca-9cd7-b92f669f6098}" x="2225.0" y="2025.0">
+    <label>Multi-layer Perceptron Classifier</label>
+    <description>Multi-layer perceptron classifier</description>
+    <author>Mathias Broxvall</author>
+    <copyright>(C) 2017 System Engineering Software Society</copyright>
+    <version>0.1</version>
+    <parameters type="json">{"type": "group", "beta_1": {"description": "Exponential decay rate for estimates of first moment vector in adam,\nshould be in [0, 1). Only used when solver='adam'\n", "editor": null, "label": "beta_1", "order": 0, "type": "string", "value": "0.9"}, "warm_start": {"description": "When set to True, reuse the solution of the previous\ncall to fit as initialization, otherwise, just erase the\nprevious solution.\n", "editor": null, "label": "warm_start", "order": 1, "type": "string", "value": "False"}, "beta_2": {"description": "Exponential decay rate for estimates of second moment vector in adam,\nshould be in [0, 1). Only used when solver='adam'\n", "editor": null, "label": "beta_2", "order": 2, "type": "string", "value": "0.999"}, "shuffle": {"description": "Whether to shuffle samples in each iteration. Only used when\nsolver='sgd' or 'adam'.\n", "editor": null, "label": "shuffle", "order": 3, "type": "string", "value": "True"}, "nesterovs_momentum": {"description": "Whether to use Nesterov's momentum. Only used when solver='sgd' and\nmomentum &gt; 0.\n", "editor": null, "label": "nesterovs_momentum", "order": 4, "type": "string", "value": "True"}, "solver": {"description": "The solver for weight optimization.\n\n- 'lbfgs' is an optimizer in the family of quasi-Newton methods.\n\n- 'sgd' refers to stochastic gradient descent.\n\n- 'adam' refers to a stochastic gradient-based optimizer proposed\n  by Kingma, Diederik, and Jimmy Ba\n\nNote: The default solver 'adam' works pretty well on relatively\nlarge datasets (with thousands of training samples or more) in terms of\nboth training time and validation score.\nFor small datasets, however, 'lbfgs' can converge faster and perform\nbetter.\n", "editor": null, "label": "solver", "order": 5, "type": "string", "value": "adam"}, "validation_fraction": {"description": "The proportion of training data to set aside as validation set for\nearly stopping. Must be between 0 and 1.\nOnly used if early_stopping is True\n", "editor": null, "label": "validation_fraction", "order": 6, "type": "string", "value": "0.1"}, "activation": {"description": "Activation function for the hidden layer.\n\n- 'identity', no-op activation, useful to implement linear bottleneck,\n  returns f(x) = x\n\n- 'logistic', the logistic sigmoid function,\n  returns f(x) = 1 / (1 + exp(-x)).\n\n- 'tanh', the hyperbolic tan function,\n  returns f(x) = tanh(x).\n\n- 'relu', the rectified linear unit function,\n  returns f(x) = max(0, x)\n", "editor": null, "label": "activation", "order": 7, "type": "string", "value": "relu"}, "max_iter": {"description": "Maximum number of iterations. The solver iterates until convergence\n(determined by 'tol') or this number of iterations.\n", "editor": null, "label": "max_iter", "order": 8, "type": "string", "value": "10"}, "batch_size": {"description": "Size of minibatches for stochastic optimizers.\nIf the solver is 'lbfgs', the classifier will not use minibatch.\nWhen set to \"auto\", `batch_size=min(200, n_samples)`\n", "editor": null, "label": "batch_size", "order": 9, "type": "string", "value": "auto"}, "power_t": {"description": "The exponent for inverse scaling learning rate.\nIt is used in updating effective learning rate when the learning_rate\nis set to 'invscaling'. Only used when solver='sgd'.\n", "editor": null, "label": "power_t", "order": 10, "type": "string", "value": "0.5"}, "random_state": {"description": "State or seed for random number generator.\n", "editor": null, "label": "random_state", "order": 11, "type": "string", "value": "None"}, "learning_rate_init": {"description": "The initial learning rate used. It controls the step-size\nin updating the weights. Only used when solver='sgd' or 'adam'.\n", "editor": null, "label": "learning_rate_init", "order": 12, "type": "string", "value": "0.001"}, "tol": {"description": "Tolerance for the optimization. When the loss or score is not improving\nby at least tol for two consecutive iterations, unless `learning_rate`\nis set to 'adaptive', convergence is considered to be reached and\ntraining stops.\n", "editor": null, "label": "tol", "order": 13, "type": "string", "value": "0.0001"}, "epsilon": {"description": "Value for numerical stability in adam. Only used when solver='adam'\n", "editor": null, "label": "epsilon", "order": 14, "type": "string", "value": "1e-08"}, "alpha": {"description": "L2 penalty (regularization term) parameter.\n", "editor": null, "label": "alpha", "order": 15, "type": "string", "value": "1e-05"}, "momentum": {"description": "Momentum for gradient descent update. Should be between 0 and 1. Only\nused when solver='sgd'.\n", "editor": null, "label": "momentum", "order": 16, "type": "string", "value": "0.9"}, "learning_rate": {"description": "Learning rate schedule for weight updates.\n\n- 'constant' is a constant learning rate given by\n  'learning_rate_init'.\n\n- 'invscaling' gradually decreases the learning rate ``learning_rate_``\n  at each time step 't' using an inverse scaling exponent of 'power_t'.\n  effective_learning_rate = learning_rate_init / pow(t, power_t)\n\n- 'adaptive' keeps the learning rate constant to\n  'learning_rate_init' as long as training loss keeps decreasing.\n  Each time two consecutive epochs fail to decrease training loss by at\n  least tol, or fail to increase validation score by at least tol if\n  'early_stopping' is on, the current learning rate is divided by 5.\n\nOnly used when ``solver='sgd'``.\n", "editor": null, "label": "learning_rate", "order": 17, "type": "string", "value": "constant"}, "early_stopping": {"description": "Whether to use early stopping to terminate training when validation\nscore is not improving. If set to true, it will automatically set\naside 10% of training data as validation and terminate training when\nvalidation score is not improving by at least tol for two consecutive\nepochs.\nOnly effective when solver='sgd' or 'adam'\n", "editor": null, "label": "early_stopping", "order": 18, "type": "string", "value": "False"}, "hidden_layer_sizes": {"description": "The ith element represents the number of neurons in the ith\nhidden layer.\n", "editor": null, "label": "hidden_layer_sizes", "order": 19, "type": "string", "value": "100"}}</parameters>
+    <ports>
+      <output key="model" scheme="hdf5" type="model" type_base="model" uuid="{575b429a-8037-4ecc-987d-ec267fed2451}">
+        <label>Model</label>
+        <description>Model</description>
+      </output>
+    </ports>
+  </node>
+  <node id="org.sysess.sympathy.machinelearning.grid_parsearch" port_format="1.1" uuid="{a9b78da4-fbce-4038-91ec-99b0324b1944}" x="2575.0" y="2075.0">
+    <label>Grid Parameter Search</label>
+    <description>Evaluates each parameter combination in the set of parameter hypercubes given by each table in the list of parameter tables. Each parameter table specify a hypercube of dimension N where N is the number of columns in the table. Every combination of paramater values in each such cube will be sampled.</description>
+    <author>Mathias Broxvall</author>
+    <copyright>(C) 2017 System Engineering Software Society</copyright>
+    <version>0.1</version>
+    <parameters type="json">{"type": "group", "cv": {"description": "Number of fold in the default K-Fold cross validation. Ignored when cross-validation port is given", "editor": null, "label": "Cross validation splits", "order": 0, "type": "integer", "value": 3}}</parameters>
+    <ports>
+      <input key="in-model" scheme="hdf5" type="model" type_base="model" uuid="{2db6df81-2f0a-433f-b5ba-891ee23be66f}">
+        <label>in-model</label>
+        <description>in-model</description>
+      </input>
+      <input key="parameter space" scheme="hdf5" type="[table]" type_base="[table]" uuid="{c8e5e303-9e27-42e9-95cb-5ff0a1d3ce55}">
+        <label>param-space</label>
+        <description>param-space</description>
+      </input>
+      <input key="X" scheme="hdf5" type="table" type_base="table" uuid="{3c99f604-f7d6-4d28-8453-273355c90117}">
+        <label>X</label>
+        <description>X</description>
+      </input>
+      <input key="Y" scheme="hdf5" type="table" type_base="table" uuid="{ab079845-affc-4d0f-954c-de18fd54f534}">
+        <label>Y</label>
+        <description>Y</description>
+      </input>
+      <input key="cross-validation" scheme="hdf5" type="[(table, table)]" type_base="[(table, table)]" uuid="{02226d00-9bac-42e5-8e1b-342052deefa4}">
+        <label>cross-validation</label>
+        <description>cross-validation</description>
+      </input>
+      <output key="results" scheme="hdf5" type="table" type_base="table" uuid="{3a6f0e8c-cbe5-4617-88bd-95dc31a6840a}">
+        <label>results</label>
+        <description>results</description>
+      </output>
+      <output key="parameters" scheme="hdf5" type="table" type_base="table" uuid="{5c7e6025-6e6f-4ab3-a618-49bfb93e741f}">
+        <label>parameters</label>
+        <description>parameters</description>
+      </output>
+      <output key="out-model" scheme="hdf5" type="model" type_base="model" uuid="{a66b2236-9737-4e65-bf0a-9d813ffc8c9b}">
+        <label>out-model</label>
+        <description>out-model</description>
+      </output>
+    </ports>
+  </node>
+  <node id="org.sysess.sympathy.list.itemtolist" port_format="1.1" uuid="{b857073a-971d-4222-82dc-838d2146ab98}" x="2350.0" y="2150.0">
+    <label>Item to List</label>
+    <description></description>
+    <author>Erik der Hagopian &lt;erik.hagopian@sysess.org&gt;</author>
+    <copyright>(C) 2015 System Engineering Software Society</copyright>
+    <version>1.0</version>
+    <parameters type="json">{"type": "group"}</parameters>
+    <ports>
+      <input key="item" scheme="hdf5" type="table" type_base="&lt;a&gt;" uuid="{a79ff9af-dfbe-42c2-96b9-da18173567a7}">
+        <label>Input Item</label>
+        <description>Input Item</description>
+      </input>
+      <input key="item" scheme="hdf5" type="table" type_base="&lt;a&gt;" uuid="{ac4769bc-c39f-478e-97ff-7d49b8397d3c}">
+        <label>Input Item</label>
+        <description>Input Item</description>
+      </input>
+      <output key="list" scheme="hdf5" type="[table]" type_base="[&lt;a&gt;]" uuid="{48e6f2f1-88cc-4023-97dd-9eaa5447a565}">
+        <label>Item as List</label>
+        <description>Item as List</description>
+      </output>
+    </ports>
+  </node>
+  <node id="org.sysess.sympathy.machinelearning.example_datasets" uuid="{dd3a427d-6d11-4dd6-b64f-43e4c5c97c11}" x="2275.0" y="2275.0">
+    <label>Example dataset: 
+MNIST digits</label>
+    <description>Exposes the example datasets from sklearn</description>
+    <author>Mathias Broxvall</author>
+    <copyright>(C) 2017 System Engineering Software Society</copyright>
+    <version>0.1</version>
+    <parameters type="json">{"type": "group", "dataset": {"description": "Choose from one of the default toy datasets", "label": "Dataset", "order": 0, "type": "string", "value": "Digits", "editor": {"type": "combobox", "options": ["Digits", "Boston", "Diabetes", "linnerud", "Iris"]}}, "classnames": {"description": "Attempts to use class names as Y", "editor": null, "label": "Class names", "order": 1, "type": "boolean", "value": true}}</parameters>
+    <ports>
+      <output key="X" scheme="hdf5" type="table" type_base="table" uuid="{443b3963-7daa-45da-990c-b7886e2e1733}">
+        <label>X</label>
+        <description>X</description>
+      </output>
+      <output key="Y" scheme="hdf5" type="table" type_base="table" uuid="{096f7d6e-a2eb-43fd-87db-631d8a0338ab}">
+        <label>Y</label>
+        <description>Y</description>
+      </output>
+    </ports>
+  </node>
+  <connection type="table" uuid="{205b5042-5a81-4aa4-84b2-d95d6197e8c0}">
+    <source node="{2569d9c5-d1fa-4eb5-a21b-890428a8a1af}" port="{635b3bec-1dbe-4418-98ad-ba361d2ed1c0}"/>
+    <destination node="{b857073a-971d-4222-82dc-838d2146ab98}" port="{ac4769bc-c39f-478e-97ff-7d49b8397d3c}"/>
+  </connection>
+  <connection type="model" uuid="{5d287c79-b543-4ef8-975c-6e9d8a39889c}">
+    <source node="{a8245e98-540e-4bca-9cd7-b92f669f6098}" port="{575b429a-8037-4ecc-987d-ec267fed2451}"/>
+    <destination node="{1d9d8e54-294d-4382-81fc-e97750fd980d}" port="{f192283b-6f45-4a69-9fcb-364663e74419}"/>
+  </connection>
+  <connection type="table" uuid="{61ec5e4c-9203-4f4e-9176-67bf85a13924}">
+    <source node="{dd3a427d-6d11-4dd6-b64f-43e4c5c97c11}" port="{096f7d6e-a2eb-43fd-87db-631d8a0338ab}"/>
+    <destination node="{1907918a-0d9b-4091-abb2-9bdd8f935b95}" port="{f0f11484-a269-4d02-a6af-173460a57663}"/>
+  </connection>
+  <connection type="[(table, table)]" uuid="{67a294fd-721b-4b0c-958d-61ceb585fc3d}">
+    <source node="{1907918a-0d9b-4091-abb2-9bdd8f935b95}" port="{7866d043-8369-45cb-b145-4a2cc5f51eed}"/>
+    <destination node="{a9b78da4-fbce-4038-91ec-99b0324b1944}" port="{02226d00-9bac-42e5-8e1b-342052deefa4}"/>
+  </connection>
+  <connection type="table" uuid="{69c380e1-50c7-48f2-b129-fe4443245322}">
+    <source node="{dd3a427d-6d11-4dd6-b64f-43e4c5c97c11}" port="{443b3963-7daa-45da-990c-b7886e2e1733}"/>
+    <destination node="{1907918a-0d9b-4091-abb2-9bdd8f935b95}" port="{a322802b-b09c-4351-a855-ce9fe652c4e9}"/>
+  </connection>
+  <connection type="model" uuid="{6c833024-3ecd-4207-bc6e-289b48630e2b}">
+    <source node="{4b6911f5-9a44-4769-874c-fab96aec4dab}" port="{e50aec98-79a9-4e0a-a980-4ae91e221646}"/>
+    <destination node="{1d9d8e54-294d-4382-81fc-e97750fd980d}" port="{7eb48c95-0c00-46fd-abc1-203ceb9d57aa}"/>
+  </connection>
+  <connection type="[table]" uuid="{a40ffda0-d139-4f4d-a5c1-19187f301319}">
+    <source node="{b857073a-971d-4222-82dc-838d2146ab98}" port="{48e6f2f1-88cc-4023-97dd-9eaa5447a565}"/>
+    <destination node="{a9b78da4-fbce-4038-91ec-99b0324b1944}" port="{c8e5e303-9e27-42e9-95cb-5ff0a1d3ce55}"/>
+  </connection>
+  <connection type="table" uuid="{b7e4fed5-912f-4167-b606-d94bb01be796}">
+    <source node="{dd3a427d-6d11-4dd6-b64f-43e4c5c97c11}" port="{096f7d6e-a2eb-43fd-87db-631d8a0338ab}"/>
+    <destination node="{a9b78da4-fbce-4038-91ec-99b0324b1944}" port="{ab079845-affc-4d0f-954c-de18fd54f534}"/>
+  </connection>
+  <connection type="table" uuid="{c668929d-7c52-4679-bc06-940acd608c1a}">
+    <source node="{7c6b3528-4c0f-4e4f-82f5-bc9fa4d59046}" port="{61f1b2be-d073-412b-9872-45461e870a57}"/>
+    <destination node="{b857073a-971d-4222-82dc-838d2146ab98}" port="{a79ff9af-dfbe-42c2-96b9-da18173567a7}"/>
+  </connection>
+  <connection type="table" uuid="{ce6b3a31-1007-42f3-a38c-a7cde4a74e1b}">
+    <source node="{dd3a427d-6d11-4dd6-b64f-43e4c5c97c11}" port="{443b3963-7daa-45da-990c-b7886e2e1733}"/>
+    <destination node="{a9b78da4-fbce-4038-91ec-99b0324b1944}" port="{3c99f604-f7d6-4d28-8453-273355c90117}"/>
+  </connection>
+  <connection type="model" uuid="{d9bc09b5-1193-4c36-8638-1aae8e0658a7}">
+    <source node="{1d9d8e54-294d-4382-81fc-e97750fd980d}" port="{2aa283de-d333-4467-a56d-460e8530ff9c}"/>
+    <destination node="{a9b78da4-fbce-4038-91ec-99b0324b1944}" port="{2db6df81-2f0a-433f-b5ba-891ee23be66f}"/>
+  </connection>
+  <text color="Beige" height="75.0" uuid="{2e658cd8-2a14-4a9f-8016-da25baf4daa0}" width="450.0" x="2575.0" y="2225.0">We add here custom cross-validation settings. Right click on grid parameter search to add the cross validation input port. </text>
+</flow>
