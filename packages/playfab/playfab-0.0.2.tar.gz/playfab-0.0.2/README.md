@@ -1,0 +1,1 @@
+PlayFab Python SDK https://github.com/PlayFab/PythonSdk 
