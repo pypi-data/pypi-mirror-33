@@ -1,0 +1,119 @@
+#!/usr/bin/env python
+
+import click
+import os.path
+import validators.validator_factory as vf
+
+available_formats = vf.available_formats()
+
+
+@click.command(context_settings={'help_option_names': ['-h', '--help']})
+@click.option('--format', '-f', nargs=1, help="Type of format to be tested for all given files",
+                type=click.Choice(available_formats))
+@click.argument('paths', nargs=-1, type=click.Path())
+def valifor_cli(format, paths):
+    """Welcome to the format validator Valifor:\n
+        Valifor is a easily extensible validator for different validators.
+        To get started you can call "valifor --help" to get this message again and more information to the options.
+
+        To use valifor you can call:\n
+         \t "valifor [path_to_file]" to check its format depending on its file-ending.\n
+         \t "valifor [path_to_file] --format [format]" to check its format depending the given format.\n
+
+         you can also test whole directories by giving the path to the directory:\n
+         \t "valifor [path_to_dir]"\n
+         or test multiple files and/or directories:\n
+         \t "valifor [path_to_dir] [path_to_file]"
+    """
+
+    if (not paths) and (format is None):
+        click.echo(valifor_cli.__doc__)
+        return
+    files = gather_files(paths)
+
+    # if there are no valid files stop
+    if not files:
+        click.echo("No valid files.")
+        return
+
+    if format is None:
+        click.echo("No format given. Will use file-ending if possible.")
+        click.echo("For these file-endings the more constricting definition is chosen:")
+        click.echo(vf.get_uncertain_endings())
+
+        test_files_with_ending(files)
+    else:
+        test_files(files, format)
+    return
+
+
+def gather_files(paths):
+    """returns all existing files given by the paths and all files in the given directories as absolute paths."""
+    files = []
+
+    for path in paths:
+        path = os.path.abspath(path)
+
+        if os.path.isfile(path):
+            files.append(path)
+        elif os.path.isdir(path):
+            dir_files = os.listdir(path)
+
+            for df in dir_files:
+                if os.path.isfile(os.path.join(path, df)):
+                    files.append(os.path.join(path, df))
+        else:
+            click.echo("Given path does not exist: " + path)
+
+    return files
+
+
+def test_files(files, format):
+    """validates all given files according to the given format and prints the results"""
+
+    validator = vf.get_validator(format)
+
+    for file in files:
+        valid, msg = validator.validate_file(file)
+        print_result(valid, format, msg, file)
+
+
+def test_files_with_ending(files):
+    """validates all given files according to the format indicated by their file-ending and prints the results"""
+
+    for file in files:
+        filename = str.split(file, os.sep)[-1]
+
+        if "." in filename:
+            ending = str.split(filename, ".")[-1]
+            format = vf.get_format_from_ending(ending)
+
+            if format is "":
+                click.echo("Skipping: " + filename)
+                click.echo("Unknown file-ending: " + ending)
+            else:
+                validator = vf.get_validator(format)
+                valid, msg = validator.validate_file(file)
+
+                print_result(valid, format, msg, file)
+
+        else:
+            click.echo("Skipping: " + filename)
+            click.echo("No file-ending. Please use --format to define the format to test.")
+
+
+def print_result(valid, format, msg, path):
+    """prints the results in a consistent manner"""
+
+    path = path.split(os.sep)[-1]
+
+    if valid:
+        click.echo("valid: " + path + " - " + format)
+    else:
+        click.echo("failed: " + path + " - " + format + ": " + msg)
+
+
+if __name__ == '__main__':
+    valifor_cli()
+
+
