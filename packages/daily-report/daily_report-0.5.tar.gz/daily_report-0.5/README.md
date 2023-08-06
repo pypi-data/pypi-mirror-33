@@ -1,0 +1,46 @@
+# daily_reports
+
+Daily reports is a package used to automatically produce one *daily report* and one cumulative *inter-session report* to summarize the results of a subject's BPOD sessions. 
+
+***
+
+## Installation
+
+If you want to use it, you first need to install it into your working environment:
+
+```pip install daily_report```
+ 
+ and then add two lines in your task's code:
+
+    from daily_report import report (at the start of the task)
+    report.main(glob.glob("*.csv")[0]) (last line of the task)
+
+Make also sure that the `glob` package is imported (`import glob`).
+
+***
+
+## Task requirements
+
+For the package to work, the task has to fulfill certain requirements:
+
+### Required variables
+
+Remember that variables can be registered into the session data with the `register_value` function:
+
+    my_bpod.register_value('VARIABLE_NAME', variable)
+
+The name that matters is VARIABLE_NAME. This package requires to register a value at the start of the session called **REWARD_SIDE**, which is a Python list containing the answers for the session, with the following convention: 0 if the correct answer is the left side and 1 for the right side.
+
+### Required states
+
+The following states and state names are mandatory:
+
+1. There have to be two states corresponding to correct and incorrect answers named **Reward** and **Punish** (letter case matters, be careful!)
+2. There has to be a certain state that executes each trial, independently of whether the trial is correct, incorrect or invalid. Right now, this state has to be called **StartSound**.
+
+### Optional states
+
+The following states can be used to gather more information about the session:
+
+1. Response times can be collected as the timestamp of a state called **WaitResponse**. If it is not present, the mean response time will be displayed as N/A.
+2. Invalid trials should exit the trial through a state called **Invalid**. If not present, the report will not take invalid trials into account.
