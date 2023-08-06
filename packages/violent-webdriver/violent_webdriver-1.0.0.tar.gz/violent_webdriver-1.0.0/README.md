@@ -1,0 +1,31 @@
+# violent_webdriver
+post-packaging selenium webdriver,  there are many violent and convinient functions which insure the browser operation 
+
+Find the latest version on github : https://github.com/amazingTest/violent_webdriver
+
+## Installation
+The last stable release is available on PyPI and can be installed with pip.
+make sure that Chrome has been installed and match the selenium version
+
+    $ pip install selenium==3.11.0    
+    $ pip install violent_webdriver
+    
+## Best Practice
+
+Firstly, create a python file: c:\folder\mytest.py
+
+    # c:\folder\mytest.py
+    from violent_webdriver import Chrome
+    
+    dr = Chrome.violent_chromedriver(executable_path=[Chromedriver_Path], use_mobile_emulation=True)
+    dr.get('http://www.baidu.com')
+    dr.v_send_keys(locate_rule=[['tag', 'input'], ['name', 'word']], message='test')
+    dr.v_click(locate_rule=[['tag', 'button'], ['class', 'se-bn']])
+    
+For more code examples, please refer to the examples folder in source distribution or
+visit https://github.com/amazingTest/violent_webdriver/tree/master/examples
+
+## Contact me
+
+For information and suggestions you can contact me at 523314409@qq.com
+
