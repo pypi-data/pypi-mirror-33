@@ -1,0 +1,69 @@
+# ctrshif
+
+ctrshif stands for _ctrl+shift+f_ (find and replace)
+
+## Usage
+
+```plaintext
+usage: ctrshif.py [-h] --section SECTION --values-file VALUES_FILE
+                  (--template-file TEMPLATE_FILE | --template-list TEMPLATE_LIST)
+                  [--prefix-delimiter PREFIX_DELIMITER]
+                  [--suffix-delimiter SUFFIX_DELIMITER] [--no-delimiters]
+                  [--dry-run]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --section SECTION     the section of your .ini values file
+  --values-file VALUES_FILE
+                        the location of your .ini values file
+  --template-file TEMPLATE_FILE
+                        file which will be rendered
+  --template-list TEMPLATE_LIST
+                        file containing a list of files which will be rendered
+  --prefix-delimiter PREFIX_DELIMITER
+                        templating prefix delimiter, default: <%=
+  --suffix-delimiter SUFFIX_DELIMITER
+                        templating suffix delimiter, default: %>
+  --no-delimiters       no delimiters, only find and replace
+  --dry-run             outputs in the terminal instead of writing to file
+```
+
+## Examples
+
+Print to stdout (`--dry-run`) the replacement of all occurences found in `data.xml` with values from the section `[production]` within `values.ini`, delimiters are always assumed to be `<%=` and `%>` unless otherwise specified:
+```bash
+./ctrshif.py --section=production --values=values.ini --template=data.xml --dry-run
+```
+
+Replace (write to file) all occurences found in each file (separeted by line) from `list_of_files.txt` with values from section `[production]` within `values.ini`:
+```bash
+./ctrshif.py --section=production --values=values.ini --template-list=list_of_files.txt
+```
+
+Replace (write to file) all occurences found in `users.json` with values from section `[acceptance]` within `values.ini` surrounded by the delimiters `{{` and `}}`:
+```bash
+./ctrshif.py --section=acceptance --values=values.ini --template=users.json --prefix-delimiter="{{" --suffix-delimiter="}}"
+```
+
+Replace (write to file) all occurences found in `script.sh` with values from section `[default]` within `bash.ini`, without delimiters (word replacement):
+```bash
+./ctrshif.py --section=default --values=bash.ini --template=script.sh --no-delimiters
+```
+
+## Values file
+
+The values file follow .ini format, and needs at least one section defined between brackets, ex: `[section]`.
+
+```ini
+[acceptance]
+node_hostname = acc-foobar.org
+node_ipaddr = 192.168.0
+node_path = /var/log/syslog
+node_timeout = 120
+
+[development]
+node_hostname = dev-foobar.org
+node_ipaddr = 192.169.0
+node_path = /var/log/syslog
+node_timeout = 120
+```

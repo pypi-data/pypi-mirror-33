@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+
+import sys
+from argparse import ArgumentParser
+
+from ctrshif.AttributeFile import AttributeFile
+from ctrshif.TemplateFile import TemplateFile
+from ctrshif.RenderingEngine import AttributeSubstitution
+
+
+if __name__ == "__main__":
+
+    parser = ArgumentParser()
+
+    parser.add_argument(
+        "--section",
+        required=True,
+        action="store",
+        dest="section",
+        help="the section of your .ini values file"
+    )
+
+    parser.add_argument(
+        "--values-file",
+        required=True,
+        action="store",
+        dest="values_file",
+        help="the location of your .ini values file"
+    )
+
+    file_group = parser.add_mutually_exclusive_group(required=True)
+
+    file_group.add_argument(
+        "--template-file",
+        action="store",
+        dest="template_file",
+        help="file which will be rendered"
+    )
+
+    file_group.add_argument(
+        "--template-list",
+        action="store",
+        dest="template_list",
+        help="file containing a list of files which will be rendered"
+    )
+
+    parser.add_argument(
+        "--prefix-delimiter",
+        required=False,
+        default="<%=",
+        action="store",
+        dest="prefix_delimiter",
+        help="templating prefix delimiter, default: <%%="
+    )
+
+    parser.add_argument(
+        "--suffix-delimiter",
+        required=False,
+        default="%>",
+        action="store",
+        dest="suffix_delimiter",
+        help="templating suffix delimiter, default: %%>"
+    )
+
+    parser.add_argument(
+        "--no-delimiters",
+        required=False,
+        default=False,
+        action="store_true",
+        dest="no_delimiters",
+        help="no delimiters, only find and replace"
+    )
+
+    parser.add_argument(
+        "--encoding",
+        required=False,
+        default='iso-8859-1',
+        action="store",
+        dest="encoding",
+        help="file enconding"
+    )
+
+    parser.add_argument(
+        "--dry-run",
+        required=False,
+        default=False,
+        action="store_true",
+        dest="dry_run",
+        help="outputs in the terminal instead of writing to file"
+    )
+
+    arguments = parser.parse_args()
+
+    if not arguments.prefix_delimiter or not arguments.suffix_delimiter:
+        print("Empty delimiters aren't acceptable.", file=sys.stderr)
+        exit(1)
+
+    values_file = AttributeFile(path=arguments.values_file)
+
+    if arguments.template_file:
+        template_file = TemplateFile(path=arguments.template_file, encoding=arguments.encoding)
+
+        if arguments.no_delimiters:
+            template_file.no_delimiters = True
+        else:
+            template_file.prefix_delimiter = arguments.prefix_delimiter
+            template_file.suffix_delimiter = arguments.suffix_delimiter
+
+        ats = AttributeSubstitution(
+            values_file, arguments.section, template_file
+        )
+
+        ats.render(arguments.dry_run)
+        exit(0)
+
+    if arguments.template_list:
+        lines = [ line.strip() for line in open(arguments.template_list, 'r') ]
+
+        for template in lines:
+
+            template_file = TemplateFile(path=template, encoding=arguments.encoding)
+
+            if arguments.no_delimiters:
+                template_file.no_delimiters = True
+            else:
+                template_file.prefix_delimiter = arguments.prefix_delimiter
+                template_file.suffix_delimiter = arguments.suffix_delimiter
+
+            ats = AttributeSubstitution(
+                values_file, arguments.section, template_file
+            )
+
+            ats.render(arguments.dry_run)
+        exit(0)
+
