@@ -1,0 +1,72 @@
+== Setting up a development environment on Ubuntu 16.04 (Xenial)
+
+Install development dependencies:
+
+    $ sudo apt-get install python-pip python-pyscard libykpers-1-1 libu2f-host0 
+
+Setup the repository:
+
+    $ git clone https://github.com/Yubico/yubikey-manager.git
+    $ cd yubikey-manager
+
+Install in editable mode with pip (from root of repository):
+
+    $ sudo pip install -e .
+
+Run the app:
+
+    $ ykman --help
+
+To update once installed, just make sure the repo is up to date:
+
+    $ git pull
+
+To uninstall, run:
+
+    $ sudo pip uninstall yubikey-manager
+
+=== Code Style
+
+This project uses http://flake8.pycqa.org/[Flake8] for code style with a http://pre-commit.com/[pre-commit] hook.
+To use these:
+
+    $ pip install pre-commit flake8
+    $ pre-commit install
+
+=== Unit tests
+
+To run unit tests:
+
+    $ python setup.py test
+
+=== Integration tests
+
+WARNING: ONLY run these on a dedicated developer key, as it will permanently delete data on the device!
+
+To run integration tests, indicate the serial number (given by `ykman list`) of the YubiKey to test with:
+
+   $ DESTRUCTIVE_TEST_YUBIKEY_SERIAL=123456 python setup.py test
+
+== Using vagrant for development
+
+A Vagrantfile with a development environment based on Ubuntu 16.04 is included in the repository.
+Modify the Vagrantfile to set up a USB filter to capture the device with VirtualBox.
+
+
+== Publishing to Ubuntu PPA
+
+ 1. Update version number and signoff in `debian/changelog`.
+ 2. Build and upload package.
+
+For (2) you can use the Vagrant VM in `vagrant/ppa`. You'll need to set up the
+VM to capture the YubiKey containing your signing key. If you use VirtualBox,
+you can do this by uncommenting the USB filter included in the `Vagrantfile`.
+Then:
+
+    alice@work $ cd yubikey-manager/vagrant/ppa
+    alice@work $ vagrant up
+    alice@work $ vagrant ssh
+    ubuntu@ubuntu-xenial $ gpg2 --recv-keys ABCDEF78
+    ubuntu@ubuntu-xenial $ gpg2 --card-status
+    ubuntu@ubuntu-xenial $ cd yubikey-manager
+    ubuntu@ubuntu-xenial $ ~/scripts/make-ppa -k ABCDEF78 -p gpg2
