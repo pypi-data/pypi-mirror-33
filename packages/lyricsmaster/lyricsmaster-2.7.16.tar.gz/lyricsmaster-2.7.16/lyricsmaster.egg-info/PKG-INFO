@@ -1,0 +1,240 @@
+Metadata-Version: 1.1
+Name: lyricsmaster
+Version: 2.7.16
+Summary: LyricsMaster is a library for downloading lyrics from multiple lyrics providers. LyricWiki, AzLyrics, Genius, Lyrics007, MusixMatch and other lyrics provider are available
+Home-page: https://github.com/SekouD/lyricsmaster
+Author: SekouD
+Author-email: sekoud.python@gmail.com
+License: MIT license
+Description: ============
+        LyricsMaster
+        ============
+        
+        
+        .. image:: https://img.shields.io/pypi/v/lyricsmaster.svg
+                :target: https://pypi.python.org/pypi/lyricsmaster
+                :alt: PyPi Status
+        
+        .. image:: https://img.shields.io/travis/SekouD/lyricsmaster.svg
+                :target: https://travis-ci.org/SekouD/lyricsmaster.svg?branch=master
+                :alt: Linux Continuous Integration Status
+        
+        .. image:: https://ci.appveyor.com/api/projects/status/73bd1ct4revmlk42/branch/master?svg=true
+                :target: https://ci.appveyor.com/project/SekouD/lyricsmaster
+                :alt: Windows Continuous Integration Status
+        
+        .. image:: https://readthedocs.org/projects/lyricsmaster/badge/?version=latest
+                :target: https://lyricsmaster.readthedocs.io/en/latest/?badge=latest
+                :alt: Documentation Status
+        
+        .. image:: https://pyup.io/repos/github/SekouD/lyricsmaster/shield.svg
+                :target: https://pyup.io/repos/github/SekouD/lyricsmaster/
+                :alt: Dependencies Update Status
+        
+        .. image:: https://codecov.io/gh/SekouD/lyricsmaster/branch/master/graph/badge.svg
+                :target: https://codecov.io/gh/SekouD/lyricsmaster
+                :alt: Coverage Status
+        
+        LyricsMaster is a library for downloading lyrics from multiple lyrics providers.
+        The following Lyrics Providers are supported:
+        
+        - Lyric Wikia
+        - AzLyrics
+        - Genius
+        - Lyrics007
+        - MusixMatch
+        - The Original Hip-Hop (Rap) Lyrics Archive - OHHLA.com
+        - and more to come soon.
+        
+        
+        * Free software: MIT license
+        * Documentation: https://lyricsmaster.readthedocs.io.
+        
+        
+        Features
+        --------
+        
+        - Download Lyrics from LyricWiki, AzLyrics, Genius, Lyrics007, MusixMatch, OHHLA and more.
+        - Download Lyrics Asynchronously.
+        - Can make requests over Tor for anonymous downloading of songs.
+        - Easily save the lyrics on your computer.
+        
+        
+        =====
+        Usage
+        =====
+        
+        To use LyricsMaster in a project::
+        
+            from lyricsmaster import LyricWiki, TorController
+        
+        
+            # Select a provider from the supported Lyrics Providers (LyricWiki, AzLyrics, Genius etc..)
+            # The default Provider is LyricWiki
+            provider = LyricWiki()
+        
+            # Fetch all lyrics from 2Pac
+            discography = provider.get_lyrics('2Pac')
+        
+            # Discography Objects and Album Objects can be iterated over.
+            for album in discography:    # album is an Album Object.
+                print('Album: ', album.title)
+                for song in album:       # song is a Song Object.
+                    print('Song: ', song.title)
+                    print('Lyrics: ', song.lyrics)
+        
+            # Fetch all lyrics from 2pac's album 'All eyez on me'.
+            album = provider.get_lyrics('2Pac', album='All eyes on me')
+        
+            # Fetch the lyrics from the song 'California Love' in 2pac's album 'All eyez on me'.
+            song = provider.get_lyrics('2Pac', album='All eyez on me', song='California Love)
+        
+            # Once the lyrics are fetched, you can save them on disk.
+            # The 'save()' method is implemented for Discography, Album and Song objects.
+            # By default, the lyrics are saved in {user}/Documents/lyricsmaster/
+            discography.save()
+        
+            # You can also supply a folder to save the lyrics in.
+            folder = 'c:\MyFolder'
+            discography.save(folder)
+        
+            # For anonymity, you can use a Tor Proxy to make requests.
+            # The TorController class has the same defaults as a default Tor Install.
+            provider = LyricWiki(TorController())
+            discography = provider.get_lyrics('2Pac')
+        
+            # For enhanced anonymity, the TorController can renew the the Tor ciruit for each album dowloaded.
+            # For this functionnality to work, the Tor ControlPort option must be enabled in your torrc config file.
+            # See https://www.torproject.org/docs/tor-manual.html.en for more information.
+            provider = LyricWiki(TorController(control_port=9051, password='password))
+            discography = provider.get_lyrics('2Pac')
+        
+        
+        
+        To use LyricsMaster from the command line (The default Lyrics Provider is LyricWiki)::
+        
+            $ lyricsmaster <artist_name> options
+        
+        Examples::
+        
+            $ lyricsmaster "2Pac"
+            Anonymous requests disabled. The connexion will not be anonymous.
+            Downloading 2Pacalypse Now (1991)
+            2Pacalypse Now (1991) succesfully downloaded
+            Downloading Strictly 4 My N.I.G.G.A.Z... (1993)
+            Strictly 4 My N.I.G.G.A.Z... (1993) succesfully downloaded
+            Downloading Thug Life - Volume 1 (1994)
+            ...
+        
+        
+            $ lyricsmaster "2Pac" --provider Genius
+            Anonymous requests disabled. The connexion will not be anonymous.
+            Downloading The Rose That Grew From Concrete (Book)
+            The Rose That Grew From Concrete (Book) succesfully downloaded
+            Downloading Best of 2Pac Part 2: Life
+            Best of 2Pac Part 2: Life succesfully downloaded
+            ...
+        
+        
+            $ lyricsmaster "2Pac" --tor 127.0.0.1
+            Anonymous requests enabled. The Tor circuit will change according to the Tor network defaults.
+            Downloading 2Pacalypse Now (1991)
+            2Pacalypse Now (1991) succesfully downloaded
+            Downloading Strictly 4 My N.I.G.G.A.Z... (1993)
+            Strictly 4 My N.I.G.G.A.Z... (1993) succesfully downloaded
+            Downloading Thug Life - Volume 1 (1994)
+            ...
+        
+        
+            $ lyricsmaster "2Pac" --tor 127.0.0.1 --controlport 9051 --password password
+            Anonymous requests enabled. The Tor circuit will change for each album.
+            New Tor circuit created
+            Downloading 2Pacalypse Now (1991)
+            2Pacalypse Now (1991) succesfully downloaded
+            New Tor circuit created
+            Downloading Strictly 4 My N.I.G.G.A.Z... (1993)
+            Strictly 4 My N.I.G.G.A.Z... (1993) succesfully downloaded
+            New Tor circuit created
+            Downloading Thug Life - Volume 1 (1994)
+            ...
+        
+        
+        
+        =======
+        History
+        =======
+        
+        2.7.16 (2017-09-27)
+        -------------------
+        
+        * General improvements.
+        
+        
+        2.7.0 (2017-09-27)
+        ------------------
+        
+        * Added Command Line Interface.
+        
+        2.6.0 (2017-09-26)
+        ------------------
+        
+        * Added Genius provider.
+        
+        2.5.0 (2017-09-26)
+        ------------------
+        
+        * Added python 2.7 compatibility
+        
+        2.4.0 (2017-09-24)
+        ------------------
+        
+        * Added AzLyrics provider.
+        
+        2.3.0 (2017-09-21)
+        ------------------
+        
+        * Added full documentation.
+        * Corrected asynchronous requests bug when renewing Tor circuit.
+        
+        2.2.0 (2017-09-20)
+        ------------------
+        
+        * Added save method to Discography, Album, Song objects.
+        
+        2.1.0 (2017-09-20)
+        ------------------
+        
+        * Added Asynchronous Requests.
+        
+        2.0.0 (2017-09-19)
+        ------------------
+        
+        * Added Tor Anonymisation.
+        
+        1.0.0 (2017-09-17)
+        ------------------
+        
+        * Added LyricWiki provider.
+        
+        0.1.0 (2017-09-11)
+        ------------------
+        
+        * First release on PyPI.
+        
+Keywords: lyricsmaster lyrics LyricWiki Lyrics Wikia Lyrics007 AzLyrics Genius MusixMatch Tor
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Topic :: Communications
+Classifier: Topic :: Internet :: WWW/HTTP :: Indexing/Search
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
