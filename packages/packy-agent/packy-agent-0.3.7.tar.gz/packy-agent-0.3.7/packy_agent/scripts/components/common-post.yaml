@@ -1,0 +1,35 @@
+# TODO(dmu) MEDIUM: Consider using `systemctl is-active log2ram.service` command
+- name: Checking log2ram service status...
+  shell: "service log2ram status"
+  args:
+    warn: False
+  register: log2ram
+  failed_when: False
+- name: Restarting log2ram service...
+  service:
+    name: log2ram
+    state: reloaded
+  when: "log2ram.rc == 0 or ('Loaded: not-found (Reason: No such file or directory)' not in log2ram.stdout)"
+  ignore_errors: yes
+- name:
+  set_fact:
+    supervisord_executable: '{{ venv_bin_dir }}/supervisord'
+    supervisorctl_executable: '{{ venv_bin_dir }}/supervisorctl'
+    supervisor_log_directory: '{{ control_server_configuration.supervisor_log_file | dirname }}'
+    supervisor_run_directory: '{{ control_server_configuration.supervisor_run_directory }}'
+    supervisor_configuration_file: '{{ control_server_configuration.supervisor_configuration_file }}'
+- name: Creating initd script...
+  template:
+    src: ../../configuration/templates/control-scripts/ubuntu/initd.sh.j2
+    dest: /etc/init.d/packy
+    mode: u+x
+  when: not is_inside_docker_container
+- name: Creating systemd unit...
+  template:
+    src: ../../configuration/templates/control-scripts/ubuntu/packy.service.j2
+    dest: /lib/systemd/system/packy.service
+  when: not is_inside_docker_container
+- name: Reloading systemd configuration...
+  systemd:
+    daemon_reload: yes
+  when: not is_inside_docker_container
