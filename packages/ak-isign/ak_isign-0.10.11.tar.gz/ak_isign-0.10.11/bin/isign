@@ -1,0 +1,251 @@
+#!/usr/local/bin/python
+
+import argparse
+from isign import isign
+from os.path import abspath, expanduser
+import logging
+
+FORMATTER = logging.Formatter('%(message)s')
+
+
+def log_to_stderr(level=logging.INFO):
+    root = logging.getLogger()
+    root.setLevel(level)
+    handler = logging.StreamHandler()
+    handler.setFormatter(FORMATTER)
+    root.addHandler(handler)
+
+
+def absolute_path_argument(path):
+    return abspath(expanduser(path))
+
+
+def parse_args():
+    # note that for arguments which eventually get fed into
+    # isign.resign, we deliberately don't set defaults. The kwarg
+    # defaults in isign.resign will be used
+    parser = argparse.ArgumentParser(
+        description='Resign an iOS application with a new identity '
+                    'and provisioning profile. See documentation for '
+                    'how to obtain properly formatted credentials.')
+    parser.add_argument(
+        '-p', '--provisioning-profile',
+        dest='provisioning_profile',
+        required=False,
+        metavar='<your.mobileprovision path>',
+        type=absolute_path_argument,
+        help='Path to provisioning profile'
+    )
+    parser.add_argument(
+        '-a', '--apple-cert',
+        dest='apple_cert',
+        required=False,
+        metavar='<apple cert>',
+        type=absolute_path_argument,
+        help='Path to Apple certificate in PEM form. You only need to specify '
+             'this if the Apple certificate in the isign package is out of '
+             'date.'
+    )
+    parser.add_argument(
+        '-k', '--key',
+        dest='key',
+        required=False,
+        metavar='<key path>',
+        type=absolute_path_argument,
+        help='Path to your organization\'s key in PEM format.'
+    )
+    parser.add_argument(
+        '-c', '--certificate',
+        dest='certificate',
+        required=False,
+        metavar='<certificate path>',
+        type=absolute_path_argument,
+        help='Path to your organization\'s certificate in PEM format'
+    )
+    parser.add_argument(
+        '-n', '--credentials',
+        dest='credentials_dir',
+        required=False,
+        metavar='<directory>',
+        help='Equivalent to '
+             '-k <directory>/key.pem '
+             '-c <directory>/certificate.pem '
+             '-p <directory>/isign.mobileprovision'
+    )
+    parser.add_argument(
+        '-o', '--output',
+        dest='output_path',
+        required=False,
+        metavar='<output path>',
+        type=absolute_path_argument,
+        help='Path to output file or directory'
+    )
+    parser.add_argument(
+        'app_paths',
+        nargs=1,
+        metavar='<app path>',
+        type=absolute_path_argument,
+        help='Path to application to re-sign, typically a '
+             'directory ending in .app or file ending in .ipa.'
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        dest='verbose',
+        action='store_true',
+        default=False,
+        required=False,
+        help='Set logging level to debug.'
+    )
+    parser.add_argument(
+        '-i', '--info',
+        dest='info_props',
+        required=False,
+        metavar='<Info.plist properties>',
+        help='List of comma-delimited key=value pairs of Info.plist properties to override'
+    )
+    parser.add_argument(
+        '-d', '--display',
+        dest='display_only',
+        action='store_true',
+        default=False,
+        required=False,
+        help='Display information about the app without resigning'
+    )
+    parser.add_argument(
+        '-e', '--entitlements',
+        dest='alternate_entitlements_path',
+        required=False,
+        metavar='<alternate entitlements path>',
+        type=absolute_path_argument,
+        help='Sign with these entitlements, rather than ones extracted from provisioning profile'
+    )
+    parser.add_argument(
+        '--force',
+        required=False,
+        action='store_true',
+        help='This option is ignored.  It exists only for compatibility with Apple codesign.'
+    )
+    parser.add_argument(
+        '--sign',
+        required=False,
+        dest='fingerprint',
+        action='store',
+        help='Sign with the identity with this fingerprint, overriding any key, certificate or credential args.  Currently only supports the special \'-\' identity for ad-hoc signing.',
+    )
+    parser.add_argument(
+        '--shallow',
+        required=False,
+        dest='deep',
+        action='store_false',
+        help='Do not recursively sign bundles.'
+    )
+    parser.add_argument(
+        '--inplace',
+        required=False,
+        action='store_true',
+        default=False,
+        help='Sign in place, destructively replacing the original input.  This matches Apple codesign behavior.',
+    )
+
+    return parser.parse_args()
+
+
+def filter_args(args, interested):
+    """ Filter all args to args that we are interested in """
+    # We want the unused command line args to be
+    # missing in kwargs, so the defaults are used
+    kwargs = {}
+    for k, v in vars(args).items():
+        if k in interested and v is not None:
+            kwargs[k] = v
+    return kwargs
+
+
+if __name__ == '__main__':
+    args = parse_args()
+
+    if args.verbose:
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+    log_to_stderr(level)
+
+    if args.display_only:
+        # Only show information
+        import json
+        bundle_info = isign.view(args.app_paths[0])
+        print((json.dumps(bundle_info, indent=4, separators=(',', ': '))))
+    else:
+        # Handle the various kinds of resign operations
+        kwargs = {}
+
+        # There's only one output path, so it doesn't make sense
+        # to have multiple input paths
+        app_path = args.app_paths[0]
+
+        # Convert the Info.plist property pairs to a dict format
+        if args.info_props:
+            info_props = {}
+            for arg in args.info_props.split(','):
+                i = arg.find('=')
+                if i < 0:
+                    raise Exception('Invalid Info.plist argument: ' + arg)
+                info_props[arg[0:i]] = arg[i + 1:]
+            if info_props:
+                kwargs['info_props'] = info_props
+
+        if args.inplace:
+            if args.output_path is not None:
+                raise Exception('output-path and inplace should not be both specified')
+            kwargs['output_path'] = app_path
+
+        if args.fingerprint:
+            incompatible_args = ['certificate', 'key']
+            args_dict = vars(args)
+            for k, v in vars(args).items():
+                if k in incompatible_args and v is not None:
+                    raise Exception("Incompatible arguments. Do not use any of " +
+                                    ", ".join(['--' + s for s in incompatible_args]) + " "
+                                    "with the --sign argument.")
+
+            if args.fingerprint != '-':
+                raise Exception("Currently only - (ad hoc) is supported as a fingerprint value.")
+
+            kwargs['key'] = None
+            resign_args = ['deep',
+                           'output_path']
+            kwargs.update(filter_args(args, resign_args))
+            isign.resign(app_path, **kwargs)
+
+        elif args.credentials_dir:
+            # Handle a resign with credentials directory.
+            # First check they haven't over-specified credential paths
+            incompatible_args = ['certificate', 'key', 'provisioning_profile']
+            args_dict = vars(args)
+            for k, v in vars(args).items():
+                if k in incompatible_args and v is not None:
+                    raise Exception("Incompatible arguments. Do not use any of " +
+                                    ", ".join(['--' + s for s in incompatible_args]) + " "
+                                    "with the --credentials argument.")
+            # looks good, now massage args into method arguments
+            resign_args = ['apple_cert',
+                           'deep',
+                           'output_path']
+            kwargs.update(filter_args(args, resign_args))
+            isign.resign_with_creds_dir(app_path,
+                                        args.credentials_dir,
+                                        **kwargs)
+        else:
+            # Handle standard resign. User may have specified all, some
+            # or none of the credential files, in which case we rely on
+            # isign.resign() to supply defaults.
+            # Massage args into method arguments
+            resign_args = ['certificate',
+                           'deep',
+                           'key',
+                           'apple_cert',
+                           'provisioning_profile',
+                           'output_path',
+                           'alternate_entitlements_path']
+            kwargs.update(filter_args(args, resign_args))
+            isign.resign(app_path, **kwargs)
