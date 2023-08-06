@@ -1,0 +1,3 @@
+
+class TypecraftParseException(Exception):
+    pass
