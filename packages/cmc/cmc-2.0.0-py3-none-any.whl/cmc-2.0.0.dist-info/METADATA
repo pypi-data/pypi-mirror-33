@@ -1,0 +1,130 @@
+Metadata-Version: 2.1
+Name: cmc
+Version: 2.0.0
+Summary: Get the price history for CoinMarketCap-listed currencies
+Home-page: https://github.com/Alescontrela/coinmarketcap-history
+Author: Alejandro Escontrela,James Hogan
+Author-email: alejandroescontrela@gmail.com
+License: UNKNOWN
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Description-Content-Type: text/markdown
+
+# CoinMarketCap history scraper
+***
+
+## Contents
+* [Installation](#installation)
+* [Usage](#usahe)
+  * [Command Line](#command-line)
+    * [Usage](#command-line-usage)
+    * [Examples](#command-line-examples)
+  * [Module]()
+    * [Sequential]
+
+Obtain [CoinMarketCap](http://www.coinmarketcap.com) [USD price history](https://coinmarketcap.com/currencies/bitcoin/historical-data/) data for CoinMarketCap-listed cryptocurrencies in CSV format.
+
+Use this library as a command-line script to obtain historical cryptocurrency data on the fly, or import the library to obtain cryptocurrency data for your programs.  
+
+
+## Installation
+Download the zip file or navigate to the desired install directory and run:
+
+```shell
+$ git clone https://github.com/Alescontrela/coinmarketcap-history.git
+```
+
+To install the required dependencies, navigate into the repo and run:
+
+```shell
+$ pip install -r requirements.txt
+```
+
+
+
+## Usage
+
+### Command Line
+Among other things, this is useful for US tax reporting.  If you want to know the cost basis for a trade (or for coins acquired through mining), the IRS requires you to denominate that cost basis in USD.  In the case of token-for-token trades (e.g. purchasing ETH with BTC), that requires you know the USD:BTC exchange rate at the time of the trade.
+
+Surprisingly, as of October 2017, it's not easy to get this data in a machine-readable format anywhere online.
+
+Rather than getting the exchange rate at the exact moment of your trade, which is generally not feasible, the IRS standard (at least for similar situations w/stock) is to use the average of a stock's high and low price for the day. CoinMarketCap doesn't provide this figure, but this tool calculates this number and includes it in the output.
+
+#### Command Line Usage
+
+In the terminal, navigate into the repo directory and run:
+```shell
+$ python coinmarketcap.py <currency1> <start_date> <end_date>
+```
+where:
+
+* `currency` is the (case-insensitive) name of the currency / token as displayed on CoinMarketCap, with dashes in place of spaces
+* `start_date` is the beginning of the range to fetch data for in `yyyy-mm-dd` format. For example, 2017-10-01 (for 2017 October 10th)
+* `end_year` is the end of the range to fetch data for in `yyyy-mm-dd` format. You may use a date in the future to obtain the latest data. Format is the same as in the start date.
+
+Data for multiple cryptocurrencies can be obtained with:
+```shell
+$ python coinmarketcap.py <currency_1,currency_2,...,currency_n> <start_date> <end_date>
+```
+**Note:** currencies must be comma-separated, with no spaces in between.
+
+The above information can also be found by running:
+```shell
+$ python coinmarketcap.py -h
+```
+
+Write outputs to a file by running:
+
+```shell
+$ coinmarketcap.py <currency> <start_date> <end_date> > <output_filename>
+```
+
+#### Command Line Examples
+Collecting data for one cryptocurrency:
+```shell
+$ python coinmarketcap.py bitcoin 2017-01-01 2017-12-31
+```
+
+Collecting data for multiple cryptocurrencies:
+```shell
+$ python coinmarketcap.py bitcoin,ripple,ethereum 2017-01-01 2017-12-31
+```
+
+Writing output to a file:
+```shell
+$ python coinmarketcap.py bitcoin 2017-01-01 2017-12-31 > bitcoin_prices.csv
+```
+
+Writing output for multiple cryptocurrencies to a file:
+```shell
+$ python coinmarketcap.py bitcoin,ripple,ethereum 2017-01-01 2017-12-31 > bitcoin_ripple_ethereum_prices.csv
+```
+
+## Module
+
+You can also use `coinmarketcap.py` as a module in other python modules to get back a pandas dataframe with a cryptocurrency's history.
+
+First, you may need to add the path to `coinmarketcap_usd_history.py` in your `sys.path` through a command like the following:  
+
+```python
+sys.path.append(<path_to_coinmarketcap_usd_history.py_parent_folder>)
+```
+
+(Alternatively, just move the `coinmarketcap_usd_history.py` file to the directory of the including module.)
+
+Second, import the module:
+
+```import coinmarketcap_usd_history```
+
+Finally perform this to obtain the dataframe:
+
+```python
+df = coinmarketcap_usd_history.main(['bitcoin','2017-01-01','2017-12-31','--dataframe'])
+```
+
+If you just wish to have the CSV output returned as a string to another python module, simply omit the `'--dataframe'` parameter.
+
+
