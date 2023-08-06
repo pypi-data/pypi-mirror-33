@@ -1,0 +1,99 @@
+Kintyre Speedtest Agent
+-----------------------
+
+[![Build Status](https://travis-ci.org/Kintyre/shinnecock-agent.svg?branch=master)](https://travis-ci.org/Kintyre/shinnecock-agent)
+[![codecov](https://codecov.io/gh/Kintyre/shinnecock-agent/branch/master/graph/badge.svg)](https://codecov.io/gh/Kintyre/ksconf)
+[![PyPI](https://img.shields.io/pypi/v/kintyre-speedtest-agent.svg)](https://pypi.org/project/kintyre-speedtest-agent/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/kintyre-speedtest-agent.svg)](https://pypi.org/project/kintyre-speedtest-agent/)
+
+
+An Internet speedtest monitoring utility for Splunk HEC.  Speedtest and other networking information
+is captured and sent to a central Splunk instance via the Http Event Collector.  Scheduled
+monitoring is handled by the OS scheduler of your choice (often cron or the Windows Scheduler).
+
+The Splunk app and TA are in a different repository and will be available via Splunkbase.  This
+app represents the core work surrounding the speed-test data collection and standalone agent
+version.
+
+
+Install
+-------
+
+
+Using pip:
+
+    pip install kintyre-speedtest-agent
+
+System-level install:  (For Mac/Linux)
+
+    curl https://bootstrap.pypa.io/get-pip.py | sudo python - kintyre-speedtest-agent
+
+_Note_: This will also install/update `pip` and work around some known TLS/SSL issues
+
+
+If `pip` is not present or out of date on your Linux system, see the Python Packaging doc regarding
+[Linux Package Managers][pip-on-linux].  Or more generally, see [Installing Packages][pypa-tut].
+
+
+Developers
+----------
+
+If you wish to help with development, or simply install via git, we suggest installing into a
+virtual environment that can be thrown away and recreated as necessary.  Pull-requests welcome!
+
+Prep:
+
+    pip install virtualenv
+
+Install:
+
+    git clone https://github.com/Kintyre/shinnecock-agent.git
+    cd shinnecock-agent || exit 1
+    virtualenv venv || exit 1
+    souce venv/bin/activate || exit 1
+    pip install -r requirements.txt
+    python setup.py install
+
+Testing locally:
+
+    # Assumes tox and multple python versions have been installed (i.e., pyenv)
+    tox
+
+    # Accelerated test run bypassing the acutal "SpeedTest" portion (save some bandwidth)
+    tox -- --fake-it
+
+
+
+Configure
+---------
+
+Configuration is handled by a configuration file stored in the user's home directory.
+Run the `--register` command to bootstrap the configuration with appropriate values.
+You may re-run this process at any time, or edit the kintyre_speedtest.ini file directly.
+
+
+Example registration command (using the Kintyre's dev server):
+
+    kintyre-speedtest --register \
+        --url http://splunkspeedtest.dev.kintyre.net:8088 \
+        --token dbbcd446-f5e7-412b-a971-dae59167a72f
+
+
+*NOTE:* Be sure to run '--register' with the same OS user account used to schedule the execution 
+        of speedtest via your scheduler of choice.  Otherwise, the configuration file will not be
+        found and the script will fail.
+
+
+
+Credits
+-------
+
+This project internally uses:
+
+ * [speedtest-cli](https://github.com/sivel/speedtest-cli) - for all Internet performance tests
+ * [ifcfg](https://github.com/ftao/python-ifcfg) - For cross-platform network interface enumeration
+ * [requests](http://docs.python-requests.org/en/master/) - For posting to the HEC endpoints
+
+
+[pip-on-linux]: https://packaging.python.org/guides/installing-using-linux-tools
+[pypa-tut]: https://packaging.python.org/tutorials/installing-packages
