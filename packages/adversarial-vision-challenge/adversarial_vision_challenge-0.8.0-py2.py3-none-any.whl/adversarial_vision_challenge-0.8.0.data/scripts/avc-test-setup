@@ -1,0 +1,61 @@
+#!python
+
+from future.moves.urllib import request
+from distutils.version import LooseVersion
+import packaging.version
+import adversarial_vision_challenge
+import requests
+import json
+import sys
+try:
+    from packaging.version import parse
+except ImportError:
+    from pip._vendor.packaging.version import parse
+
+# print python version for debugging purposes
+print('Basic setup tests')
+print('-----------------')
+print('Python version: {}.{}'.format(sys.version_info[0], sys.version_info[1]))
+
+# 1. check if docker is installed
+from distutils.spawn import find_executable
+if find_executable('docker') is None:
+	raise AssertionError('Docker is needed to start and test your model/attack submission but is not installed on your system.')
+else:
+	print(u'Docker installed: \u2713')
+
+# 1. test that the crowdai_repo2docker is installed
+from distutils.spawn import find_executable
+if find_executable('crowdai-repo2docker') is None:
+	raise AssertionError("""crowdai-repo2docker is need to build a docker image of your model/attack 
+		submission but is not installed on your system. Please install with
+
+		pip install crowdai-repo2docker
+
+		""")
+else:
+	print(u'Crowdai_repo2docker installed: \u2713')
+
+# 2. test that latest adversarial vision challenge is installed
+if sys.version_info[0] == 3:
+	data = json.loads(request.urlopen('https://pypi.python.org/pypi/adversarial-vision-challenge/json').readall().decode('utf-8'))
+else:
+	data = json.loads(request.urlopen('https://pypi.python.org/pypi/adversarial-vision-challenge/json').read())
+latest_version = max([LooseVersion(release) for release in data['releases'] if not packaging.version.parse(release).is_prerelease])
+
+current_version = adversarial_vision_challenge.__version__
+
+if latest_version > LooseVersion(current_version):
+	raise AssertionError("""Your version of the adversarial-vision-challenge ({}) 
+		does not match the latest version ({}). Please make
+		sure you are using the latest version, e.g. using pip:
+
+		pip install --upgrade adversarial_vision_challenge
+
+		before you proceed.
+		""".format(current_version, latest_version)
+		)
+else:
+	print(u'AVC package up-to-date: \u2713')
+
+# 3. test that upt file exists (to install git)
