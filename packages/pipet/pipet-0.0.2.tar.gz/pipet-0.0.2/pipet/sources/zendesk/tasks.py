@@ -1,0 +1,52 @@
+from contextlib import contextmanager
+from datetime import datetime
+from inspect import isclass
+
+from celery import chord, group
+from celery_once import QueueOnce
+from celery.schedules import crontab
+from celery.utils.log import get_task_logger
+from sqlalchemy.orm.attributes import flag_modified
+
+# from pipet import celery
+from pipet.models import db, Organization
+from pipet.sources.zendesk import ZendeskAccount
+from pipet.sources.zendesk.models import (
+    Base,
+    CLASS_REGISTRY,
+)
+
+
+logger = get_task_logger(__name__)
+
+
+# @celery.task(base=QueueOnce, once={'graceful': True})
+def sync(account_id):
+    with app.app_context():
+        account = ZendeskAccount.query.get(account_id)
+        session = account.organization.create_session()
+
+        for cls in [m for n, m in CLASS_REGISTRY.items() if isclass(m) and issubclass(m, Base)]:
+            # TODO: Make these parallel to speed up execution
+            while True:
+                conn = session.connection()
+                statments, cursor, has_more = cls.sync(account)
+                account.cursors[cls.__tablename__] = cursor
+                flag_modified(account, 'cursors')
+
+                for statement in statments:
+                    conn.execute(statement)
+
+                session.commit()
+
+                db.session.add(account)
+                db.session.commit()
+
+                if not has_more:
+                    break
+
+
+# @celery.task
+def sync_all():
+    job = group([sync.s(account.id) for account in ZendeskAccount.query.all()])
+    job.apply_async()
