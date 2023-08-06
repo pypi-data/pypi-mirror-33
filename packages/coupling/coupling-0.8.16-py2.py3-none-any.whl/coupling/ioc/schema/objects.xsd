@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xs:schema xmlns="coupling/objects"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="coupling/objects"
+           elementFormDefault="qualified">
+    <xs:annotation>
+        <xs:documentation>
+        </xs:documentation>
+    </xs:annotation>
+
+    <xs:attributeGroup name="argAttributeGroup">
+        <xs:attribute name="ref" type="xs:string" use="optional"/>
+        <xs:attribute name="value" type="xs:string" use="optional"/>
+        <xs:attribute name="type" use="optional">
+            <xs:simpleType>
+                <xs:restriction base="xs:string">
+                    <xs:enumeration value="int"/>
+                    <xs:enumeration value="str"/>
+                    <xs:enumeration value="bool"/>
+                    <xs:enumeration value="float"/>
+                </xs:restriction>
+            </xs:simpleType>
+        </xs:attribute>
+    </xs:attributeGroup>
+
+    <xs:complexType name="itemType">
+        <xs:group ref="valueGroup" minOccurs="0" maxOccurs="1"/>
+        <xs:attribute name="name" type="xs:string" use="required"/>
+        <xs:attributeGroup ref="argAttributeGroup"/>
+    </xs:complexType>
+
+    <xs:simpleType name="integerType">
+        <xs:restriction base="xs:integer">
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="listType" mixed="true">
+        <xs:group ref="valueGroup" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:attribute name="scoped" type="xs:boolean"/>
+    </xs:complexType>
+
+    <xs:complexType name="dictType" mixed="true">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="item" type="itemType"/>
+        </xs:choice>
+        <xs:attribute name="ordered" type="xs:boolean"/>
+        <xs:attribute name="scoped" type="xs:boolean"/>
+    </xs:complexType>
+
+    <xs:complexType name="etreeType">
+        <xs:choice minOccurs="0" maxOccurs="1">
+            <xs:any namespace="##any" processContents="skip" />
+        </xs:choice>
+        <xs:attribute name="cleanup-namespace" type="xs:boolean"/>
+    </xs:complexType>
+
+    <xs:simpleType name="nonEmptyTextType">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="nonEmptyTextTypeWithId">
+        <xs:simpleContent>
+            <xs:extension base="nonEmptyTextType">
+                <xs:attribute name="id" type="xs:ID"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:group name="valueGroup">
+        <xs:choice>
+            <xs:element ref="str"/>
+            <xs:element ref="int"/>
+            <xs:element ref="bool"/>
+            <xs:element ref="float"/>
+            <xs:element ref="callable"/>
+            <xs:element name="ref" type="nonEmptyTextType"/>
+            <xs:element ref="list"/>
+            <xs:element ref="dict"/>
+            <xs:element ref="object"/>
+            <xs:element name="etree" type="etreeType"/>
+        </xs:choice>
+    </xs:group>
+
+    <xs:element name="str" type="nonEmptyTextTypeWithId"/>
+    <xs:element name="int" type="nonEmptyTextTypeWithId"/>
+    <xs:element name="bool" type="nonEmptyTextTypeWithId"/>
+    <xs:element name="float" type="nonEmptyTextTypeWithId"/>
+    <xs:element name="callable" type="nonEmptyTextTypeWithId"/>
+
+    <xs:element name="list">
+        <xs:complexType>
+            <xs:complexContent>
+                <xs:extension base="listType">
+                    <xs:attribute name="id" type="xs:ID"/>
+                </xs:extension>
+            </xs:complexContent>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="dict">
+        <xs:complexType>
+            <xs:complexContent>
+                <xs:extension base="dictType">
+                    <xs:attribute name="id" type="xs:ID"/>
+                </xs:extension>
+            </xs:complexContent>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="etree">
+        <xs:complexType>
+            <xs:complexContent>
+                <xs:extension base="etreeType">
+                    <xs:attribute name="id" type="xs:ID"/>
+                </xs:extension>
+            </xs:complexContent>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:complexType name="objectType">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="argument">
+                <xs:complexType>
+                    <xs:group ref="valueGroup" minOccurs="0" maxOccurs="1"/>
+                    <xs:attribute name="name" type="xs:string" use="optional"/>
+                    <xs:attributeGroup ref="argAttributeGroup"/>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="property">
+                <xs:complexType>
+                    <xs:group ref="valueGroup" minOccurs="0" maxOccurs="1"/>
+                    <xs:attribute name="name" type="xs:string" use="required"/>
+                    <xs:attributeGroup ref="argAttributeGroup"/>
+                </xs:complexType>
+            </xs:element>
+        </xs:choice>
+        <xs:attribute name="class" type="xs:string" use="required"/>
+    </xs:complexType>
+
+    <xs:element name="object">
+        <xs:complexType>
+            <xs:complexContent>
+                <xs:extension base="objectType">
+                    <xs:attribute name="id" type="xs:ID"/>
+                    <xs:attribute name="scope" use="optional">
+                        <xs:simpleType>
+                            <xs:restriction base="xs:string">
+                                <xs:enumeration value="singleton"/>
+                                <xs:enumeration value="prototype"/>
+                            </xs:restriction>
+                        </xs:simpleType>
+                    </xs:attribute>
+                    <xs:attribute name="lazy-init" type="xs:boolean" use="optional"/>
+                </xs:extension>
+            </xs:complexContent>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="objects">
+        <xs:complexType>
+            <xs:choice minOccurs="1" maxOccurs="unbounded">
+                <xs:element ref="str"/>
+                <xs:element ref="int"/>
+                <xs:element ref="bool"/>
+                <xs:element ref="float"/>
+                <xs:element ref="callable"/>
+                <xs:element ref="list"/>
+                <xs:element ref="dict"/>
+                <xs:element ref="object"/>
+                <xs:element ref="etree"/>
+                <xs:any namespace="##other" processContents="lax"/>
+            </xs:choice>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>
