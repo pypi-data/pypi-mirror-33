@@ -1,0 +1,280 @@
+{% extends "master.html" %}
+
+{% block title %}{{ project.name }} · Anitya{% endblock %}
+
+{% block body %}
+
+<div class="page-header">
+  <h1>Project: {{ project.name }}</h1>
+</div>
+
+<div class="row" resource="{{ project.homepage }}" typeof="doap:Project">
+  <div class="col-md-5 col-md-offset-1">
+
+    <div class="panel panel-default">
+      <div class="panel-heading">
+          <div class="list-group-item-text">
+        <a href="{{ url_for('anitya_ui.edit_project', project_id=project.id) }}">
+            <button type="submit" class="btn btn-info btn-sm pull-right inline"
+                id="edit_btn" tabindex=1>
+              <span class="glyphicon glyphicon-edit"></span>
+              Edit
+            </button>
+        </a>
+        <a href="{{ url_for('anitya_ui.flag_project', project_id=project.id) }}">
+          <button title="Ask for an admin intervention (delete version/project, fix mapping...)."
+                 type="submit" class="btn btn-warning btn-sm pull-right inline"
+                 id="flag_btn" tabindex=2>
+          <span class="glyphicon glyphicon-flag"></span>
+            Flag
+          </button>
+        </a>
+        <h3 class="panel-title inline" property="doap:name">{{ project.name }}</h3>
+        </div>
+      </div>
+
+      <div class="list-group">
+        <div class="list-group-item">
+          <div class="row">
+            <div class="col-md-8">
+                <h4 class="list-group-item-heading">Latest version(s):</h4>
+                <div class="list-group-item-text">
+                  {% if project.versions %}
+                  <ul>
+                    {% for version in project.versions %}
+                    <li property="doap:release" typeof="doap:Version">
+                      <span property="doap:revision">{{ version }}</span>
+                      {% if is_admin %}
+                      <a href="{{ url_for('anitya_ui.delete_project_version',
+                                    project_id=project.id,
+                                    version=version) }}"
+                         title="Delete this version">[x]</a>
+                      {% endif %}
+                    </li>
+                    {% endfor %}
+                  </ul>
+                  {% else %}
+                  <p id="version_info">No version available for this package</p>
+                  {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4">
+              {% if user and user.is_authenticated and (not project.versions or is_admin
+                or justedit) %}
+              <button type="submit" class="btn btn-success btn-sm pull-right"
+                  id="testcheck" tabindex=3>
+                <span class="glyphicon glyphicon-refresh"></span>
+                Test check
+              </button>
+              <img src="{{url_for('anitya_ui.static', filename='img/spinner.gif')}}"
+                id="testcheck-spinner" class="pull-right"
+                style="display: none; padding-top: 12px; padding-right: 25px;"/>
+              <button type="submit" class="btn btn-success btn-sm pull-right"
+                  id="checknow" tabindex=4>
+                <span class="glyphicon glyphicon-refresh"></span>
+                Full check
+              </button>
+              <img src="{{url_for('anitya_ui.static', filename='img/spinner.gif')}}"
+                id="checknow-spinner" class="pull-right"
+                style="display: none; padding-top: 12px; padding-right: 25px;"/>
+              {% endif %}
+            </div>
+          </div>
+        </div><!-- end list-group-item -->
+
+        <div class="list-group-item">
+          <h4 class="list-group-item-heading">Homepage:</h4>
+          <div class="list-group-item-text">
+            <p><a property="doap:homepage" href="{{ project.homepage }}"
+               target="_blank" rel="noopener noreferrer">{{ project.homepage }}
+             </a><p>
+          </div>
+        </div><!-- end list-group-item -->
+
+        <div class="list-group-item">
+          <h4 class="list-group-item-heading">Backend:</h4>
+          <div class="list-group-item-text">
+            <p>{{ project.backend }}</p>
+          </div>
+        </div><!-- end list-group-item -->
+
+      {% if is_admin %}
+        <div class="list-group-item">
+          <h4 class="list-group-item-heading">Whoah..</h4>
+          <div class="list-group-item-text">
+            <a href="{{url_for('anitya_ui.delete_project', project_id=project.id) }}">
+              <button type="submit" class="btn btn-danger btn-sm pull-right">
+                <span class="glyphicon glyphicon-remove"></span>
+                Delete
+              </button>
+            </a>
+            <p>Delete this project all-together?</p>
+          </div>
+        </div><!-- end list-group-item -->
+      {% endif %}
+
+      </div><!-- end list-group -->
+    </div><!-- end panel -->
+
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Mappings</h3>
+      </div>
+
+      <div class="list-group">
+        <div class="list-group-item">
+          <div class="list-group-item-text">
+            <dl class="dl-horizontal">
+              <table class="table table-condensed">
+                <tr>
+                  <th>Distribution</th>
+                  <th>Package name </th>
+                  {% if is_admin %}
+                  <th></th>
+                  {% endif %}
+                </tr>
+
+                {% for package in project.packages %}
+                <tr>
+                  <td>{{ package.distro }}</td>
+                  <td>{{ package.package_name }}</td>
+                  <td>
+                    <a href="{{
+                      url_for('anitya_ui.edit_project_mapping',
+                              project_id=project.id,
+                              pkg_id=package.id) }}">
+                      <button type="submit" class="btn btn-info btn-sm pull-right">
+                        <span class="glyphicon glyphicon-edit"></span>
+                        Edit
+                      </button>
+                    </a>
+                  </td>
+                  {% if is_admin %}
+                  <td>
+                    <a href="{{
+                      url_for('anitya_ui.delete_project_mapping',
+                              project_id=project.id,
+                              distro_name=package.distro,
+                              pkg_name=package.package_name) }}">
+                      <button type="submit" class="btn btn-warning btn-sm pull-right"
+                          tabindex=7>
+                        <span class="glyphicon glyphicon-remove"></span>
+                        Delete
+                      </button>
+                    </a>
+                  </td>
+                  {% endif %}
+                </tr>
+                {% endfor %}
+
+              </table>
+            </dl>
+          </div><!-- end group-item-text -->
+        </div><!-- end group-item -->
+        {% if user and user.is_authenticated %}
+        <div class="list-group-item">
+          <div class="list-group-item-text">
+            <p><a href="{{ url_for('anitya_ui.map_project', project_id=project.id) }}">
+            <button type="submit" class="btn btn-info btn-sm pull-right" tabindex=6>
+              <span class="glyphicon glyphicon-map-marker"></span>
+              Add new distribution mapping
+            </button>
+          </a></p>
+        <div class="clearfix"></div>
+          </div><!-- end group-item-text -->
+        </div><!-- end group-item -->
+        {% endif %}
+      </div><!-- end-group -->
+    </div><!-- end panel -->
+  </div><!-- end column -->
+
+  <div class="col-md-5">
+
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">
+            Logs
+        </h3>
+      </div>
+      <span class="list-group-item">
+            {{ project.logs }}
+        <div class="clearfix"></div>
+      </span>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block jscript %}
+<script>
+  function checkrelease(test){
+    if(!test) {
+        // This might be null. Let's default to false.
+        test = false;
+    };
+    var btn = '#checknow';
+    if (test) {
+      btn = '#testcheck';
+    }
+    $(btn).hide(); $(btn + "-spinner").show();
+    var _id = "{{ project.id }}";
+    var _url = "{{ url_for('anitya_apiv1.api_get_version') }}";
+    data = {id: _id};
+    if (test) {
+        data.test = test;
+    }
+    $.ajax({
+        url: _url ,
+        type: 'POST',
+        data: data,
+        dataType: 'json',
+        success: function(res) {
+          if (test) {
+              alert('Version found: ' + res.version);
+          } else {
+            if (res.version) {
+              output = res.version;
+            } else {
+              output = res.error;
+            }
+            $('#version_info').html("Latest versions: " + output);
+          }
+          $(btn).show(); $(btn + "-spinner").hide();
+        },
+        error: function(res) {
+          $(btn).show(); $(btn + "-spinner").hide();
+          alert(
+              'Unable to retrieve the latest version from upstream!\n'
+              + 'ERROR: ' + res.responseJSON.error );
+        }
+    });
+  };
+
+  $('body').bind('keyup', function(event) {
+    if (event.ctrlKey){
+        return false;
+    }
+    if (event.which == 69 && !$("#searchbox").is(':focus')) { //e
+      window.location.replace("{{ url_for('anitya_ui.edit_project', project_id=project.id) }}");
+    }
+    {% if user and user.is_authenticated and (not project.versions or is_admin) %}
+    if (event.which == 67 && !$("#searchbox").is(':focus')) { //c
+      checkrelease();
+      return false;
+    }
+    {% endif %}
+  });
+
+  $('#checknow').click(function(){
+    checkrelease();
+    return false;
+  });
+
+  $('#testcheck').click(function(){
+    checkrelease(test=true);
+    return false;
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Monitoring project releases" />
+    <meta name="author" content="Pierre-Yves Chibon" />
+
+    <link rel="shortcut icon" href="{{ url_for('anitya_ui.static', filename='ico/favicon.ico') }}">
+
+    <!-- Page Title -->
+    <title>{% block title %}{% endblock %}</title>
+
+    <link href="{{ url_for('anitya_ui.static', filename='bootstrap/css/bootstrap.css') }}" rel="stylesheet" />
+    <link href="{{ url_for('anitya_ui.static', filename='css/text.css') }}" rel="stylesheet" />
+    <link href="{{ url_for('anitya_ui.static', filename='css/navbar.css') }}" rel="stylesheet" />
+    <link href="{{ url_for('anitya_ui.static', filename='css/footer.css') }}" rel="stylesheet" />
+    <link href="{{ url_for('anitya_ui.static', filename='css/cnucnu.css') }}" rel="stylesheet" />
+    <link href="{{ url_for('anitya_ui.static', filename='css/jquery-ui.min.css') }}" rel="stylesheet" />
+    <link href="{{ url_for('anitya_ui.static', filename='css/jquery-ui.theme.min.css') }}" rel="stylesheet" />
+    <link href="{{ url_for('anitya_ui.static', filename='bootstrap-datetimepicker.min.css') }}" rel="stylesheet" />
+
+    {% block header %}{% endblock %}
+
+  </head>
+
+  <body
+    prefix="doap: http://usefulinc.com/ns/doap#"
+  >
+    <div id="wrap" class="container{{ ' max-width' if current == 'index' }}">
+
+      <!-- Static navbar -->
+      <div class="navbar navbar-default navbar-fixed-top">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse"
+                data-target=".navbar-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="{{url_for('anitya_ui.index')}}">
+            release-monitoring.org
+          </a>
+        </div>
+
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+              <li>
+                  <a href="{{ url_for('anitya_ui.static', filename='docs/index.html') }}">Documentation</a>
+              </li>
+            {%- if current == 'projects' -%}
+            <li class="active">
+            {%- else -%}
+            <li>
+            {%- endif -%}
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                  projects
+              </a>
+              <ul class="dropdown-menu">
+                  <li>
+                      <a href="{{url_for('anitya_ui.projects')}}">All</a>
+                  </li>
+                  <li class="divider"></li>
+                  <li>
+                    <a href="{{url_for('anitya_ui.projects_updated')}}">Updated</a>
+                  </li>
+                  <li>
+                    <a href="{{url_for('anitya_ui.projects_updated', status='odd')}}">
+                      Odd version found
+                    </a>
+                  </li>
+                  <li>
+                    <a href="{{url_for('anitya_ui.projects_updated', status='new')}}">
+                      Not updated
+                    </a>
+                  </li>
+                  <li>
+                    <a href="{{url_for('anitya_ui.projects_updated', status='failed')}}">
+                      Failed to update
+                    </a>
+                  </li>
+                  <li>
+                    <a href="{{url_for('anitya_ui.projects_updated', status='never_updated')}}">
+                      Never updated
+                    </a>
+                  </li>
+                </ul>
+            </li>
+
+            {%- if current == 'distros' -%}
+            <li class="active">
+            {%- else -%}
+            <li>
+            {%- endif -%}
+              <a href="{{url_for('anitya_ui.distros')}}">
+                  distros
+              </a>
+            </li>
+
+            {%- if user and user.is_authenticated -%}
+            {%- if current == 'Add projects' -%}
+            <li class="active">
+            {%- else -%}
+            <li>
+            {%- endif -%}
+              <a href="{{url_for('anitya_ui.new_project')}}">
+                  add project
+              </a>
+            </li>
+
+            {%- if current == 'logs' -%}
+            <li class="active">
+            {%- else -%}
+            <li>
+            {%- endif -%}
+              <a href="{{url_for('anitya_ui.browse_logs')}}">
+                  logs
+              </a>
+            </li>
+            {%- if is_admin -%}
+              {%- if current == 'flags' -%}
+               <li class="active">
+              {%- else -%}
+               <li>
+              {%- endif -%}
+               <a href="{{url_for('anitya_ui.browse_flags')}}">
+                  flags</a>
+               </li>
+            {%- endif -%}
+            <li><a href="{{url_for('anitya_ui.settings')}}">Settings</a></li>
+            <li>
+              <a href="{{url_for('anitya_ui.logout')}}">
+                <span class="glyphicon glyphicon-log-out"></span>
+	        logout
+	      </a>
+            </li>
+            {%- else -%}
+            <li>
+              <a href="{{url_for('anitya_ui.login')}}">
+                <span class="glyphicon glyphicon-log-in"></span>
+	        login
+	      </a>
+            </li>
+            {%- endif -%}
+            <li>
+              <form action="{{ url_for('anitya_ui.projects_search') }}" role="form" class="form-inline">
+                <div class="form-group">
+                  <input id="searchbox" class="form-control input-sm" type="text" name="pattern" placeholder="Project name"/>
+                  <button type="submit" class="btn btn-sm btn-default">Search</button>
+                </div><!-- /.form-group -->
+              </form>
+            </li>
+
+          </ul>
+
+        </div><!--/.nav-collapse -->
+      </div>
+
+      {%- with messages = get_flashed_messages(with_categories=true) -%}
+        {%- if category, messages -%}
+        <div class="container">
+          <div class="row">
+            <div class="col-md-6 col-md-offset-3">
+              <ul id="flashes" class="list-group">
+                    {%- for category, message in messages -%}
+                    {%- autoescape false -%}
+                    <li class="list-group-item list-group-item-{{ category | context_class }}">{{ message }}</li>
+                    {%- endautoescape -%}
+                    {%- endfor -%}
+        {%- endif -%}
+              </ul>
+            </div>
+          </div>
+        </div>
+      {%- endwith -%}
+
+      {% block body %}{% endblock %}
+
+    </div> <!-- /container -->
+
+    <div id="footer">
+      <div class="container">
+        <p class="text-muted credit">
+        Anitya ({{ version }}):
+        <a href="{{ url_for('anitya_apiv1.api') }}">API</a>
+        --
+        <a href="https://github.com/release-monitoring/anitya">sources</a>
+        --
+        <a href="https://github.com/release-monitoring/anitya/issues">issue tracker</a>
+        .
+        ©2013-2016 Red Hat, Inc., <a href="http://pingoured.fr">pingou</a>.
+        {% if cron_status %}
+        Last check {{ cron_status.status }} at (UTC) {{
+            cron_status.created_on.strftime('%Y-%m-%d %H:%M:%S') }}
+        {% endif %}
+        </p>
+      </div>
+    </div>
+
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script type="text/javascript"
+        src="{{ url_for('anitya_ui.static', filename='js/jquery-1.10.2.min.js')}}"></script>
+    <script type="text/javascript"
+        src="{{ url_for('anitya_ui.static', filename='js/jquery-ui.min.1.11.3.js')}}"></script>
+    <script type="text/javascript"
+        src="{{ url_for('anitya_ui.static', filename='js/bootstrap.min.js') }}">
+    </script>
+    <script type="text/javascript"
+        src="{{ url_for('anitya_ui.static', filename='js/moment.js') }}">
+    </script>
+    <script type="text/javascript"
+        src="{{ url_for('anitya_ui.static', filename='bootstrap-datetimepicker.js') }}">
+    </script>
+    <script type="text/javascript">
+      $(function() {
+        $('#searchbox').autocomplete({
+          source: function( request, response ) {
+            $.getJSON(
+              "{{ url_for('anitya_apiv1.api_projects_names') }}", {
+                pattern: request.term + '*'
+              },
+              function( data ) {
+                response( data.projects );
+              }
+            );
+          },
+          minLength: 3,
+          delay: 600,
+        });
+      });
+    </script>
+    {% block jscript %}{% endblock %}
+  </body>
+</html>
+
