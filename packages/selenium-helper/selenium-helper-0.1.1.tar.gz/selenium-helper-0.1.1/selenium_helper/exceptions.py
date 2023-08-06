@@ -1,0 +1,2 @@
+class UnkownExcelTypeFile(Exception):
+	pass
