@@ -1,0 +1,7 @@
+This is a python wrapper for MeCab. It works on Windows.
+
+License
+---------
+MeCab is copyrighted free software by Taku Kudo <taku@chasen.org> and Nippon Telegraph and Telephone Corporation, and is released under any of the GPL (see the file GPL), the LGPL (see the file LGPL), or the BSD License (see the file BSD).
+
+
