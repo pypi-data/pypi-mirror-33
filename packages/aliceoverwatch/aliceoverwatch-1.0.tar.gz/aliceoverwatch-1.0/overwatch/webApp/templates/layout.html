@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>ALICE OVERWATCH - {{ self.title() }}</title>
+
+        <!-- 1. Load webcomponents-lite.min.js for polyfill support. -->
+        <!-- Cannot put in the polymer components because they are needed to use the import instruction! -->
+        {#- If cannot load locally, load from CDN. From: https://github.com/download/polymer-cdn and https://stackoverflow.com/a/31484427 -#}
+        {#- Test for if it is loaded derived from: https://github.com/webcomponents/webcomponentsjs/issues/26 #}
+        <script src="{{url_for("static", filename="bower_components/webcomponentsjs/webcomponents-lite.min.js") }}"></script>
+        <script> if(typeof HTMLImports === "undefined") { document.write('<script src="//cdn.rawgit.com/download/polymer-cdn/1.5.0/lib/webcomponentsjs/webcomponents-lite.min.js">\x3C/script>'); /*window.alert("Using CDN for webcomponents!");*/ }</script>
+
+        <!-- 2. Use an HTML Import to bring in some elements. -->
+        {#- Import a file of vulcanized polymer components -#}
+        {#- Can't do it directly because vulcanized doesn't integrate well with jinja templates #}
+        {% assets "polymerBundle" -%}
+        <link rel="import" href="{{ ASSET_URL }}">
+        {%- endassets %}
+
+        <script type=text/javascript>
+            $SCRIPT_ROOT = {{ request.script_root|tojson|safe  }};
+        </script>
+
+        {# See: http://flask.pocoo.org/docs/0.11/patterns/jquery/ -#}
+        {#- Loads jQuery from google if available, or locaclly is not -#}
+        <!-- Ensure that we can use jQuery here! -->
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+        <script>window.jQuery || document.write('<script src="{{ url_for('static', filename='scripts/jquery.min.js') }}">\x3C/script>')</script>
+
+        {% assets "minJS" -%}
+            <script async src="{{ ASSET_URL }}" type="text/javascript"></script>
+        {%- endassets %}
+
+        <!-- jsroot with support for 2d hists -->
+        {#- Loads jsRoot from locally if available, or CDN if not -#}
+        {#- jsRoot 4.6 does not work correctly, so loading from the CDN isn't ideal... #}
+        <script src="{{ url_for("static", filename="jsRoot/scripts/JSRootCore.js?2d") | replace("%3F", "?") }}" type="text/javascript"></script>
+        <script>
+        if (typeof JSROOT === "undefined") {
+            // Remove the previous script tag, because it will mess up jsRoot from finding the proper src directory
+            var scripts = document.getElementsByTagName("script");
+            for (var n = 0; n < scripts.length; ++n) {
+                var srcElement = scripts[n];
+                var src = scripts[n].src;
+                if ( (src === undefined) || (typeof src !== 'string')) continue;
+
+                var pos = src.indexOf("jsRoot/scripts/JSRootCore.");
+                if (pos<0) continue;
+
+                // Remove the actual element
+                // There should only be one head!
+                var head = document.getElementsByTagName("head")[0];
+                console.log("head: " + head);
+                console.log("srcElement: " + srcElement);
+                head.removeChild(srcElement);
+            }
+            document.write('<script src="//root.cern.ch/js/latest/scripts/JSRootCore.js?2d">\x3C/script>');
+            console.log("Using CDN for JSROOT");
+        }
+        </script>
+        <!--<script src="//root.cern.ch/js/latest/scripts/JSRootCore.js?2d" type="text/javascript"></script>
+        <script>JSROOT || document.write('<script src="{{ url_for('static', filename='jsRoot/scripts/JSRootCore.js?2d') | replace('%3F', '?')}}">\x3C/script>')</script>-->
+
+        <link rel="stylesheet" type="text/css" href="{{ url_for("static", filename="style.css") }}">
+
+        {# Mobile support -#}
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        {#- Disable favicon request. See: https://stackoverflow.com/a/13416784 -#}
+        {#- <!--<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgo=">--> -#}
+        {#- Favicon support from: realfavicongenerator.net #}
+        <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png?v=2">
+        <link rel="icon" type="image/png" href="/static/icons/favicon-32x32.png?v=2" sizes="32x32">
+        <link rel="icon" type="image/png" href="/static/icons/favicon-16x16.png?v=2" sizes="16x16">
+        <link rel="manifest" href="/static/icons/manifest.json?v=2">
+        <link rel="mask-icon" href="/static/icons/safari-pinned-tab.svg?v=2" color="#003e72">
+        <link rel="shortcut icon" href="/static/icons/favicon.ico?v=2">
+        <meta name="msapplication-config" content="/static/icons/browserconfig.xml?v=2">
+        <meta name="theme-color" content="#003e72">
+        {#- Set color of nav bar -#}
+        {#- See: https://stackoverflow.com/a/33193739 #}
+        <!-- Blink, webkit -->
+        {#- <!--<meta name="theme-color" content="#C6E2FF">--> #}
+        <!-- Windows phone -->
+        <meta name="msapplication-navbutton-color" content="#003e72">
+        <!-- iOS (?) -->
+        <meta name="apple-mobile-web-app-status-bar-style" content="#003e72">
+        {% block head %}{% endblock %}
+    </head>
+    <!-- unresolved causes the page not be to be shown until it is ready -->
+    <body class="fullbleed layout vertical" unresolved>
+<paper-header-panel>
+    <!-- This is the header for the main page -->
+    <paper-toolbar class="header">
+    <!--<paper-toolbar style="background-color: white; color: blue;" class="tall">-->
+        <paper-icon-button id="headerMenuButton" icon="menu" class="menuIcon hideElement"></paper-icon-button>
+        <!--<paper-icon-button paper-drawer-toggle id="headerMenuButton" icon="menu" style="color:white;"></paper-icon-button>-->
+        <!-- Using paper-drawer-toggle does it directly, but only inside the object -->
+        <!--<paper-icon-button icon="menu" on-tap="toggleDrawer" style="color:white;"></paper-icon-button>-->
+
+        <!-- Title -->
+        <div class="title">{% block title %}ALICE OVERWATCH{% endblock %}</div>
+
+        <!-- Time slices -->
+        <paper-button id="propertiesButton" class="hideElement">
+            <div>Time Slices</div>
+            <paper-icon-button icon="av:av-timer" class="menuIcon"></paper-icon-button>
+        </paper-button>
+
+        <!-- Top of page -->
+        <a href="#topOfPage" tabindex="-1">
+            <paper-icon-button icon="arrow-upward" class="menuIcon" id="headerTopOfPage"></paper-icon-button>
+        </a>
+
+        <!-- User settings here! -->
+        <paper-icon-button icon="account-circle" class="menuIcon" id="userSettingsButton"></paper-icon-button>
+        <!-- Can also use no-overlap as an option! -->
+        <paper-dialog vertical-align="auto" dynamic-align id="userSettings" class="linksToIntercept">
+            <h2>User Settings</h2>
+            <paper-listbox>
+                {%- if current_user.is_authenticated -%}
+                <a href="{{ url_for("index") }}" tabindex=-1>
+                    <paper-item>Return to Run List</paper-item>
+                </a>
+                <paper-item>
+                    <paper-item-body two-line>
+                        <div>User: {{ current_user.id }}</div>
+                        <div secondary><a href="{{ url_for("logout") }}">Logout</a></div>
+                    </paper-item-body>
+                </paper-item>
+                {%- else -%}
+                <a href="{{ url_for("login") }}">
+                    <paper-item>Home</paper-item>
+                </a>
+                <paper-item>
+                    Not logged in. <a href="{{ url_for("login") }}">Please login</a>
+                </paper-item>
+                {%- endif -%}
+            </paper-listbox>
+            <paper-toggle-button id="jsRootToggle">jsroot</paper-toggle-button>
+            <paper-toggle-button id="ajaxToggle" checked>AJAX</paper-toggle-button>
+        </paper-dialog>
+
+        <!--<div class="middle title">
+        </div>-->
+        <!--<div on-tap="toggleDrawer">toggle</div>-->
+        <!--<div class="middle title">Middle title</div>
+        <div class="bottom title">Bottom title</div>-->
+    </paper-toolbar>
+    {# <!--<paper-drawer-panel id="drawerPanelId" class="fit" {% block drawerOptions%}drawer-width="150px"{% endblock %}>--> #}
+    <paper-drawer-panel id="drawerPanelId" class="fit">
+        <div drawer class="drawerShadow">
+            <!-- Ensures that we can scroll in the header! -->
+            <div class="scrollableContainer">
+                <paper-listbox class="linksToIntercept">
+                    <a href="{{ url_for("index") }}" tabindex=-1>
+                        <paper-item>Run List</paper-item>
+                    </a>
+                    <a href="{{ url_for("trending") }}" tabindex=-1>
+                        <paper-item>Trending</paper-item>
+                    </a>
+                </paper-listbox>
+                <hr />
+                {# Defines content in the drawer #}
+                <div id="drawerContent" class="linksToIntercept">
+                    {% block drawer %}{% endblock %}
+                </div>
+            </div>
+        </div>
+
+        <div main>
+            <div id="loadingSpinnerContainer" class="hideElement" style="height: 100%; width: 100%; background-color: rgba(255, 255, 255, .4); justify-content: center;">
+                <paper-spinner-lite active style="align-self: center;"></paper-spinner-lite>
+            </div>
+            <!-- Ensures that we can scroll in the header! -->
+            <div class="scrollableContainer">
+                <div class="mainContentContainer">
+                    {# Flashes from: http://flask.pocoo.org/docs/0.10/patterns/flashing/ #}
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                            <div class=flashes id="flashes">
+                                {% for message in messages %}
+                                <p>{{ message.replace("\n", "<br />") | safe }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+                    <a class="anchor" name="topOfPage"></a>
+                    <div id="mainContent" class="linksToIntercept">
+                        {% block mainContent %}{% endblock %}
+                    </div>
+                    <hr />
+                    <div class="contactLinkContainer linksToIntercept"><p class="contactLinkParagraph"><a href="{{ url_for("contact") }}">Information, documentation, contact, and suggestions</a></p></div>
+                </div>
+            </div>
+        </div>
+    </paper-drawer-panel>
+</paper-header-panel>
+
+<paper-dialog id="propertiesDialog">
+    <h2>Processing Settings</h2>
+    <paper-dialog-scrollable>
+        <form is="iron-form" id="timeSlicesForm" method="post" action="/timeSlice">
+            <p>Time Dependent Merge</p>
+            <p>Min:</p>
+            <paper-slider id="timeSlicesFormMinTime" name="minTime" value="0" max="1" editable pin></paper-slider>
+            <p>Max:</p>
+            <paper-slider id="timeSlicesFormMaxTime" name="maxTime" value="0" max="1" editable pin></paper-slider>
+            {# NOTE: Scaling hists defaults to true and hot channel threshold defaults to 0! If these are changed, be sure to change them in the webApp validation function validateTimeSlicePostRequest() #}
+            <paper-toggle-button id="scaleHistsToggle"name="scaleHists" checked >Scale by nEvents</paper-toggle-button>
+            <p>Hot channel threshold (x1000)</p>
+            <paper-slider id="timeSlicesFormHotChannelThreshold" name="hotChannelThreshold" value="0" max="1000" editable pin></paper-slider>
+            <input id="timeSlicesFormHistGroupName" name="histGroup" type="hidden" value="val"/>
+            <input id="timeSlicesFormHistName" name="histName" type="hidden" value="val"/>
+            <input id="timeSlicesFormRunDir" name="runDir" type="hidden" value="val"/>
+            <input id="timeSlicesFormSubsystem" name="subsystem" type="hidden" value="val"/>
+            <div class="buttons">
+                <paper-button dialog-dismiss>Cancel</paper-button>
+                <paper-button id="submitTimeSlices" dialog-confirm>Accept</paper-button>
+            </div>
+        </form>
+    </paper-dialog-scrollable>
+</paper-dialog>
+
+{# Defines direct access to the body block #}
+{% block body %}{% endblock %}
+
+{# Previously loaded scripts on DOM ready (which will fire before onLoad()) #}
+{# See (answer and comments): https://stackoverflow.com/a/2414766 #}
+{# Hoewver, with Polymer, we should instead wait for WebComponentsReady! #}
+<script type="text/javascript">
+    document.addEventListener("WebComponentsReady", function() {
+        {% block pageReadyForJS %}{% endblock %}
+    });
+</script>
+    </body>
+</html>
