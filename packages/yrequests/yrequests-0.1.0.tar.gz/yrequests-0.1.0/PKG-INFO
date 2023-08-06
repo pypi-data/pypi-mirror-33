@@ -1,0 +1,140 @@
+Metadata-Version: 2.1
+Name: yrequests
+Version: 0.1.0
+Summary: A very simple module for HTTP/1.1 requests.
+Home-page: https://github.com/yoshiodeveloper/yrequests
+Author: Yoshio Iwamoto
+Author-email: yoshiodeveloper@gmail.com
+License: UNKNOWN
+Project-URL: Bug Reports, https://github.com/yoshiodeveloper/yrequests/issues
+Project-URL: Source, https://github.com/yoshiodeveloper/yrequests
+Description: # yrequests
+        
+        A very simple module for HTTP/1.1 requests. It is based on python-requests module.
+        
+        ## What and Why
+        
+        yrequest is just wrapper for [requests](http://docs.python-requests.org) functions, but it handles connection and HTTP errors silently.
+        
+        ## How to use
+        
+        ```python
+        from yrequests import YRequests
+        req = YRequests()  # you can pass "headers" (dict) or a "timeout" (secs) too
+        result = req.get('http://url.com/a/b/c', params={'q': 'apple'})
+        if result['ok']:
+            print(result['text'])  # If you except a JSON uses result['json']
+            # ...and other stuffs when everything is fine
+        else:
+            # Connections, HTTP and general errors
+            print(result['error'])  # or result['status_code']
+            # and other stuffs when an error occurs
+        ```
+        
+        You can also use `post`, `put`, `delete`, `head` and `options`. These (HTTP) methods receive the same parameters of [requests](http://docs.python-requests.org) module. If you need instructions of how requests module works take a look at: http://docs.python-requests.org/en/master/user/quickstart/
+        
+        ## Installing
+        
+        To install yrequests just use pip.
+        
+        ```
+        pip install yrequests
+        ```
+        
+        ## YRequests class
+        
+        **YRequests(timeout=60, headers=None)**
+         - timeout: Default timeout (seconds) for all requests.
+         - headers: Default headers (`dict`) for all requests.
+        
+        **YRequests.get(url, \*args, \*\*kwargs)**
+        **YRequests.post(url, \*args, \*\*kwargs)**
+        **YRequests.delete(url, \*args, \*\*kwargs)**
+        **YRequests.put(url, \*args, \*\*kwargs)**
+        **YRequests.head(url, \*args, \*\*kwargs)**
+        **YRequests.options(url, \*args, \*\*kwargs)**
+        Make a request using the respective HTTP method. The `args` and `kwargs` are passed to the respective `requests.<method>`.
+        - url: The URL.
+        - args, kwargs: passed to *requests* module (as *requests.get(url, \*args, \*\*kwargs)*)
+        - Returns a `dict` with the result. See Result above for more details.
+        
+        To know how these methods work take a look at [requests documentation](http://docs.python-requests.org/en/master/user/quickstart/).
+        
+        ## Result
+        
+        The methods `get`, `post`, `put`, `delete`, `head` and `options` returns a `dict` object:
+        
+        ```python
+        result = {
+            'ok': <bool>,
+            'error': <str|None>,
+            'error_type': <str|None>,
+            'response': <requests.response|None>,
+            'headers': <dict>,
+            'status_code': <int|None>,
+            'content_type': <str|None>,
+            'text': <str|None>,
+            'json': <str|None>,
+        }
+        ```
+        
+        Result keys:
+         - ok: True if everything is fine. Always check this value.
+         - error: Textual error (when *ok* is False).
+         - error_type: A string with the error type:
+            - general: General error.
+            - connection: DNS problem, connection refused, etc. The only exception is timed out that has its own code (above).
+            - timeout: Connection timed out.
+            - http: HTTP errors like 404, 403, 500, etc.
+            - json: "Content-Type" header is indicated as JSON but the content is not a valid JSON.
+         - response: A response object (same of *requests* module). You can use as fallback to check informations that are not handled by this class.
+         - headers: Dictionary with the response headers (same of *requests.response.headers* module).
+         - status_code: Integer of HTTP status code (200, 404, 500, etc).
+         - content_type: The *Content-Type* header value.
+         - text: The content of response (if any). It's always unicode.
+         - json: A dictionary of the content if the "Content-Type" header is indicated as JSON.
+        
+        ## Other example
+        
+        This example makes a request on Facebook Graph API.
+        
+        ```python
+        from yrequests import YRequests
+        
+        def get_facebook_me(req):
+            params = {'fields': 'id,name', 'access_token': 'XXXxxx...'}
+            # Note that the "get" method uses "user-agent" and "extra-header" headers.
+            result = req.get('https://graph.facebook.com/me', params=params, headers={'extra-header': 'other-header-value'})
+            if not result['ok']:
+                print(result['error'])
+                return {}
+            data = result['json']
+            print('My name is %(name)s, my Facebook ID is %(id)s' % data)
+            return data
+        
+        # YRequests only accepts two optional parameters: headers and timeout
+        req = YRequests(headers={'user-agent': 'BugBot/1.0'}, timeout=30)
+        user_dict = get_facebook_me(req)
+        ```
+        
+        ## Contributing
+        
+        If you found a bug, typo or bad coding you can contribute to this project!
+        Send a pull request or contact yoshiodeveloper@gmail.com.
+        
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Utilities
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 2.6
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.0
+Classifier: Programming Language :: Python :: 3.1
+Classifier: Programming Language :: Python :: 3.2
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Description-Content-Type: text/markdown
