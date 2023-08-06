@@ -1,0 +1,708 @@
+Metadata-Version: 2.0
+Name: dplus-api
+Version: 3.1.2
+Summary: Call the DPlus Calculation Backend
+Home-page: https://scholars.huji.ac.il/uriraviv
+Author: Devora Witty
+Author-email: devorawitty@chelem.co.il
+License: UNKNOWN
+Description-Content-Type: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: Other/Proprietary License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Topic :: Scientific/Engineering :: Chemistry
+Requires-Dist: numpy (>=1.10)
+Requires-Dist: psutil (==5.2.2)
+Requires-Dist: requests (==2.10.0)
+
+This document was last updated on June 10 2018, for version 3.1.1.1
+
+# The Dplus Python API
+
+
+The D+ Python API allows using the D+ backend from Python, instead of the ordinary D+ application.
+
+The Python API works on both Windows and Linux.
+
+## Installation
+
+Installing the Python API is done using PIP:
+
+    pip install dplus-api
+
+The API was tested with Python 3.5 and newer. It *may* work with older versions of Python, although Python 2 
+is probably not supported.
+
+## Overview
+
+ Please note: 
+
+Throughout the manual, code examples are given with filenames, such as "mystate.state".
+In order to run the example code for yourself, these files must be located in the same directory as the script itself,
+ or alternately the code can be modified to the contain the full path of the file's location.
+
+Throughout the manual, we mention "state files".
+
+A state file is a JSON-format file that describes the parameter tree and calculation settings of the D+ calculation.
+It isn't necessary to write one yourself-
+they can either be generated from within the python interface (with the function `export_all_parameters`),
+or created from the D+ GUI (by selecting File>Export All Parameters from within the D+ GUI).
+
+The overall flow of the Python API is as follows:
+
+1. The data to be used for the calculation is built by the user in an instance of the `CalculationInput` class 
+(either `GenerateInput` or `FitInput`). Inputs contain a program `State`, which includes both program preferences 
+such as `DomainPreferences`, and a parameter tree composed of `Models`.
+
+2. This calculation input is then passed to a `CalculationRunner` class (either `LocalRunner` or `WebRunner`),
+and the calculation function is called (`generate`, `generate_async`, `fit`, or `fit_async`)
+
+3. The `CalculationRunner` class returns a `CalculationResult` class.
+
+Here is a very simple example of what this might look line:
+
+```
+from dplus.CalculationInput import GenerateInput
+from dplus.CalculationRunner import LocalRunner
+
+calc_data = GenerateInput.load_from_state_file("mystate.state")
+runner = LocalRunner()
+result = runner.generate(calc_data)
+print(result.graph)
+```
+
+A detailed explanation of the class types and their usage follows
+
+
+## CalculationRunner
+
+There are two kinds of CalculationRunners, Local and Web.There are two kinds of CalculationRunners, Local and Web.
+
+The LocalRunner is intended for users who have the D+ executable files installed on their system. It takes two optional
+initialization arguments:
+
+* `exe_directory` is the folder location of the D+ executables. By default, its value is None- on Windows, this will 
+lead to the python interface searching the registry for an installed D+ on its own, but on linux the executable 
+directory *must* be specified. 
+* `session_directory` is the folder where the arguments for the calculation are stored, as well as the output results,
+amplitude files, and pdb files, from the c++ executable. By default, its value is None, and an automatically generated 
+temporary folder will be used. 
+
+```
+from dplus.CalculationRunner import LocalRunner
+
+exe_dir = r"C:\Program Files\D+\bin"
+sess_dir = r"sessions"
+runner = LocalRunner(exe_dir, sess_dir)
+#also possible:
+#runner = LocalRunner()
+#runner = LocalRunner(exe_dir)
+#runner = LocalRunner(session_directory=sess_dir)
+```
+
+The WebRunner is intended for users accessing the D+ server. It takes two required initialization arguments, with no
+default values:
+
+* `url` is the address of the server.
+* `token` is the authentication token granting access to the server. 
+
+```
+from dplus.CalculationRunner import WebRunner
+
+url = r'http://localhost:8000/'
+token = '4bb25edc45acd905775443f44eae'
+runner = WebRunner(url, token)
+```
+
+Both runner classes have the same four methods: 
+
+generate(calc_data), generate_async(calc_data), fit(calc_data), fit_async(calc_data)
+
+All four methods take the same single argument, `calc_data` - an instance of a CalculationData class
+
+generate and fit return a `CalculationResult`
+
+generate_async and fit_async return a `RunningJob`
+
+The methods generate and fit both wait until dplus has returned a result. Their asynchronous counterparts allow dplus 
+calculations to be run in the background.
+
+#### RunningJob
+
+The user should not be initializing this class. When returned from an async function in CalculationRunner, the user can 
+use the following methods to interact with the RunningJob:
+
+* `get_status()`: get a json dictionary reporting the job's current status
+* `get_result(calc_data)`: get a `CalculationResult`. Requires a copy of the CalculationInput used to create the job. 
+should only be called when job is completed. It is the user's responsibility to verify job completion with get_status 
+before calling. 
+* `abort()`: end a currently running job
+
+```
+from dplus.CalculationInput import GenerateInput
+from dplus.CalculationRunner import LocalRunner
+
+ calc_data = GenerateInput.load_from_state_file("mystate.state")
+ runner = LocalRunner()
+ job = runner.generate_async(calc_data)
+ start_time = datetime.datetime.now()
+ status = job.get_status()
+ while status['isRunning']:
+     status = job.get_status()
+     run_time = datetime.datetime.now() - start_time
+     if run_time > datetime.timedelta(seconds=50):
+         job.abort()
+         raise TimeoutError("Job took too long")
+ result = job.get_result(calc_data)
+```
+
+## CalculationInput
+
+There are two kinds of CalculationInput, FitInput and GenerateInput.
+
+GenerateInput contains an instance of a `State` class and an x vector. It is used to generate the signal of a given
+parameter tree (within the `State`).
+
+FitInput contains a `State` class, an x vector, and a y vector representing a signal to be fitted. 
+It is used to fit a parameter tree (within the `State`) to the signal.
+
+The `State` class is described in the next section.
+
+The x and y vectors are simply lists of floating point coordinates. They can be generated from parameters in the state 
+class or loaded from a file.
+CalculationInput has the following methods:
+
+* `get_model`: get a model by either its `name` or its `model_ptr`
+* `get_models_by_type`: returns a list of `Models` with a given `type_name`, e.g. UniformHollowCylinder
+* `get_mutable_params`: returns a list of `Parameters` in the state class, whose property `mutable` is True
+* `get_mutable_parameter_values`: returns a list of floats, matching the values of the mutable parameters
+* `set_mutable_parameter_values`: given a list of floats, sets the mutable parameters of the state (in the order given by 
+get_mutable_parameter_values)
+* `export_all_parameters`: given a filename, will save the calculation state to that file
+
+In addition, all CalculationInputs have the property `use_gpu`, which can be set to True or False (running fitting with
+use_gpu set to False is not recommended).
+
+A new instance of GenerateInput can be created simply by calling its constructor with a state:
+
+```
+from dplus.CalculationInput import GenerateInput
+s=State()
+gen_input=GenerateInput(s)
+```
+
+In addition, GenerateInput has the following static methods to create an instance of GenerateInput:
+
+* `load_from_state_file(filename)` receives the location of a file that contains a serialized parameter tree (state)
+* `load_from_PDB` receives the location of a PDB file, and automatically creates a guess at the best state parameters
+ based on the pdb 
+
+```
+from dplus.CalculationInput import GenerateInput
+gen_input=GenerateInput.load_from_state_file('sphere.state')
+```
+
+A new instance of StateInput can be created by calling its constructor, and either:
+
+ 1. `x`, `y`: two arrays, an x array and a y array, or
+ 2. `graph`: a single dictionary, with x values as keys for the y values
+
+```
+from dplus.CalculationInput import FitInput, load_x_and_y_from_file
+
+x,y=load_x_and_y_from_file("signal_file.out")
+state=State()
+fit_input=FitInput(state, x=x, y=y)
+```
+
+FitInput also has the following static method to create an instance of FitInput:
+
+* `load_from_state_file(filename)` receives the location of a file that contains a serialized parameter tree (state)
+
+```
+from dplus.CalculationInput import FitInput
+fit_input=FitInput.load_from_state_file('sphere.state')
+``` 
+
+
+
+### State
+
+The state class contains an instance of each of three classes: DomainPreferences, FittingPreferences, and Domain. 
+They are described in the upcoming sections.
+
+It has the methods  `get_model`, `get_models_by_type`, `get_mutable_params`,  `get_mutable_parameter_values`,
+`set_mutable_parameter_values`, and `export_all_parameters`, just as CalculationInput does.
+
+(In fact, CalculationInput simply invokes these functions from within its State when they are called from CalculationInput)
+
+State, _and every class and sub class contained within state_ (ie preferences, models, parameters), all have the functions 
+`load_from_dictionary` and `serialize`.
+
+`load_from_dictionary` sets the values of the various fields within a class to match those contained within a suitable dictionary. 
+It can behave recursively as necessary, for example with a model that has children.
+
+`serialize` saves the contents of a class to a dictionary. Note that there may be additional fields in the dictionary
+beyond those described in this document, because some defunct (outdated, irrelevant, or not-yet-implemented) fields are 
+still saved in the serialized dictionary.
+
+`add_model` is a convenience function to help add models to the state's parameter tree. It receives the model an optionally 
+a population index (default 0), and will insert that model into the population.
+
+`add_amplitude` is a convenience function specifically for adding instances of the `Amplitude` class, described below. 
+It creates an instance of `AMP` with the `Amplitude`'s filename, and then in addition to calling `add_model` with that AMP,
+ it also changes the state's DomainPreferences (specifically grid_size, q_max, and use_grid) to match the Amplitude's properties.
+ It returns the AMP it created.
+
+
+#### DomainPreferences
+The DomainPreferences class contains properties that are copied from the D+ interface. Their usage is explained in 
+the D+ documentation.
+
+We create a new instance of DomainPreferences by calling the python initialization function:
+
+`dom_pref= DomainPreferences()`
+
+There are no arguments given to the initialization function, and all the properties are set to default values:
+
+|Property Name | Default Value | Allowed values|
+|---|---|---|
+|signal_file|	""|"", or a valid file location|
+|convergence|	0.001||
+|grid_size|	100|Even integer greater than 20|
+|orientation_iterations|	100||
+|orientation_method|	"Monte Carlo (Mersenne Twister)"|"Monte Carlo (Mersenne Twister)", "Adaptive (VEGAS) Monte Carlo", "Adaptive Gauss Kronrod"|
+|use_grid|	False|True, False|
+|q_max|	7.5|Positive number. If signal file is provided, must match highest x value|
+
+Any property can then be changed easily.
+
+`dom_pref.q_max= 10`
+
+If the user tries to set a property to an invalid value (for example, setting q_max to something other than a positive number) they will get an error.
+
+If a signal file is provided, the value of q_max will automatically be set to the highest x value in the signal file.
+
+
+#### Fitting Preferences
+The FittingPreferences class contains properties that are copied from the D+ interface. Their usage is explained in the D+ documentation.
+
+We create a new instance of FittingPreferences by calling the python initialization function:
+
+`fit_pref= FittingPreferences()`
+
+There are no arguments given to the initialization function, and all the properties are set to default values:
+
+|Property Name | Default Value |Allowed Values|Required when|
+|---|---|---|---|
+|convergence|	0.1| Positive numbers||
+|der_eps|	0.1| Positive numbers||
+|fitting_iterations|	20|Positive integers||
+|step_size|0.01| Positive numbers||
+|loss_function|"Trivial Loss"| "Trivial Loss","Huber Loss","Soft L One Loss","Cauchy Loss","Arctan Loss","Tolerant Loss"||
+|loss_func_param_one|0.5|Number|Required for all loss_function except "Trivial Loss"|
+|loss_func_param_two|0.5|Number|Required when loss_function is "Tolerant Loss"|
+|x_ray_residuals_type|"Normal Residuals"|"Normal Residuals","Ratio Residuals","Log Residuals"||
+|minimizer_type|"Trust Region"|"Line Search","Trust Region"||
+|trust_region_strategy_type|"Dogleg"|"Levenberg-Marquardt","Dogleg"|minimizer_type is "Trust Region"|
+|dogleg_type|"Traditional Dogleg"|"Traditional Dogleg","Subspace Dogleg"|trust_region_strategy_type is "Dogleg"|
+|line_search_type|"Armijo"|"Armijo","Wolfe"|minimizer_type is "Line Search"|
+|line_search_direction_type|"Steepest Descent"|"Steepest Descent","Nonlinear Conjugate Gradient","L-BFGS","BFGS"|minimizer_type is "Line Search". if line_search_type is "Armijo", cannot be "BFGS" or "L-BFGS". |
+|nonlinear_conjugate_gradient_type|""|"Fletcher Reeves","Polak Ribirere","Hestenes Stiefel"|linear_search_direction_type is "Nonlinear Conjugate Gradient"|
+
+Any property can then be changed easily.
+
+`fit_pref.convergence= 0.5`
+
+If the user tries to set a property to an invalid value they will get an error.
+
+
+#### Domain
+
+The Domain class describes the parameter tree. 
+
+The root of the tree is the `Domain` class. This contains an array of `Population` classes. 
+Each `Population` can contain a number of `Model` classes. Some models have children, also models.
+
+##### Models
+
+Domain and Population are two special kinds of models.
+
+The Domain model is the root of the parameter tree, which can contain multiple populations. 
+Populations can contain standard types of models.
+
+The available standard model classes are:
+
+* UniformHollowCylinder
+* Sphere
+* SymmetricLayeredSlabs
+* AsymmetricLayeredSlabs
+* Helix
+* DiscreteHelix
+* SpacefillingSymmetry
+* ManualSymmetry
+* PDB- a pdb file
+* AMP- an amplitude grid file
+
+You can create any model by calling its initialization. 
+
+Please note that models are dynamically loaded from those available in DPlus. 
+Therefore, your code editor may underline the model in red even if the model exists.
+
+All models have Location Parameters and Extra Parameters. Some models (that support layers) also contain Layer Parameters.
+These are all collection of instances of the `Parameter` class, and can be accessed from 
+`model.location_params`, `model.extra_params`, and `model.layer_params`, respectively.
+
+All of these can be modified. They are accessed using dictionaries.
+Example:
+
+```
+from dplus.DataModels.models import UniformHollowCylinder
+
+uhc=UniformHollowCylinder()
+uhc.layer_params[1]["Radius"].value=2.0
+uhc.extra_params["Height"].value=3.0
+uhc.location_params["x"].value=2
+```
+
+For additional information about which models have layers and what the various parameters available for each model are,
+please consult the DPlus manual.
+
+###### Parameters
+
+The Parameter class contains the following properties:
+
+value: a float whose default value is 0
+
+sigma: a float whose default value is 0
+
+mutable: a boolean whose default value is False
+
+constraints: an instance of the Constraints class, by default it is the default Constraints
+
+`p=Parameter(4)`
+
+###### Constraints
+
+The Constraints class contains the following properties:
+
+MaxValue: a float whose default value is infinity
+
+MinValue: a float whose default value is -infinity
+
+`c=Constraints(min_val=5)`
+
+
+## Amplitudes
+
+In the module `Amplitudes` there is the class `Grid` and the class `Amplitude` which inherits from Grid.
+
+**Please note**: The class Amplitude is a purely Python class, not to be confused with the class AMP from Dplus.DataModels.Models
+
+The class `AMP` contains a filename pointing to an amplitude file, an extra parameter scale, a boolean centered, and it can be
+serialized and sent as part of the Domain parameter tree to D+. 
+
+The class `Amplitude`, by contrast, can be used to build an amplitude and then save that amplitude as an amplitude file,
+which can then be opened in D+ (or sent in a class AMP) but it itself cannot be added directly to the Domain parameter tree. 
+If you want to add it, you must save the amplitude to a file first using the `save` method, 
+and then can use State's function `add_amplitude` to add it to the tree.
+
+
+The class Grid is initialized with `q_max` and `grid_size`. 
+
+It is used to create/describe a grid of `q`, `theta`, `phi` angle values. 
+
+These values can be described using two sets of indexing:
+
+1. The overall index `m`
+2. The individual angle indices `i`, `j`, `k`
+
+This is described in detail in the paper.
+
+It has the following methods:
+
+* `create_grid`: a generator that returns q, theta, phi angles in phi-major order
+* `indices_from_index`: receives an overall index m, are returns the individual q, theta, and phi indices: i, j, k
+* `angles_from_index`: receives an overall index m, and returns the matching q, theta, and phi angle values
+* `angles_from_indices`: receives angle indices i,j,k and returns their q, theta, and phi angle values
+* `index_from_indices`: receives angle indices i,j,k and returns the overall index m that matches them
+* `indices_from_angles`: receives angles q, theta, phi, ands returns the matching indices i,j,k
+* `index_from_angles`: receives angles q, theta, phi and returns the matching overall index m
+
+
+```
+from dplus.Amplitudes import Grid
+
+g=Grid(5, 100)
+for q,theta,phi in g.create_grid():
+    print(g.index_from_angles(q, theta, phi))
+```
+
+The class Amplitude inherits from Grid. It is a class intended to describe the amplitude of a model/function, and can 
+save these values to an amplitude file (that can be read by D+) and can also read amplitude files (like those created by D+)
+
+Like a grid, Amplitude is initialized with q_max and grid_size.
+
+Amplitude overrides grid's `create_grid` method. Amplitude's `create_grid` requires a function as an argument. 
+This function must receive q, theta, phi and return two values, representing the real and imaginary parts of a complex number.
+The values returned can be a tuple, an array, or a python complex number (A+Bj).
+
+These values are then saved to the Ampltiude's `values` property, and can also be accessed through the `complex_amplitudes_array`
+property as a numpy array of numpy complex types.
+
+Alternately, Amplitude has a static method, `load`,  which receives a filename of an Amplitude file, and returns an Amplitude instance
+with the values from that file already loaded.
+
+Finally, there is the method `save`, which will save the information in the Amplitude class to an Amplitude file which can then be 
+passed along to D+ to calculate its signal or perform fitting.
+
+
+```
+from dplus.Amplitudes import Amplitude
+my_amp=Amplitude.load("myamp.amp")
+for c in my_amp.complex_amplitude_array:
+    print(c)
+```
+
+```
+from dplus.Amplitudes import Amplitude
+
+def my_func(q, theta, phi):
+    return q+1, 0
+
+a=Amplitude(7.5, 200)
+a.create_grid(my_func)
+a.save("myfile.amp")
+```
+
+There are examples of using Amplitudes to implement models similar to D+ in the additional examples section.
+
+The module Amplitudes also contains two convenience functions for converting between cartesian and spherical coordinates:
+
+* `sph2cart` receives r, theta, phi and returns x, y, z
+* `cart2sph` receives x, y, z and returns r, theta, phi
+
+```
+from dplus.Amplitudes import sph2cart, cart2sph
+
+q,theta,phi = cart2sph(1,2,3)
+x,y,z=sph2cart(q,theta,phi)
+
+```
+
+## CalculationResult
+
+The CalculationResult class is returned by the CalculationRunner. 
+The user should generally not be instantiating the class themselves. 
+
+The class has the following properties accessible:
+
+* `graph`: an OrderedDict whose keys are x values and whose values are y values.
+* `y`: The raw list of y values from the results json
+* `headers`: an OrderDict of headers, whose keys are ModelPtrs and whose values are the header associated. 
+This property is not necessarily present in fitting results
+* `parameter_tree`: A json of parameters (can be used to create a new state with state's load_from_dictionary). 
+Only present in fitting, not generate, results
+* `error` : returns the json error report from the dplus run
+
+In addition, CalculationResults has the following public functions:
+
+* `get_amp(model_ptr, destination_folder)`: returns the file location of the amplitude file for given model_ptr. 
+destination_folder has a default value of None, but if provided, the amplitude file will be copied to that location,
+and then have its address returned 
+* `get_pdb(mod_ptr, destination_folder)`: returns the file location of the pdb file for given model_ptr. 
+destination_folder has a default value of None, but if provided, the pdb file will be copied to that location,
+and then have its address returned 
+* `save_to_out_file(filename)`: receives file name, and saves the results to the file.
+
+### FileReaders
+
+The API contains a module FileReaders. 
+
+Presently all it contains is `SignalFileReader`, which can be initialized with a path to a signal file (eg a .out or .dat file) 
+and will read that file into its `x_vec`, `y_vec`, and `graph` properties.
+
+
+## Additional Usage examples
+
+
+***Example One***
+
+```
+from dplus.CalculationInput import FitInput
+from dplus.CalculationRunner import LocalRunner
+
+exe_directory = r"C:\Program Files\D+\bin"
+sess_directory = r"session"
+runner= LocalRunner(exe_directory, sess_directory)
+
+input=FitInput.load_from_state_file('spherefit.state')
+result=runner.fit(input)
+print(result.graph)
+```
+
+***Example Two***
+
+```
+from dplus.CalculationInput import GenerateInput
+from dplus.CalculationRunner import LocalRunner
+from dplus.DataModels import ModelFactory, Population
+from dplus.State import State
+from dplus.DataModels.models import UniformHollowCylinder
+
+sess_directory = r"session"
+runner= LocalRunner(session_directory=sess_directory)
+
+uhc=UniformHollowCylinder()
+s=State()
+s.Domain.populations[0].add_model(uhc)
+
+caldata = GenerateInput(s)
+result=runner.generate(caldata)
+print(result.graph)
+```
+
+***Example Three***
+
+```
+from dplus.CalculationRunner import LocalRunner
+from dplus.CalculationInput import GenerateInput
+
+runner=LocalRunner()
+caldata=GenerateInput.load_from_PDB('1JFF.pdb', 5)
+result=runner.generate(caldata)
+print(result.graph)
+```
+
+***Example Four***
+
+```
+from dplus.CalculationRunner import LocalRunner
+from dplus.CalculationInput import GenerateInput, FitInput
+API=LocalRunner()
+input = GenerateInput.load_from_state_file("uhc.state")
+cylinder = input.get_model("test_cylinder")
+
+print("Original radius is ", cylinder.layer_params[1]['Radius'].value)
+result = API.generate(input)
+
+fit_input = FitInput(input.state, result.graph)
+cylinder = fit_input.get_model("test_cylinder")
+cylinder.layer_params[1]['Radius'].value = 2
+cylinder.layer_params[1]['Radius'].mutable = True
+
+fit_result = API.fit(fit_input)
+print(fit_result.parameter_tree)
+fit_input.combine_results(fit_result)
+print("Result radius is ", cylinder.layer_params[1]['Radius'].value)
+```
+
+### Implementing Models using Amplitudes
+
+For the purpose of these exmaples the models are implemented with minimal default parameters, in a realistic usage 
+scenario the user would set those parameters as editable properties to be changed at his convenience.
+
+```
+from dplus.Amplitudes import Amplitude
+import math
+
+class UniformSphere:
+    def __init__(self):
+        self.extraParams=[1,0]
+        self.ED=[333, 400]
+        self.r=[0,1]
+
+    @property
+    def nLayers(self):
+        return len(self.ED)
+
+    def calculate(self, q, theta, phi):
+        cos=math.cos
+        sin=math.sin
+        nLayers=self.nLayers
+        ED=self.ED
+        extraParams=self.extraParams
+        r=self.r
+        def closeToZero(x):
+            return (math.fabs(x) < 100.0 * 2.2204460492503131E-16)
+
+        if closeToZero(q):
+            electrons = 0.0
+            for i in range( 1, nLayers):
+                electrons += (ED[i] - ED[0]) * (4.0 / 3.0) * math.pi * (r[i] ** 3 - r[i-1] ** 3)
+            return (electrons  * extraParams[0] + extraParams[1], 0.0)
+
+        res = 0.0
+
+        for i in range(nLayers-1):
+            res -= (ED[i] - ED[i + 1]) * (cos(q * r[i]) * q * r[i] - sin(q * r[i]))
+        res -= (ED[nLayers - 1] - ED[0]) * (cos(q * r[nLayers - 1]) * q * r[nLayers - 1] - sin(q * r[nLayers - 1]))
+
+        res *= 4.0 * math.pi / (q*q * q)
+
+        res *= extraParams[0] #Multiply by scale
+        res += extraParams[1] #Add background
+
+        return (res, 0.0)
+
+sphere=UniformSphere()
+a=Amplitude(7.5, 200)
+a.create_grid(sphere.calculate)
+a.save("sphere.amp")
+s=State()
+amp_model = s.add_amplitude(a)
+amp_model.centered=True
+input = GenerateInput(s)
+runner=LocalRunner()
+result=runner.generate(input)
+```
+
+```
+
+
+
+```
+
+### Python Fitting
+It is possible to fit a curve using the results from Generate and numpy's built in minimization/curve fitting functions.
+All that is requires is wrapping the interface code so that it receives and returns parameters the way scipy expects (eg as numpy arrays)
+
+An example follows:
+
+```
+import numpy as np
+from scipy import optimize
+from dplus.CalculationInput import GenerateInput, FitInput
+from dplus.CalculationRunner import LocalRunner
+
+input=FitInput.load_from_state_file(r"2_pops.state")
+generate_runner=LocalRunner()
+
+def run_generate(xdata, *params):
+    '''
+    scipy's optimization algorithms require a function that receives an x array and an array of parameters, and
+    returns a y array.
+    this function will be called repeatedly, until scipy's optimization has completed.
+    '''
+    input.set_mutable_parameter_values(params) #we take the parameters given by scipy and place them inside our parameter tree
+    generate_results=generate_runner.generate(input) #call generate
+    return np.array(generate_results.y) #return the results of the generate call
+
+x_data=input.x
+y_data=input.y
+p0 = input.get_mutable_parameter_values()
+method='lm' #lenenberg-marquadt (see scipy documentation)
+popt, pcov =optimize.curve_fit(run_generate, x_data, y_data, p0=p0, method=method)
+
+#popt is the optimized set of parameters from those we have indicated as mutable
+#we can insert them back into our CalculationInput and create the optmized parameter tree
+input.set_mutable_parameter_values(popt)
+#we can run generate to get the results of generate with them
+best_results=generate_runner.generate(input)
+```
+
