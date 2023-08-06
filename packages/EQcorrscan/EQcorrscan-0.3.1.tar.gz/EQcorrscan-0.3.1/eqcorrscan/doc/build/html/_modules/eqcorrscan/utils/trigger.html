@@ -1,0 +1,591 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>eqcorrscan.utils.trigger &mdash; EQcorrscan 0.3.0 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../../../_static/EQcorrscan_logo.ico"/>
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="EQcorrscan 0.3.0 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> EQcorrscan
+          
+
+          
+            
+            <img src="../../../_static/EQcorrscan_logo.jpg" class="logo" />
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">1. Introduction to the EQcorrscan package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">2. EQcorrscan installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../updates.html">3. What’s new</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">EQcorrscan tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../core.html">4. Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../utils.html">5. Utils</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">EQcorrscan</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>eqcorrscan.utils.trigger</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for eqcorrscan.utils.trigger</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Functions to enable simple energy-base triggering in a network setting where \</span>
+<span class="sd">different stations have different noise parameters.</span>
+
+<span class="sd">:copyright:</span>
+<span class="sd">    EQcorrscan developers.</span>
+
+<span class="sd">:license:</span>
+<span class="sd">    GNU Lesser General Public License, Version 3</span>
+<span class="sd">    (https://www.gnu.org/copyleft/lesser.html)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">getpass</span>
+<span class="kn">import</span> <span class="nn">ast</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">pprint</span> <span class="k">import</span> <span class="n">pprint</span>
+
+<span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="k">import</span> <span class="n">Pool</span><span class="p">,</span> <span class="n">cpu_count</span>
+<span class="kn">from</span> <span class="nn">obspy.core.util</span> <span class="k">import</span> <span class="n">AttribDict</span>
+<span class="kn">from</span> <span class="nn">obspy</span> <span class="k">import</span> <span class="n">UTCDateTime</span>
+<span class="kn">from</span> <span class="nn">obspy.signal.trigger</span> <span class="k">import</span> <span class="n">trigger_onset</span><span class="p">,</span> <span class="n">plot_trigger</span><span class="p">,</span> <span class="n">recursive_sta_lta</span>
+
+<span class="kn">import</span> <span class="nn">eqcorrscan</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils.despike</span> <span class="k">import</span> <span class="n">median_filter</span>
+
+
+<div class="viewcode-block" id="TriggerParameters"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.trigger.TriggerParameters.html#eqcorrscan.utils.trigger.TriggerParameters">[docs]</a><span class="k">class</span> <span class="nc">TriggerParameters</span><span class="p">(</span><span class="n">AttribDict</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for trigger parameters.</span>
+
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.utils.trigger import TriggerParameters</span>
+<span class="sd">    &gt;&gt;&gt; defaults = TriggerParameters()</span>
+<span class="sd">    &gt;&gt;&gt; defaults.station = &#39;TEST&#39;</span>
+<span class="sd">    &gt;&gt;&gt; # Or use dictionaries</span>
+<span class="sd">    &gt;&gt;&gt; defaults[&#39;station&#39;] = &#39;ALF&#39;</span>
+<span class="sd">    &gt;&gt;&gt; defaults = TriggerParameters({&#39;station&#39;: &#39;TEST&#39;,</span>
+<span class="sd">    ...                               &#39;channel&#39;: &#39;SHZ&#39;,</span>
+<span class="sd">    ...                               &#39;sta_len&#39;: 0.3,</span>
+<span class="sd">    ...                               &#39;lta_len&#39;: 10.0,</span>
+<span class="sd">    ...                               &#39;thr_on&#39;: 10,</span>
+<span class="sd">    ...                               &#39;thr_off&#39;: 3,</span>
+<span class="sd">    ...                               &#39;lowcut&#39;: 2,</span>
+<span class="sd">    ...                               &#39;highcut&#39;: 20})</span>
+<span class="sd">    &gt;&gt;&gt; print(defaults.station)</span>
+<span class="sd">    TEST</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;station&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;channel&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;sta_len&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s1">&#39;lta_len&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                <span class="s1">&#39;thr_on&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s1">&#39;thr_off&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s1">&#39;lowcut&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s1">&#39;highcut&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}</span>
+
+<div class="viewcode-block" id="TriggerParameters.__init__"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.trigger.TriggerParameters.html#eqcorrscan.utils.trigger.TriggerParameters.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="p">{}):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TriggerParameters</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;station&#39;</span><span class="p">,</span> <span class="s1">&#39;channel&#39;</span><span class="p">]:</span>
+            <span class="c1"># Ensure these are string type</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;lowcut&#39;</span><span class="p">,</span> <span class="s1">&#39;highcut&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">value</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Setting dict&#39;</span><span class="p">)</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">TriggerParameters</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setitem__</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">AttribDict</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">TriggerParameters</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setitem__</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="fm">__setattr__</span> <span class="o">=</span> <span class="fm">__setitem__</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;TriggerParameters()&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">print_str</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot;TriggerParameters:&quot;</span><span class="p">,</span>
+                              <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">   station:&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">station</span><span class="p">),</span>
+                              <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">   channel:&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
+                              <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">   sta_len:&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sta_len</span><span class="p">),</span>
+                              <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">   lta_len:&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lta_len</span><span class="p">),</span>
+                              <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">   thr_on:&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">thr_on</span><span class="p">),</span>
+                              <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">   thr_off:&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">thr_off</span><span class="p">),</span>
+                              <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">   lowcut:&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lowcut</span><span class="p">),</span>
+                              <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">   highcut:&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">highcut</span><span class="p">),</span>
+                              <span class="p">])</span>
+        <span class="k">return</span> <span class="n">print_str</span>
+
+    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">append</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write the parameters to a file as a human-readable series of dicts.</span>
+
+<span class="sd">        :type filename: str</span>
+<span class="sd">        :param filename: File to write to</span>
+<span class="sd">        :type append: bool</span>
+<span class="sd">        :param append: Append to already existing file or over-write.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;# User:&#39;</span><span class="p">,</span> <span class="n">getpass</span><span class="o">.</span><span class="n">getuser</span><span class="p">(),</span>
+                           <span class="s1">&#39;</span><span class="se">\n</span><span class="s1"># Creation date:&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">UTCDateTime</span><span class="p">()),</span>
+                           <span class="s1">&#39;</span><span class="se">\n</span><span class="s1"># EQcorrscan version:&#39;</span><span class="p">,</span>
+                           <span class="nb">str</span><span class="p">(</span><span class="n">eqcorrscan</span><span class="o">.</span><span class="n">__version__</span><span class="p">),</span>
+                           <span class="s1">&#39;</span><span class="se">\n\n\n</span><span class="s1">&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">append</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+        <span class="n">parameters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">parameters</span><span class="p">))</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+        <span class="k">return</span>
+
+
+<div class="viewcode-block" id="read_trigger_parameters"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.trigger.read_trigger_parameters.html#eqcorrscan.utils.trigger.read_trigger_parameters">[docs]</a><span class="k">def</span> <span class="nf">read_trigger_parameters</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read the trigger parameters into trigger_parameter classes.</span>
+
+<span class="sd">    :type filename: str</span>
+<span class="sd">    :param filename: Parameter file</span>
+
+<span class="sd">    :returns: List of :class:`eqcorrscan.utils.trigger.TriggerParameters`</span>
+<span class="sd">    :rtype: list</span>
+
+<span class="sd">    .. rubric:: Example</span>
+
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.utils.trigger import read_trigger_parameters</span>
+<span class="sd">    &gt;&gt;&gt; parameters = read_trigger_parameters(&#39;parameters&#39;) # doctest: +SKIP</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Reading parameters with the following header:&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;#&#39;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">parameter_dict</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+            <span class="c1"># convert the dictionary to the class</span>
+            <span class="n">trig_par</span> <span class="o">=</span> <span class="n">TriggerParameters</span><span class="p">(</span><span class="n">parameter_dict</span><span class="p">)</span>
+            <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">trig_par</span><span class="p">)</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+    <span class="k">return</span> <span class="n">parameters</span>
+
+
+<span class="k">def</span> <span class="nf">_channel_loop</span><span class="p">(</span><span class="n">tr</span><span class="p">,</span> <span class="n">parameters</span><span class="p">,</span> <span class="n">max_trigger_length</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+                  <span class="n">despike</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Internal loop for parellel processing.</span>
+
+<span class="sd">    :type tr: obspy.core.trace</span>
+<span class="sd">    :param tr: Trace to look for triggers in.</span>
+<span class="sd">    :type parameters: list</span>
+<span class="sd">    :param parameters: List of TriggerParameter class for trace.</span>
+<span class="sd">    :type max_trigger_length: float</span>
+<span class="sd">    :type despike: bool</span>
+<span class="sd">    :type debug: int</span>
+
+<span class="sd">    :return: trigger</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">par</span><span class="p">[</span><span class="s1">&#39;station&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span> <span class="ow">and</span> \
+           <span class="n">par</span><span class="p">[</span><span class="s1">&#39;channel&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">:</span>
+            <span class="n">parameter</span> <span class="o">=</span> <span class="n">par</span>
+            <span class="k">break</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;No parameters set for station &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">)</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[]</span>
+
+    <span class="n">triggers</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+    <span class="n">tr</span><span class="o">.</span><span class="n">detrend</span><span class="p">(</span><span class="s1">&#39;simple&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">despike</span><span class="p">:</span>
+        <span class="n">median_filter</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;lowcut&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;highcut&#39;</span><span class="p">]:</span>
+        <span class="n">tr</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="s1">&#39;bandpass&#39;</span><span class="p">,</span> <span class="n">freqmin</span><span class="o">=</span><span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;lowcut&#39;</span><span class="p">],</span>
+                  <span class="n">freqmax</span><span class="o">=</span><span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;highcut&#39;</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;lowcut&#39;</span><span class="p">]:</span>
+        <span class="n">tr</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="s1">&#39;highpass&#39;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;lowcut&#39;</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;highcut&#39;</span><span class="p">]:</span>
+        <span class="n">tr</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="s1">&#39;lowpass&#39;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;highcut&#39;</span><span class="p">])</span>
+    <span class="c1"># find triggers for each channel using recursive_sta_lta</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span>
+    <span class="n">cft</span> <span class="o">=</span> <span class="n">recursive_sta_lta</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;sta_len&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">df</span><span class="p">),</span>
+                            <span class="nb">int</span><span class="p">(</span><span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;lta_len&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">df</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">max_trigger_length</span><span class="p">:</span>
+        <span class="n">trig_args</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;max_len_delete&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+        <span class="n">trig_args</span><span class="p">[</span><span class="s1">&#39;max_len&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">max_trigger_length</span> <span class="o">*</span>
+                                   <span class="n">df</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">plot_trigger</span><span class="p">(</span><span class="n">tr</span><span class="p">,</span> <span class="n">cft</span><span class="p">,</span> <span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;thr_on&#39;</span><span class="p">],</span> <span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;thr_off&#39;</span><span class="p">])</span>
+    <span class="n">tmp_trigs</span> <span class="o">=</span> <span class="n">trigger_onset</span><span class="p">(</span><span class="n">cft</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;thr_on&#39;</span><span class="p">]),</span>
+                              <span class="nb">float</span><span class="p">(</span><span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;thr_off&#39;</span><span class="p">]),</span>
+                              <span class="o">**</span><span class="n">trig_args</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">on</span><span class="p">,</span> <span class="n">off</span> <span class="ow">in</span> <span class="n">tmp_trigs</span><span class="p">:</span>
+        <span class="n">cft_peak</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">on</span><span class="p">:</span><span class="n">off</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="n">cft_std</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">on</span><span class="p">:</span><span class="n">off</span><span class="p">]</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>
+        <span class="n">on</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">+</span> \
+            <span class="nb">float</span><span class="p">(</span><span class="n">on</span><span class="p">)</span> <span class="o">/</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span>
+        <span class="n">off</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">+</span> \
+            <span class="nb">float</span><span class="p">(</span><span class="n">off</span><span class="p">)</span> <span class="o">/</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span>
+        <span class="n">triggers</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">on</span><span class="o">.</span><span class="n">timestamp</span><span class="p">,</span> <span class="n">off</span><span class="o">.</span><span class="n">timestamp</span><span class="p">,</span>
+                         <span class="n">tr</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">cft_peak</span><span class="p">,</span>
+                         <span class="n">cft_std</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">triggers</span>
+
+
+<div class="viewcode-block" id="network_trigger"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.trigger.network_trigger.html#eqcorrscan.utils.trigger.network_trigger">[docs]</a><span class="k">def</span> <span class="nf">network_trigger</span><span class="p">(</span><span class="n">st</span><span class="p">,</span> <span class="n">parameters</span><span class="p">,</span> <span class="n">thr_coincidence_sum</span><span class="p">,</span> <span class="n">moveout</span><span class="p">,</span>
+                    <span class="n">max_trigger_length</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">despike</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Main function to compute triggers for a network of stations.</span>
+<span class="sd">    Computes single-channel characteristic functions using given parameters,</span>
+<span class="sd">    then combines these to find network triggers on a number of stations</span>
+<span class="sd">    within a set moveout window.</span>
+
+<span class="sd">    :type st: obspy.core.stream.Stream</span>
+<span class="sd">    :param st: Stream to compute detections within</span>
+<span class="sd">    :type parameters: list</span>
+<span class="sd">    :param parameters: List of parameter class</span>
+<span class="sd">    :type thr_coincidence_sum: int</span>
+<span class="sd">    :param thr_coincidence_sum:</span>
+<span class="sd">        Minimum number of stations required to raise a network trigger.</span>
+<span class="sd">    :type moveout: float</span>
+<span class="sd">    :param moveout: Window to find triggers within in the network detection \</span>
+<span class="sd">        stage.</span>
+<span class="sd">    :type max_trigger_length: float</span>
+<span class="sd">    :param max_trigger_length: Maximum trigger length in seconds, used to \</span>
+<span class="sd">        remove long triggers - can set to False to not use.</span>
+<span class="sd">    :type despike: bool</span>
+<span class="sd">    :param despike: Whether to apply simple despiking routine or not</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: Debug output level, higher is more output.</span>
+
+<span class="sd">    :returns: List of triggers</span>
+<span class="sd">    :rtype: list</span>
+
+<span class="sd">    .. rubric:: Example</span>
+
+<span class="sd">    &gt;&gt;&gt; from obspy import read</span>
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.utils.trigger import TriggerParameters, network_trigger</span>
+<span class="sd">    &gt;&gt;&gt; st = read(&quot;https://examples.obspy.org/&quot; +</span>
+<span class="sd">    ...           &quot;example_local_earthquake_3stations.mseed&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; parameters = []</span>
+<span class="sd">    &gt;&gt;&gt; for tr in st:</span>
+<span class="sd">    ...    parameters.append(TriggerParameters({&#39;station&#39;: tr.stats.station,</span>
+<span class="sd">    ...                                          &#39;channel&#39;: tr.stats.channel,</span>
+<span class="sd">    ...                                          &#39;sta_len&#39;: 0.5,</span>
+<span class="sd">    ...                                          &#39;lta_len&#39;: 10.0,</span>
+<span class="sd">    ...                                          &#39;thr_on&#39;: 10.0,</span>
+<span class="sd">    ...                                          &#39;thr_off&#39;: 3.0,</span>
+<span class="sd">    ...                                          &#39;lowcut&#39;: 2.0,</span>
+<span class="sd">    ...                                          &#39;highcut&#39;: 15.0}))</span>
+<span class="sd">    &gt;&gt;&gt; triggers = network_trigger(st=st, parameters=parameters,</span>
+<span class="sd">    ...                            thr_coincidence_sum=5, moveout=30,</span>
+<span class="sd">    ...                            max_trigger_length=60, despike=False)</span>
+<span class="sd">    Looking for coincidence triggers ...</span>
+<span class="sd">    Found 1 Coincidence triggers</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">triggers</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">trace_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">tr</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">]</span>
+    <span class="n">trace_ids</span> <span class="o">=</span> <span class="nb">dict</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span><span class="n">trace_ids</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Not running in parallel&#39;</span><span class="p">)</span>
+        <span class="c1"># Don&#39;t run in parallel</span>
+        <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">:</span>
+            <span class="n">triggers</span> <span class="o">+=</span> <span class="n">_channel_loop</span><span class="p">(</span><span class="n">tr</span><span class="o">=</span><span class="n">tr</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="n">parameters</span><span class="p">,</span>
+                                      <span class="n">max_trigger_length</span><span class="o">=</span><span class="n">max_trigger_length</span><span class="p">,</span>
+                                      <span class="n">despike</span><span class="o">=</span><span class="n">despike</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Needs to be pickleable</span>
+        <span class="n">parameters</span> <span class="o">=</span> <span class="p">[</span><span class="n">par</span><span class="o">.</span><span class="vm">__dict__</span> <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">]</span>
+        <span class="n">pool</span> <span class="o">=</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">cpu_count</span><span class="p">())</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">pool</span><span class="o">.</span><span class="n">apply_async</span><span class="p">(</span><span class="n">_channel_loop</span><span class="p">,</span>
+                                    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">tr</span><span class="p">,</span> <span class="n">parameters</span><span class="p">,</span> <span class="n">max_trigger_length</span><span class="p">,</span>
+                                          <span class="n">despike</span><span class="p">,</span> <span class="n">debug</span><span class="p">))</span>
+                   <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">]</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">triggers</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+        <span class="n">triggers</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">sublist</span> <span class="ow">in</span> <span class="n">triggers</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">sublist</span><span class="p">]</span>
+    <span class="n">triggers</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">details</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">details</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Looking for coincidence triggers ...&#39;</span><span class="p">)</span>
+    <span class="c1"># the coincidence triggering and coincidence sum computation</span>
+    <span class="n">coincidence_triggers</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">last_off_time</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">while</span> <span class="n">triggers</span><span class="p">:</span>
+        <span class="c1"># remove first trigger from list and look for overlaps</span>
+        <span class="n">on</span><span class="p">,</span> <span class="n">off</span><span class="p">,</span> <span class="n">tr_id</span><span class="p">,</span> <span class="n">cft_peak</span><span class="p">,</span> <span class="n">cft_std</span> <span class="o">=</span> <span class="n">triggers</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">event</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">event</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">UTCDateTime</span><span class="p">(</span><span class="n">on</span><span class="p">)</span>
+        <span class="n">event</span><span class="p">[</span><span class="s1">&#39;stations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">tr_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">event</span><span class="p">[</span><span class="s1">&#39;trace_ids&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">tr_id</span><span class="p">]</span>
+        <span class="n">event</span><span class="p">[</span><span class="s1">&#39;coincidence_sum&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">trace_ids</span><span class="p">[</span><span class="n">tr_id</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">details</span><span class="p">:</span>
+            <span class="n">event</span><span class="p">[</span><span class="s1">&#39;cft_peaks&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">cft_peak</span><span class="p">]</span>
+            <span class="n">event</span><span class="p">[</span><span class="s1">&#39;cft_stds&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">cft_std</span><span class="p">]</span>
+        <span class="c1"># compile the list of stations that overlap with the current trigger</span>
+        <span class="k">for</span> <span class="n">trigger</span> <span class="ow">in</span> <span class="n">triggers</span><span class="p">:</span>
+            <span class="n">tmp_on</span><span class="p">,</span> <span class="n">tmp_off</span><span class="p">,</span> <span class="n">tmp_tr_id</span><span class="p">,</span> <span class="n">tmp_cft_peak</span><span class="p">,</span> <span class="n">tmp_cft_std</span> <span class="o">=</span> <span class="n">trigger</span>
+            <span class="c1"># skip retriggering of already present station in current</span>
+            <span class="c1"># coincidence trigger</span>
+            <span class="k">if</span> <span class="n">tmp_tr_id</span> <span class="ow">in</span> <span class="n">event</span><span class="p">[</span><span class="s1">&#39;trace_ids&#39;</span><span class="p">]:</span>
+                <span class="k">continue</span>
+            <span class="c1"># check for overlapping trigger</span>
+            <span class="k">if</span> <span class="n">tmp_on</span> <span class="o">&lt;=</span> <span class="n">off</span> <span class="o">+</span> <span class="n">moveout</span><span class="p">:</span>
+                <span class="n">event</span><span class="p">[</span><span class="s1">&#39;stations&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp_tr_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">event</span><span class="p">[</span><span class="s1">&#39;trace_ids&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp_tr_id</span><span class="p">)</span>
+                <span class="n">event</span><span class="p">[</span><span class="s1">&#39;coincidence_sum&#39;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">trace_ids</span><span class="p">[</span><span class="n">tmp_tr_id</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">details</span><span class="p">:</span>
+                    <span class="n">event</span><span class="p">[</span><span class="s1">&#39;cft_peaks&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp_cft_peak</span><span class="p">)</span>
+                    <span class="n">event</span><span class="p">[</span><span class="s1">&#39;cft_stds&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp_cft_std</span><span class="p">)</span>
+                <span class="c1"># allow sets of triggers that overlap only on subsets of all</span>
+                <span class="c1"># stations (e.g. A overlaps with B and B overlaps w/ C =&gt; ABC)</span>
+                <span class="n">off</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">off</span><span class="p">,</span> <span class="n">tmp_off</span><span class="p">)</span>
+            <span class="c1"># break if there is a gap in between the two triggers</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="c1"># skip if coincidence sum threshold is not met</span>
+        <span class="k">if</span> <span class="n">event</span><span class="p">[</span><span class="s1">&#39;coincidence_sum&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">thr_coincidence_sum</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="c1"># skip coincidence trigger if it is just a subset of the previous</span>
+        <span class="c1"># (determined by a shared off-time, this is a bit sloppy)</span>
+        <span class="k">if</span> <span class="n">off</span> <span class="o">==</span> <span class="n">last_off_time</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">event</span><span class="p">[</span><span class="s1">&#39;duration&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">off</span> <span class="o">-</span> <span class="n">on</span>
+        <span class="k">if</span> <span class="n">details</span><span class="p">:</span>
+            <span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">trace_ids</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">event</span><span class="p">[</span><span class="s1">&#39;trace_ids&#39;</span><span class="p">]])</span>
+            <span class="n">weighted_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">event</span><span class="p">[</span><span class="s1">&#39;cft_peaks&#39;</span><span class="p">])</span> <span class="o">*</span> <span class="n">weights</span>
+            <span class="n">event</span><span class="p">[</span><span class="s1">&#39;cft_peak_wmean&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">weighted_values</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">weights</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="n">weighted_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">event</span><span class="p">[</span><span class="s1">&#39;cft_stds&#39;</span><span class="p">])</span> <span class="o">*</span> <span class="n">weights</span>
+            <span class="n">event</span><span class="p">[</span><span class="s1">&#39;cft_std_wmean&#39;</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">event</span><span class="p">[</span><span class="s1">&#39;cft_stds&#39;</span><span class="p">])</span> <span class="o">*</span> <span class="n">weights</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">weights</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">coincidence_triggers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+        <span class="n">last_off_time</span> <span class="o">=</span> <span class="n">off</span>
+
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Coincidence triggers :&#39;</span><span class="p">)</span>
+        <span class="n">pprint</span><span class="p">(</span><span class="n">coincidence_triggers</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Found </span><span class="si">%s</span><span class="s1"> Coincidence triggers&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">coincidence_triggers</span><span class="p">))</span></div>
+    <span class="k">return</span> <span class="n">coincidence_triggers</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">doctest</span>
+    <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2015, 2016: EQcorrscan developers.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.3.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

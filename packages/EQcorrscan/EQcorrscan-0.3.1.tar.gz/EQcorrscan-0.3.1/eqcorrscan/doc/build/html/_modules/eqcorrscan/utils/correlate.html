@@ -1,0 +1,1063 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>eqcorrscan.utils.correlate &mdash; EQcorrscan 0.3.0 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../../../_static/EQcorrscan_logo.ico"/>
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="EQcorrscan 0.3.0 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> EQcorrscan
+          
+
+          
+            
+            <img src="../../../_static/EQcorrscan_logo.jpg" class="logo" />
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">1. Introduction to the EQcorrscan package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">2. EQcorrscan installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../updates.html">3. What’s new</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">EQcorrscan tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../core.html">4. Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../utils.html">5. Utils</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">EQcorrscan</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>eqcorrscan.utils.correlate</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for eqcorrscan.utils.correlate</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Correlation functions for multi-channel cross-correlation of seismic data.</span>
+
+<span class="sd">Various routines used mostly for testing, including links to a compiled</span>
+<span class="sd">routine using FFTW, a Numpy fft routine which uses bottleneck for normalisation</span>
+<span class="sd">and a compiled time-domain routine. These have varying levels of efficiency,</span>
+<span class="sd">both in terms of overall speed, and in memory usage.  The time-domain is the</span>
+<span class="sd">most memory efficient but slowest routine (although fast for small cases of</span>
+<span class="sd">less than a few hundred correlations), the Numpy routine is fast, but memory</span>
+<span class="sd">inefficient due to a need to store large double-precision arrays for</span>
+<span class="sd">normalisation.  The fftw compiled routine is faster and more memory efficient</span>
+<span class="sd">than the Numpy routine.</span>
+
+<span class="sd">:copyright:</span>
+<span class="sd">    EQcorrscan developers.</span>
+
+<span class="sd">:license:</span>
+<span class="sd">    GNU Lesser General Public License, Version 3</span>
+<span class="sd">    (https://www.gnu.org/copyleft/lesser.html)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">contextlib</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">ctypes</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="k">import</span> <span class="n">Pool</span> <span class="k">as</span> <span class="n">ProcessPool</span><span class="p">,</span> <span class="n">cpu_count</span>
+<span class="kn">from</span> <span class="nn">multiprocessing.pool</span> <span class="k">import</span> <span class="n">ThreadPool</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">future.utils</span> <span class="k">import</span> <span class="n">native_str</span>
+
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils.libnames</span> <span class="k">import</span> <span class="n">_load_cdll</span>
+
+<span class="c1"># This is for building docs on readthedocs, which has an old version of</span>
+<span class="c1"># scipy - without this, this module cannot be imported, which breaks the docs</span>
+<span class="c1"># Instead we define a dummy function that returns what it is given.</span>
+<span class="n">READ_THE_DOCS</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;READTHEDOCS&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;True&#39;</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">READ_THE_DOCS</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">scipy.fftpack.helper</span> <span class="k">import</span> <span class="n">next_fast_len</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">next_fast_len</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">a</span>
+
+<span class="n">XCOR_FUNCS</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># cache of functions for doing cross correlations</span>
+
+<span class="c1"># methods added to each xcorr func registered</span>
+<span class="c1"># these implement the stream interface</span>
+<span class="n">XCORR_STREAM_METHODS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;multithread&#39;</span><span class="p">,</span> <span class="s1">&#39;multiprocess&#39;</span><span class="p">,</span> <span class="s1">&#39;concurrent&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;stream_xcorr&#39;</span><span class="p">)</span>
+
+<span class="c1"># these implement the array interface</span>
+<span class="n">XCOR_ARRAY_METHODS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;array_xcorr&#39;</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">CorrelationError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Error handling for correlation functions. &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Raise error.</span>
+
+<span class="sd">        .. rubric:: Example</span>
+
+<span class="sd">        &gt;&gt;&gt; CorrelationError(&quot;Something happened&quot;)</span>
+<span class="sd">        Something happened</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Print error value.</span>
+
+<span class="sd">        .. rubric:: Example</span>
+
+<span class="sd">        &gt;&gt;&gt; print(CorrelationError(&quot;Error&quot;).__repr__())</span>
+<span class="sd">        Error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Print otherwise</span>
+
+<span class="sd">        .. rubric:: Example</span>
+
+<span class="sd">        &gt;&gt;&gt; print(CorrelationError(&quot;Error&quot;))</span>
+<span class="sd">        Error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+
+
+<span class="c1"># ------------------ Context manager for switching out default</span>
+<span class="k">class</span> <span class="nc">_Context</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot; class for permanently or temporarily changing items in a dict &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="n">value_to_switch</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :type cache: dict</span>
+<span class="sd">        :param cache: A dict to store values in</span>
+<span class="sd">        :type value_to_switch: str</span>
+<span class="sd">        :param value_to_switch:</span>
+<span class="sd">            The key in cache to switch based on different contexts</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">cache</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value_to_switch</span> <span class="o">=</span> <span class="n">value_to_switch</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">previous_value</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_value</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; # TODO change docs if this ever becomes general use</span>
+<span class="sd">        Set a new value for the default xcorr function.</span>
+
+<span class="sd">        This function can be called directly to permanently change the</span>
+<span class="sd">        default normxcorr function or it may be used as a context manager</span>
+<span class="sd">        to only modify it temporarily.</span>
+
+<span class="sd">        :param new_value:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">previous_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value_to_switch</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">value_to_switch</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_array_xcorr</span><span class="p">(</span><span class="n">new_value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">revert</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; this hides the fact _Context instance are returned after calls &quot;&quot;&quot;</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">value_to_switch</span><span class="p">]</span><span class="o">.</span><span class="fm">__str__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">value_to_switch</span><span class="p">],</span> <span class="s1">&#39;__name__&#39;</span><span class="p">):</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">value_to_switch</span><span class="p">]</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="n">out_str</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> changed to </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value_to_switch</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">out_str</span>
+
+    <span class="k">def</span> <span class="nf">revert</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; revert the default xcorr function to previous value &quot;&quot;&quot;</span>
+        <span class="n">new_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">previous_value</span>
+        <span class="bp">self</span><span class="p">(</span><span class="n">new_value</span><span class="p">)</span>
+
+
+<span class="n">set_xcorr</span> <span class="o">=</span> <span class="n">_Context</span><span class="p">(</span><span class="n">XCOR_FUNCS</span><span class="p">,</span> <span class="s1">&#39;default&#39;</span><span class="p">)</span>
+
+
+<span class="c1"># ---------------------- generic concurrency functions</span>
+
+<span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
+<span class="k">def</span> <span class="nf">pool_boy</span><span class="p">(</span><span class="n">Pool</span><span class="p">,</span> <span class="n">traces</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A context manager for handling the setup and cleanup of a pool object.</span>
+
+<span class="sd">    :param Pool: any Class (not instance) that implements the multiprocessing</span>
+<span class="sd">        Pool interface</span>
+<span class="sd">    :param traces: The number of traces to process</span>
+<span class="sd">    :type traces: int</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># All parallel processing happens on a per-trace basis, we shouldn&#39;t create</span>
+    <span class="c1"># more workers than there are traces</span>
+    <span class="n">n_cores</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cores&#39;</span><span class="p">,</span> <span class="n">cpu_count</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">n_cores</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">n_cores</span> <span class="o">=</span> <span class="n">cpu_count</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">n_cores</span> <span class="o">&gt;</span> <span class="n">traces</span><span class="p">:</span>
+        <span class="n">n_cores</span> <span class="o">=</span> <span class="n">traces</span>
+    <span class="n">pool</span> <span class="o">=</span> <span class="n">Pool</span><span class="p">(</span><span class="n">n_cores</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="n">pool</span>
+    <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">pool</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">_pool_normxcorr</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">pool</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">chans</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">templates</span><span class="p">))]</span>
+    <span class="n">array_dict_tuple</span> <span class="o">=</span> <span class="n">_get_array_dicts</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">)</span>
+    <span class="n">stream_dict</span><span class="p">,</span> <span class="n">template_dict</span><span class="p">,</span> <span class="n">pad_dict</span><span class="p">,</span> <span class="n">seed_ids</span> <span class="o">=</span> <span class="n">array_dict_tuple</span>
+    <span class="c1"># get parameter iterator</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="p">((</span><span class="n">template_dict</span><span class="p">[</span><span class="n">sid</span><span class="p">],</span> <span class="n">stream_dict</span><span class="p">[</span><span class="n">sid</span><span class="p">],</span> <span class="n">pad_dict</span><span class="p">[</span><span class="n">sid</span><span class="p">])</span>
+              <span class="k">for</span> <span class="n">sid</span> <span class="ow">in</span> <span class="n">seed_ids</span><span class="p">)</span>
+    <span class="c1"># get cc results and used chans into their own lists</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">pool</span><span class="o">.</span><span class="n">apply_async</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">param</span><span class="p">)</span> <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">params</span><span class="p">]</span>
+    <span class="n">xcorrs</span><span class="p">,</span> <span class="n">tr_chans</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">results</span><span class="p">))</span>
+    <span class="n">cccsums</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">xcorrs</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">no_chans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">tr_chans</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">seed_id</span><span class="p">,</span> <span class="n">tr_chan</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">seed_ids</span><span class="p">,</span> <span class="n">tr_chans</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">chan</span><span class="p">,</span> <span class="n">state</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">chans</span><span class="p">,</span> <span class="n">tr_chan</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">state</span><span class="p">:</span>
+                <span class="n">chan</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">seed_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span>
+                             <span class="n">seed_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="n">cccsums</span><span class="p">,</span> <span class="n">no_chans</span><span class="p">,</span> <span class="n">chans</span>
+
+
+<span class="k">def</span> <span class="nf">_general_multithread</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; return the general multithreading function using func &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">multithread</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">pool_boy</span><span class="p">(</span><span class="n">ThreadPool</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stream</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_pool_normxcorr</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">pool</span><span class="o">=</span><span class="n">pool</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">func</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">multithread</span>
+
+
+<span class="k">def</span> <span class="nf">_general_multiprocess</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">multiproc</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">pool_boy</span><span class="p">(</span><span class="n">ProcessPool</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stream</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_pool_normxcorr</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">pool</span><span class="o">=</span><span class="n">pool</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">func</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">multiproc</span>
+
+
+<span class="k">def</span> <span class="nf">_general_serial</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">stream_xcorr</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">no_chans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">templates</span><span class="p">))</span>
+        <span class="n">chans</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">templates</span><span class="p">))]</span>
+        <span class="n">array_dict_tuple</span> <span class="o">=</span> <span class="n">_get_array_dicts</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">)</span>
+        <span class="n">stream_dict</span><span class="p">,</span> <span class="n">template_dict</span><span class="p">,</span> <span class="n">pad_dict</span><span class="p">,</span> <span class="n">seed_ids</span> <span class="o">=</span> <span class="n">array_dict_tuple</span>
+        <span class="n">cccsums</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">templates</span><span class="p">),</span>
+                            <span class="nb">len</span><span class="p">(</span><span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">templates</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">seed_id</span> <span class="ow">in</span> <span class="n">seed_ids</span><span class="p">:</span>
+            <span class="n">tr_cc</span><span class="p">,</span> <span class="n">tr_chans</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">template_dict</span><span class="p">[</span><span class="n">seed_id</span><span class="p">],</span>
+                                   <span class="n">stream_dict</span><span class="p">[</span><span class="n">seed_id</span><span class="p">],</span>
+                                   <span class="n">pad_dict</span><span class="p">[</span><span class="n">seed_id</span><span class="p">])</span>
+            <span class="n">cccsums</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="n">cccsums</span><span class="p">,</span> <span class="n">tr_cc</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">no_chans</span> <span class="o">+=</span> <span class="n">tr_chans</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">chan</span><span class="p">,</span> <span class="n">state</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">chans</span><span class="p">,</span> <span class="n">tr_chans</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">state</span><span class="p">:</span>
+                    <span class="n">chan</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">seed_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span>
+                                 <span class="n">seed_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="n">cccsums</span><span class="p">,</span> <span class="n">no_chans</span><span class="p">,</span> <span class="n">chans</span>
+
+    <span class="k">return</span> <span class="n">stream_xcorr</span>
+
+
+<div class="viewcode-block" id="register_array_xcorr"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.correlate.register_array_xcorr.html#eqcorrscan.utils.correlate.register_array_xcorr">[docs]</a><span class="k">def</span> <span class="nf">register_array_xcorr</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_default</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Decorator for registering correlation functions.</span>
+
+<span class="sd">    Each function must have the same interface as numpy_normxcorr, which is</span>
+<span class="sd">    *f(templates, stream, pads, *args, **kwargs)* any number of specific kwargs</span>
+<span class="sd">    can be used.</span>
+
+<span class="sd">    Register_normxcorr can be used as a decorator (with or without arguments)</span>
+<span class="sd">    or as a callable.</span>
+
+<span class="sd">    :param name: The name of the function for quick access, or the callable</span>
+<span class="sd">        that will be wrapped when used as a decorator.</span>
+<span class="sd">    :type name: str, callable</span>
+<span class="sd">    :param func: The function to register</span>
+<span class="sd">    :type func: callable, optional</span>
+<span class="sd">    :param is_default: True if this function should be marked as default</span>
+<span class="sd">        normxcorr</span>
+<span class="sd">    :type is_default: bool</span>
+
+<span class="sd">    :return: callable</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">valid_methods</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">XCOR_ARRAY_METHODS</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">XCORR_STREAM_METHODS</span><span class="p">))</span>
+    <span class="n">cache</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">register</span><span class="p">(</span><span class="n">register_str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Register a function as an implementation.</span>
+
+<span class="sd">        :param register_str: The registration designation</span>
+<span class="sd">        :type register_str: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">register_str</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_methods</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;register_name must be in </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">valid_methods</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">_register</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+            <span class="n">cache</span><span class="p">[</span><span class="n">register_str</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">cache</span><span class="p">[</span><span class="s1">&#39;func&#39;</span><span class="p">],</span> <span class="n">register_str</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">func</span>
+
+        <span class="k">return</span> <span class="n">_register</span>
+
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">func_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># register the functions in the XCOR</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">func_name</span> <span class="ow">or</span> <span class="n">name</span><span class="o">.</span><span class="vm">__name__</span> <span class="k">if</span> <span class="n">callable</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">XCOR_FUNCS</span><span class="p">[</span><span class="n">fname</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="k">if</span> <span class="n">is_default</span><span class="p">:</span>  <span class="c1"># set function as default</span>
+            <span class="n">XCOR_FUNCS</span><span class="p">[</span><span class="s1">&#39;default&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="c1"># attach some attrs, this is a bit of a hack to avoid pickle problems</span>
+        <span class="n">func</span><span class="o">.</span><span class="n">register</span> <span class="o">=</span> <span class="n">register</span>
+        <span class="n">cache</span><span class="p">[</span><span class="s1">&#39;func&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="n">func</span><span class="o">.</span><span class="n">multithread</span> <span class="o">=</span> <span class="n">_general_multithread</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="n">func</span><span class="o">.</span><span class="n">multiprocess</span> <span class="o">=</span> <span class="n">_general_multiprocess</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="n">func</span><span class="o">.</span><span class="n">concurrent</span> <span class="o">=</span> <span class="n">_general_multithread</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="n">func</span><span class="o">.</span><span class="n">stream_xcorr</span> <span class="o">=</span> <span class="n">_general_serial</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="n">func</span><span class="o">.</span><span class="n">array_xcorr</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="n">func</span><span class="o">.</span><span class="n">registered</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="n">func</span>
+
+    <span class="c1"># used as a decorator</span>
+    <span class="k">if</span> <span class="n">callable</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">wrapper</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="c1"># used as a normal function (called and passed a function)</span>
+    <span class="k">if</span> <span class="n">callable</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">wrapper</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">func_name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="c1"># called, then used as a decorator</span></div>
+    <span class="k">return</span> <span class="n">wrapper</span>
+
+
+<span class="c1"># ------------------ array_xcorr fetching functions</span>
+
+
+<span class="k">def</span> <span class="nf">_get_registerd_func</span><span class="p">(</span><span class="n">name_or_func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; get a xcorr function from a str or callable. &quot;&quot;&quot;</span>
+    <span class="c1"># get the function or register callable</span>
+    <span class="k">if</span> <span class="n">callable</span><span class="p">(</span><span class="n">name_or_func</span><span class="p">):</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="n">register_array_xcorr</span><span class="p">(</span><span class="n">name_or_func</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="n">XCOR_FUNCS</span><span class="p">[</span><span class="n">name_or_func</span> <span class="ow">or</span> <span class="s1">&#39;default&#39;</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">callable</span><span class="p">(</span><span class="n">func</span><span class="p">),</span> <span class="s1">&#39;func is not callable&#39;</span>
+    <span class="c1"># ensure func has the added methods</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s1">&#39;registered&#39;</span><span class="p">):</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="n">register_array_xcorr</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">func</span>
+
+
+<div class="viewcode-block" id="get_array_xcorr"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.correlate.get_array_xcorr.html#eqcorrscan.utils.correlate.get_array_xcorr">[docs]</a><span class="k">def</span> <span class="nf">get_array_xcorr</span><span class="p">(</span><span class="n">name_or_func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get an normalized cross correlation function that takes arrays as inputs.</span>
+
+<span class="sd">    See :func:`eqcorrscan.utils.correlate.array_normxcorr` for expected</span>
+<span class="sd">    function signature.</span>
+
+<span class="sd">    :param name_or_func: Either a name of a registered xcorr function or a</span>
+<span class="sd">        callable that implements the standard array_normxcorr signature.</span>
+<span class="sd">    :type name_or_func: str or callable</span>
+
+<span class="sd">    :return: callable wth array_normxcorr interface</span>
+
+<span class="sd">    see also :func:`eqcorrscan.utils.correlate.get_stream_xcorr`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">func</span> <span class="o">=</span> <span class="n">_get_registerd_func</span><span class="p">(</span><span class="n">name_or_func</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">func</span><span class="o">.</span><span class="n">array_xcorr</span>
+
+
+<span class="c1"># ----------------------- registered array_xcorr functions</span>
+
+
+<div class="viewcode-block" id="numpy_normxcorr"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.correlate.numpy_normxcorr.html#eqcorrscan.utils.correlate.numpy_normxcorr">[docs]</a><span class="nd">@register_array_xcorr</span><span class="p">(</span><span class="s1">&#39;numpy&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">numpy_normxcorr</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">pads</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute the normalized cross-correlation using numpy and bottleneck.</span>
+
+<span class="sd">    :param templates: 2D Array of templates</span>
+<span class="sd">    :type templates: np.ndarray</span>
+<span class="sd">    :param stream: 1D array of continuous data</span>
+<span class="sd">    :type stream: np.ndarray</span>
+<span class="sd">    :param pads: List of ints of pad lengths in the same order as templates</span>
+<span class="sd">    :type pads: list</span>
+
+<span class="sd">    :return: np.ndarray of cross-correlations</span>
+<span class="sd">    :return: np.ndarray channels used</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">bottleneck</span>
+    <span class="kn">from</span> <span class="nn">scipy.signal.signaltools</span> <span class="k">import</span> <span class="n">_centered</span>
+
+    <span class="c1"># Generate a template mask</span>
+    <span class="n">used_chans</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">templates</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="c1"># Currently have to use float64 as bottleneck runs into issues with other</span>
+    <span class="c1"># types: https://github.com/kwgoodman/bottleneck/issues/164</span>
+    <span class="n">stream</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">templates</span> <span class="o">=</span> <span class="n">templates</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">template_length</span> <span class="o">=</span> <span class="n">templates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">stream_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+    <span class="n">fftshape</span> <span class="o">=</span> <span class="n">next_fast_len</span><span class="p">(</span><span class="n">template_length</span> <span class="o">+</span> <span class="n">stream_length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="c1"># Set up normalizers</span>
+    <span class="n">stream_mean_array</span> <span class="o">=</span> <span class="n">bottleneck</span><span class="o">.</span><span class="n">move_mean</span><span class="p">(</span>
+        <span class="n">stream</span><span class="p">,</span> <span class="n">template_length</span><span class="p">)[</span><span class="n">template_length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:]</span>
+    <span class="n">stream_std_array</span> <span class="o">=</span> <span class="n">bottleneck</span><span class="o">.</span><span class="n">move_std</span><span class="p">(</span>
+        <span class="n">stream</span><span class="p">,</span> <span class="n">template_length</span><span class="p">)[</span><span class="n">template_length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:]</span>
+    <span class="c1"># because stream_std_array is in denominator or res, nan all 0s</span>
+    <span class="n">stream_std_array</span><span class="p">[</span><span class="n">stream_std_array</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="c1"># Normalize and flip the templates</span>
+    <span class="n">norm</span> <span class="o">=</span> <span class="p">((</span><span class="n">templates</span> <span class="o">-</span> <span class="n">templates</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span>
+        <span class="n">templates</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">*</span> <span class="n">template_length</span><span class="p">))</span>
+    <span class="n">norm_sum</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">stream_fft</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">fftshape</span><span class="p">)</span>
+    <span class="n">template_fft</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">norm</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span> <span class="n">fftshape</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">irfft</span><span class="p">(</span><span class="n">template_fft</span> <span class="o">*</span> <span class="n">stream_fft</span><span class="p">,</span>
+                       <span class="n">fftshape</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">:</span><span class="n">template_length</span> <span class="o">+</span> <span class="n">stream_length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="p">((</span><span class="n">_centered</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">stream_length</span> <span class="o">-</span> <span class="n">template_length</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="o">-</span>
+           <span class="n">norm_sum</span> <span class="o">*</span> <span class="n">stream_mean_array</span><span class="p">)</span> <span class="o">/</span> <span class="n">stream_std_array</span>
+    <span class="n">res</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">res</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="c1"># res[np.isinf(res)] = 0.0</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">pad</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pads</span><span class="p">):</span>  <span class="c1"># range(len(pads)):</span>
+        <span class="n">res</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">pad</span><span class="p">))[</span><span class="n">pad</span><span class="p">:]</span></div>
+    <span class="k">return</span> <span class="n">res</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">used_chans</span>
+
+
+<div class="viewcode-block" id="time_multi_normxcorr"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.correlate.time_multi_normxcorr.html#eqcorrscan.utils.correlate.time_multi_normxcorr">[docs]</a><span class="nd">@register_array_xcorr</span><span class="p">(</span><span class="s1">&#39;time_domain&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">time_multi_normxcorr</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">pads</span><span class="p">,</span> <span class="n">threaded</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                         <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute cross-correlations in the time-domain using C routine.</span>
+
+<span class="sd">    :param templates: 2D Array of templates</span>
+<span class="sd">    :type templates: np.ndarray</span>
+<span class="sd">    :param stream: 1D array of continuous data</span>
+<span class="sd">    :type stream: np.ndarray</span>
+<span class="sd">    :param pads: List of ints of pad lengths in the same order as templates</span>
+<span class="sd">    :type pads: list</span>
+<span class="sd">    :param threaded: Whether to use the threaded routine or not</span>
+<span class="sd">    :type threaded: bool</span>
+
+<span class="sd">    :return: np.ndarray of cross-correlations</span>
+<span class="sd">    :return: np.ndarray channels used</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">used_chans</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">templates</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">utilslib</span> <span class="o">=</span> <span class="n">_load_cdll</span><span class="p">(</span><span class="s1">&#39;libutils&#39;</span><span class="p">)</span>
+
+    <span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ctypeslib</span><span class="o">.</span><span class="n">ndpointer</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                               <span class="n">flags</span><span class="o">=</span><span class="n">native_str</span><span class="p">(</span><span class="s1">&#39;C_CONTIGUOUS&#39;</span><span class="p">)),</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ctypeslib</span><span class="o">.</span><span class="n">ndpointer</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                               <span class="n">flags</span><span class="o">=</span><span class="n">native_str</span><span class="p">(</span><span class="s1">&#39;C_CONTIGUOUS&#39;</span><span class="p">)),</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ctypeslib</span><span class="o">.</span><span class="n">ndpointer</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                               <span class="n">flags</span><span class="o">=</span><span class="n">native_str</span><span class="p">(</span><span class="s1">&#39;C_CONTIGUOUS&#39;</span><span class="p">))]</span>
+    <span class="n">restype</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span>
+    <span class="k">if</span> <span class="n">threaded</span><span class="p">:</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="n">utilslib</span><span class="o">.</span><span class="n">multi_normxcorr_time_threaded</span>
+        <span class="n">argtypes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="n">utilslib</span><span class="o">.</span><span class="n">multi_normxcorr_time</span>
+    <span class="n">func</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="n">argtypes</span>
+    <span class="n">func</span><span class="o">.</span><span class="n">restype</span> <span class="o">=</span> <span class="n">restype</span>
+    <span class="c1"># Need to de-mean everything</span>
+    <span class="n">templates_means</span> <span class="o">=</span> <span class="n">templates</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+    <span class="n">stream_mean</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">templates</span> <span class="o">=</span> <span class="n">templates</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">-</span> <span class="n">templates_means</span>
+    <span class="n">stream</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="o">-</span> <span class="n">stream_mean</span>
+    <span class="n">template_len</span> <span class="o">=</span> <span class="n">templates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">n_templates</span> <span class="o">=</span> <span class="n">templates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">image_len</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">ccc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">image_len</span> <span class="o">-</span> <span class="n">template_len</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">n_templates</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">t_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">templates</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">time_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">t_array</span><span class="p">,</span> <span class="n">template_len</span><span class="p">,</span> <span class="n">n_templates</span><span class="p">,</span>
+                 <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">image_len</span><span class="p">,</span> <span class="n">ccc</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">threaded</span><span class="p">:</span>
+        <span class="n">time_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cores&#39;</span><span class="p">,</span> <span class="n">cpu_count</span><span class="p">()))</span>
+    <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">time_args</span><span class="p">)</span>
+    <span class="n">ccc</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">ccc</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">ccc</span> <span class="o">=</span> <span class="n">ccc</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">n_templates</span><span class="p">,</span> <span class="n">image_len</span> <span class="o">-</span> <span class="n">template_len</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pads</span><span class="p">)):</span>
+        <span class="n">ccc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ccc</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">pads</span><span class="p">[</span><span class="n">i</span><span class="p">]))[</span><span class="n">pads</span><span class="p">[</span><span class="n">i</span><span class="p">]:]</span>
+    <span class="n">templates</span> <span class="o">+=</span> <span class="n">templates_means</span>
+    <span class="n">stream</span> <span class="o">+=</span> <span class="n">stream_mean</span></div>
+    <span class="k">return</span> <span class="n">ccc</span><span class="p">,</span> <span class="n">used_chans</span>
+
+
+<div class="viewcode-block" id="fftw_normxcorr"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.correlate.fftw_normxcorr.html#eqcorrscan.utils.correlate.fftw_normxcorr">[docs]</a><span class="nd">@register_array_xcorr</span><span class="p">(</span><span class="s1">&#39;fftw&#39;</span><span class="p">,</span> <span class="n">is_default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">fftw_normxcorr</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">pads</span><span class="p">,</span> <span class="n">threaded</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Normalised cross-correlation using the fftw library.</span>
+
+<span class="sd">    Internally this function used double precision numbers, which is definitely</span>
+<span class="sd">    required for seismic data. Cross-correlations are computed as the</span>
+<span class="sd">    inverse fft of the dot product of the ffts of the stream and the reversed,</span>
+<span class="sd">    normalised, templates.  The cross-correlation is then normalised using the</span>
+<span class="sd">    running mean and standard deviation (not using the N-1 correction) of the</span>
+<span class="sd">    stream and the sums of the normalised templates.</span>
+
+<span class="sd">    This python function wraps the C-library written by C. Chamberlain for this</span>
+<span class="sd">    purpose.</span>
+
+<span class="sd">    :param templates: 2D Array of templates</span>
+<span class="sd">    :type templates: np.ndarray</span>
+<span class="sd">    :param stream: 1D array of continuous data</span>
+<span class="sd">    :type stream: np.ndarray</span>
+<span class="sd">    :param pads: List of ints of pad lengths in the same order as templates</span>
+<span class="sd">    :type pads: list</span>
+<span class="sd">    :param threaded:</span>
+<span class="sd">        Whether to use the threaded routine or not - note openMP and python</span>
+<span class="sd">        multiprocessing don&#39;t seem to play nice for this.</span>
+<span class="sd">    :type threaded: bool</span>
+
+<span class="sd">    :return: np.ndarray of cross-correlations</span>
+<span class="sd">    :return: np.ndarray channels used</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">utilslib</span> <span class="o">=</span> <span class="n">_load_cdll</span><span class="p">(</span><span class="s1">&#39;libutils&#39;</span><span class="p">)</span>
+
+    <span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ctypeslib</span><span class="o">.</span><span class="n">ndpointer</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                               <span class="n">flags</span><span class="o">=</span><span class="n">native_str</span><span class="p">(</span><span class="s1">&#39;C_CONTIGUOUS&#39;</span><span class="p">)),</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">,</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ctypeslib</span><span class="o">.</span><span class="n">ndpointer</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                               <span class="n">flags</span><span class="o">=</span><span class="n">native_str</span><span class="p">(</span><span class="s1">&#39;C_CONTIGUOUS&#39;</span><span class="p">)),</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">,</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ctypeslib</span><span class="o">.</span><span class="n">ndpointer</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+                               <span class="n">flags</span><span class="o">=</span><span class="n">native_str</span><span class="p">(</span><span class="s1">&#39;C_CONTIGUOUS&#39;</span><span class="p">)),</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">,</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ctypeslib</span><span class="o">.</span><span class="n">ndpointer</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">intc</span><span class="p">,</span>
+                               <span class="n">flags</span><span class="o">=</span><span class="n">native_str</span><span class="p">(</span><span class="s1">&#39;C_CONTIGUOUS&#39;</span><span class="p">)),</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ctypeslib</span><span class="o">.</span><span class="n">ndpointer</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">intc</span><span class="p">,</span>
+                               <span class="n">flags</span><span class="o">=</span><span class="n">native_str</span><span class="p">(</span><span class="s1">&#39;C_CONTIGUOUS&#39;</span><span class="p">))]</span>
+    <span class="n">restype</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span>
+
+    <span class="k">if</span> <span class="n">threaded</span><span class="p">:</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="n">utilslib</span><span class="o">.</span><span class="n">normxcorr_fftw_threaded</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="n">utilslib</span><span class="o">.</span><span class="n">normxcorr_fftw</span>
+
+    <span class="n">func</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="n">argtypes</span>
+    <span class="n">func</span><span class="o">.</span><span class="n">restype</span> <span class="o">=</span> <span class="n">restype</span>
+
+    <span class="c1"># Generate a template mask</span>
+    <span class="n">used_chans</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">templates</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">template_length</span> <span class="o">=</span> <span class="n">templates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">stream_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+    <span class="n">n_templates</span> <span class="o">=</span> <span class="n">templates</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">fftshape</span> <span class="o">=</span> <span class="n">next_fast_len</span><span class="p">(</span><span class="n">template_length</span> <span class="o">+</span> <span class="n">stream_length</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># # Normalize and flip the templates</span>
+    <span class="n">norm</span> <span class="o">=</span> <span class="p">((</span><span class="n">templates</span> <span class="o">-</span> <span class="n">templates</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span>
+        <span class="n">templates</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">*</span> <span class="n">template_length</span><span class="p">))</span>
+
+    <span class="n">norm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">norm</span><span class="p">)</span>
+    <span class="n">ccc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_templates</span><span class="p">,</span> <span class="n">stream_length</span> <span class="o">-</span> <span class="n">template_length</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span>
+                   <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">used_chans_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">used_chans</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">intc</span><span class="p">)</span>
+    <span class="n">pads_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">pads</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">intc</span><span class="p">)</span>
+
+    <span class="n">ret</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+        <span class="n">template_length</span><span class="p">,</span> <span class="n">n_templates</span><span class="p">,</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">stream_length</span><span class="p">,</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">ccc</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">fftshape</span><span class="p">,</span>
+        <span class="n">used_chans_np</span><span class="p">,</span> <span class="n">pads_np</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ret</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">MemoryError</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">ret</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">999</span><span class="p">]:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Error in C code (possible normalisation error)&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Maximum ccc </span><span class="si">%f</span><span class="s1"> at </span><span class="si">%i</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">ccc</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">ccc</span><span class="o">.</span><span class="n">argmax</span><span class="p">()))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Minimum ccc </span><span class="si">%f</span><span class="s1"> at </span><span class="si">%i</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">ccc</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">ccc</span><span class="o">.</span><span class="n">argmin</span><span class="p">()))</span>
+        <span class="k">raise</span> <span class="n">CorrelationError</span><span class="p">(</span><span class="s2">&quot;Internal correlation error&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">ret</span> <span class="o">==</span> <span class="mi">999</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;Some correlations not computed, are there &quot;</span>
+               <span class="s2">&quot;zeros in data? If not, consider increasing gain.&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</div>
+    <span class="k">return</span> <span class="n">ccc</span><span class="p">,</span> <span class="n">used_chans</span>
+
+
+<span class="c1"># The time-domain routine can be sped up massively on large machines (many</span>
+<span class="c1"># threads) using the openMP threaded functions.</span>
+
+<span class="nd">@time_multi_normxcorr</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s1">&#39;concurrent&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_time_threaded_normxcorr</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Use the threaded time-domain routine for concurrency</span>
+
+<span class="sd">    :type templates: list</span>
+<span class="sd">    :param templates:</span>
+<span class="sd">        A list of templates, where each one should be an obspy.Stream object</span>
+<span class="sd">        containing multiple traces of seismic data and the relevant header</span>
+<span class="sd">        information.</span>
+<span class="sd">    :type stream: obspy.core.stream.Stream</span>
+<span class="sd">    :param stream:</span>
+<span class="sd">        A single Stream object to be correlated with the templates.</span>
+
+<span class="sd">    :returns:</span>
+<span class="sd">        New list of :class:`numpy.ndarray` objects.  These will contain</span>
+<span class="sd">        the correlation sums for each template for this day of data.</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        list of ints as number of channels used for each cross-correlation.</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        list of list of tuples of station, channel for all cross-correlations.</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">no_chans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">templates</span><span class="p">))</span>
+    <span class="n">chans</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">templates</span><span class="p">))]</span>
+    <span class="n">array_dict_tuple</span> <span class="o">=</span> <span class="n">_get_array_dicts</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">)</span>
+    <span class="n">stream_dict</span><span class="p">,</span> <span class="n">template_dict</span><span class="p">,</span> <span class="n">pad_dict</span><span class="p">,</span> <span class="n">seed_ids</span> <span class="o">=</span> <span class="n">array_dict_tuple</span>
+    <span class="n">cccsums</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">templates</span><span class="p">),</span>
+                        <span class="nb">len</span><span class="p">(</span><span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">templates</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">seed_id</span> <span class="ow">in</span> <span class="n">seed_ids</span><span class="p">:</span>
+        <span class="n">tr_cc</span><span class="p">,</span> <span class="n">tr_chans</span> <span class="o">=</span> <span class="n">time_multi_normxcorr</span><span class="p">(</span>
+            <span class="n">template_dict</span><span class="p">[</span><span class="n">seed_id</span><span class="p">],</span> <span class="n">stream_dict</span><span class="p">[</span><span class="n">seed_id</span><span class="p">],</span> <span class="n">pad_dict</span><span class="p">[</span><span class="n">seed_id</span><span class="p">],</span>
+            <span class="kc">True</span><span class="p">)</span>
+        <span class="n">cccsums</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="n">cccsums</span><span class="p">,</span> <span class="n">tr_cc</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">no_chans</span> <span class="o">+=</span> <span class="n">tr_chans</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">chan</span><span class="p">,</span> <span class="n">state</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">chans</span><span class="p">,</span> <span class="n">tr_chans</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">state</span><span class="p">:</span>
+                <span class="n">chan</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">seed_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span>
+                             <span class="n">seed_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="n">cccsums</span><span class="p">,</span> <span class="n">no_chans</span><span class="p">,</span> <span class="n">chans</span>
+
+
+<span class="nd">@fftw_normxcorr</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s1">&#39;stream_xcorr&#39;</span><span class="p">)</span>
+<span class="nd">@fftw_normxcorr</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s1">&#39;multithread&#39;</span><span class="p">)</span>
+<span class="nd">@fftw_normxcorr</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s1">&#39;concurrent&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_fftw_stream_xcorr</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Apply fftw normxcorr routine concurrently.</span>
+
+<span class="sd">    :type templates: list</span>
+<span class="sd">    :param templates:</span>
+<span class="sd">        A list of templates, where each one should be an obspy.Stream object</span>
+<span class="sd">        containing multiple traces of seismic data and the relevant header</span>
+<span class="sd">        information.</span>
+<span class="sd">    :type stream: obspy.core.stream.Stream</span>
+<span class="sd">    :param stream:</span>
+<span class="sd">        A single Stream object to be correlated with the templates.</span>
+
+<span class="sd">    :returns:</span>
+<span class="sd">        New list of :class:`numpy.ndarray` objects.  These will contain</span>
+<span class="sd">        the correlation sums for each template for this day of data.</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        list of ints as number of channels used for each cross-correlation.</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        list of list of tuples of station, channel for all cross-correlations.</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># number of threads:</span>
+    <span class="c1">#   default to using inner threads</span>
+    <span class="c1">#   if `cores` or `cores_outer` passed in then use that</span>
+    <span class="c1">#   else if OMP_NUM_THREADS set use that</span>
+    <span class="c1">#   otherwise use all available</span>
+    <span class="n">num_cores_inner</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cores&#39;</span><span class="p">)</span>
+    <span class="n">num_cores_outer</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cores_outer&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">num_cores_inner</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_cores_outer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">num_cores_inner</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;OMP_NUM_THREADS&quot;</span><span class="p">,</span> <span class="n">cpu_count</span><span class="p">()))</span>
+        <span class="n">num_cores_outer</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">elif</span> <span class="n">num_cores_inner</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_cores_outer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">num_cores_outer</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">elif</span> <span class="n">num_cores_outer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_cores_inner</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">num_cores_inner</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="n">chans</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">templates</span><span class="p">))]</span>
+    <span class="n">array_dict_tuple</span> <span class="o">=</span> <span class="n">_get_array_dicts</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">)</span>
+    <span class="n">stream_dict</span><span class="p">,</span> <span class="n">template_dict</span><span class="p">,</span> <span class="n">pad_dict</span><span class="p">,</span> <span class="n">seed_ids</span> <span class="o">=</span> <span class="n">array_dict_tuple</span>
+    <span class="k">assert</span> <span class="nb">set</span><span class="p">(</span><span class="n">seed_ids</span><span class="p">)</span>
+    <span class="n">cccsums</span><span class="p">,</span> <span class="n">tr_chans</span> <span class="o">=</span> <span class="n">fftw_multi_normxcorr</span><span class="p">(</span>
+        <span class="n">template_array</span><span class="o">=</span><span class="n">template_dict</span><span class="p">,</span> <span class="n">stream_array</span><span class="o">=</span><span class="n">stream_dict</span><span class="p">,</span>
+        <span class="n">pad_array</span><span class="o">=</span><span class="n">pad_dict</span><span class="p">,</span> <span class="n">seed_ids</span><span class="o">=</span><span class="n">seed_ids</span><span class="p">,</span> <span class="n">cores_inner</span><span class="o">=</span><span class="n">num_cores_inner</span><span class="p">,</span>
+        <span class="n">cores_outer</span><span class="o">=</span><span class="n">num_cores_outer</span><span class="p">)</span>
+    <span class="n">no_chans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">tr_chans</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">seed_id</span><span class="p">,</span> <span class="n">tr_chan</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">seed_ids</span><span class="p">,</span> <span class="n">tr_chans</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">chan</span><span class="p">,</span> <span class="n">state</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">chans</span><span class="p">,</span> <span class="n">tr_chan</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">state</span><span class="p">:</span>
+                <span class="n">chan</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">seed_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span>
+                             <span class="n">seed_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="n">cccsums</span><span class="p">,</span> <span class="n">no_chans</span><span class="p">,</span> <span class="n">chans</span>
+
+
+<div class="viewcode-block" id="fftw_multi_normxcorr"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.correlate.fftw_multi_normxcorr.html#eqcorrscan.utils.correlate.fftw_multi_normxcorr">[docs]</a><span class="k">def</span> <span class="nf">fftw_multi_normxcorr</span><span class="p">(</span><span class="n">template_array</span><span class="p">,</span> <span class="n">stream_array</span><span class="p">,</span> <span class="n">pad_array</span><span class="p">,</span> <span class="n">seed_ids</span><span class="p">,</span>
+                         <span class="n">cores_inner</span><span class="p">,</span> <span class="n">cores_outer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Use a C loop rather than a Python loop - in some cases this will be fast.</span>
+
+<span class="sd">    :type template_array: dict</span>
+<span class="sd">    :param template_array:</span>
+<span class="sd">    :type stream_array: dict</span>
+<span class="sd">    :param stream_array:</span>
+<span class="sd">    :type pad_array: dict</span>
+<span class="sd">    :param pad_array:</span>
+<span class="sd">    :type seed_ids: list</span>
+<span class="sd">    :param seed_ids:</span>
+
+<span class="sd">    rtype: np.ndarray, list</span>
+<span class="sd">    :return: 3D Array of cross-correlations and list of used channels.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">utilslib</span> <span class="o">=</span> <span class="n">_load_cdll</span><span class="p">(</span><span class="s1">&#39;libutils&#39;</span><span class="p">)</span>
+
+    <span class="n">utilslib</span><span class="o">.</span><span class="n">multi_normxcorr_fftw</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ctypeslib</span><span class="o">.</span><span class="n">ndpointer</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+                               <span class="n">flags</span><span class="o">=</span><span class="n">native_str</span><span class="p">(</span><span class="s1">&#39;C_CONTIGUOUS&#39;</span><span class="p">)),</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">,</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ctypeslib</span><span class="o">.</span><span class="n">ndpointer</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+                               <span class="n">flags</span><span class="o">=</span><span class="n">native_str</span><span class="p">(</span><span class="s1">&#39;C_CONTIGUOUS&#39;</span><span class="p">)),</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">,</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ctypeslib</span><span class="o">.</span><span class="n">ndpointer</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+                               <span class="n">flags</span><span class="o">=</span><span class="n">native_str</span><span class="p">(</span><span class="s1">&#39;C_CONTIGUOUS&#39;</span><span class="p">)),</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">,</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ctypeslib</span><span class="o">.</span><span class="n">ndpointer</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">intc</span><span class="p">,</span>
+                               <span class="n">flags</span><span class="o">=</span><span class="n">native_str</span><span class="p">(</span><span class="s1">&#39;C_CONTIGUOUS&#39;</span><span class="p">)),</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">ctypeslib</span><span class="o">.</span><span class="n">ndpointer</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">intc</span><span class="p">,</span>
+                               <span class="n">flags</span><span class="o">=</span><span class="n">native_str</span><span class="p">(</span><span class="s1">&#39;C_CONTIGUOUS&#39;</span><span class="p">)),</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span><span class="p">]</span>
+    <span class="n">utilslib</span><span class="o">.</span><span class="n">multi_normxcorr_fftw</span><span class="o">.</span><span class="n">restype</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Arguments are:</span>
+<span class="sd">        templates (stacked [ch_1-t_1, ch_1-t_2, ..., ch_2-t_1, ch_2-t_2, ...])</span>
+<span class="sd">        number of templates</span>
+<span class="sd">        template length</span>
+<span class="sd">        number of channels</span>
+<span class="sd">        image (stacked [ch_1, ch_2, ..., ch_n])</span>
+<span class="sd">        image length</span>
+<span class="sd">        cross-correlations (stacked as per image)</span>
+<span class="sd">        fft-length</span>
+<span class="sd">        used channels (stacked as per templates)</span>
+<span class="sd">        pad array (stacked as per templates)</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c1"># pre processing</span>
+    <span class="n">used_chans</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">template_len</span> <span class="o">=</span> <span class="n">template_array</span><span class="p">[</span><span class="n">seed_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">seed_id</span> <span class="ow">in</span> <span class="n">seed_ids</span><span class="p">:</span>
+        <span class="n">used_chans</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">template_array</span><span class="p">[</span><span class="n">seed_id</span><span class="p">])</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">template_array</span><span class="p">[</span><span class="n">seed_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">template_array</span><span class="p">[</span><span class="n">seed_id</span><span class="p">]</span> <span class="o">-</span>
+             <span class="n">template_array</span><span class="p">[</span><span class="n">seed_id</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span>
+                <span class="n">template_array</span><span class="p">[</span><span class="n">seed_id</span><span class="p">]</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">*</span>
+                <span class="n">template_len</span><span class="p">))</span>
+        <span class="n">template_array</span><span class="p">[</span><span class="n">seed_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">template_array</span><span class="p">[</span><span class="n">seed_id</span><span class="p">])</span>
+    <span class="n">n_channels</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">seed_ids</span><span class="p">)</span>
+    <span class="n">n_templates</span> <span class="o">=</span> <span class="n">template_array</span><span class="p">[</span><span class="n">seed_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">image_len</span> <span class="o">=</span> <span class="n">stream_array</span><span class="p">[</span><span class="n">seed_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">fft_len</span> <span class="o">=</span> <span class="n">next_fast_len</span><span class="p">(</span><span class="n">template_len</span> <span class="o">+</span> <span class="n">image_len</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">template_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">([</span><span class="n">template_array</span><span class="p">[</span><span class="n">x</span><span class="p">]</span>
+                                           <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">seed_ids</span><span class="p">],</span>
+                                          <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">stream_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">([</span><span class="n">stream_array</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">seed_ids</span><span class="p">],</span>
+                                        <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">cccs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_templates</span><span class="p">,</span> <span class="n">image_len</span> <span class="o">-</span> <span class="n">template_len</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">used_chans_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">used_chans</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">intc</span><span class="p">)</span>
+    <span class="n">pad_array_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">([</span><span class="n">pad_array</span><span class="p">[</span><span class="n">seed_id</span><span class="p">]</span>
+                                         <span class="k">for</span> <span class="n">seed_id</span> <span class="ow">in</span> <span class="n">seed_ids</span><span class="p">],</span>
+                                        <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">intc</span><span class="p">)</span>
+
+    <span class="c1"># call C function</span>
+    <span class="n">ret</span> <span class="o">=</span> <span class="n">utilslib</span><span class="o">.</span><span class="n">multi_normxcorr_fftw</span><span class="p">(</span>
+        <span class="n">template_array</span><span class="p">,</span> <span class="n">n_templates</span><span class="p">,</span> <span class="n">template_len</span><span class="p">,</span> <span class="n">n_channels</span><span class="p">,</span> <span class="n">stream_array</span><span class="p">,</span>
+        <span class="n">image_len</span><span class="p">,</span> <span class="n">cccs</span><span class="p">,</span> <span class="n">fft_len</span><span class="p">,</span> <span class="n">used_chans_np</span><span class="p">,</span> <span class="n">pad_array_np</span><span class="p">,</span> <span class="n">cores_outer</span><span class="p">,</span>
+        <span class="n">cores_inner</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ret</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">MemoryError</span><span class="p">(</span><span class="s2">&quot;Memory allocation failed in correlation C-code&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">ret</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">999</span><span class="p">]:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Error in C code (possible normalisation error)&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Maximum cccs </span><span class="si">%f</span><span class="s1"> at </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+              <span class="p">(</span><span class="n">cccs</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">np</span><span class="o">.</span><span class="n">unravel_index</span><span class="p">(</span><span class="n">cccs</span><span class="o">.</span><span class="n">argmax</span><span class="p">(),</span> <span class="n">cccs</span><span class="o">.</span><span class="n">shape</span><span class="p">)))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Minimum cccs </span><span class="si">%f</span><span class="s1"> at </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+              <span class="p">(</span><span class="n">cccs</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">np</span><span class="o">.</span><span class="n">unravel_index</span><span class="p">(</span><span class="n">cccs</span><span class="o">.</span><span class="n">argmin</span><span class="p">(),</span> <span class="n">cccs</span><span class="o">.</span><span class="n">shape</span><span class="p">)))</span>
+        <span class="k">raise</span> <span class="n">CorrelationError</span><span class="p">(</span><span class="s2">&quot;Internal correlation error&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">ret</span> <span class="o">==</span> <span class="mi">999</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;Some correlations not computed, are there &quot;</span>
+               <span class="s2">&quot;zeros in data? If not, consider increasing gain.&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</div>
+    <span class="k">return</span> <span class="n">cccs</span><span class="p">,</span> <span class="n">used_chans</span>
+
+
+<span class="c1"># ------------------------------- stream_xcorr functions</span>
+
+
+<div class="viewcode-block" id="get_stream_xcorr"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.correlate.get_stream_xcorr.html#eqcorrscan.utils.correlate.get_stream_xcorr">[docs]</a><span class="k">def</span> <span class="nf">get_stream_xcorr</span><span class="p">(</span><span class="n">name_or_func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">concurrency</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a function for performing normalized cross correlation on lists of</span>
+<span class="sd">    streams.</span>
+
+<span class="sd">    :param name_or_func:</span>
+<span class="sd">        Either a name of a registered function or a callable that implements</span>
+<span class="sd">        the standard array_normxcorr signature.</span>
+<span class="sd">    :param concurrency:</span>
+<span class="sd">        Optional concurrency strategy, options are below.</span>
+
+<span class="sd">    :return: A callable with the interface of stream_normxcorr</span>
+
+<span class="sd">    :Concurrency options:</span>
+<span class="sd">        - multithread - use a threadpool for concurrency;</span>
+<span class="sd">        - multiprocess - use a process pool for concurrency;</span>
+<span class="sd">        - concurrent - use a customized concurrency strategy for the function,</span>
+<span class="sd">          if not defined threading will be used.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">func</span> <span class="o">=</span> <span class="n">_get_registerd_func</span><span class="p">(</span><span class="n">name_or_func</span><span class="p">)</span>
+
+    <span class="n">concur</span> <span class="o">=</span> <span class="n">concurrency</span> <span class="ow">or</span> <span class="s1">&#39;stream_xcorr&#39;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">concur</span><span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> does not support concurrency </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">concur</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">concur</span><span class="p">)</span>
+
+
+<span class="c1"># --------------------------- stream prep functions</span>
+
+
+<span class="k">def</span> <span class="nf">_get_array_dicts</span><span class="p">(</span><span class="n">templates</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">copy_streams</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; prepare templates and stream, return dicts &quot;&quot;&quot;</span>
+    <span class="c1"># Do some reshaping</span>
+    <span class="c1"># init empty structures for data storage</span>
+    <span class="n">template_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">stream_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">pad_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">t_starts</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">stream</span><span class="o">.</span><span class="n">sort</span><span class="p">([</span><span class="s1">&#39;network&#39;</span><span class="p">,</span> <span class="s1">&#39;station&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">,</span> <span class="s1">&#39;channel&#39;</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">template</span> <span class="ow">in</span> <span class="n">templates</span><span class="p">:</span>
+        <span class="n">template</span><span class="o">.</span><span class="n">sort</span><span class="p">([</span><span class="s1">&#39;network&#39;</span><span class="p">,</span> <span class="s1">&#39;station&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">,</span> <span class="s1">&#39;channel&#39;</span><span class="p">])</span>
+        <span class="n">t_starts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">min</span><span class="p">([</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">template</span><span class="p">]))</span>
+    <span class="c1"># get seed ids, make sure these are collected on sorted streams</span>
+    <span class="n">seed_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">tr</span><span class="o">.</span><span class="n">id</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">templates</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
+    <span class="c1"># pull common channels out of streams and templates and put in dicts</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">seed_id</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">seed_ids</span><span class="p">):</span>
+        <span class="n">temps_with_seed</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="k">for</span> <span class="n">template</span> <span class="ow">in</span> <span class="n">templates</span><span class="p">]</span>
+        <span class="n">t_ar</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">temps_with_seed</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">template_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">seed_id</span><span class="p">:</span> <span class="n">t_ar</span><span class="p">})</span>
+        <span class="n">stream_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span><span class="n">seed_id</span><span class="p">:</span> <span class="n">stream</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                <span class="nb">id</span><span class="o">=</span><span class="n">seed_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)})</span>
+        <span class="n">pad_list</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">template</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span> <span class="o">*</span>
+                      <span class="p">(</span><span class="n">template</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">-</span> <span class="n">t_starts</span><span class="p">[</span><span class="n">j</span><span class="p">])))</span>
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">template</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">templates</span><span class="p">)),</span> <span class="n">templates</span><span class="p">)]</span>
+        <span class="n">pad_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">seed_id</span><span class="p">:</span> <span class="n">pad_list</span><span class="p">})</span>
+
+    <span class="k">return</span> <span class="n">stream_dict</span><span class="p">,</span> <span class="n">template_dict</span><span class="p">,</span> <span class="n">pad_dict</span><span class="p">,</span> <span class="n">seed_ids</span>
+
+
+<span class="c1"># a dict of built in xcorr functions, used to distinguish from user-defined</span>
+<span class="n">XCORR_FUNCS_ORIGINAL</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">XCOR_FUNCS</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">doctest</span>
+
+    <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2015, 2016: EQcorrscan developers.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.3.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

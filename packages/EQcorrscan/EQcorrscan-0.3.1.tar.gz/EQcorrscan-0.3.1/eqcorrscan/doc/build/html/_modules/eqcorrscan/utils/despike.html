@@ -1,0 +1,454 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>eqcorrscan.utils.despike &mdash; EQcorrscan 0.3.0 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../../../_static/EQcorrscan_logo.ico"/>
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="EQcorrscan 0.3.0 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> EQcorrscan
+          
+
+          
+            
+            <img src="../../../_static/EQcorrscan_logo.jpg" class="logo" />
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">1. Introduction to the EQcorrscan package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">2. EQcorrscan installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../updates.html">3. What’s new</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">EQcorrscan tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../core.html">4. Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../utils.html">5. Utils</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">EQcorrscan</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>eqcorrscan.utils.despike</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for eqcorrscan.utils.despike</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Functions for despiking seismic data.</span>
+
+<span class="sd">.. warning:: Despike functions are in beta, they do not work that well.</span>
+
+<span class="sd">.. todo:: Deconvolve spike to remove it, find peaks in the f-domain.</span>
+
+<span class="sd">:copyright:</span>
+<span class="sd">    EQcorrscan developers.</span>
+
+<span class="sd">:license:</span>
+<span class="sd">    GNU Lesser General Public License, Version 3</span>
+<span class="sd">    (https://www.gnu.org/copyleft/lesser.html)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="k">import</span> <span class="n">Pool</span><span class="p">,</span> <span class="n">cpu_count</span>
+<span class="kn">from</span> <span class="nn">obspy</span> <span class="k">import</span> <span class="n">Trace</span>
+
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils.timer</span> <span class="k">import</span> <span class="n">Timer</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils.plotting</span> <span class="k">import</span> <span class="n">peaks_plot</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.core.match_filter</span> <span class="k">import</span> <span class="n">normxcorr2</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils.findpeaks</span> <span class="k">import</span> <span class="n">find_peaks2_short</span>
+
+
+<div class="viewcode-block" id="median_filter"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.despike.median_filter.html#eqcorrscan.utils.despike.median_filter">[docs]</a><span class="k">def</span> <span class="nf">median_filter</span><span class="p">(</span><span class="n">tr</span><span class="p">,</span> <span class="n">multiplier</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">windowlength</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                  <span class="n">interp_len</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Filter out spikes in data above a multiple of MAD of the data.</span>
+
+<span class="sd">    Currently only has the ability to replaces spikes with linear</span>
+<span class="sd">    interpolation.  In the future we would aim to fill the gap with something</span>
+<span class="sd">    more appropriate.  Works in-place on data.</span>
+
+<span class="sd">    :type tr: obspy.core.trace.Trace</span>
+<span class="sd">    :param tr: trace to despike</span>
+<span class="sd">    :type multiplier: float</span>
+<span class="sd">    :param multiplier:</span>
+<span class="sd">        median absolute deviation multiplier to find spikes above.</span>
+<span class="sd">    :type windowlength: float</span>
+<span class="sd">    :param windowlength: Length of window to look for spikes in in seconds.</span>
+<span class="sd">    :type interp_len: float</span>
+<span class="sd">    :param interp_len: Length in seconds to interpolate around spikes.</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: Debug output level between 0 and 5, higher is more output.</span>
+
+<span class="sd">    :returns: :class:`obspy.core.trace.Trace`</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Not particularly effective, and may remove earthquake signals, use with</span>
+<span class="sd">        caution.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">num_cores</span> <span class="o">=</span> <span class="n">cpu_count</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">data_in</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="c1"># Note - might be worth finding spikes in filtered data</span>
+    <span class="n">filt</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">filt</span><span class="o">.</span><span class="n">detrend</span><span class="p">(</span><span class="s1">&#39;linear&#39;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">filt</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="s1">&#39;bandpass&#39;</span><span class="p">,</span> <span class="n">freqmin</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span>
+                    <span class="n">freqmax</span><span class="o">=</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Could not filter due to error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">filt</span><span class="o">.</span><span class="n">data</span>
+    <span class="k">del</span> <span class="n">filt</span>
+    <span class="c1"># Loop through windows</span>
+    <span class="n">_windowlength</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">windowlength</span> <span class="o">*</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">)</span>
+    <span class="n">_interp_len</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">interp_len</span> <span class="o">*</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">)</span>
+    <span class="n">peaks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">with</span> <span class="n">Timer</span><span class="p">()</span> <span class="k">as</span> <span class="n">t</span><span class="p">:</span>
+        <span class="n">pool</span> <span class="o">=</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">num_cores</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">pool</span><span class="o">.</span><span class="n">apply_async</span><span class="p">(</span><span class="n">_median_window</span><span class="p">,</span>
+                                    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">chunk</span> <span class="o">*</span> <span class="n">_windowlength</span><span class="p">:</span>
+                                               <span class="p">(</span><span class="n">chunk</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">_windowlength</span><span class="p">],</span>
+                                          <span class="n">chunk</span> <span class="o">*</span> <span class="n">_windowlength</span><span class="p">,</span> <span class="n">multiplier</span><span class="p">,</span>
+                                          <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">+</span> <span class="n">windowlength</span><span class="p">,</span>
+                                          <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">,</span>
+                                          <span class="n">debug</span><span class="p">))</span>
+                   <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">/</span> <span class="n">_windowlength</span><span class="p">))]</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+            <span class="n">peaks</span> <span class="o">+=</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">peak</span> <span class="ow">in</span> <span class="n">peaks</span><span class="p">:</span>
+            <span class="n">tr</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">_interp_gap</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">peak</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">_interp_len</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Despiking took: </span><span class="si">%s</span><span class="s2"> s&quot;</span> <span class="o">%</span> <span class="n">t</span><span class="o">.</span><span class="n">secs</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">data_in</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;raw&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;despiked&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+    <span class="k">return</span> <span class="n">tr</span>
+
+
+<span class="k">def</span> <span class="nf">_median_window</span><span class="p">(</span><span class="n">window</span><span class="p">,</span> <span class="n">window_start</span><span class="p">,</span> <span class="n">multiplier</span><span class="p">,</span> <span class="n">starttime</span><span class="p">,</span> <span class="n">sampling_rate</span><span class="p">,</span>
+                   <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Internal function to aid parallel processing</span>
+
+<span class="sd">    :type window: numpy.ndarry</span>
+<span class="sd">    :param window: Data to look for peaks in.</span>
+<span class="sd">    :type window_start: int</span>
+<span class="sd">    :param window_start: Index of window start point in larger array, used \</span>
+<span class="sd">        for peak indexing.</span>
+<span class="sd">    :type multiplier: float</span>
+<span class="sd">    :param multiplier: Multiple of MAD to use as threshold</span>
+<span class="sd">    :type starttime: obspy.core.utcdatetime.UTCDateTime</span>
+<span class="sd">    :param starttime: Starttime of window, used in debug plotting.</span>
+<span class="sd">    :type sampling_rate: float</span>
+<span class="sd">    :param sampling_rate in Hz, used for debug plotting</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: debug level, if want plots, &gt;= 4.</span>
+
+<span class="sd">    :returns: peaks</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">MAD</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">window</span><span class="p">))</span>
+    <span class="n">thresh</span> <span class="o">=</span> <span class="n">multiplier</span> <span class="o">*</span> <span class="n">MAD</span>
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Threshold for window is: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">thresh</span><span class="p">)</span> <span class="o">+</span>
+              <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Median is: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">MAD</span><span class="p">)</span> <span class="o">+</span>
+              <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Max is: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">window</span><span class="p">)))</span>
+    <span class="n">peaks</span> <span class="o">=</span> <span class="n">find_peaks2_short</span><span class="p">(</span><span class="n">arr</span><span class="o">=</span><span class="n">window</span><span class="p">,</span>
+                              <span class="n">thresh</span><span class="o">=</span><span class="n">thresh</span><span class="p">,</span> <span class="n">trig_int</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;=</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">peaks</span><span class="p">:</span>
+        <span class="n">peaks_plot</span><span class="p">(</span><span class="n">window</span><span class="p">,</span> <span class="n">starttime</span><span class="p">,</span> <span class="n">sampling_rate</span><span class="p">,</span>
+                   <span class="n">save</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">peaks</span><span class="o">=</span><span class="n">peaks</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">peaks</span><span class="p">:</span>
+        <span class="n">peaks</span> <span class="o">=</span> <span class="p">[(</span><span class="n">peak</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">peak</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">window_start</span><span class="p">)</span> <span class="k">for</span> <span class="n">peak</span> <span class="ow">in</span> <span class="n">peaks</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">peaks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">return</span> <span class="n">peaks</span>
+
+
+<span class="k">def</span> <span class="nf">_interp_gap</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">peak_loc</span><span class="p">,</span> <span class="n">interp_len</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Internal function for filling gap with linear interpolation</span>
+
+<span class="sd">    :type data: numpy.ndarray</span>
+<span class="sd">    :param data: data to remove peak in</span>
+<span class="sd">    :type peak_loc: int</span>
+<span class="sd">    :param peak_loc: peak location position</span>
+<span class="sd">    :type interp_len: int</span>
+<span class="sd">    :param interp_len: window to interpolate</span>
+
+<span class="sd">    :returns: Trace works in-place</span>
+<span class="sd">    :rtype: :class:`obspy.core.trace.Trace`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">start_loc</span> <span class="o">=</span> <span class="n">peak_loc</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">interp_len</span><span class="p">)</span>
+    <span class="n">end_loc</span> <span class="o">=</span> <span class="n">peak_loc</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">interp_len</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">start_loc</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">start_loc</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">end_loc</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">end_loc</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">fill</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">start_loc</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="n">end_loc</span><span class="p">],</span> <span class="n">end_loc</span> <span class="o">-</span> <span class="n">start_loc</span><span class="p">)</span>
+    <span class="n">data</span><span class="p">[</span><span class="n">start_loc</span><span class="p">:</span><span class="n">end_loc</span><span class="p">]</span> <span class="o">=</span> <span class="n">fill</span>
+    <span class="k">return</span> <span class="n">data</span>
+
+
+<div class="viewcode-block" id="template_remove"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.despike.template_remove.html#eqcorrscan.utils.despike.template_remove">[docs]</a><span class="k">def</span> <span class="nf">template_remove</span><span class="p">(</span><span class="n">tr</span><span class="p">,</span> <span class="n">template</span><span class="p">,</span> <span class="n">cc_thresh</span><span class="p">,</span> <span class="n">windowlength</span><span class="p">,</span>
+                    <span class="n">interp_len</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Looks for instances of template in the trace and removes the matches.</span>
+
+<span class="sd">    :type tr: obspy.core.trace.Trace</span>
+<span class="sd">    :param tr: Trace to remove spikes from.</span>
+<span class="sd">    :type template: osbpy.core.trace.Trace</span>
+<span class="sd">    :param template: Spike template to look for in data.</span>
+<span class="sd">    :type cc_thresh: float</span>
+<span class="sd">    :param cc_thresh: Cross-correlation threshold (-1 - 1).</span>
+<span class="sd">    :type windowlength: float</span>
+<span class="sd">    :param windowlength: Length of window to look for spikes in in seconds.</span>
+<span class="sd">    :type interp_len: float</span>
+<span class="sd">    :param interp_len: Window length to remove and fill in seconds.</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: Debug level.</span>
+
+<span class="sd">    :returns: tr, works in place.</span>
+<span class="sd">    :rtype: :class:`obspy.core.trace.Trace`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data_in</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">_interp_len</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span> <span class="o">*</span> <span class="n">interp_len</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">_interp_len</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">template</span><span class="o">.</span><span class="n">data</span><span class="p">):</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Interp_len is less than the length of the template,&#39;</span>
+                      <span class="s1">&#39;will used the length of the template!&#39;</span><span class="p">)</span>
+        <span class="n">_interp_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">template</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">Trace</span><span class="p">):</span>
+        <span class="n">template</span> <span class="o">=</span> <span class="n">template</span><span class="o">.</span><span class="n">data</span>
+    <span class="k">with</span> <span class="n">Timer</span><span class="p">()</span> <span class="k">as</span> <span class="n">t</span><span class="p">:</span>
+        <span class="n">cc</span> <span class="o">=</span> <span class="n">normxcorr2</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+                        <span class="n">template</span><span class="o">=</span><span class="n">template</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">cc</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;cross-correlation&#39;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+        <span class="n">peaks</span> <span class="o">=</span> <span class="n">find_peaks2_short</span><span class="p">(</span><span class="n">arr</span><span class="o">=</span><span class="n">cc</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span> <span class="n">thresh</span><span class="o">=</span><span class="n">cc_thresh</span><span class="p">,</span>
+                                  <span class="n">trig_int</span><span class="o">=</span><span class="n">windowlength</span> <span class="o">*</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span>
+                                  <span class="n">sampling_rate</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">peak</span> <span class="ow">in</span> <span class="n">peaks</span><span class="p">:</span>
+            <span class="n">tr</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">_interp_gap</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
+                                  <span class="n">peak_loc</span><span class="o">=</span><span class="n">peak</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">_interp_len</span><span class="p">),</span>
+                                  <span class="n">interp_len</span><span class="o">=</span><span class="n">_interp_len</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Despiking took: </span><span class="si">%s</span><span class="s2"> s&quot;</span> <span class="o">%</span> <span class="n">t</span><span class="o">.</span><span class="n">secs</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">data_in</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;raw&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;despiked&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+    <span class="k">return</span> <span class="n">tr</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">doctest</span>
+    <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2015, 2016: EQcorrscan developers.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.3.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

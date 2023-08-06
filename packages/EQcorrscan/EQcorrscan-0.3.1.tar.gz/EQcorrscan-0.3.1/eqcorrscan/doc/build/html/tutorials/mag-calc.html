@@ -1,0 +1,325 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>5. Magnitude calculation &mdash; EQcorrscan 0.3.0 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../_static/EQcorrscan_logo.ico"/>
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../genindex.html"/>
+        <link rel="search" title="Search" href="../search.html"/>
+    <link rel="top" title="EQcorrscan 0.3.0 documentation" href="../index.html"/>
+        <link rel="up" title="EQcorrscan tutorials" href="../tutorial.html"/>
+        <link rel="next" title="6. Clustering and stacking" href="clustering.html"/>
+        <link rel="prev" title="4. Lag-time and pick correction" href="lag-calc.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> EQcorrscan
+          
+
+          
+            
+            <img src="../_static/EQcorrscan_logo.jpg" class="logo" />
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../intro.html">1. Introduction to the EQcorrscan package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">2. EQcorrscan installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../updates.html">3. What’s new</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../tutorial.html">EQcorrscan tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="template-creation.html">1. Template creation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="matched-filter.html">2. Matched-filter detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="subspace.html">3. Subspace Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lag-calc.html">4. Lag-time and pick correction</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">5. Magnitude calculation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#amplitude-picker-for-local-magnitudes">5.1. Amplitude picker for local magnitudes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#relative-moment-by-singular-value-decomposition">5.2. Relative moment by singular-value decomposition</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="clustering.html">6. Clustering and stacking</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../core.html">4. Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../utils.html">5. Utils</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">EQcorrscan</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../tutorial.html">EQcorrscan tutorials</a> &raquo;</li>
+        
+      <li>5. Magnitude calculation</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/tutorials/mag-calc.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="magnitude-calculation">
+<h1>5. Magnitude calculation<a class="headerlink" href="#magnitude-calculation" title="Permalink to this headline">¶</a></h1>
+<p>EQcorrscan contains both an automatic amplitude picker and a
+singular-value decomposition derived magnitude calculation, which
+is very accurate but requires high levels of event similarity.</p>
+<div class="section" id="amplitude-picker-for-local-magnitudes">
+<h2>5.1. Amplitude picker for local magnitudes<a class="headerlink" href="#amplitude-picker-for-local-magnitudes" title="Permalink to this headline">¶</a></h2>
+<p>Currently this is only implemented for seisan s-files, however we have no plans
+to extend this to other formats (although it would be simple as seisan files
+are read in as obspy events not).</p>
+<p>This example requires data downloaded from the eqcorrscan github repository.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">eqcorrscan.utils.mag_calc</span> <span class="kn">import</span> <span class="n">amp_pick_event</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">obspy</span> <span class="kn">import</span> <span class="n">read</span><span class="p">,</span> <span class="n">read_events</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">obspy.io.nordic.core</span> <span class="kn">import</span> <span class="n">readwavename</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">os</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">testing_path</span> <span class="o">=</span> <span class="s1">&#39;eqcorrscan/tests/test_data&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sfile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">testing_path</span><span class="p">,</span> <span class="s1">&#39;REA&#39;</span><span class="p">,</span> <span class="s1">&#39;TEST_&#39;</span><span class="p">,</span>
+<span class="gp">... </span>                     <span class="s1">&#39;01-0411-15L.S201309&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">datapath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">testing_path</span><span class="p">,</span> <span class="s1">&#39;WAV&#39;</span><span class="p">,</span> <span class="s1">&#39;TEST_&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">event</span> <span class="o">=</span> <span class="n">read_events</span><span class="p">(</span><span class="n">sfile</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">st</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">datapath</span><span class="p">,</span> <span class="n">readwavename</span><span class="p">(</span><span class="n">sfile</span><span class="p">)[</span><span class="mi">0</span><span class="p">]))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">respdir</span> <span class="o">=</span> <span class="n">testing_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">event</span> <span class="o">=</span> <span class="n">amp_pick_event</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">event</span><span class="o">=</span><span class="n">event</span><span class="p">,</span> <span class="n">st</span><span class="o">=</span><span class="n">st</span><span class="p">,</span> <span class="n">respdir</span><span class="o">=</span><span class="n">respdir</span><span class="p">,</span> <span class="n">chans</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Z&#39;</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="n">var_wintype</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">winlen</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span> <span class="n">pre_pick</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">pre_filt</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">lowcut</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="mf">20.0</span><span class="p">,</span> <span class="n">corners</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> 
+<span class="go">Working on ...</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="relative-moment-by-singular-value-decomposition">
+<h2>5.2. Relative moment by singular-value decomposition<a class="headerlink" href="#relative-moment-by-singular-value-decomposition" title="Permalink to this headline">¶</a></h2>
+<p>This method closely follows the method outlined by <a href="http://www.bssaonline.org/content/100/5A/1952.short" target="_blank">Rubinstein & Ellsworth 2010</a>.</p>
+<p>This example requires data downloaded from the eqcorrscan github repository.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">eqcorrscan.utils.mag_calc</span> <span class="kn">import</span> <span class="n">svd_moments</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">obspy</span> <span class="kn">import</span> <span class="n">read</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">glob</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">eqcorrscan.utils.clustering</span> <span class="kn">import</span> <span class="n">svd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Do the set-up</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">testing_path</span> <span class="o">=</span> <span class="s1">&#39;eqcorrscan/tests/test_data/similar_events&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">stream_files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">testing_path</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">stream_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">read</span><span class="p">(</span><span class="n">stream_file</span><span class="p">)</span> <span class="k">for</span> <span class="n">stream_file</span> <span class="ow">in</span> <span class="n">stream_files</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">event_list</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">stream</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stream_list</span><span class="p">):</span> 
+<span class="gp">... </span>    <span class="n">st_list</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="gp">... </span>    <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">stream</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="c1"># Only use the vertical channels of sites with known high similarity.</span>
+<span class="gp">... </span>        <span class="c1"># You do not need to use this step for your data.</span>
+<span class="gp">... </span>        <span class="k">if</span> <span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span>\
+<span class="gp">... </span>                <span class="p">[(</span><span class="s1">&#39;WHAT2&#39;</span><span class="p">,</span> <span class="s1">&#39;SH1&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;WV04&#39;</span><span class="p">,</span> <span class="s1">&#39;SHZ&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;GCSZ&#39;</span><span class="p">,</span> <span class="s1">&#39;EHZ&#39;</span><span class="p">)]:</span>
+<span class="gp">... </span>            <span class="n">stream</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+<span class="gp">... </span>            <span class="k">continue</span>
+<span class="gp">... </span>        <span class="n">tr</span><span class="o">.</span><span class="n">detrend</span><span class="p">(</span><span class="s1">&#39;simple&#39;</span><span class="p">)</span>
+<span class="gp">... </span>        <span class="n">tr</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="s1">&#39;bandpass&#39;</span><span class="p">,</span> <span class="n">freqmin</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">freqmax</span><span class="o">=</span><span class="mf">15.0</span><span class="p">)</span>
+<span class="gp">... </span>        <span class="n">tr</span><span class="o">.</span><span class="n">trim</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">+</span> <span class="mi">40</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">endtime</span> <span class="o">-</span> <span class="mi">45</span><span class="p">)</span>
+<span class="gp">... </span>        <span class="n">st_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">event_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">st_list</span><span class="p">)</span>
+<span class="go">&lt;obspy.core.stream.Stream object at ...&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">event_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">event_list</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">SVectors</span><span class="p">,</span> <span class="n">SValues</span><span class="p">,</span> <span class="n">Uvectors</span><span class="p">,</span> <span class="n">stachans</span> <span class="o">=</span> <span class="n">svd</span><span class="p">(</span><span class="n">stream_list</span><span class="o">=</span><span class="n">stream_list</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">M</span><span class="p">,</span> <span class="n">events_out</span> <span class="o">=</span> <span class="n">svd_moments</span><span class="p">(</span><span class="n">u</span><span class="o">=</span><span class="n">Uvectors</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">SValues</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="n">SVectors</span><span class="p">,</span>
+<span class="gp">... </span>                            <span class="n">stachans</span><span class="o">=</span><span class="n">stachans</span><span class="p">,</span> <span class="n">event_list</span><span class="o">=</span><span class="n">event_list</span><span class="p">)</span> 
+<span class="go">Created Kernel matrix: ...</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="clustering.html" class="btn btn-neutral float-right" title="6. Clustering and stacking" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="lag-calc.html" class="btn btn-neutral" title="4. Lag-time and pick correction" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2015, 2016: EQcorrscan developers.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'0.3.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

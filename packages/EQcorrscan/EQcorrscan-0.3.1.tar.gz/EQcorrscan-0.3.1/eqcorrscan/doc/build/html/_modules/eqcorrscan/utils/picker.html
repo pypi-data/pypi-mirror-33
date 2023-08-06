@@ -1,0 +1,531 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>eqcorrscan.utils.picker &mdash; EQcorrscan 0.3.0 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../../../_static/EQcorrscan_logo.ico"/>
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="EQcorrscan 0.3.0 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> EQcorrscan
+          
+
+          
+            
+            <img src="../../../_static/EQcorrscan_logo.jpg" class="logo" />
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">1. Introduction to the EQcorrscan package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">2. EQcorrscan installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../updates.html">3. What’s new</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">EQcorrscan tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../core.html">4. Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../utils.html">5. Utils</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">EQcorrscan</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>eqcorrscan.utils.picker</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for eqcorrscan.utils.picker</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Functions to pick earthquakes detected by EQcorrscan.</span>
+
+<span class="sd">Designed primarily locate stacks of detections to give family locations.</span>
+<span class="sd">Extensions may later be written, not tested for accuracy, just simple wrappers.</span>
+
+<span class="sd">:copyright:</span>
+<span class="sd">    EQcorrscan developers.</span>
+
+<span class="sd">:license:</span>
+<span class="sd">    GNU Lesser General Public License, Version 3</span>
+<span class="sd">    (https://www.gnu.org/copyleft/lesser.html)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">obspy</span> <span class="k">import</span> <span class="n">UTCDateTime</span>
+<span class="kn">from</span> <span class="nn">obspy.signal.cross_correlation</span> <span class="k">import</span> <span class="n">xcorr</span>
+<span class="kn">from</span> <span class="nn">obspy.signal.filter</span> <span class="k">import</span> <span class="n">envelope</span>
+<span class="kn">from</span> <span class="nn">obspy.core.event</span> <span class="k">import</span> <span class="n">Event</span><span class="p">,</span> <span class="n">Pick</span><span class="p">,</span> <span class="n">WaveformStreamID</span>
+<span class="kn">from</span> <span class="nn">obspy.core.event</span> <span class="k">import</span> <span class="n">CreationInfo</span><span class="p">,</span> <span class="n">Comment</span><span class="p">,</span> <span class="n">Origin</span>
+<span class="kn">from</span> <span class="nn">obspy.signal.trigger</span> <span class="k">import</span> <span class="n">classic_sta_lta</span><span class="p">,</span> <span class="n">trigger_onset</span>
+<span class="kn">from</span> <span class="nn">obspy.signal.trigger</span> <span class="k">import</span> <span class="n">plot_trigger</span>
+
+<span class="kn">import</span> <span class="nn">eqcorrscan.utils.plotting</span> <span class="k">as</span> <span class="nn">plotting</span>
+
+<span class="c1"># def synth_compare(stream, stream_list, cores=4, debug=0):</span>
+<span class="c1">#     &quot;&quot;&quot;</span>
+<span class="c1">#     Find best matching template or earthquake for a given stream.</span>
+<span class="c1">#     Compare a specific stream to a list of synthetic templates, or \</span>
+<span class="c1">#     earthquakes of known source and find the best matching event.</span>
+<span class="c1">#</span>
+<span class="c1">#     This can be used to assign the event to a family, which has a known \</span>
+<span class="c1">#     location.</span>
+<span class="c1">#</span>
+<span class="c1">#     :type stream: :class: obspy.Stream</span>
+<span class="c1">#     :param stream: Stream to be compared to streams with known locations.</span>
+<span class="c1">#     :type stream_list: list</span>
+<span class="c1">#     :param stream_list: List of streams with known locations</span>
+<span class="c1">#     :type cores: int</span>
+<span class="c1">#     :param cores: Number of cores to parallel over</span>
+<span class="c1">#     :type debug: int</span>
+<span class="c1">#     :param debug: Debug level, high is more debug</span>
+<span class="c1">#</span>
+<span class="c1">#     :returns: int, float: index of best match and cross-correlation sum</span>
+<span class="c1">#     :rtype: tuple</span>
+<span class="c1">#     &quot;&quot;&quot;</span>
+<span class="c1">#     from eqcorrscan.core.match_filter import _channel_loop</span>
+<span class="c1">#     import numpy as np</span>
+<span class="c1">#     import copy</span>
+<span class="c1">#     from obspy import Trace</span>
+<span class="c1">#</span>
+<span class="c1">#     stream_copy = stream.copy()</span>
+<span class="c1">#     templates = copy.deepcopy(stream_list)</span>
+<span class="c1">#     # Need to fill the stream_list - template - channels</span>
+<span class="c1">#     template_stachan = []</span>
+<span class="c1">#     for template in templates:</span>
+<span class="c1">#         for tr in template:</span>
+<span class="c1">#             template_stachan += [(tr.stats.station, tr.stats.channel)]</span>
+<span class="c1">#     template_stachan = list(set(template_stachan))</span>
+<span class="c1">#</span>
+<span class="c1">#     for stachan in template_stachan:</span>
+<span class="c1">#         if not stream_copy.select(station=stachan[0], channel=stachan[1]):</span>
+<span class="c1">#             # Remove template traces rather than adding NaN data</span>
+<span class="c1">#             for template in templates:</span>
+<span class="c1">#                 if template.select(station=stachan[0], channel=stachan[1]):</span>
+<span class="c1">#                     for tr in template.select(station=stachan[0],</span>
+<span class="c1">#                                               channel=stachan[1]):</span>
+<span class="c1">#                         template.remove(tr)</span>
+<span class="c1">#     # Remove un-needed channels</span>
+<span class="c1">#     for tr in stream_copy:</span>
+<span class="c1">#         if not (tr.stats.station, tr.stats.channel) in template_stachan:</span>
+<span class="c1">#             stream_copy.remove(tr)</span>
+<span class="c1">#     # Also pad out templates to have all channels</span>
+<span class="c1">#     for template in templates:</span>
+<span class="c1">#         for stachan in template_stachan:</span>
+<span class="c1">#             if not template.select(station=stachan[0], channel=stachan[1]):</span>
+<span class="c1">#                 nulltrace = Trace()</span>
+<span class="c1">#                 nulltrace.stats.station = stachan[0]</span>
+<span class="c1">#                 nulltrace.stats.channel = stachan[1]</span>
+<span class="c1">#                 nulltrace.stats.sampling_rate = \</span>
+<span class="c1">#                   template[0].stats.sampling_rate</span>
+<span class="c1">#                 nulltrace.stats.starttime = template[0].stats.starttime</span>
+<span class="c1">#                 nulltrace.data = np.array([np.NaN] * len(template[0].data),</span>
+<span class="c1">#                                           dtype=np.float32)</span>
+<span class="c1">#                 template += nulltrace</span>
+<span class="c1">#     # Hand off  cross-correaltion to _channel_loop, which runs in parallel</span>
+<span class="c1">#     [cccsums, no_chans] = _channel_loop(templates, stream_copy, cores, debug)</span>
+<span class="c1">#     cccsums = [np.max(cccsum) for cccsum in cccsums]</span>
+<span class="c1">#     # Find the maximum cccsum and index thereof</span>
+<span class="c1">#     index = np.argmax(cccsums)</span>
+<span class="c1">#     cccsum = cccsums[index]</span>
+<span class="c1">#     return index, cccsum</span>
+
+
+<div class="viewcode-block" id="cross_net"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.picker.cross_net.html#eqcorrscan.utils.picker.cross_net">[docs]</a><span class="k">def</span> <span class="nf">cross_net</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">master</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate picks using a simple envelope cross-correlation.</span>
+
+<span class="sd">    Picks are made for each channel based on optimal moveout defined by</span>
+<span class="sd">    maximum cross-correlation with master trace.  Master trace will be the</span>
+<span class="sd">    first trace in the stream if not set.  Requires good inter-station</span>
+<span class="sd">    coherance.</span>
+
+<span class="sd">    :type stream: obspy.core.stream.Stream</span>
+<span class="sd">    :param stream: Stream to pick</span>
+<span class="sd">    :type env: bool</span>
+<span class="sd">    :param env: To compute cross-correlations on the envelope or not.</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: Debug level from 0-5</span>
+<span class="sd">    :type master: obspy.core.trace.Trace</span>
+<span class="sd">    :param master:</span>
+<span class="sd">        Trace to use as master, if False, will use the first trace in stream.</span>
+
+<span class="sd">    :returns: :class:`obspy.core.event.event.Event`</span>
+
+<span class="sd">    .. rubric:: Example</span>
+
+<span class="sd">    &gt;&gt;&gt; from obspy import read</span>
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.utils.picker import cross_net</span>
+<span class="sd">    &gt;&gt;&gt; st = read()</span>
+<span class="sd">    &gt;&gt;&gt; event = cross_net(st, env=True)</span>
+<span class="sd">    &gt;&gt;&gt; print(event.creation_info.author)</span>
+<span class="sd">    EQcorrscan</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This routine is not designed for accurate picking, rather it can be</span>
+<span class="sd">        used for a first-pass at picks to obtain simple locations. Based on</span>
+<span class="sd">        the waveform-envelope cross-correlation method.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">event</span> <span class="o">=</span> <span class="n">Event</span><span class="p">()</span>
+    <span class="n">event</span><span class="o">.</span><span class="n">origins</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Origin</span><span class="p">())</span>
+    <span class="n">event</span><span class="o">.</span><span class="n">creation_info</span> <span class="o">=</span> <span class="n">CreationInfo</span><span class="p">(</span><span class="n">author</span><span class="o">=</span><span class="s1">&#39;EQcorrscan&#39;</span><span class="p">,</span>
+                                       <span class="n">creation_time</span><span class="o">=</span><span class="n">UTCDateTime</span><span class="p">())</span>
+    <span class="n">event</span><span class="o">.</span><span class="n">comments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Comment</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s1">&#39;cross_net&#39;</span><span class="p">))</span>
+    <span class="n">samp_rate</span> <span class="o">=</span> <span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">env</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Using the raw data&#39;</span><span class="p">)</span>
+        <span class="n">st</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">st</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">samp_rate</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">st</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Computing envelope&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">:</span>
+            <span class="n">tr</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">samp_rate</span><span class="p">)</span>
+            <span class="n">tr</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">envelope</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">master</span><span class="p">:</span>
+        <span class="n">master</span> <span class="o">=</span> <span class="n">st</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">master</span> <span class="o">=</span> <span class="n">master</span>
+    <span class="n">master</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">master</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">st</span><span class="p">):</span>
+        <span class="n">tr</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;Comparing&#39;</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span>
+                            <span class="s1">&#39;with the master&#39;</span><span class="p">])</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">shift_len</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.3</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Shift length is set to &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">shift_len</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; samples&#39;</span><span class="p">)</span>
+        <span class="n">index</span><span class="p">,</span> <span class="n">cc</span> <span class="o">=</span> <span class="n">xcorr</span><span class="p">(</span><span class="n">master</span><span class="p">,</span> <span class="n">tr</span><span class="p">,</span> <span class="n">shift_len</span><span class="p">)</span>
+        <span class="n">wav_id</span> <span class="o">=</span> <span class="n">WaveformStreamID</span><span class="p">(</span><span class="n">station_code</span><span class="o">=</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span>
+                                  <span class="n">channel_code</span><span class="o">=</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span>
+                                  <span class="n">network_code</span><span class="o">=</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">network</span><span class="p">)</span>
+        <span class="n">event</span><span class="o">.</span><span class="n">picks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Pick</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">+</span>
+                                <span class="p">(</span><span class="n">index</span> <span class="o">/</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">),</span>
+                                <span class="n">waveform_id</span><span class="o">=</span><span class="n">wav_id</span><span class="p">,</span>
+                                <span class="n">phase_hint</span><span class="o">=</span><span class="s1">&#39;S&#39;</span><span class="p">,</span>
+                                <span class="n">onset</span><span class="o">=</span><span class="s1">&#39;emergent&#39;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">picks</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="n">event</span><span class="o">.</span><span class="n">origins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="n">pick</span><span class="o">.</span><span class="n">time</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">event</span><span class="o">.</span><span class="n">picks</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="c1"># event.origins[0].latitude = float(&#39;nan&#39;)</span>
+    <span class="c1"># event.origins[0].longitude = float(&#39;nan&#39;)</span>
+    <span class="c1"># Set arbitrary origin time</span>
+    <span class="k">del</span> <span class="n">st</span></div>
+    <span class="k">return</span> <span class="n">event</span>
+
+
+<div class="viewcode-block" id="stalta_pick"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.picker.stalta_pick.html#eqcorrscan.utils.picker.stalta_pick">[docs]</a><span class="k">def</span> <span class="nf">stalta_pick</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">stalen</span><span class="p">,</span> <span class="n">ltalen</span><span class="p">,</span> <span class="n">trig_on</span><span class="p">,</span> <span class="n">trig_off</span><span class="p">,</span> <span class="n">freqmin</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">freqmax</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Basic sta/lta picker, suggest using alternative in obspy.</span>
+
+<span class="sd">    Simple sta/lta (short-term average/long-term average) picker, using</span>
+<span class="sd">    obspy&#39;s :func:`obspy.signal.trigger.classic_sta_lta` routine to generate</span>
+<span class="sd">    the characteristic function.</span>
+
+<span class="sd">    Currently very basic quick wrapper, there are many other (better) options</span>
+<span class="sd">    in obspy in the :mod:`obspy.signal.trigger` module.</span>
+
+<span class="sd">    :type stream: obspy.core.stream.Stream</span>
+<span class="sd">    :param stream: The stream to pick on, can be any number of channels.</span>
+<span class="sd">    :type stalen: float</span>
+<span class="sd">    :param stalen: Length of the short-term average window in seconds.</span>
+<span class="sd">    :type ltalen: float</span>
+<span class="sd">    :param ltalen: Length of the long-term average window in seconds.</span>
+<span class="sd">    :type trig_on: float</span>
+<span class="sd">    :param trig_on: sta/lta ratio to trigger a detection/pick</span>
+<span class="sd">    :type trig_off: float</span>
+<span class="sd">    :param trig_off: sta/lta ratio to turn the trigger off - no further picks\</span>
+<span class="sd">        will be made between exceeding trig_on until trig_off is reached.</span>
+<span class="sd">    :type freqmin: float</span>
+<span class="sd">    :param freqmin: Low-cut frequency in Hz for bandpass filter</span>
+<span class="sd">    :type freqmax: float</span>
+<span class="sd">    :param freqmax: High-cut frequency in Hz for bandpass filter</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: Debug output level from 0-5.</span>
+<span class="sd">    :type show: bool</span>
+<span class="sd">    :param show: Show picks on waveform.</span>
+
+<span class="sd">    :returns: :class:`obspy.core.event.event.Event`</span>
+
+<span class="sd">    .. rubric:: Example</span>
+
+<span class="sd">    &gt;&gt;&gt; from obspy import read</span>
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.utils.picker import stalta_pick</span>
+<span class="sd">    &gt;&gt;&gt; st = read()</span>
+<span class="sd">    &gt;&gt;&gt; event = stalta_pick(st, stalen=0.2, ltalen=4, trig_on=10,</span>
+<span class="sd">    ...             trig_off=1, freqmin=3.0, freqmax=20.0)</span>
+<span class="sd">    &gt;&gt;&gt; print(event.creation_info.author)</span>
+<span class="sd">    EQcorrscan</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This function is not designed for accurate picking, rather it can give</span>
+<span class="sd">        a first idea of whether picks may be possible.  Proceed with caution.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">event</span> <span class="o">=</span> <span class="n">Event</span><span class="p">()</span>
+    <span class="n">event</span><span class="o">.</span><span class="n">origins</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Origin</span><span class="p">())</span>
+    <span class="n">event</span><span class="o">.</span><span class="n">creation_info</span> <span class="o">=</span> <span class="n">CreationInfo</span><span class="p">(</span><span class="n">author</span><span class="o">=</span><span class="s1">&#39;EQcorrscan&#39;</span><span class="p">,</span>
+                                       <span class="n">creation_time</span><span class="o">=</span><span class="n">UTCDateTime</span><span class="p">())</span>
+    <span class="n">event</span><span class="o">.</span><span class="n">comments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Comment</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s1">&#39;stalta&#39;</span><span class="p">))</span>
+    <span class="n">picks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">stream</span><span class="p">:</span>
+        <span class="c1"># We are going to assume, for now, that if the pick is made on the</span>
+        <span class="c1"># horizontal channel then it is an S, otherwise we will assume it is</span>
+        <span class="c1"># a P-phase: obviously a bad assumption...</span>
+        <span class="k">if</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Z&#39;</span><span class="p">:</span>
+            <span class="n">phase</span> <span class="o">=</span> <span class="s1">&#39;P&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">phase</span> <span class="o">=</span> <span class="s1">&#39;S&#39;</span>
+        <span class="k">if</span> <span class="n">freqmin</span> <span class="ow">and</span> <span class="n">freqmax</span><span class="p">:</span>
+            <span class="n">tr</span><span class="o">.</span><span class="n">detrend</span><span class="p">(</span><span class="s1">&#39;simple&#39;</span><span class="p">)</span>
+            <span class="n">tr</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="s1">&#39;bandpass&#39;</span><span class="p">,</span> <span class="n">freqmin</span><span class="o">=</span><span class="n">freqmin</span><span class="p">,</span> <span class="n">freqmax</span><span class="o">=</span><span class="n">freqmax</span><span class="p">,</span>
+                      <span class="n">corners</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">zerophase</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span>
+        <span class="n">cft</span> <span class="o">=</span> <span class="n">classic_sta_lta</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">stalen</span> <span class="o">*</span> <span class="n">df</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">ltalen</span> <span class="o">*</span> <span class="n">df</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">plot_trigger</span><span class="p">(</span><span class="n">tr</span><span class="p">,</span> <span class="n">cft</span><span class="p">,</span> <span class="n">trig_on</span><span class="p">,</span> <span class="n">trig_off</span><span class="p">)</span>
+        <span class="n">triggers</span> <span class="o">=</span> <span class="n">trigger_onset</span><span class="p">(</span><span class="n">cft</span><span class="p">,</span> <span class="n">trig_on</span><span class="p">,</span> <span class="n">trig_off</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">trigger</span> <span class="ow">in</span> <span class="n">triggers</span><span class="p">:</span>
+            <span class="n">on</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">+</span> <span class="p">(</span><span class="n">trigger</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">df</span><span class="p">)</span>
+            <span class="c1"># off = tr.stats.starttime + (trigger[1] / df)</span>
+            <span class="n">wav_id</span> <span class="o">=</span> <span class="n">WaveformStreamID</span><span class="p">(</span><span class="n">station_code</span><span class="o">=</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span>
+                                      <span class="n">channel_code</span><span class="o">=</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span>
+                                      <span class="n">network_code</span><span class="o">=</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">network</span><span class="p">)</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">Pick</span><span class="p">(</span><span class="n">waveform_id</span><span class="o">=</span><span class="n">wav_id</span><span class="p">,</span> <span class="n">phase_hint</span><span class="o">=</span><span class="n">phase</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="n">on</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Pick made:&#39;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+            <span class="n">picks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="c1"># QC picks</span>
+    <span class="n">pick_stations</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="o">.</span><span class="n">station_code</span>
+                              <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">picks</span><span class="p">]))</span>
+    <span class="k">for</span> <span class="n">pick_station</span> <span class="ow">in</span> <span class="n">pick_stations</span><span class="p">:</span>
+        <span class="n">station_picks</span> <span class="o">=</span> <span class="p">[</span><span class="n">pick</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">picks</span> <span class="k">if</span>
+                         <span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="o">.</span><span class="n">station_code</span> <span class="o">==</span> <span class="n">pick_station</span><span class="p">]</span>
+        <span class="c1"># If P-pick is after S-picks, remove it.</span>
+        <span class="n">p_time</span> <span class="o">=</span> <span class="p">[</span><span class="n">pick</span><span class="o">.</span><span class="n">time</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">station_picks</span>
+                  <span class="k">if</span> <span class="n">pick</span><span class="o">.</span><span class="n">phase_hint</span> <span class="o">==</span> <span class="s1">&#39;P&#39;</span><span class="p">]</span>
+        <span class="n">s_time</span> <span class="o">=</span> <span class="p">[</span><span class="n">pick</span><span class="o">.</span><span class="n">time</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">station_picks</span>
+                  <span class="k">if</span> <span class="n">pick</span><span class="o">.</span><span class="n">phase_hint</span> <span class="o">==</span> <span class="s1">&#39;S&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">p_time</span> <span class="o">&gt;</span> <span class="n">s_time</span><span class="p">:</span>
+            <span class="n">p_pick</span> <span class="o">=</span> <span class="p">[</span><span class="n">pick</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">station_picks</span> <span class="k">if</span> <span class="n">pick</span><span class="o">.</span><span class="n">phase_hint</span> <span class="o">==</span> <span class="s1">&#39;P&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">p_pick</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;P pick after S pick, removing P pick&#39;</span><span class="p">)</span>
+                <span class="n">picks</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">pick</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">show</span><span class="p">:</span>
+        <span class="n">plotting</span><span class="o">.</span><span class="n">pretty_template_plot</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">picks</span><span class="o">=</span><span class="n">picks</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Autopicks&#39;</span><span class="p">,</span>
+                                      <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">))</span>
+    <span class="n">event</span><span class="o">.</span><span class="n">picks</span> <span class="o">=</span> <span class="n">picks</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">picks</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">event</span><span class="o">.</span><span class="n">origins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="n">pick</span><span class="o">.</span><span class="n">time</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">event</span><span class="o">.</span><span class="n">picks</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="c1"># event.origins[0].latitude = float(&#39;nan&#39;)</span>
+        <span class="c1"># event.origins[0].longitude = float(&#39;nan&#39;)</span>
+    <span class="c1"># Set arbitrary origin time</span></div>
+    <span class="k">return</span> <span class="n">event</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">doctest</span>
+    <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2015, 2016: EQcorrscan developers.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.3.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

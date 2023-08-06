@@ -1,0 +1,1410 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>eqcorrscan.core.template_gen &mdash; EQcorrscan 0.3.0 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../../../_static/EQcorrscan_logo.ico"/>
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="EQcorrscan 0.3.0 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> EQcorrscan
+          
+
+          
+            
+            <img src="../../../_static/EQcorrscan_logo.jpg" class="logo" />
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">1. Introduction to the EQcorrscan package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">2. EQcorrscan installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../updates.html">3. What’s new</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">EQcorrscan tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../core.html">4. Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../utils.html">5. Utils</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">EQcorrscan</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>eqcorrscan.core.template_gen</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for eqcorrscan.core.template_gen</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/python</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Functions to generate template waveforms and information to go with them</span>
+<span class="sd">for the application of cross-correlation of seismic data for the detection of</span>
+<span class="sd">repeating events.</span>
+
+<span class="sd">.. note::</span>
+<span class="sd">    By convention templates are generated with P-phases on the</span>
+<span class="sd">    vertical channel and S-phases on the horizontal channels, normal</span>
+<span class="sd">    seismograph naming conventions are assumed, where Z denotes vertical</span>
+<span class="sd">    and N, E, R, T, 1 and 2 denote horizontal channels, either oriented</span>
+<span class="sd">    or not.  To this end we will **only** use Z channels if they have a</span>
+<span class="sd">    P-pick, and will use one or other horizontal channels **only** if</span>
+<span class="sd">    there is an S-pick on it.</span>
+
+<span class="sd">.. warning::</span>
+<span class="sd">    If there is no phase_hint included in picks, and swin=all, all channels</span>
+<span class="sd">    with picks will be used.</span>
+
+<span class="sd">.. note::</span>
+<span class="sd">    If swin=all, then all picks will be used, not just phase-picks (e.g. it</span>
+<span class="sd">    will use amplitude picks).  If you do not want this then we suggest that</span>
+<span class="sd">    you remove any picks you do not want to use in your templates before using</span>
+<span class="sd">    the event.</span>
+
+<span class="sd">.. note::</span>
+<span class="sd">    All functions use obspy filters, which are implemented such that</span>
+<span class="sd">    if both highcut and lowcut are set a bandpass filter will be used,</span>
+<span class="sd">    but of highcut is not set (None) then a highpass filter will be used and</span>
+<span class="sd">    if only the highcut is set then a lowpass filter will be used.</span>
+
+<span class="sd">:copyright:</span>
+<span class="sd">    EQcorrscan developers.</span>
+
+<span class="sd">:license:</span>
+<span class="sd">    GNU Lesser General Public License, Version 3</span>
+<span class="sd">    (https://www.gnu.org/copyleft/lesser.html)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+
+<span class="kn">from</span> <span class="nn">obspy</span> <span class="k">import</span> <span class="n">Stream</span><span class="p">,</span> <span class="n">read</span><span class="p">,</span> <span class="n">Trace</span><span class="p">,</span> <span class="n">UTCDateTime</span><span class="p">,</span> <span class="n">read_events</span>
+<span class="kn">from</span> <span class="nn">obspy.core.event</span> <span class="k">import</span> <span class="n">Catalog</span>
+<span class="kn">from</span> <span class="nn">obspy.clients.fdsn</span> <span class="k">import</span> <span class="n">Client</span> <span class="k">as</span> <span class="n">FDSNClient</span>
+<span class="kn">from</span> <span class="nn">obspy.clients.seishub</span> <span class="k">import</span> <span class="n">Client</span> <span class="k">as</span> <span class="n">SeisHubClient</span>
+
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils.debug_log</span> <span class="k">import</span> <span class="n">debug_print</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils.sac_util</span> <span class="k">import</span> <span class="n">sactoevent</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils</span> <span class="k">import</span> <span class="n">pre_processing</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.core</span> <span class="k">import</span> <span class="n">EQcorrscanDeprecationWarning</span>
+
+
+<span class="k">class</span> <span class="nc">TemplateGenError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Default error for template generation errors.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Raise error.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;TemplateGenError: &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+
+
+<div class="viewcode-block" id="template_gen"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.core.template_gen.template_gen.html#eqcorrscan.core.template_gen.template_gen">[docs]</a><span class="k">def</span> <span class="nf">template_gen</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="p">,</span> <span class="n">samp_rate</span><span class="p">,</span> <span class="n">filt_order</span><span class="p">,</span>
+                 <span class="n">length</span><span class="p">,</span> <span class="n">prepick</span><span class="p">,</span> <span class="n">swin</span><span class="p">,</span> <span class="n">process_len</span><span class="o">=</span><span class="mi">86400</span><span class="p">,</span>
+                 <span class="n">all_horiz</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">delayed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                 <span class="n">return_event</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">min_snr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parallel</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate processed and cut waveforms for use as templates.</span>
+
+<span class="sd">    :type method: str</span>
+<span class="sd">    :param method:</span>
+<span class="sd">        Template generation method, must be one of (&#39;from_client&#39;,</span>
+<span class="sd">        &#39;from_seishub&#39;, &#39;from_sac&#39;, &#39;from_meta_file&#39;). - Each method requires</span>
+<span class="sd">        associated arguments, see note below.</span>
+<span class="sd">    :type lowcut: float</span>
+<span class="sd">    :param lowcut: Low cut (Hz), if set to None will not apply a lowcut.</span>
+<span class="sd">    :type highcut: float</span>
+<span class="sd">    :param highcut: High cut (Hz), if set to None will not apply a highcut.</span>
+<span class="sd">    :type samp_rate: float</span>
+<span class="sd">    :param samp_rate: New sampling rate in Hz.</span>
+<span class="sd">    :type filt_order: int</span>
+<span class="sd">    :param filt_order: Filter level (number of corners).</span>
+<span class="sd">    :type length: float</span>
+<span class="sd">    :param length: Extract length in seconds.</span>
+<span class="sd">    :type prepick: float</span>
+<span class="sd">    :param prepick: Pre-pick time in seconds</span>
+<span class="sd">    :type swin: str</span>
+<span class="sd">    :param swin:</span>
+<span class="sd">        P, S, P_all, S_all or all, defaults to all: see note in</span>
+<span class="sd">        :func:`eqcorrscan.core.template_gen.template_gen`</span>
+<span class="sd">    :type process_len: int</span>
+<span class="sd">    :param process_len: Length of data in seconds to download and process.</span>
+<span class="sd">    :type all_horiz: bool</span>
+<span class="sd">    :param all_horiz: To use both horizontal channels even if there is only \</span>
+<span class="sd">        a pick on one of them.  Defaults to False.</span>
+<span class="sd">    :type delayed: bool</span>
+<span class="sd">    :param delayed: If True, each channel will begin relative to it&#39;s own \</span>
+<span class="sd">        pick-time, if set to False, each channel will begin at the same time.</span>
+<span class="sd">    :type plot: bool</span>
+<span class="sd">    :param plot: Plot templates or not.</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: Level of debugging output, higher=more</span>
+<span class="sd">    :type return_event: bool</span>
+<span class="sd">    :param return_event: Whether to return the event and process length or not.</span>
+<span class="sd">    :type min_snr: float</span>
+<span class="sd">    :param min_snr:</span>
+<span class="sd">        Minimum signal-to-noise ratio for a channel to be included in the</span>
+<span class="sd">        template, where signal-to-noise ratio is calculated as the ratio of</span>
+<span class="sd">        the maximum amplitude in the template window to the rms amplitude in</span>
+<span class="sd">        the whole window given.</span>
+<span class="sd">    :type parallel: bool</span>
+<span class="sd">    :param parallel: Whether to process data in parallel or not.</span>
+
+<span class="sd">    :returns: List of :class:`obspy.core.stream.Stream` Templates</span>
+<span class="sd">    :rtype: list</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        *Method specific arguments:*</span>
+
+<span class="sd">        - `from_client` requires:</span>
+<span class="sd">            :param str client_id: string passable by obspy to generate Client</span>
+<span class="sd">            :param `obspy.core.event.Catalog` catalog:</span>
+<span class="sd">                Catalog of events to generate template for</span>
+<span class="sd">            :param float data_pad: Pad length for data-downloads in seconds</span>
+<span class="sd">        - `from_seishub` requires:</span>
+<span class="sd">            :param str url: url to seishub database</span>
+<span class="sd">            :param `obspy.core.event.Catalog` catalog:</span>
+<span class="sd">                Catalog of events to generate template for</span>
+<span class="sd">            :param float data_pad: Pad length for data-downloads in seconds</span>
+<span class="sd">        - `from_sac` requires:</span>
+<span class="sd">            :param list sac_files:</span>
+<span class="sd">                osbpy.core.stream.Stream of sac waveforms, or list of paths to</span>
+<span class="sd">                sac waveforms.</span>
+<span class="sd">        - `from_meta_file` requires:</span>
+<span class="sd">            :param str meta_file: Path to obspy-readable event file.</span>
+<span class="sd">            :param `obspy.core.stream.Stream` st:</span>
+<span class="sd">                Stream containing waveform data for template. Note that this</span>
+<span class="sd">                should be the same length of stream as you will use for the</span>
+<span class="sd">                continuous detection, e.g. if you detect in day-long files,</span>
+<span class="sd">                give this a day-long file!</span>
+<span class="sd">            :param bool process:</span>
+<span class="sd">                Whether to process the data or not, defaults to True.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        process_len should be set to the same length as used when computing</span>
+<span class="sd">        detections using match_filter.match_filter, e.g. if you read</span>
+<span class="sd">        in day-long data for match_filter, process_len should be 86400.</span>
+
+<span class="sd">        .. rubric:: Example</span>
+
+<span class="sd">    &gt;&gt;&gt; from obspy.clients.fdsn import Client</span>
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.core.template_gen import template_gen</span>
+<span class="sd">    &gt;&gt;&gt; client = Client(&#39;NCEDC&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; catalog = client.get_events(eventid=&#39;72572665&#39;, includearrivals=True)</span>
+<span class="sd">    &gt;&gt;&gt; # We are only taking two picks for this example to speed up the</span>
+<span class="sd">    &gt;&gt;&gt; # example, note that you don&#39;t have to!</span>
+<span class="sd">    &gt;&gt;&gt; catalog[0].picks = catalog[0].picks[0:2]</span>
+<span class="sd">    &gt;&gt;&gt; templates = template_gen(</span>
+<span class="sd">    ...    method=&#39;from_client&#39;, catalog=catalog, client_id=&#39;NCEDC&#39;,</span>
+<span class="sd">    ...    lowcut=2.0, highcut=9.0, samp_rate=20.0, filt_order=4, length=3.0,</span>
+<span class="sd">    ...    prepick=0.15, swin=&#39;all&#39;, process_len=300, all_horiz=True)</span>
+<span class="sd">    &gt;&gt;&gt; templates[0].plot(equal_scale=False, size=(800,600)) # doctest: +SKIP</span>
+
+<span class="sd">    .. figure:: ../../plots/template_gen.from_client.png</span>
+
+<span class="sd">    .. rubric:: Example</span>
+
+<span class="sd">    &gt;&gt;&gt; from obspy import read</span>
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.core.template_gen import template_gen</span>
+<span class="sd">    &gt;&gt;&gt; st = read(&#39;eqcorrscan/tests/test_data/WAV/TEST_/&#39; +</span>
+<span class="sd">    ...           &#39;2013-09-01-0410-35.DFDPC_024_00&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; quakeml = &#39;eqcorrscan/tests/test_data/20130901T041115.xml&#39;</span>
+<span class="sd">    &gt;&gt;&gt; templates = template_gen(</span>
+<span class="sd">    ...    method=&#39;from_meta_file&#39;, meta_file=quakeml, st=st, lowcut=2.0,</span>
+<span class="sd">    ...    highcut=9.0, samp_rate=20.0, filt_order=3, length=2, prepick=0.1,</span>
+<span class="sd">    ...    swin=&#39;S&#39;, all_horiz=True)</span>
+<span class="sd">    &gt;&gt;&gt; print(len(templates[0]))</span>
+<span class="sd">    10</span>
+<span class="sd">    &gt;&gt;&gt; templates = template_gen(</span>
+<span class="sd">    ...    method=&#39;from_meta_file&#39;, meta_file=quakeml, st=st, lowcut=2.0,</span>
+<span class="sd">    ...    highcut=9.0, samp_rate=20.0, filt_order=3, length=2, prepick=0.1,</span>
+<span class="sd">    ...    swin=&#39;S_all&#39;, all_horiz=True)</span>
+<span class="sd">    &gt;&gt;&gt; print(len(templates[0]))</span>
+<span class="sd">    15</span>
+
+<span class="sd">    .. rubric:: Example</span>
+
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.core.template_gen import template_gen</span>
+<span class="sd">    &gt;&gt;&gt; import glob</span>
+<span class="sd">    &gt;&gt;&gt; # Get all the SAC-files associated with one event.</span>
+<span class="sd">    &gt;&gt;&gt; sac_files = glob.glob(&#39;eqcorrscan/tests/test_data/SAC/2014p611252/*&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; templates = template_gen(</span>
+<span class="sd">    ...    method=&#39;from_sac&#39;, sac_files=sac_files, lowcut=2.0, highcut=10.0,</span>
+<span class="sd">    ...    samp_rate=25.0, filt_order=4, length=2.0, swin=&#39;all&#39;, prepick=0.1,</span>
+<span class="sd">    ...    all_horiz=True)</span>
+<span class="sd">    &gt;&gt;&gt; print(templates[0][0].stats.sampling_rate)</span>
+<span class="sd">    25.0</span>
+<span class="sd">    &gt;&gt;&gt; print(len(templates[0]))</span>
+<span class="sd">    15</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">client_map</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;from_client&#39;</span><span class="p">:</span> <span class="s1">&#39;fdsn&#39;</span><span class="p">,</span> <span class="s1">&#39;from_seishub&#39;</span><span class="p">:</span> <span class="s1">&#39;seishub&#39;</span><span class="p">}</span>
+    <span class="k">assert</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;from_client&#39;</span><span class="p">,</span> <span class="s1">&#39;from_seishub&#39;</span><span class="p">,</span> <span class="s1">&#39;from_meta_file&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;from_sac&#39;</span><span class="p">)</span>
+    <span class="n">process</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;from_client&#39;</span><span class="p">,</span> <span class="s1">&#39;from_seishub&#39;</span><span class="p">]:</span>
+        <span class="n">catalog</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;catalog&#39;</span><span class="p">,</span> <span class="n">Catalog</span><span class="p">())</span>
+        <span class="n">data_pad</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;data_pad&#39;</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>
+        <span class="c1"># Group catalog into days and only download the data once per day</span>
+        <span class="n">sub_catalogs</span> <span class="o">=</span> <span class="n">_group_events</span><span class="p">(</span>
+            <span class="n">catalog</span><span class="o">=</span><span class="n">catalog</span><span class="p">,</span> <span class="n">process_len</span><span class="o">=</span><span class="n">process_len</span><span class="p">,</span> <span class="n">data_pad</span><span class="o">=</span><span class="n">data_pad</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;from_client&#39;</span><span class="p">:</span>
+            <span class="n">client</span> <span class="o">=</span> <span class="n">FDSNClient</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;client_id&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+            <span class="n">available_stations</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">client</span> <span class="o">=</span> <span class="n">SeisHubClient</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;url&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+            <span class="n">available_stations</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">waveform</span><span class="o">.</span><span class="n">get_station_ids</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;from_meta_file&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;meta_file&#39;</span><span class="p">),</span> <span class="n">Catalog</span><span class="p">):</span>
+            <span class="n">catalog</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;meta_file&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">catalog</span> <span class="o">=</span> <span class="n">read_events</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;meta_file&#39;</span><span class="p">))</span>
+        <span class="n">sub_catalogs</span> <span class="o">=</span> <span class="p">[</span><span class="n">catalog</span><span class="p">]</span>
+        <span class="n">st</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;st&#39;</span><span class="p">,</span> <span class="n">Stream</span><span class="p">())</span>
+        <span class="n">process</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;process&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;from_sac&#39;</span><span class="p">:</span>
+        <span class="n">sac_files</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sac_files&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sac_files</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sac_files</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span><span class="n">Stream</span><span class="p">,</span> <span class="n">Trace</span><span class="p">)):</span>
+                <span class="c1"># This is a list of streams...</span>
+                <span class="n">st</span> <span class="o">=</span> <span class="n">Stream</span><span class="p">(</span><span class="n">sac_files</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">for</span> <span class="n">sac_file</span> <span class="ow">in</span> <span class="n">sac_files</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                    <span class="n">st</span> <span class="o">+=</span> <span class="n">sac_file</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">sac_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">read</span><span class="p">(</span><span class="n">sac_file</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">sac_file</span> <span class="ow">in</span> <span class="n">sac_files</span><span class="p">]</span>
+                <span class="n">st</span> <span class="o">=</span> <span class="n">Stream</span><span class="p">(</span><span class="n">sac_files</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">st</span> <span class="o">=</span> <span class="n">sac_files</span>
+        <span class="c1"># Make an event object...</span>
+        <span class="n">catalog</span> <span class="o">=</span> <span class="n">Catalog</span><span class="p">([</span><span class="n">sactoevent</span><span class="p">(</span><span class="n">st</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">)])</span>
+        <span class="n">sub_catalogs</span> <span class="o">=</span> <span class="p">[</span><span class="n">catalog</span><span class="p">]</span>
+
+    <span class="n">temp_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">process_lengths</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">sub_catalog</span> <span class="ow">in</span> <span class="n">sub_catalogs</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;from_seishub&#39;</span><span class="p">,</span> <span class="s1">&#39;from_client&#39;</span><span class="p">]:</span>
+            <span class="n">st</span> <span class="o">=</span> <span class="n">_download_from_client</span><span class="p">(</span>
+                <span class="n">client</span><span class="o">=</span><span class="n">client</span><span class="p">,</span> <span class="n">client_type</span><span class="o">=</span><span class="n">client_map</span><span class="p">[</span><span class="n">method</span><span class="p">],</span>
+                <span class="n">catalog</span><span class="o">=</span><span class="n">sub_catalog</span><span class="p">,</span> <span class="n">data_pad</span><span class="o">=</span><span class="n">data_pad</span><span class="p">,</span>
+                <span class="n">process_len</span><span class="o">=</span><span class="n">process_len</span><span class="p">,</span> <span class="n">available_stations</span><span class="o">=</span><span class="n">available_stations</span><span class="p">,</span>
+                <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">)</span>
+        <span class="n">debug_print</span><span class="p">(</span><span class="s1">&#39;Pre-processing data&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+        <span class="n">st</span><span class="o">.</span><span class="n">merge</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">process</span><span class="p">:</span>
+            <span class="n">data_len</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">/</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span>
+                            <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">])</span>
+            <span class="k">if</span> <span class="mi">80000</span> <span class="o">&lt;</span> <span class="n">data_len</span> <span class="o">&lt;</span> <span class="mi">90000</span><span class="p">:</span>
+                <span class="n">daylong</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">daylong</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="n">daylong</span><span class="p">:</span>
+                <span class="n">starttime</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">])</span>
+                <span class="c1"># Cope with the common starttime less than 1s before the</span>
+                <span class="c1">#  start of day.</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">starttime</span> <span class="o">+</span> <span class="mi">10</span><span class="p">)</span><span class="o">.</span><span class="n">date</span> <span class="o">&gt;</span> <span class="n">starttime</span><span class="o">.</span><span class="n">date</span><span class="p">:</span>
+                    <span class="n">starttime</span> <span class="o">=</span> <span class="p">(</span><span class="n">starttime</span> <span class="o">+</span> <span class="mi">10</span><span class="p">)</span><span class="o">.</span><span class="n">date</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">starttime</span> <span class="o">=</span> <span class="n">starttime</span><span class="o">.</span><span class="n">date</span>
+                <span class="n">st</span> <span class="o">=</span> <span class="n">pre_processing</span><span class="o">.</span><span class="n">dayproc</span><span class="p">(</span>
+                    <span class="n">st</span><span class="o">=</span><span class="n">st</span><span class="p">,</span> <span class="n">lowcut</span><span class="o">=</span><span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="n">highcut</span><span class="p">,</span>
+                    <span class="n">filt_order</span><span class="o">=</span><span class="n">filt_order</span><span class="p">,</span> <span class="n">samp_rate</span><span class="o">=</span><span class="n">samp_rate</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span>
+                    <span class="n">parallel</span><span class="o">=</span><span class="n">parallel</span><span class="p">,</span> <span class="n">starttime</span><span class="o">=</span><span class="n">UTCDateTime</span><span class="p">(</span><span class="n">starttime</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">st</span> <span class="o">=</span> <span class="n">pre_processing</span><span class="o">.</span><span class="n">shortproc</span><span class="p">(</span>
+                    <span class="n">st</span><span class="o">=</span><span class="n">st</span><span class="p">,</span> <span class="n">lowcut</span><span class="o">=</span><span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="n">highcut</span><span class="p">,</span>
+                    <span class="n">filt_order</span><span class="o">=</span><span class="n">filt_order</span><span class="p">,</span> <span class="n">parallel</span><span class="o">=</span><span class="n">parallel</span><span class="p">,</span>
+                    <span class="n">samp_rate</span><span class="o">=</span><span class="n">samp_rate</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">)</span>
+        <span class="n">data_start</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">])</span>
+        <span class="n">data_end</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">endtime</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">])</span>
+
+        <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">sub_catalog</span><span class="p">:</span>
+            <span class="n">stations</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">st_stachans</span> <span class="o">=</span> <span class="p">([],</span> <span class="p">[],</span> <span class="p">[])</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">picks</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;No picks for event </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">event</span><span class="o">.</span><span class="n">resource_id</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">use_event</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="c1"># Check that the event is within the data</span>
+            <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">event</span><span class="o">.</span><span class="n">picks</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">data_start</span> <span class="o">&lt;</span> <span class="n">pick</span><span class="o">.</span><span class="n">time</span> <span class="o">&lt;</span> <span class="n">data_end</span><span class="p">:</span>
+                    <span class="n">debug_print</span><span class="p">(</span><span class="s2">&quot;Pick outside of data span:</span><span class="se">\n</span><span class="s2">Pick time </span><span class="si">%s</span><span class="se">\n</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;Start time </span><span class="si">%s</span><span class="se">\n</span><span class="s2">End time: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
+                                <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">pick</span><span class="o">.</span><span class="n">time</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">data_start</span><span class="p">),</span>
+                                 <span class="nb">str</span><span class="p">(</span><span class="n">data_end</span><span class="p">)),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+                    <span class="n">use_event</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">use_event</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Event is not within data time-span&#39;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="c1"># Read in pick info</span>
+            <span class="n">debug_print</span><span class="p">(</span><span class="s2">&quot;I have found the following picks&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">event</span><span class="o">.</span><span class="n">picks</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Pick not associated with waveforms, will not use.&#39;</span><span class="p">)</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="n">pick</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="n">debug_print</span><span class="p">(</span><span class="n">pick</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+                <span class="n">stations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="o">.</span><span class="n">station_code</span><span class="p">)</span>
+                <span class="n">channels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="o">.</span><span class="n">channel_code</span><span class="p">)</span>
+            <span class="c1"># Check to see if all picks have a corresponding waveform</span>
+            <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">:</span>
+                <span class="n">st_stachans</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span>
+                                             <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">]))</span>
+            <span class="c1"># Cut and extract the templates</span>
+            <span class="n">template</span> <span class="o">=</span> <span class="n">_template_gen</span><span class="p">(</span>
+                <span class="n">event</span><span class="o">.</span><span class="n">picks</span><span class="p">,</span> <span class="n">st</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">swin</span><span class="p">,</span> <span class="n">prepick</span><span class="o">=</span><span class="n">prepick</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="n">plot</span><span class="p">,</span>
+                <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span> <span class="n">all_horiz</span><span class="o">=</span><span class="n">all_horiz</span><span class="p">,</span> <span class="n">delayed</span><span class="o">=</span><span class="n">delayed</span><span class="p">,</span>
+                <span class="n">min_snr</span><span class="o">=</span><span class="n">min_snr</span><span class="p">)</span>
+            <span class="n">process_lengths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">st</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">/</span> <span class="n">samp_rate</span><span class="p">)</span>
+            <span class="n">temp_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">template</span><span class="p">)</span>
+        <span class="k">del</span> <span class="n">st</span>
+    <span class="k">if</span> <span class="n">return_event</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">temp_list</span><span class="p">,</span> <span class="n">catalog</span><span class="p">,</span> <span class="n">process_lengths</span></div>
+    <span class="k">return</span> <span class="n">temp_list</span>
+
+
+<div class="viewcode-block" id="extract_from_stack"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.core.template_gen.extract_from_stack.html#eqcorrscan.core.template_gen.extract_from_stack">[docs]</a><span class="k">def</span> <span class="nf">extract_from_stack</span><span class="p">(</span><span class="n">stack</span><span class="p">,</span> <span class="n">template</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">pre_pick</span><span class="p">,</span> <span class="n">pre_pad</span><span class="p">,</span>
+                       <span class="n">Z_include</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">pre_processed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">samp_rate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                       <span class="n">lowcut</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filt_order</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract a multiplexed template from a stack of detections.</span>
+
+<span class="sd">    Function to extract a new template from a stack of previous detections.</span>
+<span class="sd">    Requires the stack, the template used to make the detections for the \</span>
+<span class="sd">    stack, and we need to know if the stack has been pre-processed.</span>
+
+<span class="sd">    :type stack: obspy.core.stream.Stream</span>
+<span class="sd">    :param stack: Waveform stack from detections.  Can be of any length and \</span>
+<span class="sd">        can have delays already included, or not.</span>
+<span class="sd">    :type template: obspy.core.stream.Stream</span>
+<span class="sd">    :param template: Template used to make the detections in the stack. Will \</span>
+<span class="sd">        use the delays of this for the new template.</span>
+<span class="sd">    :type length: float</span>
+<span class="sd">    :param length: Length of new template in seconds</span>
+<span class="sd">    :type pre_pick: float</span>
+<span class="sd">    :param pre_pick: Extract additional data before the detection, seconds</span>
+<span class="sd">    :type pre_pad: float</span>
+<span class="sd">    :param pre_pad: Pad used in seconds when extracting the data, e.g. the \</span>
+<span class="sd">        time before the detection extracted.  If using \</span>
+<span class="sd">        clustering.extract_detections this half the length of the extracted \</span>
+<span class="sd">        waveform.</span>
+<span class="sd">    :type Z_include: bool</span>
+<span class="sd">    :param Z_include: If True will include any Z-channels even if there is \</span>
+<span class="sd">        no template for this channel, as long as there is a template for this \</span>
+<span class="sd">        station at a different channel.  If this is False and Z channels are \</span>
+<span class="sd">        included in the template Z channels will be included in the \</span>
+<span class="sd">        new_template anyway.</span>
+<span class="sd">    :type pre_processed: bool</span>
+<span class="sd">    :param pre_processed: Have the data been pre-processed, if True (default) \</span>
+<span class="sd">        then we will only cut the data here.</span>
+<span class="sd">    :type samp_rate: float</span>
+<span class="sd">    :param samp_rate: If pre_processed=False then this is required, desired \</span>
+<span class="sd">        sampling rate in Hz, defaults to False.</span>
+<span class="sd">    :type lowcut: float</span>
+<span class="sd">    :param lowcut: If pre_processed=False then this is required, lowcut in \</span>
+<span class="sd">        Hz, defaults to False.</span>
+<span class="sd">    :type highcut: float</span>
+<span class="sd">    :param highcut: If pre_processed=False then this is required, highcut in \</span>
+<span class="sd">        Hz, defaults to False</span>
+<span class="sd">    :type filt_order: int</span>
+<span class="sd">    :param filt_order: If pre_processed=False then this is required, filter \</span>
+<span class="sd">        order, defaults to False</span>
+
+<span class="sd">    :returns: Newly cut template.</span>
+<span class="sd">    :rtype: :class:`obspy.core.stream.Stream`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">new_template</span> <span class="o">=</span> <span class="n">stack</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="c1"># Copy the data before we trim it to keep the stack safe</span>
+    <span class="c1"># Get the earliest time in the template as this is when the detection is</span>
+    <span class="c1"># taken.</span>
+    <span class="n">mintime</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">template</span><span class="p">])</span>
+    <span class="c1"># Generate a list of tuples of (station, channel, delay) with delay in</span>
+    <span class="c1"># seconds</span>
+    <span class="n">delays</span> <span class="o">=</span> <span class="p">[(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+               <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">-</span> <span class="n">mintime</span><span class="p">)</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">template</span><span class="p">]</span>
+
+    <span class="c1">#  Process the data if necessary</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">pre_processed</span><span class="p">:</span>
+        <span class="n">new_template</span> <span class="o">=</span> <span class="n">pre_processing</span><span class="o">.</span><span class="n">shortproc</span><span class="p">(</span>
+            <span class="n">st</span><span class="o">=</span><span class="n">new_template</span><span class="p">,</span> <span class="n">lowcut</span><span class="o">=</span><span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="n">highcut</span><span class="p">,</span>
+            <span class="n">filt_order</span><span class="o">=</span><span class="n">filt_order</span><span class="p">,</span> <span class="n">samp_rate</span><span class="o">=</span><span class="n">samp_rate</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="c1"># Loop through the stack and trim!</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">Stream</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">new_template</span><span class="p">:</span>
+        <span class="c1"># Find the matching delay</span>
+        <span class="n">delay</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">delays</span> <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span> <span class="ow">and</span>
+                 <span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="n">Z_include</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">delay</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">delay</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">delays</span> <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">delay</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;No matching template channel found for stack&#39;</span><span class="p">,</span>
+                            <span class="s1">&#39;channel&#39;</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">])</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">new_template</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">delay</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">+=</span> <span class="n">tr</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">trim</span><span class="p">(</span>
+                    <span class="n">starttime</span><span class="o">=</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">+</span> <span class="n">d</span> <span class="o">+</span> <span class="n">pre_pad</span> <span class="o">-</span> <span class="n">pre_pick</span><span class="p">,</span>
+                    <span class="n">endtime</span><span class="o">=</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">+</span> <span class="n">d</span> <span class="o">+</span> <span class="n">pre_pad</span> <span class="o">+</span> <span class="n">length</span> <span class="o">-</span>
+                    <span class="n">pre_pick</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">def</span> <span class="nf">_download_from_client</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">client_type</span><span class="p">,</span> <span class="n">catalog</span><span class="p">,</span> <span class="n">data_pad</span><span class="p">,</span> <span class="n">process_len</span><span class="p">,</span>
+                          <span class="n">available_stations</span><span class="o">=</span><span class="p">[],</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Internal function to handle downloading from either seishub or fdsn client</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">st</span> <span class="o">=</span> <span class="n">Stream</span><span class="p">()</span>
+    <span class="n">catalog</span> <span class="o">=</span> <span class="n">Catalog</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">origins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span><span class="p">))</span>
+    <span class="n">all_waveform_info</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">catalog</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">event</span><span class="o">.</span><span class="n">picks</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Pick not associated with waveforms, will not use.&#39;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">pick</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">all_waveform_info</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="p">)</span>
+    <span class="n">starttime</span> <span class="o">=</span> <span class="n">UTCDateTime</span><span class="p">(</span>
+        <span class="n">catalog</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">origins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">-</span> <span class="n">data_pad</span><span class="p">)</span>
+    <span class="n">endtime</span> <span class="o">=</span> <span class="n">starttime</span> <span class="o">+</span> <span class="n">process_len</span>
+    <span class="c1"># Check that endtime is after the last event</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">endtime</span> <span class="o">&gt;</span> <span class="n">catalog</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">origins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">+</span> <span class="n">data_pad</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">TemplateGenError</span><span class="p">(</span>
+            <span class="s1">&#39;Events do not fit in processing window&#39;</span><span class="p">)</span>
+    <span class="n">all_waveform_info</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span>
+        <span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">network_code</span><span class="p">,</span> <span class="n">w</span><span class="o">.</span><span class="n">station_code</span><span class="p">,</span> <span class="n">w</span><span class="o">.</span><span class="n">channel_code</span><span class="p">,</span> <span class="n">w</span><span class="o">.</span><span class="n">location_code</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">all_waveform_info</span><span class="p">]))</span>
+    <span class="n">all_waveform_info</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+    <span class="n">dropped_pick_stations</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">waveform_info</span> <span class="ow">in</span> <span class="n">all_waveform_info</span><span class="p">:</span>
+        <span class="n">net</span><span class="p">,</span> <span class="n">sta</span><span class="p">,</span> <span class="n">chan</span><span class="p">,</span> <span class="n">loc</span> <span class="o">=</span> <span class="n">waveform_info</span>
+        <span class="k">if</span> <span class="n">client_type</span> <span class="o">==</span> <span class="s1">&#39;seishub&#39;</span> <span class="ow">and</span> <span class="n">sta</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">available_stations</span><span class="p">:</span>
+            <span class="n">debug_print</span><span class="p">(</span><span class="s2">&quot;Station not found in SeisHub DB&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+            <span class="n">dropped_pick_stations</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">continue</span>
+        <span class="n">debug_print</span><span class="p">(</span><span class="s1">&#39;Downloading for </span><span class="se">\n\t</span><span class="s1">start-time: </span><span class="si">%s</span><span class="se">\n\t</span><span class="s1">end-time: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                    <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">starttime</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">endtime</span><span class="p">)),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+        <span class="n">debug_print</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">net</span><span class="p">,</span> <span class="n">sta</span><span class="p">,</span> <span class="n">loc</span><span class="p">,</span> <span class="n">chan</span><span class="p">]),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">st</span> <span class="o">+=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_waveforms</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">sta</span><span class="p">,</span> <span class="n">loc</span><span class="p">,</span> <span class="n">chan</span><span class="p">,</span>
+                                       <span class="n">starttime</span><span class="p">,</span> <span class="n">endtime</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Found no data for this station&#39;</span><span class="p">)</span>
+            <span class="n">dropped_pick_stations</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">st</span> <span class="ow">and</span> <span class="n">dropped_pick_stations</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">picks</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;No data available, is the server down?&#39;</span><span class="p">)</span>
+    <span class="n">st</span><span class="o">.</span><span class="n">merge</span><span class="p">()</span>
+    <span class="c1"># clients download chunks, we need to assert that the data are</span>
+    <span class="c1"># the desired length</span>
+    <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">:</span>
+        <span class="n">tr</span><span class="o">.</span><span class="n">trim</span><span class="p">(</span><span class="n">starttime</span><span class="p">,</span> <span class="n">endtime</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">process_len</span> <span class="o">*</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">tr</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="n">st</span>
+
+
+<span class="k">def</span> <span class="nf">_template_gen</span><span class="p">(</span><span class="n">picks</span><span class="p">,</span> <span class="n">st</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">swin</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span> <span class="n">prepick</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+                  <span class="n">all_horiz</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">delayed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">min_snr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                  <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Master function to generate a multiplexed template for a single event.</span>
+
+<span class="sd">    Function to generate a cut template as :class:`obspy.core.stream.Stream`</span>
+<span class="sd">    from a given set of picks and data.  Should be given pre-processed</span>
+<span class="sd">    data (downsampled and filtered).</span>
+
+<span class="sd">    :type picks: list</span>
+<span class="sd">    :param picks: Picks to extract data around, where each pick in the \</span>
+<span class="sd">        list is an obspy.core.event.origin.Pick object.</span>
+<span class="sd">    :type st: obspy.core.stream.Stream</span>
+<span class="sd">    :param st: Stream to extract templates from</span>
+<span class="sd">    :type length: float</span>
+<span class="sd">    :param length: Length of template in seconds</span>
+<span class="sd">    :type swin: str</span>
+<span class="sd">    :param swin:</span>
+<span class="sd">        P, S, P_all, S_all or all, defaults to all: see note in</span>
+<span class="sd">        :func:`eqcorrscan.core.template_gen.template_gen`</span>
+<span class="sd">    :type prepick: float</span>
+<span class="sd">    :param prepick: Length in seconds to extract before the pick time \</span>
+<span class="sd">            default is 0.05 seconds</span>
+<span class="sd">    :type all_horiz: bool</span>
+<span class="sd">    :param all_horiz: To use both horizontal channels even if there is only \</span>
+<span class="sd">        a pick on one of them.  Defaults to False.</span>
+<span class="sd">    :type delayed: bool</span>
+<span class="sd">    :param delayed: If True, each channel will begin relative to it&#39;s own \</span>
+<span class="sd">        pick-time, if set to False, each channel will begin at the same time.</span>
+<span class="sd">    :type plot: bool</span>
+<span class="sd">    :param plot: To plot the template or not, default is True</span>
+<span class="sd">    :type min_snr: float</span>
+<span class="sd">    :param min_snr:</span>
+<span class="sd">        Minimum signal-to-noise ratio for a channel to be included in the</span>
+<span class="sd">        template, where signal-to-noise ratio is calculated as the ratio of</span>
+<span class="sd">        the maximum amplitude in the template window to the rms amplitude in</span>
+<span class="sd">        the whole window given.</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: Debug output level from 0-5.</span>
+
+<span class="sd">    :returns: Newly cut template.</span>
+<span class="sd">    :rtype: :class:`obspy.core.stream.Stream`</span>
+
+<span class="sd">    .. note:: By convention templates are generated with P-phases on the \</span>
+<span class="sd">        vertical channel and S-phases on the horizontal channels, normal \</span>
+<span class="sd">        seismograph naming conventions are assumed, where Z denotes vertical \</span>
+<span class="sd">        and N, E, R, T, 1 and 2 denote horizontal channels, either oriented \</span>
+<span class="sd">        or not.  To this end we will **only** use Z channels if they have a \</span>
+<span class="sd">        P-pick, and will use one or other horizontal channels **only** if \</span>
+<span class="sd">        there is an S-pick on it.</span>
+
+<span class="sd">    .. note:: swin argument: Setting to `P` will return only data for channels</span>
+<span class="sd">        with P picks, starting at the pick time (minus the prepick).</span>
+<span class="sd">        Setting to `S` will return only data for channels with</span>
+<span class="sd">        S picks, starting at the S-pick time (minus the prepick)</span>
+<span class="sd">        (except if `all_horiz=True` when all horizontal channels will</span>
+<span class="sd">        be returned if there is an S pick on one of them). Setting to `all`</span>
+<span class="sd">        will return channels with either a P or S pick (including both</span>
+<span class="sd">        horizontals if `all_horiz=True`) - with this option vertical channels</span>
+<span class="sd">        will start at the P-pick (minus the prepick) and horizontal channels</span>
+<span class="sd">        will start at the S-pick time (minus the prepick).</span>
+<span class="sd">        `P_all` will return cut traces starting at the P-pick time for all</span>
+<span class="sd">        channels. `S_all` will return cut traces starting at the S-pick</span>
+<span class="sd">        time for all channels.</span>
+
+<span class="sd">    .. warning:: If there is no phase_hint included in picks, and swin=all, \</span>
+<span class="sd">        all channels with picks will be used.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">eqcorrscan.utils.debug_log</span> <span class="k">import</span> <span class="n">debug_print</span>
+    <span class="kn">from</span> <span class="nn">eqcorrscan.utils.plotting</span> <span class="k">import</span> <span class="n">pretty_template_plot</span> <span class="k">as</span> <span class="n">tplot</span>
+    <span class="kn">from</span> <span class="nn">eqcorrscan.core.bright_lights</span> <span class="k">import</span> <span class="n">_rms</span>
+    <span class="n">picks_copy</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">picks</span><span class="p">)</span>  <span class="c1"># Work on a copy of the picks and leave</span>
+    <span class="c1"># the users picks intact.</span>
+    <span class="k">assert</span> <span class="n">swin</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;P&#39;</span><span class="p">,</span> <span class="s1">&#39;all&#39;</span><span class="p">,</span> <span class="s1">&#39;S&#39;</span><span class="p">,</span> <span class="s1">&#39;P_all&#39;</span><span class="p">,</span> <span class="s1">&#39;S_all&#39;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">picks_copy</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Pick not associated with waveform, will not use it.&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">pick</span><span class="p">)</span>
+            <span class="n">picks_copy</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">pick</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="o">.</span><span class="n">station_code</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Pick not associated with a station, will not use it.&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">pick</span><span class="p">)</span>
+            <span class="n">picks_copy</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">pick</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="o">.</span><span class="n">channel_code</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Pick not associated with a station, will not use it.&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">pick</span><span class="p">)</span>
+            <span class="n">picks_copy</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">pick</span><span class="p">)</span>
+            <span class="k">continue</span>
+    <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">:</span>
+        <span class="c1"># Check that the data can be represented by float16, and check they</span>
+        <span class="c1"># are not all zeros</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Trace is all zeros at float16 level,&#39;</span>
+                          <span class="s1">&#39;either gain or check. Not using in template.&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+            <span class="n">st</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">plot</span><span class="p">:</span>
+        <span class="n">stplot</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="c1"># Get the earliest pick-time and use that if we are not using delayed.</span>
+    <span class="n">picks_copy</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">time</span><span class="p">)</span>
+    <span class="n">first_pick</span> <span class="o">=</span> <span class="n">picks_copy</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># Work out starttimes</span>
+    <span class="n">starttimes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">:</span>
+        <span class="n">starttime</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;station&#39;</span><span class="p">:</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="s1">&#39;channel&#39;</span><span class="p">:</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span>
+                     <span class="s1">&#39;picks&#39;</span><span class="p">:</span> <span class="p">[]}</span>
+        <span class="n">station_picks</span> <span class="o">=</span> <span class="p">[</span><span class="n">pick</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">picks_copy</span>
+                         <span class="k">if</span> <span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="o">.</span><span class="n">station_code</span> <span class="o">==</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">swin</span> <span class="o">==</span> <span class="s1">&#39;P_all&#39;</span><span class="p">:</span>
+            <span class="n">p_pick</span> <span class="o">=</span> <span class="p">[</span><span class="n">pick</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">station_picks</span>
+                      <span class="k">if</span> <span class="n">pick</span><span class="o">.</span><span class="n">phase_hint</span><span class="o">.</span><span class="n">upper</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;P&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">p_pick</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">starttime</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;picks&#39;</span><span class="p">:</span> <span class="n">p_pick</span><span class="p">})</span>
+        <span class="k">if</span> <span class="n">swin</span> <span class="o">==</span> <span class="s1">&#39;S_all&#39;</span><span class="p">:</span>
+            <span class="n">s_pick</span> <span class="o">=</span> <span class="p">[</span><span class="n">pick</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">station_picks</span>
+                      <span class="k">if</span> <span class="n">pick</span><span class="o">.</span><span class="n">phase_hint</span><span class="o">.</span><span class="n">upper</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;S&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s_pick</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">starttime</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;picks&#39;</span><span class="p">:</span> <span class="n">s_pick</span><span class="p">})</span>
+        <span class="k">if</span> <span class="n">swin</span> <span class="o">==</span> <span class="s1">&#39;all&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">all_horiz</span> <span class="ow">and</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">,</span> <span class="s1">&#39;3&#39;</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">,</span> <span class="s1">&#39;E&#39;</span><span class="p">]:</span>
+                <span class="c1"># Get all picks on horizontal channels</span>
+                <span class="n">channel_pick</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">pick</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">station_picks</span>
+                    <span class="k">if</span> <span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="o">.</span><span class="n">channel_code</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span>
+                    <span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">,</span> <span class="s1">&#39;3&#39;</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">,</span> <span class="s1">&#39;E&#39;</span><span class="p">]]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">channel_pick</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">pick</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">station_picks</span>
+                    <span class="k">if</span> <span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="o">.</span><span class="n">channel_code</span> <span class="o">==</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">channel_pick</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">starttime</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;picks&#39;</span><span class="p">:</span> <span class="n">channel_pick</span><span class="p">})</span>
+        <span class="k">if</span> <span class="n">swin</span> <span class="o">==</span> <span class="s1">&#39;P&#39;</span><span class="p">:</span>
+            <span class="n">p_pick</span> <span class="o">=</span> <span class="p">[</span><span class="n">pick</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">station_picks</span>
+                      <span class="k">if</span> <span class="n">pick</span><span class="o">.</span><span class="n">phase_hint</span><span class="o">.</span><span class="n">upper</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;P&#39;</span> <span class="ow">and</span>
+                      <span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="o">.</span><span class="n">channel_code</span> <span class="o">==</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">p_pick</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">starttime</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;picks&#39;</span><span class="p">:</span> <span class="n">p_pick</span><span class="p">})</span>
+        <span class="k">if</span> <span class="n">swin</span> <span class="o">==</span> <span class="s1">&#39;S&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Z&#39;</span><span class="p">,</span> <span class="s1">&#39;U&#39;</span><span class="p">]:</span>
+                <span class="k">continue</span>
+            <span class="n">s_pick</span> <span class="o">=</span> <span class="p">[</span><span class="n">pick</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">station_picks</span>
+                      <span class="k">if</span> <span class="n">pick</span><span class="o">.</span><span class="n">phase_hint</span><span class="o">.</span><span class="n">upper</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;S&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">all_horiz</span><span class="p">:</span>
+                <span class="n">s_pick</span> <span class="o">=</span> <span class="p">[</span><span class="n">pick</span> <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">s_pick</span>
+                          <span class="k">if</span> <span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="o">.</span><span class="n">channel_code</span> <span class="o">==</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">]</span>
+            <span class="n">starttime</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;picks&#39;</span><span class="p">:</span> <span class="n">s_pick</span><span class="p">})</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">starttime</span><span class="p">[</span><span class="s1">&#39;picks&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">delayed</span><span class="p">:</span>
+            <span class="n">starttime</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;picks&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">first_pick</span><span class="p">]})</span>
+        <span class="n">starttimes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">starttime</span><span class="p">)</span>
+    <span class="c1"># Cut the data</span>
+    <span class="n">st1</span> <span class="o">=</span> <span class="n">Stream</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">_starttime</span> <span class="ow">in</span> <span class="n">starttimes</span><span class="p">:</span>
+        <span class="n">debug_print</span><span class="p">(</span><span class="s2">&quot;Working on channel </span><span class="si">%s</span><span class="s2">.</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
+                    <span class="p">(</span><span class="n">_starttime</span><span class="p">[</span><span class="s1">&#39;station&#39;</span><span class="p">],</span> <span class="n">_starttime</span><span class="p">[</span><span class="s1">&#39;channel&#39;</span><span class="p">]),</span>
+                    <span class="n">debug_level</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">print_level</span><span class="o">=</span><span class="n">debug</span><span class="p">)</span>
+        <span class="n">tr</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+            <span class="n">station</span><span class="o">=</span><span class="n">_starttime</span><span class="p">[</span><span class="s1">&#39;station&#39;</span><span class="p">],</span> <span class="n">channel</span><span class="o">=</span><span class="n">_starttime</span><span class="p">[</span><span class="s1">&#39;channel&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">debug_print</span><span class="p">(</span><span class="s2">&quot;Found Trace </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">tr</span><span class="o">.</span><span class="fm">__str__</span><span class="p">(),</span> <span class="n">debug_level</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                    <span class="n">print_level</span><span class="o">=</span><span class="n">debug</span><span class="p">)</span>
+        <span class="n">noise_amp</span> <span class="o">=</span> <span class="n">_rms</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">used_tr</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">_starttime</span><span class="p">[</span><span class="s1">&#39;picks&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">pick</span><span class="o">.</span><span class="n">phase_hint</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Pick for &#39;</span> <span class="o">+</span> <span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="o">.</span><span class="n">station_code</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span>
+                       <span class="n">pick</span><span class="o">.</span><span class="n">waveform_id</span><span class="o">.</span><span class="n">channel_code</span> <span class="o">+</span> <span class="s1">&#39; has no phase &#39;</span> <span class="o">+</span>
+                       <span class="s1">&#39;hint given, you should not use this template for &#39;</span> <span class="o">+</span>
+                       <span class="s1">&#39;cross-correlation re-picking!&#39;</span><span class="p">)</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">starttime</span> <span class="o">=</span> <span class="n">pick</span><span class="o">.</span><span class="n">time</span> <span class="o">-</span> <span class="n">prepick</span>
+            <span class="n">debug_print</span><span class="p">(</span>
+                <span class="s2">&quot;Cutting &quot;</span> <span class="o">+</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="n">debug</span><span class="p">)</span>
+            <span class="n">tr_cut</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">slice</span><span class="p">(</span>
+                <span class="n">starttime</span><span class="o">=</span><span class="n">starttime</span><span class="p">,</span> <span class="n">endtime</span><span class="o">=</span><span class="n">starttime</span> <span class="o">+</span> <span class="n">length</span><span class="p">,</span>
+                <span class="n">nearest_sample</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr_cut</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No data provided for </span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1"> starting at </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                      <span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">starttime</span><span class="p">)))</span>
+                <span class="k">continue</span>
+            <span class="c1"># Ensure that the template is the correct length</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr_cut</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">tr_cut</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span> <span class="o">*</span>
+                                    <span class="n">length</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">tr_cut</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">tr_cut</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">debug_print</span><span class="p">(</span>
+                <span class="s1">&#39;Cut starttime = </span><span class="si">%s</span><span class="se">\n</span><span class="s1">Cut endtime </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">tr_cut</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">tr_cut</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">endtime</span><span class="p">)),</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="n">debug</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">min_snr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> \
+               <span class="nb">max</span><span class="p">(</span><span class="n">tr_cut</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">/</span> <span class="n">noise_amp</span> <span class="o">&lt;</span> <span class="n">min_snr</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Signal-to-noise ratio below threshold for </span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                      <span class="p">(</span><span class="n">tr_cut</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">tr_cut</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">))</span>
+                <span class="k">continue</span>
+            <span class="n">st1</span> <span class="o">+=</span> <span class="n">tr_cut</span>
+            <span class="n">used_tr</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">used_tr</span><span class="p">:</span>
+            <span class="n">debug_print</span><span class="p">(</span><span class="s1">&#39;No pick for &#39;</span> <span class="o">+</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span>
+                        <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">plot</span><span class="p">:</span>
+        <span class="n">background</span> <span class="o">=</span> <span class="n">stplot</span><span class="o">.</span><span class="n">trim</span><span class="p">(</span>
+            <span class="n">st1</span><span class="o">.</span><span class="n">sort</span><span class="p">([</span><span class="s1">&#39;starttime&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">-</span> <span class="mi">10</span><span class="p">,</span>
+            <span class="n">st1</span><span class="o">.</span><span class="n">sort</span><span class="p">([</span><span class="s1">&#39;starttime&#39;</span><span class="p">])[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">endtime</span> <span class="o">+</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">tplot</span><span class="p">(</span><span class="n">st1</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="n">background</span><span class="p">,</span> <span class="n">picks</span><span class="o">=</span><span class="n">picks_copy</span><span class="p">,</span>
+              <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Template for &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">st1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span><span class="p">))</span>
+        <span class="k">del</span> <span class="n">stplot</span>
+    <span class="k">return</span> <span class="n">st1</span>
+
+
+<span class="k">def</span> <span class="nf">_group_events</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="n">process_len</span><span class="p">,</span> <span class="n">data_pad</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Internal function to group events into sub-catalogs based on process_len.</span>
+
+<span class="sd">    :param catalog: Catalog to groups into sub-catalogs</span>
+<span class="sd">    :type catalog: obspy.core.event.Catalog</span>
+<span class="sd">    :param process_len: Length in seconds that data will be processed in</span>
+<span class="sd">    :type process_len: int</span>
+<span class="sd">    :param data_pad: Length of data (in seconds) required before and after \</span>
+<span class="sd">        any event for processing, use to reduce edge-effects of filtering on \</span>
+<span class="sd">        the templates.</span>
+<span class="sd">    :type data_pad: int</span>
+
+<span class="sd">    :return: List of catalogs</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># case for catalog only containing one event</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">catalog</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">catalog</span><span class="p">]</span>
+    <span class="n">sub_catalogs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Sort catalog by date</span>
+    <span class="n">catalog</span> <span class="o">=</span> <span class="n">Catalog</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">origins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span><span class="p">))</span>
+    <span class="n">sub_catalog</span> <span class="o">=</span> <span class="n">Catalog</span><span class="p">([</span><span class="n">catalog</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+    <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">catalog</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">origins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">+</span> <span class="n">data_pad</span><span class="p">)</span> <span class="o">-</span> \
+                <span class="p">(</span><span class="n">sub_catalog</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">origins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">time</span> <span class="o">-</span> <span class="n">data_pad</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">process_len</span><span class="p">:</span>
+            <span class="n">sub_catalog</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sub_catalogs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sub_catalog</span><span class="p">)</span>
+            <span class="n">sub_catalog</span> <span class="o">=</span> <span class="n">Catalog</span><span class="p">([</span><span class="n">event</span><span class="p">])</span>
+    <span class="n">sub_catalogs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sub_catalog</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sub_catalogs</span>
+
+
+<span class="c1"># TODO: Remove these depreciated functions</span>
+<div class="viewcode-block" id="multi_template_gen"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.core.template_gen.multi_template_gen.html#eqcorrscan.core.template_gen.multi_template_gen">[docs]</a><span class="k">def</span> <span class="nf">multi_template_gen</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="n">st</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">swin</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span> <span class="n">prepick</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+                       <span class="n">all_horiz</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">delayed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                       <span class="n">return_event</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">min_snr</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate multiple templates from one stream of data.</span>
+
+<span class="sd">    Thin wrapper around _template_gen to generate multiple templates from</span>
+<span class="sd">    one stream of continuous data.  Takes processed (filtered and resampled)</span>
+<span class="sd">    seismic data!</span>
+
+<span class="sd">    :type catalog: obspy.core.event.Catalog</span>
+<span class="sd">    :param catalog: Events to extract templates for</span>
+<span class="sd">    :type st: obspy.core.stream.Stream</span>
+<span class="sd">    :param st:</span>
+<span class="sd">        Processed stream to extract from, e.g. filtered and re-sampled to what</span>
+<span class="sd">        you want using pre_processing.dayproc.</span>
+<span class="sd">    :type length: float</span>
+<span class="sd">    :param length: Length of template in seconds</span>
+<span class="sd">    :type swin: string</span>
+<span class="sd">    :param swin:</span>
+<span class="sd">        P, S, P_all, S_all or all, defaults to all: see note in</span>
+<span class="sd">        :func:`eqcorrscan.core.template_gen.template_gen`</span>
+<span class="sd">    :type prepick: float</span>
+<span class="sd">    :param prepick:</span>
+<span class="sd">        Length in seconds to extract before the pick time default is</span>
+<span class="sd">        0.05 seconds.</span>
+<span class="sd">    :type all_horiz: bool</span>
+<span class="sd">    :param all_horiz:</span>
+<span class="sd">        To use both horizontal channels even if there is only a pick on one of</span>
+<span class="sd">        them.  Defaults to False.</span>
+<span class="sd">    :type delayed: bool</span>
+<span class="sd">    :param delayed:</span>
+<span class="sd">        If True, each channel will begin relative to it&#39;s own pick-time, if set</span>
+<span class="sd">         to False, each channel will begin at the same time.</span>
+<span class="sd">    :type plot: bool</span>
+<span class="sd">    :param plot: To plot the template or not, default is True</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: Debug output level from 0-5.</span>
+<span class="sd">    :type return_event: bool</span>
+<span class="sd">    :param return_event: Whether to return the event and process length or not.</span>
+<span class="sd">    :type min_snr: float</span>
+<span class="sd">    :param min_snr:</span>
+<span class="sd">        Minimum signal-to-noise ratio for a channel to be included in the</span>
+<span class="sd">        template, where signal-to-noise ratio is calculated as the ratio of</span>
+<span class="sd">        the maximum amplitude in the template window to the rms amplitude in</span>
+<span class="sd">        the whole window given.</span>
+
+<span class="sd">    :returns: List of :class:`obspy.core.stream.Stream` templates.</span>
+<span class="sd">    :rtype: list</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Data must be processed before using this function - highcut, lowcut and</span>
+<span class="sd">        filt_order are only used to generate the meta-data for the templates.</span>
+
+<span class="sd">    .. note:: By convention templates are generated with P-phases on the \</span>
+<span class="sd">        vertical channel and S-phases on the horizontal channels, normal \</span>
+<span class="sd">        seismograph naming conventions are assumed, where Z denotes vertical \</span>
+<span class="sd">        and N, E, R, T, 1 and 2 denote horizontal channels, either oriented \</span>
+<span class="sd">        or not.  To this end we will **only** use Z channels if they have a \</span>
+<span class="sd">        P-pick, and will use one or other horizontal channels **only** if \</span>
+<span class="sd">        there is an S-pick on it.</span>
+
+<span class="sd">    .. warning:: If there is no phase_hint included in picks, and swin=all, \</span>
+<span class="sd">        all channels with picks will be used.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">EQcorrscanDeprecationWarning</span><span class="p">(</span>
+        <span class="s2">&quot;Function is depreciated and will be removed soon. Use &quot;</span>
+        <span class="s2">&quot;template_gen.template_gen instead.&quot;</span><span class="p">)</span>
+    <span class="n">temp_list</span> <span class="o">=</span> <span class="n">template_gen</span><span class="p">(</span>
+        <span class="n">method</span><span class="o">=</span><span class="s2">&quot;from_meta_file&quot;</span><span class="p">,</span> <span class="n">process</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">meta_file</span><span class="o">=</span><span class="n">catalog</span><span class="p">,</span> <span class="n">st</span><span class="o">=</span><span class="n">st</span><span class="p">,</span>
+        <span class="n">lowcut</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">samp_rate</span><span class="o">=</span><span class="n">st</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">,</span>
+        <span class="n">filt_order</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="n">length</span><span class="p">,</span> <span class="n">prepick</span><span class="o">=</span><span class="n">prepick</span><span class="p">,</span>
+        <span class="n">swin</span><span class="o">=</span><span class="n">swin</span><span class="p">,</span> <span class="n">all_horiz</span><span class="o">=</span><span class="n">all_horiz</span><span class="p">,</span> <span class="n">delayed</span><span class="o">=</span><span class="n">delayed</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="n">plot</span><span class="p">,</span>
+        <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span> <span class="n">return_event</span><span class="o">=</span><span class="n">return_event</span><span class="p">,</span> <span class="n">min_snr</span><span class="o">=</span><span class="n">min_snr</span><span class="p">,</span>
+        <span class="n">parallel</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">temp_list</span>
+
+
+<div class="viewcode-block" id="from_client"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.core.template_gen.from_client.html#eqcorrscan.core.template_gen.from_client">[docs]</a><span class="k">def</span> <span class="nf">from_client</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="n">client_id</span><span class="p">,</span> <span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="p">,</span> <span class="n">samp_rate</span><span class="p">,</span> <span class="n">filt_order</span><span class="p">,</span>
+                <span class="n">length</span><span class="p">,</span> <span class="n">prepick</span><span class="p">,</span> <span class="n">swin</span><span class="p">,</span> <span class="n">process_len</span><span class="o">=</span><span class="mi">86400</span><span class="p">,</span> <span class="n">data_pad</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span>
+                <span class="n">all_horiz</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">delayed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">return_event</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">min_snr</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate multiplexed template from FDSN client.</span>
+
+<span class="sd">    Function to generate templates from an FDSN client. Must be given \</span>
+<span class="sd">    an obspy.Catalog class and the client_id as input. The function returns \</span>
+<span class="sd">    a list of obspy.Stream classes containing steams for each desired \</span>
+<span class="sd">    template.</span>
+
+<span class="sd">    :type catalog: obspy.core.event.Catalog</span>
+<span class="sd">    :param catalog: Catalog class containing desired template events</span>
+<span class="sd">    :type client_id: str</span>
+<span class="sd">    :param client_id: Name of the client, either url, or Obspy \</span>
+<span class="sd">        mappable (see the :mod:`obspy.clients.fdsn` documentation).</span>
+<span class="sd">    :type lowcut: float</span>
+<span class="sd">    :param lowcut: Low cut (Hz), if set to None will not apply a lowcut.</span>
+<span class="sd">    :type highcut: float</span>
+<span class="sd">    :param highcut: High cut (Hz), if set to None will not apply a highcut.</span>
+<span class="sd">    :type samp_rate: float</span>
+<span class="sd">    :param samp_rate: New sampling rate in Hz.</span>
+<span class="sd">    :type filt_order: int</span>
+<span class="sd">    :param filt_order: Filter level (number of corners).</span>
+<span class="sd">    :type length: float</span>
+<span class="sd">    :param length: Extract length in seconds.</span>
+<span class="sd">    :type prepick: float</span>
+<span class="sd">    :param prepick: Pre-pick time in seconds</span>
+<span class="sd">    :type swin: str</span>
+<span class="sd">    :param swin:</span>
+<span class="sd">        P, S, P_all, S_all or all, defaults to all: see note in</span>
+<span class="sd">        :func:`eqcorrscan.core.template_gen.template_gen`</span>
+<span class="sd">    :type process_len: int</span>
+<span class="sd">    :param process_len: Length of data in seconds to download and process.</span>
+<span class="sd">    :param data_pad: Length of data (in seconds) required before and after \</span>
+<span class="sd">        any event for processing, use to reduce edge-effects of filtering on \</span>
+<span class="sd">        the templates.</span>
+<span class="sd">    :type data_pad: int</span>
+<span class="sd">    :type all_horiz: bool</span>
+<span class="sd">    :param all_horiz: To use both horizontal channels even if there is only \</span>
+<span class="sd">        a pick on one of them.  Defaults to False.</span>
+<span class="sd">    :type delayed: bool</span>
+<span class="sd">    :param delayed: If True, each channel will begin relative to it&#39;s own \</span>
+<span class="sd">        pick-time, if set to False, each channel will begin at the same time.</span>
+<span class="sd">    :type plot: bool</span>
+<span class="sd">    :param plot: Plot templates or not.</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: Level of debugging output, higher=more</span>
+<span class="sd">    :type return_event: bool</span>
+<span class="sd">    :param return_event: Whether to return the event and process length or not.</span>
+<span class="sd">    :type min_snr: float</span>
+<span class="sd">    :param min_snr:</span>
+<span class="sd">        Minimum signal-to-noise ratio for a channel to be included in the</span>
+<span class="sd">        template, where signal-to-noise ratio is calculated as the ratio of</span>
+<span class="sd">        the maximum amplitude in the template window to the rms amplitude in</span>
+<span class="sd">        the whole window given.</span>
+
+<span class="sd">    :returns: List of :class:`obspy.core.stream.Stream` Templates</span>
+<span class="sd">    :rtype: list</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        This function is depreciated and will be removed in a forthcoming</span>
+<span class="sd">        release. Please use `template_gen` instead.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        process_len should be set to the same length as used when computing</span>
+<span class="sd">        detections using match_filter.match_filter, e.g. if you read</span>
+<span class="sd">        in day-long data for match_filter, process_len should be 86400.</span>
+
+<span class="sd">    .. rubric:: Example</span>
+
+<span class="sd">    &gt;&gt;&gt; from obspy.clients.fdsn import Client</span>
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.core.template_gen import from_client</span>
+<span class="sd">    &gt;&gt;&gt; client = Client(&#39;NCEDC&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; catalog = client.get_events(eventid=&#39;72572665&#39;, includearrivals=True)</span>
+<span class="sd">    &gt;&gt;&gt; # We are only taking two picks for this example to speed up the</span>
+<span class="sd">    &gt;&gt;&gt; # example, note that you don&#39;t have to!</span>
+<span class="sd">    &gt;&gt;&gt; catalog[0].picks = catalog[0].picks[0:2]</span>
+<span class="sd">    &gt;&gt;&gt; templates = from_client(catalog=catalog, client_id=&#39;NCEDC&#39;,</span>
+<span class="sd">    ...                         lowcut=2.0, highcut=9.0, samp_rate=20.0,</span>
+<span class="sd">    ...                         filt_order=4, length=3.0, prepick=0.15,</span>
+<span class="sd">    ...                         swin=&#39;all&#39;, process_len=300,</span>
+<span class="sd">    ...                         all_horiz=True)</span>
+<span class="sd">    &gt;&gt;&gt; templates[0].plot(equal_scale=False, size=(800,600)) # doctest: +SKIP</span>
+
+<span class="sd">    .. figure:: ../../plots/template_gen.from_client.png</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">EQcorrscanDeprecationWarning</span><span class="p">(</span>
+        <span class="s2">&quot;Function is depreciated and will be removed soon. Use &quot;</span>
+        <span class="s2">&quot;template_gen.template_gen instead.&quot;</span><span class="p">)</span>
+    <span class="n">temp_list</span> <span class="o">=</span> <span class="n">template_gen</span><span class="p">(</span>
+        <span class="n">method</span><span class="o">=</span><span class="s2">&quot;from_client&quot;</span><span class="p">,</span> <span class="n">catalog</span><span class="o">=</span><span class="n">catalog</span><span class="p">,</span> <span class="n">client_id</span><span class="o">=</span><span class="n">client_id</span><span class="p">,</span>
+        <span class="n">lowcut</span><span class="o">=</span><span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="n">highcut</span><span class="p">,</span> <span class="n">samp_rate</span><span class="o">=</span><span class="n">samp_rate</span><span class="p">,</span>
+        <span class="n">filt_order</span><span class="o">=</span><span class="n">filt_order</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="n">length</span><span class="p">,</span> <span class="n">prepick</span><span class="o">=</span><span class="n">prepick</span><span class="p">,</span>
+        <span class="n">swin</span><span class="o">=</span><span class="n">swin</span><span class="p">,</span> <span class="n">process_len</span><span class="o">=</span><span class="n">process_len</span><span class="p">,</span> <span class="n">data_pad</span><span class="o">=</span><span class="n">data_pad</span><span class="p">,</span>
+        <span class="n">all_horiz</span><span class="o">=</span><span class="n">all_horiz</span><span class="p">,</span> <span class="n">delayed</span><span class="o">=</span><span class="n">delayed</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="n">plot</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span>
+        <span class="n">return_event</span><span class="o">=</span><span class="n">return_event</span><span class="p">,</span> <span class="n">min_snr</span><span class="o">=</span><span class="n">min_snr</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">temp_list</span>
+
+
+<div class="viewcode-block" id="from_seishub"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.core.template_gen.from_seishub.html#eqcorrscan.core.template_gen.from_seishub">[docs]</a><span class="k">def</span> <span class="nf">from_seishub</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="p">,</span> <span class="n">samp_rate</span><span class="p">,</span> <span class="n">filt_order</span><span class="p">,</span>
+                 <span class="n">length</span><span class="p">,</span> <span class="n">prepick</span><span class="p">,</span> <span class="n">swin</span><span class="p">,</span> <span class="n">process_len</span><span class="o">=</span><span class="mi">86400</span><span class="p">,</span> <span class="n">data_pad</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span>
+                 <span class="n">all_horiz</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">delayed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                 <span class="n">return_event</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">min_snr</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate multiplexed template from SeisHub database.</span>
+
+<span class="sd">    Function to generate templates from a SeisHub database. Must be given</span>
+<span class="sd">    an obspy.Catalog class and the SeisHub url as input. The function returns</span>
+<span class="sd">    a list of obspy.Stream classes containting steams for each desired</span>
+<span class="sd">    template.</span>
+
+<span class="sd">    :type catalog: :class:`obspy.core.event.Catalog`</span>
+<span class="sd">    :param catalog: Catalog class containing desired template events</span>
+<span class="sd">    :type url: str</span>
+<span class="sd">    :param url: url of SeisHub database instance</span>
+<span class="sd">    :type lowcut: float</span>
+<span class="sd">    :param lowcut: Low cut (Hz), if set to None will not apply a lowcut.</span>
+<span class="sd">    :type highcut: float</span>
+<span class="sd">    :param highcut: High cut (Hz), if set to None will not apply a highcut.</span>
+<span class="sd">    :type samp_rate: float</span>
+<span class="sd">    :param samp_rate: New sampling rate in Hz.</span>
+<span class="sd">    :type filt_order: int</span>
+<span class="sd">    :param filt_order: Filter level (number of corners).</span>
+<span class="sd">    :type length: float</span>
+<span class="sd">    :param length: Extract length in seconds.</span>
+<span class="sd">    :type prepick: float</span>
+<span class="sd">    :param prepick: Pre-pick time in seconds</span>
+<span class="sd">    :type swin: str</span>
+<span class="sd">    :param swin:</span>
+<span class="sd">        P, S, P_all, S_all or all, defaults to all: see note in</span>
+<span class="sd">        :func:`eqcorrscan.core.template_gen.template_gen`</span>
+<span class="sd">    :type process_len: int</span>
+<span class="sd">    :param process_len: Length of data in seconds to download and process.</span>
+<span class="sd">    :param data_pad:</span>
+<span class="sd">        Length of data (in seconds) required before and after any event for</span>
+<span class="sd">        processing, use to reduce edge-effects of filtering on the templates.</span>
+<span class="sd">    :type data_pad: int</span>
+<span class="sd">    :type all_horiz: bool</span>
+<span class="sd">    :param all_horiz:</span>
+<span class="sd">        To use both horizontal channels even if there is only a pick on one</span>
+<span class="sd">        of them.  Defaults to False.</span>
+<span class="sd">    :type delayed: bool</span>
+<span class="sd">    :param delayed:</span>
+<span class="sd">        If True, each channel will begin relative to it&#39;s own pick-time, if</span>
+<span class="sd">        set to False, each channel will begin at the same time.</span>
+<span class="sd">    :type plot: bool</span>
+<span class="sd">    :param plot: Plot templates or not.</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: Level of debugging output, higher=more</span>
+<span class="sd">    :type return_event: bool</span>
+<span class="sd">    :param return_event: Whether to return the event and process length or not.</span>
+<span class="sd">    :type min_snr: float</span>
+<span class="sd">    :param min_snr:</span>
+<span class="sd">        Minimum signal-to-noise ratio for a channel to be included in the</span>
+<span class="sd">        template, where signal-to-noise ratio is calculated as the ratio of</span>
+<span class="sd">        the maximum amplitude in the template window to the rms amplitude in</span>
+<span class="sd">        the whole window given.</span>
+
+<span class="sd">    :returns: List of :class:`obspy.core.stream.Stream` of newly cut templates</span>
+<span class="sd">    :rtype: list</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        process_len should be set to the same length as used when computing</span>
+<span class="sd">        detections using match_filter.match_filter, e.g. if you read</span>
+<span class="sd">        in day-long data fro match_filter, process_len should be 86400.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Not tested in continuous integration (due to lack of seishub client),</span>
+<span class="sd">        let us know of any failures.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">EQcorrscanDeprecationWarning</span><span class="p">(</span>
+        <span class="s2">&quot;Function is depreciated and will be removed soon. Use &quot;</span>
+        <span class="s2">&quot;template_gen.template_gen instead.&quot;</span><span class="p">)</span>
+    <span class="n">temp_list</span> <span class="o">=</span> <span class="n">template_gen</span><span class="p">(</span>
+        <span class="n">method</span><span class="o">=</span><span class="s2">&quot;from_seishub&quot;</span><span class="p">,</span> <span class="n">catalog</span><span class="o">=</span><span class="n">catalog</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>
+        <span class="n">lowcut</span><span class="o">=</span><span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="n">highcut</span><span class="p">,</span> <span class="n">samp_rate</span><span class="o">=</span><span class="n">samp_rate</span><span class="p">,</span>
+        <span class="n">filt_order</span><span class="o">=</span><span class="n">filt_order</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="n">length</span><span class="p">,</span> <span class="n">prepick</span><span class="o">=</span><span class="n">prepick</span><span class="p">,</span>
+        <span class="n">swin</span><span class="o">=</span><span class="n">swin</span><span class="p">,</span> <span class="n">process_len</span><span class="o">=</span><span class="n">process_len</span><span class="p">,</span> <span class="n">data_pad</span><span class="o">=</span><span class="n">data_pad</span><span class="p">,</span>
+        <span class="n">all_horiz</span><span class="o">=</span><span class="n">all_horiz</span><span class="p">,</span> <span class="n">delayed</span><span class="o">=</span><span class="n">delayed</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="n">plot</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span>
+        <span class="n">return_event</span><span class="o">=</span><span class="n">return_event</span><span class="p">,</span> <span class="n">min_snr</span><span class="o">=</span><span class="n">min_snr</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">temp_list</span>
+
+
+<div class="viewcode-block" id="from_sac"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.core.template_gen.from_sac.html#eqcorrscan.core.template_gen.from_sac">[docs]</a><span class="k">def</span> <span class="nf">from_sac</span><span class="p">(</span><span class="n">sac_files</span><span class="p">,</span> <span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="p">,</span> <span class="n">samp_rate</span><span class="p">,</span> <span class="n">filt_order</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">swin</span><span class="p">,</span>
+             <span class="n">prepick</span><span class="p">,</span> <span class="n">all_horiz</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">delayed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+             <span class="n">return_event</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">min_snr</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate a multiplexed template from a list of SAC files.</span>
+
+<span class="sd">    Function to read picks and waveforms from SAC data, and generate a \</span>
+<span class="sd">    template from these. Usually sac_files is a list of all single-channel \</span>
+<span class="sd">    SAC files for a given event, a single, multi-channel template will be \</span>
+<span class="sd">    created from these traces.</span>
+
+<span class="sd">    **All files listed in sac_files should be associated with a single event.**</span>
+
+<span class="sd">    :type sac_files: list</span>
+<span class="sd">    :param sac_files: osbpy.core.stream.Stream of sac waveforms, or</span>
+<span class="sd">        list of paths to sac waveforms.</span>
+<span class="sd">    :type lowcut: float</span>
+<span class="sd">    :param lowcut: Low cut (Hz), if set to None will not apply a lowcut.</span>
+<span class="sd">    :type highcut: float</span>
+<span class="sd">    :param highcut: High cut (Hz), if set to None will not apply a highcut.</span>
+<span class="sd">    :type samp_rate: float</span>
+<span class="sd">    :param samp_rate: New sampling rate in Hz.</span>
+<span class="sd">    :type filt_order: int</span>
+<span class="sd">    :param filt_order: Filter level.</span>
+<span class="sd">    :type length: float</span>
+<span class="sd">    :param length: Extract length in seconds.</span>
+<span class="sd">    :type swin: str</span>
+<span class="sd">    :param swin:</span>
+<span class="sd">        P, S, P_all, S_all or all, defaults to all: see note in</span>
+<span class="sd">        :func:`eqcorrscan.core.template_gen.template_gen`</span>
+<span class="sd">    :type prepick: float</span>
+<span class="sd">    :param prepick: Length to extract prior to the pick in seconds.</span>
+<span class="sd">    :type all_horiz: bool</span>
+<span class="sd">    :param all_horiz: To use both horizontal channels even if there is only \</span>
+<span class="sd">        a pick on one of them.  Defaults to False.</span>
+<span class="sd">    :type delayed: bool</span>
+<span class="sd">    :param delayed: If True, each channel will begin relative to it&#39;s own \</span>
+<span class="sd">        pick-time, if set to False, each channel will begin at the same time.</span>
+<span class="sd">    :type plot: bool</span>
+<span class="sd">    :param plot: Turns template plotting on or off.</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: Debug level, higher number=more output.</span>
+<span class="sd">    :type return_event: bool</span>
+<span class="sd">    :param return_event: Whether to return the event and process length or not.</span>
+<span class="sd">    :type min_snr: float</span>
+<span class="sd">    :param min_snr:</span>
+<span class="sd">        Minimum signal-to-noise ratio for a channel to be included in the</span>
+<span class="sd">        template, where signal-to-noise ratio is calculated as the ratio of</span>
+<span class="sd">        the maximum amplitude in the template window to the rms amplitude in</span>
+<span class="sd">        the whole window given.</span>
+
+<span class="sd">    :returns: Newly cut template.</span>
+<span class="sd">    :rtype: :class:`obspy.core.stream.Stream`</span>
+
+<span class="sd">    .. note:: This functionality is not supported for obspy versions below \</span>
+<span class="sd">        1.0.0 as references times are not read in by SACIO, which are needed \</span>
+<span class="sd">        for defining pick times.</span>
+
+<span class="sd">    .. rubric:: Example</span>
+
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.core.template_gen import from_sac</span>
+<span class="sd">    &gt;&gt;&gt; import glob</span>
+<span class="sd">    &gt;&gt;&gt; # Get all the SAC-files associated with one event.</span>
+<span class="sd">    &gt;&gt;&gt; sac_files = glob.glob(&#39;eqcorrscan/tests/test_data/SAC/2014p611252/*&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; templates = from_sac(sac_files=sac_files, lowcut=2.0, highcut=10.0,</span>
+<span class="sd">    ...                      samp_rate=25.0, filt_order=4, length=2.0,</span>
+<span class="sd">    ...                      swin=&#39;all&#39;, prepick=0.1, all_horiz=True)</span>
+<span class="sd">    &gt;&gt;&gt; print(templates[0][0].stats.sampling_rate)</span>
+<span class="sd">    25.0</span>
+<span class="sd">    &gt;&gt;&gt; print(len(templates[0]))</span>
+<span class="sd">    15</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">EQcorrscanDeprecationWarning</span><span class="p">(</span>
+        <span class="s2">&quot;Function is depreciated and will be removed soon. Use &quot;</span>
+        <span class="s2">&quot;template_gen.template_gen instead.&quot;</span><span class="p">)</span>
+    <span class="n">temp_list</span> <span class="o">=</span> <span class="n">template_gen</span><span class="p">(</span>
+        <span class="n">method</span><span class="o">=</span><span class="s2">&quot;from_sac&quot;</span><span class="p">,</span> <span class="n">sac_files</span><span class="o">=</span><span class="n">sac_files</span><span class="p">,</span>
+        <span class="n">lowcut</span><span class="o">=</span><span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="n">highcut</span><span class="p">,</span> <span class="n">samp_rate</span><span class="o">=</span><span class="n">samp_rate</span><span class="p">,</span>
+        <span class="n">filt_order</span><span class="o">=</span><span class="n">filt_order</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="n">length</span><span class="p">,</span> <span class="n">prepick</span><span class="o">=</span><span class="n">prepick</span><span class="p">,</span>
+        <span class="n">swin</span><span class="o">=</span><span class="n">swin</span><span class="p">,</span> <span class="n">all_horiz</span><span class="o">=</span><span class="n">all_horiz</span><span class="p">,</span> <span class="n">delayed</span><span class="o">=</span><span class="n">delayed</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="n">plot</span><span class="p">,</span>
+        <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span> <span class="n">return_event</span><span class="o">=</span><span class="n">return_event</span><span class="p">,</span> <span class="n">min_snr</span><span class="o">=</span><span class="n">min_snr</span><span class="p">,</span>
+        <span class="n">parallel</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">temp_list</span>
+
+
+<div class="viewcode-block" id="from_meta_file"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.core.template_gen.from_meta_file.html#eqcorrscan.core.template_gen.from_meta_file">[docs]</a><span class="k">def</span> <span class="nf">from_meta_file</span><span class="p">(</span><span class="n">meta_file</span><span class="p">,</span> <span class="n">st</span><span class="p">,</span> <span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="p">,</span> <span class="n">samp_rate</span><span class="p">,</span> <span class="n">filt_order</span><span class="p">,</span>
+                   <span class="n">length</span><span class="p">,</span> <span class="n">prepick</span><span class="p">,</span> <span class="n">swin</span><span class="p">,</span> <span class="n">all_horiz</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">delayed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                   <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">parallel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">return_event</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                   <span class="n">min_snr</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate a multiplexed template from a local file.</span>
+
+<span class="sd">    Function to generate a template from a local observation file</span>
+<span class="sd">    and an obspy.Stream object.</span>
+
+<span class="sd">    :type meta_file: str</span>
+<span class="sd">    :param meta_file: File containing pick information, can contain \</span>
+<span class="sd">        multiple events.  File must be formatted in a way readable by \</span>
+<span class="sd">        :func:`obspy.core.event.read_events`.</span>
+<span class="sd">    :type st: obspy.core.stream.Stream</span>
+<span class="sd">    :param st: Stream containing waveform data for template (hopefully). \</span>
+<span class="sd">        Note that this should be the same length of stream as you will use \</span>
+<span class="sd">        for the continuous detection, e.g. if you detect in day-long files, \</span>
+<span class="sd">        give this a day-long file!</span>
+<span class="sd">    :type lowcut: float</span>
+<span class="sd">    :param lowcut: Low cut (Hz), if set to None will not apply a lowcut.</span>
+<span class="sd">    :type highcut: float</span>
+<span class="sd">    :param highcut: High cut (Hz), if set to None will not apply a highcut.</span>
+<span class="sd">    :type samp_rate: float</span>
+<span class="sd">    :param samp_rate: New sampling rate in Hz.</span>
+<span class="sd">    :type filt_order: int</span>
+<span class="sd">    :param filt_order: Filter level (number of corners).</span>
+<span class="sd">    :type length: float</span>
+<span class="sd">    :param length: Extract length in seconds.</span>
+<span class="sd">    :type prepick: float</span>
+<span class="sd">    :param prepick: Pre-pick time in seconds</span>
+<span class="sd">    :type swin: str</span>
+<span class="sd">    :param swin:</span>
+<span class="sd">        P, S, P_all, S_all or all, defaults to all: see note in</span>
+<span class="sd">        :func:`eqcorrscan.core.template_gen.template_gen`</span>
+<span class="sd">    :type all_horiz: bool</span>
+<span class="sd">    :param all_horiz: To use both horizontal channels even if there is only \</span>
+<span class="sd">        a pick on one of them.  Defaults to False.</span>
+<span class="sd">    :type delayed: bool</span>
+<span class="sd">    :param delayed: If True, each channel will begin relative to it&#39;s own \</span>
+<span class="sd">        pick-time, if set to False, each channel will begin at the same time.</span>
+<span class="sd">    :type plot: bool</span>
+<span class="sd">    :param plot: Display template plots or not</span>
+<span class="sd">    :type parallel: bool</span>
+<span class="sd">    :param parallel: Whether to process data in parallel or not.</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: Level of debugging output, higher=more</span>
+<span class="sd">    :type return_event: bool</span>
+<span class="sd">    :param return_event: Whether to return the event and process length or not.</span>
+<span class="sd">    :type min_snr: float</span>
+<span class="sd">    :param min_snr:</span>
+<span class="sd">        Minimum signal-to-noise ratio for a channel to be included in the</span>
+<span class="sd">        template, where signal-to-noise ratio is calculated as the ratio of</span>
+<span class="sd">        the maximum amplitude in the template window to the rms amplitude in</span>
+<span class="sd">        the whole window given.</span>
+
+<span class="sd">    :returns: List of :class:`obspy.core.stream.Stream` newly cut templates</span>
+<span class="sd">    :rtype: list</span>
+
+<span class="sd">    .. Note::</span>
+<span class="sd">        All picks must be associated with a station and channel, this is</span>
+<span class="sd">        not the case for NonLinLoc HYP files, will not use any picks that</span>
+<span class="sd">        do not have this association.</span>
+
+<span class="sd">    .. warning:: We suggest giving this function a full day of data, to \</span>
+<span class="sd">        ensure templates are generated with **exactly** the same processing \</span>
+<span class="sd">        as the continuous data.  Not doing this will result in slightly \</span>
+<span class="sd">        reduced cross-correlation values.</span>
+
+<span class="sd">    .. rubric:: Example</span>
+
+<span class="sd">    &gt;&gt;&gt; from obspy import read</span>
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.core.template_gen import from_meta_file</span>
+<span class="sd">    &gt;&gt;&gt; st = read(&#39;eqcorrscan/tests/test_data/WAV/TEST_/&#39; +</span>
+<span class="sd">    ...           &#39;2013-09-01-0410-35.DFDPC_024_00&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; quakeml = &#39;eqcorrscan/tests/test_data/20130901T041115.xml&#39;</span>
+<span class="sd">    &gt;&gt;&gt; templates = from_meta_file(meta_file=quakeml, st=st, lowcut=2.0,</span>
+<span class="sd">    ...                            highcut=9.0, samp_rate=20.0, filt_order=3,</span>
+<span class="sd">    ...                            length=2, prepick=0.1, swin=&#39;S&#39;,</span>
+<span class="sd">    ...                            all_horiz=True)</span>
+<span class="sd">    &gt;&gt;&gt; print(len(templates[0]))</span>
+<span class="sd">    10</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">EQcorrscanDeprecationWarning</span><span class="p">(</span>
+        <span class="s2">&quot;Function is depreciated and will be removed soon. Use &quot;</span>
+        <span class="s2">&quot;template_gen.template_gen instead.&quot;</span><span class="p">)</span>
+    <span class="n">temp_list</span> <span class="o">=</span> <span class="n">template_gen</span><span class="p">(</span>
+        <span class="n">method</span><span class="o">=</span><span class="s2">&quot;from_meta_file&quot;</span><span class="p">,</span> <span class="n">meta_file</span><span class="o">=</span><span class="n">meta_file</span><span class="p">,</span> <span class="n">st</span><span class="o">=</span><span class="n">st</span><span class="p">,</span>
+        <span class="n">lowcut</span><span class="o">=</span><span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="n">highcut</span><span class="p">,</span> <span class="n">samp_rate</span><span class="o">=</span><span class="n">samp_rate</span><span class="p">,</span>
+        <span class="n">filt_order</span><span class="o">=</span><span class="n">filt_order</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="n">length</span><span class="p">,</span> <span class="n">prepick</span><span class="o">=</span><span class="n">prepick</span><span class="p">,</span>
+        <span class="n">swin</span><span class="o">=</span><span class="n">swin</span><span class="p">,</span> <span class="n">all_horiz</span><span class="o">=</span><span class="n">all_horiz</span><span class="p">,</span> <span class="n">delayed</span><span class="o">=</span><span class="n">delayed</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="n">plot</span><span class="p">,</span>
+        <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span> <span class="n">return_event</span><span class="o">=</span><span class="n">return_event</span><span class="p">,</span> <span class="n">min_snr</span><span class="o">=</span><span class="n">min_snr</span><span class="p">,</span>
+        <span class="n">parallel</span><span class="o">=</span><span class="n">parallel</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">temp_list</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">doctest</span>
+    <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2015, 2016: EQcorrscan developers.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.3.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

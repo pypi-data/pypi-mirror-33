@@ -1,0 +1,1277 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>eqcorrscan.core.subspace &mdash; EQcorrscan 0.3.0 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../../../_static/EQcorrscan_logo.ico"/>
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="EQcorrscan 0.3.0 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> EQcorrscan
+          
+
+          
+            
+            <img src="../../../_static/EQcorrscan_logo.jpg" class="logo" />
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">1. Introduction to the EQcorrscan package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">2. EQcorrscan installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../updates.html">3. What’s new</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">EQcorrscan tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../core.html">4. Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../utils.html">5. Utils</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">EQcorrscan</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>eqcorrscan.core.subspace</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for eqcorrscan.core.subspace</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module contains functions relevant to executing subspace detection</span>
+<span class="sd">for earthquake catalogs.</span>
+
+<span class="sd">We recommend that you read Harris&#39; detailed report on subspace detection</span>
+<span class="sd">theory which can be found here: https://e-reports-ext.llnl.gov/pdf/335299.pdf</span>
+
+<span class="sd">:copyright:</span>
+<span class="sd">    EQcorrscan developers.</span>
+
+<span class="sd">:license:</span>
+<span class="sd">    GNU Lesser General Public License, Version 3</span>
+<span class="sd">    (https://www.gnu.org/copyleft/lesser.html)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">import</span> <span class="nn">getpass</span>
+<span class="kn">import</span> <span class="nn">eqcorrscan</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">scipy</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">obspy</span> <span class="k">import</span> <span class="n">Trace</span><span class="p">,</span> <span class="n">UTCDateTime</span><span class="p">,</span> <span class="n">Stream</span>
+<span class="kn">from</span> <span class="nn">obspy.core.event</span> <span class="k">import</span> <span class="n">Event</span><span class="p">,</span> <span class="n">CreationInfo</span><span class="p">,</span> <span class="n">ResourceIdentifier</span><span class="p">,</span> <span class="n">Comment</span><span class="p">,</span>\
+    <span class="n">WaveformStreamID</span><span class="p">,</span> <span class="n">Pick</span>
+
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils.clustering</span> <span class="k">import</span> <span class="n">svd</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils.debug_log</span> <span class="k">import</span> <span class="n">debug_print</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils</span> <span class="k">import</span> <span class="n">findpeaks</span><span class="p">,</span> <span class="n">pre_processing</span><span class="p">,</span> <span class="n">stacking</span><span class="p">,</span> <span class="n">plotting</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.core.match_filter</span> <span class="k">import</span> <span class="n">Detection</span><span class="p">,</span> <span class="n">extract_from_stream</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils.plotting</span> <span class="k">import</span> <span class="n">subspace_detector_plot</span><span class="p">,</span> <span class="n">subspace_fc_plot</span>
+
+
+<div class="viewcode-block" id="Detector"><a class="viewcode-back" href="../../../submodules/core.subspace.Detector.html#eqcorrscan.core.subspace.Detector">[docs]</a><span class="k">class</span> <span class="nc">Detector</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class to serve as the base for subspace detections.</span>
+
+<span class="sd">    :type name: str</span>
+<span class="sd">    :param name: Name of subspace detector, used for book-keeping</span>
+<span class="sd">    :type sampling_rate: float</span>
+<span class="sd">    :param sampling_rate: Sampling rate in Hz of original waveforms</span>
+<span class="sd">    :type multiplex: bool</span>
+<span class="sd">    :param multiplex: Is this detector multiplexed.</span>
+<span class="sd">    :type stachans: list</span>
+<span class="sd">    :param stachans:</span>
+<span class="sd">        List of tuples of (station, channel) used in detector.</span>
+<span class="sd">        If multiplexed, these must be in the order that multiplexing was done.</span>
+<span class="sd">    :type lowcut: float</span>
+<span class="sd">    :param lowcut: Lowcut filter in Hz</span>
+<span class="sd">    :type highcut: float</span>
+<span class="sd">    :param highcut: Highcut filter in Hz</span>
+<span class="sd">    :type filt_order: int</span>
+<span class="sd">    :param filt_order: Number of corners for filtering</span>
+<span class="sd">    :type data: numpy.ndarray</span>
+<span class="sd">    :param data: The actual detector</span>
+<span class="sd">    :type u: numpy.ndarray</span>
+<span class="sd">    :param u: Full rank U matrix of left (input) singular vectors.</span>
+<span class="sd">    :type sigma: numpy.ndarray</span>
+<span class="sd">    :param sigma: Full rank vector of singular values.</span>
+<span class="sd">    :type v: numpy.ndarray</span>
+<span class="sd">    :param v: Full rank right (output) singular vectors.</span>
+<span class="sd">    :type dimension: int</span>
+<span class="sd">    :param dimension: Dimension of data.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Changing between scipy.linalg.svd solvers (obvious changes between</span>
+<span class="sd">        scipy version 0.18.x and 0.19.0) result in sign changes in svd results.</span>
+<span class="sd">        You should only run a detector created using the same scipy version</span>
+<span class="sd">        as you currently run.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Detector.__init__"><a class="viewcode-back" href="../../../submodules/core.subspace.Detector.html#eqcorrscan.core.subspace.Detector.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sampling_rate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">multiplex</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">stachans</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">lowcut</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">filt_order</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">u</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">dimension</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sampling_rate</span> <span class="o">=</span> <span class="n">sampling_rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multiplex</span> <span class="o">=</span> <span class="n">multiplex</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stachans</span> <span class="o">=</span> <span class="n">stachans</span>
+        <span class="c1"># self.delays = delays</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lowcut</span> <span class="o">=</span> <span class="n">lowcut</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">highcut</span> <span class="o">=</span> <span class="n">highcut</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filt_order</span> <span class="o">=</span> <span class="n">filt_order</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">u</span> <span class="o">=</span> <span class="n">u</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="n">sigma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">v</span> <span class="o">=</span> <span class="n">v</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dimension</span> <span class="o">=</span> <span class="n">dimension</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="s1">&#39;Detector: &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="s1">&#39;Empty Detector object&#39;</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="s1">&#39;Detector object: </span><span class="se">\n</span><span class="s1">&#39;</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;sampling_rate&#39;</span><span class="p">,</span> <span class="s1">&#39;multiplex&#39;</span><span class="p">,</span> <span class="s1">&#39;lowcut&#39;</span><span class="p">,</span> <span class="s1">&#39;highcut&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;filt_order&#39;</span><span class="p">,</span> <span class="s1">&#39;dimension&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+                <span class="n">out</span> <span class="o">+=</span> <span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="n">key</span><span class="p">))</span> <span class="o">+</span>
+                        <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Detector</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;sampling_rate&#39;</span><span class="p">,</span> <span class="s1">&#39;multiplex&#39;</span><span class="p">,</span> <span class="s1">&#39;lowcut&#39;</span><span class="p">,</span> <span class="s1">&#39;highcut&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;filt_order&#39;</span><span class="p">,</span> <span class="s1">&#39;dimension&#39;</span><span class="p">,</span> <span class="s1">&#39;stachans&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+                <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="s1">&#39;sigma&#39;</span><span class="p">]:</span>
+            <span class="n">list_item</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="n">other_list</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_item</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">other_list</span><span class="p">):</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="k">for</span> <span class="n">item</span><span class="p">,</span> <span class="n">other_item</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">list_item</span><span class="p">,</span> <span class="n">other_list</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">absolute</span><span class="p">(</span><span class="n">item</span><span class="p">),</span>
+                                   <span class="n">np</span><span class="o">.</span><span class="n">absolute</span><span class="p">(</span><span class="n">other_item</span><span class="p">),</span> <span class="n">atol</span><span class="o">=</span><span class="mf">0.001</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Detector.construct"><a class="viewcode-back" href="../../../submodules/core.subspace.Detector.html#eqcorrscan.core.subspace.Detector.construct">[docs]</a>    <span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">streams</span><span class="p">,</span> <span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="p">,</span> <span class="n">filt_order</span><span class="p">,</span>
+                  <span class="n">sampling_rate</span><span class="p">,</span> <span class="n">multiplex</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">align</span><span class="p">,</span> <span class="n">shift_len</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                  <span class="n">reject</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">no_missed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Construct a subspace detector from a list of streams, full rank.</span>
+
+<span class="sd">        Subspace detector will be full-rank, further functions can be used \</span>
+<span class="sd">        to select the desired dimensions.</span>
+
+<span class="sd">        :type streams: list</span>
+<span class="sd">        :param streams:</span>
+<span class="sd">            List of :class:`obspy.core.stream.Stream` to be used to generate</span>
+<span class="sd">            the subspace detector.  These should be pre-clustered and aligned.</span>
+<span class="sd">        :type lowcut: float</span>
+<span class="sd">        :param lowcut: Lowcut in Hz, can be None to not apply filter</span>
+<span class="sd">        :type highcut: float</span>
+<span class="sd">        :param highcut: Highcut in Hz, can be None to not apply filter</span>
+<span class="sd">        :type filt_order: int</span>
+<span class="sd">        :param filt_order: Number of corners for filter.</span>
+<span class="sd">        :type sampling_rate: float</span>
+<span class="sd">        :param sampling_rate: Desired sampling rate in Hz</span>
+<span class="sd">        :type multiplex: bool</span>
+<span class="sd">        :param multiplex:</span>
+<span class="sd">            Whether to multiplex the data or not.  Data are multiplexed</span>
+<span class="sd">            according to the method of Harris, see the multi function for</span>
+<span class="sd">            details.</span>
+<span class="sd">        :type name: str</span>
+<span class="sd">        :param name: Name of the detector, used for book-keeping.</span>
+<span class="sd">        :type align: bool</span>
+<span class="sd">        :param align:</span>
+<span class="sd">            Whether to align the data or not - needs to be done at some point</span>
+<span class="sd">        :type shift_len: float</span>
+<span class="sd">        :param shift_len: Maximum shift allowed for alignment in seconds.</span>
+<span class="sd">        :type reject: float</span>
+<span class="sd">        :param reject:</span>
+<span class="sd">            Minimum correlation to include traces - only used if align=True.</span>
+<span class="sd">        :type no_missed: bool</span>
+<span class="sd">        :param no_missed:</span>
+<span class="sd">            Reject streams with missed traces, defaults to True. A missing</span>
+<span class="sd">            trace from lots of events will reduce the quality of the subspace</span>
+<span class="sd">            detector if multiplexed.  Only used when multi is set to True.</span>
+<span class="sd">        :type plot: bool</span>
+<span class="sd">        :param plot: Whether to plot the alignment stage or not.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            The detector will be normalized such that the data, before</span>
+<span class="sd">            computing the singular-value decomposition, will have unit energy.</span>
+<span class="sd">            e.g. We divide the amplitudes of the data by the L1 norm of the</span>
+<span class="sd">            data.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            EQcorrscan&#39;s alignment will attempt to align over the whole data</span>
+<span class="sd">            window given.  For long (more than 2s) chunks of data this can give</span>
+<span class="sd">            poor results and you might be better off using the</span>
+<span class="sd">            :func:`eqcorrscan.utils.stacking.align_traces` function externally,</span>
+<span class="sd">            focusing on a smaller window of data.  To do this you would align</span>
+<span class="sd">            the data prior to running construct.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lowcut</span> <span class="o">=</span> <span class="n">lowcut</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">highcut</span> <span class="o">=</span> <span class="n">highcut</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filt_order</span> <span class="o">=</span> <span class="n">filt_order</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sampling_rate</span> <span class="o">=</span> <span class="n">sampling_rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multiplex</span> <span class="o">=</span> <span class="n">multiplex</span>
+        <span class="c1"># Pre-process data</span>
+        <span class="n">p_streams</span><span class="p">,</span> <span class="n">stachans</span> <span class="o">=</span> <span class="n">_subspace_process</span><span class="p">(</span>
+            <span class="n">streams</span><span class="o">=</span><span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">streams</span><span class="p">),</span> <span class="n">lowcut</span><span class="o">=</span><span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="n">highcut</span><span class="p">,</span>
+            <span class="n">filt_order</span><span class="o">=</span><span class="n">filt_order</span><span class="p">,</span> <span class="n">sampling_rate</span><span class="o">=</span><span class="n">sampling_rate</span><span class="p">,</span>
+            <span class="n">multiplex</span><span class="o">=</span><span class="n">multiplex</span><span class="p">,</span> <span class="n">align</span><span class="o">=</span><span class="n">align</span><span class="p">,</span> <span class="n">shift_len</span><span class="o">=</span><span class="n">shift_len</span><span class="p">,</span>
+            <span class="n">reject</span><span class="o">=</span><span class="n">reject</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="n">plot</span><span class="p">,</span> <span class="n">no_missed</span><span class="o">=</span><span class="n">no_missed</span><span class="p">)</span>
+        <span class="c1"># Compute the SVD, use the cluster.SVD function</span>
+        <span class="n">u</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">svd_stachans</span> <span class="o">=</span> <span class="n">svd</span><span class="p">(</span><span class="n">stream_list</span><span class="o">=</span><span class="n">p_streams</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stachans</span> <span class="o">=</span> <span class="n">stachans</span>
+        <span class="c1"># self.delays = delays</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">u</span> <span class="o">=</span> <span class="n">u</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">v</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="n">sigma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>  <span class="c1"># Set the data matrix to be full rank U.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dimension</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span></div>
+        <span class="k">return</span> <span class="bp">self</span>
+
+<div class="viewcode-block" id="Detector.partition"><a class="viewcode-back" href="../../../submodules/core.subspace.Detector.html#eqcorrscan.core.subspace.Detector.partition">[docs]</a>    <span class="k">def</span> <span class="nf">partition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dimension</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Partition subspace into desired dimension.</span>
+
+<span class="sd">        :type dimension: int</span>
+<span class="sd">        :param dimension: Maximum dimension to use.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Take leftmost &#39;dimension&#39; input basis vectors</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">channel</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">dimension</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="s1">&#39;Channel is max dimension </span><span class="si">%s</span><span class="s1">&#39;</span>
+                                 <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">channel</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">:</span><span class="n">dimension</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dimension</span> <span class="o">=</span> <span class="n">dimension</span></div>
+        <span class="k">return</span> <span class="bp">self</span>
+
+<div class="viewcode-block" id="Detector.energy_capture"><a class="viewcode-back" href="../../../submodules/core.subspace.Detector.html#eqcorrscan.core.subspace.Detector.energy_capture">[docs]</a>    <span class="k">def</span> <span class="nf">energy_capture</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stachans</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span> <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the average percentage energy capture for this subspace.</span>
+
+<span class="sd">        :return: Percentage energy capture</span>
+<span class="sd">        :rtype: float</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">show</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">subspace_fc_plot</span><span class="p">(</span><span class="n">detector</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">stachans</span><span class="o">=</span><span class="n">stachans</span><span class="p">,</span>
+                                    <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="n">show</span><span class="p">)</span>
+        <span class="n">percent_capture</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dimension</span><span class="p">):</span>
+            <span class="k">return</span> <span class="mi">100</span>
+        <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">:</span>
+            <span class="n">fc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">channel</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">dimension</span><span class="p">])</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+            <span class="n">percent_capture</span> <span class="o">+=</span> <span class="n">fc</span>
+        <span class="k">else</span><span class="p">:</span></div>
+            <span class="k">return</span> <span class="mi">100</span> <span class="o">*</span> <span class="p">(</span><span class="n">percent_capture</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">))</span>
+
+<div class="viewcode-block" id="Detector.detect"><a class="viewcode-back" href="../../../submodules/core.subspace.Detector.html#eqcorrscan.core.subspace.Detector.detect">[docs]</a>    <span class="k">def</span> <span class="nf">detect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">st</span><span class="p">,</span> <span class="n">threshold</span><span class="p">,</span> <span class="n">trig_int</span><span class="p">,</span> <span class="n">moveout</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">min_trig</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+               <span class="n">process</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">extract_detections</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Detect within continuous data using the subspace method.</span>
+
+<span class="sd">        :type st: obspy.core.stream.Stream</span>
+<span class="sd">        :param st:</span>
+<span class="sd">            Un-processed stream to detect within using the subspace detector.</span>
+<span class="sd">        :type threshold: float</span>
+<span class="sd">        :param threshold: Threshold value for detections between 0-1</span>
+<span class="sd">        :type trig_int: float</span>
+<span class="sd">        :param trig_int: Minimum trigger interval in seconds.</span>
+<span class="sd">        :type moveout: float</span>
+<span class="sd">        :param moveout:</span>
+<span class="sd">            Maximum allowable moveout window for non-multiplexed, network</span>
+<span class="sd">            detection.  See note.</span>
+<span class="sd">        :type min_trig: int</span>
+<span class="sd">        :param min_trig:</span>
+<span class="sd">            Minimum number of stations exceeding threshold for non-multiplexed,</span>
+<span class="sd">            network detection. See note.</span>
+<span class="sd">        :type process: bool</span>
+<span class="sd">        :param process:</span>
+<span class="sd">            Whether or not to process the stream according to the parameters</span>
+<span class="sd">            defined by the detector.  Default is True, which will process the</span>
+<span class="sd">            data.</span>
+<span class="sd">        :type extract_detections: bool</span>
+<span class="sd">        :param extract_detections:</span>
+<span class="sd">            Whether to extract waveforms for each detection or not, if True</span>
+<span class="sd">            will return detections and streams.</span>
+<span class="sd">        :type debug: int</span>
+<span class="sd">        :param debug: Debug output level from 0-5.</span>
+
+<span class="sd">        :return: list of :class:`eqcorrscan.core.match_filter.Detection`</span>
+<span class="sd">        :rtype: list</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            Subspace is currently in beta, see note in the subspace tutorial</span>
+<span class="sd">            for information.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            If running in bulk with detectors that all have the same</span>
+<span class="sd">            parameters then you can pre-process the data and set process to</span>
+<span class="sd">            False.  This will speed up this detect function dramatically.</span>
+
+<span class="sd">        .. warning::</span>
+<span class="sd">            If the detector and stream are multiplexed then they must</span>
+<span class="sd">            contain the same channels and multiplexed in the same order. This</span>
+<span class="sd">            is handled internally when process=True, but if running in bulk</span>
+<span class="sd">            you must take care.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            Non-multiplexed, network detection.  When the detector is</span>
+<span class="sd">            not multiplexed, but there are multiple channels within the</span>
+<span class="sd">            detector, we do not stack the single-channel detection statistics</span>
+<span class="sd">            because we do not have a one-size-fits-all solution for computing</span>
+<span class="sd">            delays for a subspace detector (if you want to implement one, then</span>
+<span class="sd">            please contribute it!).  Therefore, these parameters provide a</span>
+<span class="sd">            means for declaring a network coincidence trigger using</span>
+<span class="sd">            single-channel detection statistics, in a similar fashion to the</span>
+<span class="sd">            commonly used network-coincidence trigger with energy detection</span>
+<span class="sd">            statistics.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">_detect</span><span class="p">(</span><span class="n">detector</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">st</span><span class="o">=</span><span class="n">st</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span>
+                       <span class="n">trig_int</span><span class="o">=</span><span class="n">trig_int</span><span class="p">,</span> <span class="n">moveout</span><span class="o">=</span><span class="n">moveout</span><span class="p">,</span> <span class="n">min_trig</span><span class="o">=</span><span class="n">min_trig</span><span class="p">,</span>
+                       <span class="n">process</span><span class="o">=</span><span class="n">process</span><span class="p">,</span> <span class="n">extract_detections</span><span class="o">=</span><span class="n">extract_detections</span><span class="p">,</span></div>
+                       <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Detector.write"><a class="viewcode-back" href="../../../submodules/core.subspace.Detector.html#eqcorrscan.core.subspace.Detector.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write detector to a file - uses HDF5 file format.</span>
+
+<span class="sd">        Meta-data are stored alongside numpy data arrays. See h5py.org for \</span>
+<span class="sd">        details of the methods.</span>
+
+<span class="sd">        :type filename: str</span>
+<span class="sd">        :param filename: Filename to save the detector to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span>
+        <span class="c1"># Must store eqcorrscan version number, username would be useful too.</span>
+        <span class="n">data_group</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">create_group</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;data&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">):</span>
+            <span class="n">dset</span> <span class="o">=</span> <span class="n">data_group</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;data_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                                             <span class="n">shape</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                                             <span class="n">dtype</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">dset</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="n">data_group</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">data_group</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;ascii&quot;</span><span class="p">,</span> <span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+        <span class="n">data_group</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;sampling_rate&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sampling_rate</span>
+        <span class="n">data_group</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;multiplex&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiplex</span>
+        <span class="n">data_group</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;lowcut&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lowcut</span>
+        <span class="n">data_group</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;highcut&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">highcut</span>
+        <span class="n">data_group</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;filt_order&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filt_order</span>
+        <span class="n">data_group</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;dimension&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimension</span>
+        <span class="n">data_group</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;user&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">getpass</span><span class="o">.</span><span class="n">getuser</span><span class="p">()</span>
+        <span class="n">data_group</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;eqcorrscan_version&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">eqcorrscan</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>
+        <span class="c1"># Convert station-channel list to something writable</span>
+        <span class="n">ascii_stachans</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">stachan</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;ascii&quot;</span><span class="p">,</span> <span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+                          <span class="k">for</span> <span class="n">stachan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">stachans</span><span class="p">]</span>
+        <span class="n">stachans</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;stachans&quot;</span><span class="p">,</span>
+                                    <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ascii_stachans</span><span class="p">),),</span>
+                                    <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;S10&#39;</span><span class="p">)</span>
+        <span class="n">stachans</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">ascii_stachans</span>
+        <span class="n">u_group</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">create_group</span><span class="p">(</span><span class="s2">&quot;u&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">u</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="p">):</span>
+            <span class="n">uset</span> <span class="o">=</span> <span class="n">u_group</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;u_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                                          <span class="n">shape</span><span class="o">=</span><span class="n">u</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">u</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">uset</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">u</span>
+        <span class="n">u_group</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="p">)</span>
+        <span class="n">sigma_group</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">create_group</span><span class="p">(</span><span class="s2">&quot;sigma&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sigma</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">):</span>
+            <span class="n">sigmaset</span> <span class="o">=</span> <span class="n">sigma_group</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;sigma_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                                                  <span class="n">shape</span><span class="o">=</span><span class="n">sigma</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                                                  <span class="n">dtype</span><span class="o">=</span><span class="n">sigma</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">sigmaset</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">sigma</span>
+        <span class="n">sigma_group</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">)</span>
+        <span class="n">v_group</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">create_group</span><span class="p">(</span><span class="s2">&quot;v&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="p">):</span>
+            <span class="n">vset</span> <span class="o">=</span> <span class="n">v_group</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;v_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                                          <span class="n">shape</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">vset</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="n">v_group</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+        <span class="k">return</span> <span class="bp">self</span>
+
+<div class="viewcode-block" id="Detector.read"><a class="viewcode-back" href="../../../submodules/core.subspace.Detector.html#eqcorrscan.core.subspace.Detector.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read detector from a file, must be HDF5 format.</span>
+
+<span class="sd">        Reads a Detector object from an HDF5 file, usually created by \</span>
+<span class="sd">        eqcorrscan.</span>
+
+<span class="sd">        :type filename: str</span>
+<span class="sd">        :param filename: Filename to save the detector to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;length&#39;</span><span class="p">]):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">][</span><span class="s1">&#39;data_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">u</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;u&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;length&#39;</span><span class="p">]):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">u</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;u&#39;</span><span class="p">][</span><span class="s1">&#39;u_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;sigma&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;length&#39;</span><span class="p">]):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;sigma&#39;</span><span class="p">][</span><span class="s1">&#39;sigma_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">v</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;v&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;length&#39;</span><span class="p">]):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">v</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;v&#39;</span><span class="p">][</span><span class="s1">&#39;v_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stachans</span> <span class="o">=</span> <span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">stachan</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">))</span>
+                         <span class="k">for</span> <span class="n">stachan</span> <span class="ow">in</span> <span class="n">f</span><span class="p">[</span><span class="s1">&#39;stachans&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dimension</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;dimension&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filt_order</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;filt_order&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">highcut</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;highcut&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lowcut</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;lowcut&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multiplex</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;multiplex&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sampling_rate</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;sampling_rate&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">self</span>
+
+<div class="viewcode-block" id="Detector.plot"><a class="viewcode-back" href="../../../submodules/core.subspace.Detector.html#eqcorrscan.core.subspace.Detector.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stachans</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span> <span class="n">show</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot the output basis vectors for the detector at the given dimension.</span>
+
+<span class="sd">        Corresponds to the first n horizontal vectors of the V matrix.</span>
+
+<span class="sd">        :type stachans: list</span>
+<span class="sd">        :param stachans: list of tuples of station, channel pairs to plot.</span>
+<span class="sd">        :type stachans: list</span>
+<span class="sd">        :param stachans: List of tuples of (station, channel) to use.  Can set\</span>
+<span class="sd">            to &#39;all&#39; to use all the station-channel pairs available. If \</span>
+<span class="sd">            detector is multiplexed, will just plot that.</span>
+<span class="sd">        :type size: tuple</span>
+<span class="sd">        :param size: Figure size.</span>
+<span class="sd">        :type show: bool</span>
+<span class="sd">        :param show: Whether or not to show the figure.</span>
+
+<span class="sd">        :returns: Figure</span>
+<span class="sd">        :rtype: matplotlib.pyplot.Figure</span>
+
+<span class="sd">        .. Note::</span>
+<span class="sd">            See :func:`eqcorrscan.utils.plotting.subspace_detector_plot`</span>
+<span class="sd">            for example.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">subspace_detector_plot</span><span class="p">(</span><span class="n">detector</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">stachans</span><span class="o">=</span><span class="n">stachans</span><span class="p">,</span></div></div>
+                                      <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="n">show</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_detect</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">st</span><span class="p">,</span> <span class="n">threshold</span><span class="p">,</span> <span class="n">trig_int</span><span class="p">,</span> <span class="n">moveout</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">min_trig</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">process</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">extract_detections</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Detect within continuous data using the subspace method.</span>
+
+<span class="sd">    Not to be called directly, use the detector.detect method.</span>
+
+<span class="sd">    :type detector: eqcorrscan.core.subspace.Detector</span>
+<span class="sd">    :param detector: Detector to use.</span>
+<span class="sd">    :type st: obspy.core.stream.Stream</span>
+<span class="sd">    :param st: Un-processed stream to detect within using the subspace \</span>
+<span class="sd">        detector</span>
+<span class="sd">    :type threshold: float</span>
+<span class="sd">    :param threshold: Threshold value for detections between 0-1</span>
+<span class="sd">    :type trig_int: float</span>
+<span class="sd">    :param trig_int: Minimum trigger interval in seconds.</span>
+<span class="sd">    :type moveout: float</span>
+<span class="sd">    :param moveout: Maximum allowable moveout window for non-multiplexed,</span>
+<span class="sd">        network detection.  See note.</span>
+<span class="sd">    :type min_trig: int</span>
+<span class="sd">    :param min_trig: Minimum number of stations exceeding threshold for \</span>
+<span class="sd">        non-multiplexed, network detection. See note.</span>
+<span class="sd">    :type process: bool</span>
+<span class="sd">    :param process: Whether or not to process the stream according to the \</span>
+<span class="sd">        parameters defined by the detector.  Default is to process the \</span>
+<span class="sd">        data (True).</span>
+<span class="sd">    :type extract_detections: bool</span>
+<span class="sd">    :param extract_detections: Whether to extract waveforms for each \</span>
+<span class="sd">        detection or not, if true will return detections and streams.</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug: Debug output level from 0-5.</span>
+
+<span class="sd">    :return: list of detections</span>
+<span class="sd">    :rtype: list of eqcorrscan.core.match_filter.Detection</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">detections</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># First process the stream</span>
+    <span class="k">if</span> <span class="n">process</span><span class="p">:</span>
+        <span class="n">debug_print</span><span class="p">(</span><span class="s1">&#39;Processing Stream&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+        <span class="n">stream</span><span class="p">,</span> <span class="n">stachans</span> <span class="o">=</span> <span class="n">_subspace_process</span><span class="p">(</span>
+            <span class="n">streams</span><span class="o">=</span><span class="p">[</span><span class="n">st</span><span class="o">.</span><span class="n">copy</span><span class="p">()],</span> <span class="n">lowcut</span><span class="o">=</span><span class="n">detector</span><span class="o">.</span><span class="n">lowcut</span><span class="p">,</span>
+            <span class="n">highcut</span><span class="o">=</span><span class="n">detector</span><span class="o">.</span><span class="n">highcut</span><span class="p">,</span> <span class="n">filt_order</span><span class="o">=</span><span class="n">detector</span><span class="o">.</span><span class="n">filt_order</span><span class="p">,</span>
+            <span class="n">sampling_rate</span><span class="o">=</span><span class="n">detector</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">,</span> <span class="n">multiplex</span><span class="o">=</span><span class="n">detector</span><span class="o">.</span><span class="n">multiplex</span><span class="p">,</span>
+            <span class="n">stachans</span><span class="o">=</span><span class="n">detector</span><span class="o">.</span><span class="n">stachans</span><span class="p">,</span> <span class="n">parallel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">align</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">shift_len</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reject</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Check the sampling rate at the very least</span>
+        <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span> <span class="o">==</span> <span class="n">detector</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Sampling rates do not match.&#39;</span><span class="p">)</span>
+        <span class="n">stream</span> <span class="o">=</span> <span class="p">[</span><span class="n">st</span><span class="p">]</span>
+        <span class="n">stachans</span> <span class="o">=</span> <span class="n">detector</span><span class="o">.</span><span class="n">stachans</span>
+    <span class="n">outtic</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+    <span class="c1"># If multiplexed, how many samples do we increment by?</span>
+    <span class="k">if</span> <span class="n">detector</span><span class="o">.</span><span class="n">multiplex</span><span class="p">:</span>
+        <span class="n">Nc</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">detector</span><span class="o">.</span><span class="n">stachans</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">Nc</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="c1"># Here do all ffts</span>
+    <span class="n">fft_vars</span> <span class="o">=</span> <span class="n">_do_ffts</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">Nc</span><span class="p">)</span>
+    <span class="n">debug_print</span><span class="p">(</span><span class="s1">&#39;Computing detection statistics&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+    <span class="n">debug_print</span><span class="p">(</span><span class="s1">&#39;Preallocating stats matrix&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+    <span class="n">stats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                      <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">//</span> <span class="n">Nc</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">fft_vars</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">//</span> <span class="n">Nc</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">det_freq</span><span class="p">,</span> <span class="n">data_freq_sq</span><span class="p">,</span> <span class="n">data_freq</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">fft_vars</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">fft_vars</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                                                    <span class="n">fft_vars</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                                                    <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">]))):</span>
+        <span class="c1"># Calculate det_statistic in frequency domain</span>
+        <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">_det_stat_freq</span><span class="p">(</span><span class="n">det_freq</span><span class="p">,</span> <span class="n">data_freq_sq</span><span class="p">,</span> <span class="n">data_freq</span><span class="p">,</span>
+                                  <span class="n">fft_vars</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">Nc</span><span class="p">,</span> <span class="n">fft_vars</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="n">fft_vars</span><span class="p">[</span><span class="mi">5</span><span class="p">])</span>
+        <span class="n">debug_print</span><span class="p">(</span><span class="s1">&#39;Stats matrix is shape </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="nb">min</span><span class="p">(</span><span class="n">t</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">t</span><span class="p">)],</span> <span class="p">[</span><span class="n">threshold</span><span class="p">,</span> <span class="n">threshold</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                    <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Threshold&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">))</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    <span class="n">trig_int_samples</span> <span class="o">=</span> <span class="n">detector</span><span class="o">.</span><span class="n">sampling_rate</span> <span class="o">*</span> <span class="n">trig_int</span>
+    <span class="n">debug_print</span><span class="p">(</span><span class="s1">&#39;Finding peaks&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">debug</span><span class="p">)</span>
+    <span class="n">peaks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
+        <span class="n">peaks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">findpeaks</span><span class="o">.</span><span class="n">find_peaks2_short</span><span class="p">(</span>
+            <span class="n">arr</span><span class="o">=</span><span class="n">stats</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">thresh</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span> <span class="n">trig_int</span><span class="o">=</span><span class="n">trig_int_samples</span><span class="p">,</span>
+            <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">detector</span><span class="o">.</span><span class="n">multiplex</span><span class="p">:</span>
+        <span class="c1"># Conduct network coincidence triggering</span>
+        <span class="n">peaks</span> <span class="o">=</span> <span class="n">findpeaks</span><span class="o">.</span><span class="n">coin_trig</span><span class="p">(</span>
+            <span class="n">peaks</span><span class="o">=</span><span class="n">peaks</span><span class="p">,</span> <span class="n">samp_rate</span><span class="o">=</span><span class="n">detector</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">,</span> <span class="n">moveout</span><span class="o">=</span><span class="n">moveout</span><span class="p">,</span>
+            <span class="n">min_trig</span><span class="o">=</span><span class="n">min_trig</span><span class="p">,</span> <span class="n">stachans</span><span class="o">=</span><span class="n">stachans</span><span class="p">,</span> <span class="n">trig_int</span><span class="o">=</span><span class="n">trig_int</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">peaks</span> <span class="o">=</span> <span class="n">peaks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">peaks</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">peak</span> <span class="ow">in</span> <span class="n">peaks</span><span class="p">:</span>
+            <span class="n">detecttime</span> <span class="o">=</span> <span class="n">st</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">+</span> \
+                <span class="p">(</span><span class="n">peak</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">detector</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">)</span>
+            <span class="n">rid</span> <span class="o">=</span> <span class="n">ResourceIdentifier</span><span class="p">(</span>
+                <span class="nb">id</span><span class="o">=</span><span class="n">detector</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">detecttime</span><span class="p">),</span> <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;smi:local&#39;</span><span class="p">)</span>
+            <span class="n">ev</span> <span class="o">=</span> <span class="n">Event</span><span class="p">(</span><span class="n">resource_id</span><span class="o">=</span><span class="n">rid</span><span class="p">)</span>
+            <span class="n">cr_i</span> <span class="o">=</span> <span class="n">CreationInfo</span><span class="p">(</span>
+                <span class="n">author</span><span class="o">=</span><span class="s1">&#39;EQcorrscan&#39;</span><span class="p">,</span> <span class="n">creation_time</span><span class="o">=</span><span class="n">UTCDateTime</span><span class="p">())</span>
+            <span class="n">ev</span><span class="o">.</span><span class="n">creation_info</span> <span class="o">=</span> <span class="n">cr_i</span>
+            <span class="c1"># All detection info in Comments for lack of a better idea</span>
+            <span class="n">thresh_str</span> <span class="o">=</span> <span class="s1">&#39;threshold=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">threshold</span><span class="p">)</span>
+            <span class="n">ccc_str</span> <span class="o">=</span> <span class="s1">&#39;detect_val=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">peak</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">used_chans</span> <span class="o">=</span> <span class="s1">&#39;channels used: &#39;</span> <span class="o">+</span>\
+                <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">pair</span><span class="p">)</span> <span class="k">for</span> <span class="n">pair</span> <span class="ow">in</span> <span class="n">detector</span><span class="o">.</span><span class="n">stachans</span><span class="p">])</span>
+            <span class="n">ev</span><span class="o">.</span><span class="n">comments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Comment</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">thresh_str</span><span class="p">))</span>
+            <span class="n">ev</span><span class="o">.</span><span class="n">comments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Comment</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">ccc_str</span><span class="p">))</span>
+            <span class="n">ev</span><span class="o">.</span><span class="n">comments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Comment</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">used_chans</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">stachan</span> <span class="ow">in</span> <span class="n">detector</span><span class="o">.</span><span class="n">stachans</span><span class="p">:</span>
+                <span class="n">tr</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">tr</span><span class="p">:</span>
+                    <span class="n">net_code</span> <span class="o">=</span> <span class="n">tr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">network</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">net_code</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+                <span class="n">pick_tm</span> <span class="o">=</span> <span class="n">detecttime</span>
+                <span class="n">wv_id</span> <span class="o">=</span> <span class="n">WaveformStreamID</span><span class="p">(</span>
+                    <span class="n">network_code</span><span class="o">=</span><span class="n">net_code</span><span class="p">,</span> <span class="n">station_code</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">channel_code</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">ev</span><span class="o">.</span><span class="n">picks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Pick</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="n">pick_tm</span><span class="p">,</span> <span class="n">waveform_id</span><span class="o">=</span><span class="n">wv_id</span><span class="p">))</span>
+            <span class="n">detections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">Detection</span><span class="p">(</span><span class="n">template_name</span><span class="o">=</span><span class="n">detector</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">detect_time</span><span class="o">=</span><span class="n">detecttime</span><span class="p">,</span>
+                          <span class="n">no_chans</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">detector</span><span class="o">.</span><span class="n">stachans</span><span class="p">),</span> <span class="n">detect_val</span><span class="o">=</span><span class="n">peak</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                          <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span> <span class="n">typeofdet</span><span class="o">=</span><span class="s1">&#39;subspace&#39;</span><span class="p">,</span>
+                          <span class="n">threshold_type</span><span class="o">=</span><span class="s1">&#39;abs&#39;</span><span class="p">,</span> <span class="n">threshold_input</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span>
+                          <span class="n">chans</span><span class="o">=</span><span class="n">detector</span><span class="o">.</span><span class="n">stachans</span><span class="p">,</span> <span class="n">event</span><span class="o">=</span><span class="n">ev</span><span class="p">))</span>
+    <span class="n">outtoc</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Detection took </span><span class="si">%s</span><span class="s1"> seconds&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">outtoc</span> <span class="o">-</span> <span class="n">outtic</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">extract_detections</span><span class="p">:</span>
+        <span class="n">detection_streams</span> <span class="o">=</span> <span class="n">extract_from_stream</span><span class="p">(</span><span class="n">st</span><span class="p">,</span> <span class="n">detections</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">detections</span><span class="p">,</span> <span class="n">detection_streams</span>
+    <span class="k">return</span> <span class="n">detections</span>
+
+
+<span class="k">def</span> <span class="nf">_do_ffts</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">Nc</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Perform ffts on data, detector and denominator boxcar</span>
+
+<span class="sd">    :type detector: eqcorrscan.core.subspace.Detector</span>
+<span class="sd">    :param detector: Detector object for doing detecting</span>
+<span class="sd">    :type stream: list of obspy.core.stream.Stream</span>
+<span class="sd">    :param stream: List of streams processed according to detector</span>
+<span class="sd">    :type Nc: int</span>
+<span class="sd">    :param Nc: Number of channels in data. 1 for non-multiplexed</span>
+
+<span class="sd">    :return: list of time-reversed detector(s) in freq domain</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    :return: list of squared data stream(s) in freq domain</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    :return: list of data stream(s) in freq domain</span>
+<span class="sd">    :return: detector-length boxcar in freq domain</span>
+<span class="sd">    :rtype: numpy.ndarray</span>
+<span class="sd">    :return: length of detector</span>
+<span class="sd">    :rtype: int</span>
+<span class="sd">    :return: length of data</span>
+<span class="sd">    :rtype: int</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">min_fftlen</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span>
+                     <span class="n">detector</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">Nc</span><span class="p">)</span>
+    <span class="n">fftlen</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">fftpack</span><span class="o">.</span><span class="n">next_fast_len</span><span class="p">(</span><span class="n">min_fftlen</span><span class="p">)</span>
+    <span class="n">mplen</span> <span class="o">=</span> <span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">ulen</span> <span class="o">=</span> <span class="n">detector</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">num_st_fd</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="n">fftlen</span><span class="p">)</span>
+                 <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+    <span class="n">denom_st_fd</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">),</span> <span class="n">n</span><span class="o">=</span><span class="n">fftlen</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+    <span class="c1"># Frequency domain of boxcar</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">detector</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                    <span class="n">n</span><span class="o">=</span><span class="n">fftlen</span><span class="p">)</span>
+    <span class="c1"># This should go into the detector object as in Detex</span>
+    <span class="n">detector_fd</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">dat_mat</span> <span class="ow">in</span> <span class="n">detector</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
+        <span class="n">detector_fd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">col</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">n</span><span class="o">=</span><span class="n">fftlen</span><span class="p">)</span>
+                                     <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">dat_mat</span><span class="o">.</span><span class="n">T</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="n">detector_fd</span><span class="p">,</span> <span class="n">denom_st_fd</span><span class="p">,</span> <span class="n">num_st_fd</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">ulen</span><span class="p">,</span> <span class="n">mplen</span>
+
+
+<span class="k">def</span> <span class="nf">_det_stat_freq</span><span class="p">(</span><span class="n">det_freq</span><span class="p">,</span> <span class="n">data_freq_sq</span><span class="p">,</span> <span class="n">data_freq</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">Nc</span><span class="p">,</span> <span class="n">ulen</span><span class="p">,</span> <span class="n">mplen</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute detection statistic in the frequency domain</span>
+
+<span class="sd">    :type det_freq: numpy.ndarray</span>
+<span class="sd">    :param det_freq: detector in freq domain</span>
+<span class="sd">    :type data_freq_sq: numpy.ndarray</span>
+<span class="sd">    :param data_freq_sq: squared data in freq domain</span>
+<span class="sd">    :type data_freq: numpy.ndarray</span>
+<span class="sd">    :param data_freq: data in freq domain</span>
+<span class="sd">    :type w: numpy.ndarray</span>
+<span class="sd">    :param w: boxcar in freq domain</span>
+<span class="sd">    :type Nc: int</span>
+<span class="sd">    :param Nc: number of channels in data stream</span>
+<span class="sd">    :type ulen: int</span>
+<span class="sd">    :param ulen: length of detector</span>
+<span class="sd">    :type mplen: int</span>
+<span class="sd">    :param mplen: length of data</span>
+
+<span class="sd">    :return: Array of detection statistics</span>
+<span class="sd">    :rtype: numpy.ndarray</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">num_cor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">det_freq</span><span class="p">,</span> <span class="n">data_freq</span><span class="p">)</span>  <span class="c1"># Numerator convolution</span>
+    <span class="n">den_cor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">data_freq_sq</span><span class="p">)</span>  <span class="c1"># Denominator convolution</span>
+    <span class="c1"># Do inverse fft</span>
+    <span class="c1"># First and last Nt - 1 samples are invalid; clip them off</span>
+    <span class="n">num_ifft</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">irfft</span><span class="p">(</span><span class="n">num_cor</span><span class="p">))[:,</span> <span class="n">ulen</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span><span class="n">mplen</span><span class="p">:</span><span class="n">Nc</span><span class="p">]</span>
+    <span class="n">denominator</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">irfft</span><span class="p">(</span><span class="n">den_cor</span><span class="p">))[</span><span class="n">ulen</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span><span class="n">mplen</span><span class="p">:</span><span class="n">Nc</span><span class="p">]</span>
+    <span class="c1"># Ratio of projected to envelope energy = det_stat across all channels</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">num_ifft</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="n">denominator</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<span class="k">def</span> <span class="nf">_subspace_process</span><span class="p">(</span><span class="n">streams</span><span class="p">,</span> <span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="p">,</span> <span class="n">filt_order</span><span class="p">,</span> <span class="n">sampling_rate</span><span class="p">,</span>
+                      <span class="n">multiplex</span><span class="p">,</span> <span class="n">align</span><span class="p">,</span> <span class="n">shift_len</span><span class="p">,</span> <span class="n">reject</span><span class="p">,</span> <span class="n">no_missed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                      <span class="n">stachans</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parallel</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Process stream data, internal function.</span>
+
+<span class="sd">    :type streams: list</span>
+<span class="sd">    :param streams: List of obspy.core.stream.Stream to be used to \</span>
+<span class="sd">        generate the subspace detector.  These should be pre-clustered \</span>
+<span class="sd">        and aligned.</span>
+<span class="sd">    :type lowcut: float</span>
+<span class="sd">    :param lowcut: Lowcut in Hz, can be None to not apply filter</span>
+<span class="sd">    :type highcut: float</span>
+<span class="sd">    :param highcut: Highcut in Hz, can be None to not apply filter</span>
+<span class="sd">    :type filt_order: int</span>
+<span class="sd">    :param filt_order: Number of corners for filter.</span>
+<span class="sd">    :type sampling_rate: float</span>
+<span class="sd">    :param sampling_rate: Desired sampling rate in Hz</span>
+<span class="sd">    :type multiplex: bool</span>
+<span class="sd">    :param multiplex: Whether to multiplex the data or not.  Data are \</span>
+<span class="sd">        multiplexed according to the method of Harris, see the multi \</span>
+<span class="sd">        function for details.</span>
+<span class="sd">    :type stachans: list of tuple</span>
+<span class="sd">    :param stachans: list of tuples of (station, channel) to use.</span>
+<span class="sd">    :type align: bool</span>
+<span class="sd">    :param align: Whether to align the data or not - needs to be done \</span>
+<span class="sd">        at some point</span>
+<span class="sd">    :type shift_len: float</span>
+<span class="sd">    :param shift_len: Maximum shift allowed for alignment in seconds.</span>
+<span class="sd">    :type reject: float</span>
+<span class="sd">    :param reject: Minimum correlation for traces, only used if align=True.</span>
+<span class="sd">    :type no_missed: bool</span>
+<span class="sd">    :param: no_missed: Reject streams with missed traces, defaults to True. \</span>
+<span class="sd">        A missing trace from lots of events will reduce the quality of the \</span>
+<span class="sd">        subspace detector if multiplexed.  Only used when multi is set to True.</span>
+<span class="sd">    :type plot: bool</span>
+<span class="sd">    :param plot: Passed down to align traces - used to check alignment process.</span>
+
+<span class="sd">    :return: Processed streams</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    :return: Station, channel pairs in order</span>
+<span class="sd">    :rtype: list of tuple</span>
+<span class="sd">    :return: List of delays</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="k">import</span> <span class="n">Pool</span><span class="p">,</span> <span class="n">cpu_count</span>
+    <span class="n">processed_streams</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">stachans</span><span class="p">:</span>
+        <span class="n">input_stachans</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">([(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span>
+                                   <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">streams</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="o">.</span><span class="n">sort</span><span class="p">()]))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">input_stachans</span> <span class="o">=</span> <span class="n">stachans</span>
+    <span class="n">input_stachans</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>  <span class="c1"># Make sure stations and channels are in order</span>
+    <span class="c1"># Check that all channels are the same length in seconds</span>
+    <span class="n">first_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">streams</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">/</span>\
+        <span class="n">streams</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span>
+    <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">streams</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="o">/</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span> <span class="o">==</span> <span class="n">first_length</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;All channels of all streams must be the same length&#39;</span>
+                <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">streams</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">parallel</span><span class="p">:</span>
+            <span class="n">processed_stream</span> <span class="o">=</span> <span class="n">Stream</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">stachan</span> <span class="ow">in</span> <span class="n">input_stachans</span><span class="p">:</span>
+                <span class="n">dummy</span><span class="p">,</span> <span class="n">tr</span> <span class="o">=</span> <span class="n">_internal_process</span><span class="p">(</span>
+                    <span class="n">st</span><span class="o">=</span><span class="n">st</span><span class="p">,</span> <span class="n">lowcut</span><span class="o">=</span><span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="n">highcut</span><span class="p">,</span>
+                    <span class="n">filt_order</span><span class="o">=</span><span class="n">filt_order</span><span class="p">,</span> <span class="n">sampling_rate</span><span class="o">=</span><span class="n">sampling_rate</span><span class="p">,</span>
+                    <span class="n">first_length</span><span class="o">=</span><span class="n">first_length</span><span class="p">,</span> <span class="n">stachan</span><span class="o">=</span><span class="n">stachan</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">processed_stream</span> <span class="o">+=</span> <span class="n">tr</span>
+            <span class="n">processed_streams</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">processed_stream</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pool</span> <span class="o">=</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">cpu_count</span><span class="p">())</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">pool</span><span class="o">.</span><span class="n">apply_async</span><span class="p">(</span>
+                <span class="n">_internal_process</span><span class="p">,</span> <span class="p">(</span><span class="n">st</span><span class="p">,),</span>
+                <span class="p">{</span><span class="s1">&#39;lowcut&#39;</span><span class="p">:</span> <span class="n">lowcut</span><span class="p">,</span> <span class="s1">&#39;highcut&#39;</span><span class="p">:</span> <span class="n">highcut</span><span class="p">,</span>
+                 <span class="s1">&#39;filt_order&#39;</span><span class="p">:</span> <span class="n">filt_order</span><span class="p">,</span> <span class="s1">&#39;sampling_rate&#39;</span><span class="p">:</span> <span class="n">sampling_rate</span><span class="p">,</span>
+                 <span class="s1">&#39;first_length&#39;</span><span class="p">:</span> <span class="n">first_length</span><span class="p">,</span> <span class="s1">&#39;stachan&#39;</span><span class="p">:</span> <span class="n">stachan</span><span class="p">,</span> <span class="s1">&#39;debug&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                 <span class="s1">&#39;i&#39;</span><span class="p">:</span> <span class="n">i</span><span class="p">})</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">stachan</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">input_stachans</span><span class="p">)]</span>
+            <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">processed_stream</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+            <span class="n">pool</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+            <span class="n">processed_stream</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">tup</span><span class="p">:</span> <span class="n">tup</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">processed_stream</span> <span class="o">=</span> <span class="n">Stream</span><span class="p">([</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">processed_stream</span><span class="p">])</span>
+            <span class="n">processed_streams</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">processed_stream</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">no_missed</span> <span class="ow">and</span> <span class="n">multiplex</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">processed_stream</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">processed_streams</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">processed_stream</span><span class="p">)</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Removed stream with empty trace&#39;</span><span class="p">)</span>
+                    <span class="k">break</span>
+    <span class="k">if</span> <span class="n">align</span><span class="p">:</span>
+        <span class="n">processed_streams</span> <span class="o">=</span> <span class="n">align_design</span><span class="p">(</span>
+            <span class="n">design_set</span><span class="o">=</span><span class="n">processed_streams</span><span class="p">,</span> <span class="n">shift_len</span><span class="o">=</span><span class="n">shift_len</span><span class="p">,</span> <span class="n">reject</span><span class="o">=</span><span class="n">reject</span><span class="p">,</span>
+            <span class="n">multiplex</span><span class="o">=</span><span class="n">multiplex</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="n">plot</span><span class="p">,</span> <span class="n">no_missed</span><span class="o">=</span><span class="n">no_missed</span><span class="p">)</span>
+    <span class="n">output_streams</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">processed_stream</span> <span class="ow">in</span> <span class="n">processed_streams</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">processed_stream</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># If we have removed all of the traces then onwards!</span>
+            <span class="k">continue</span>
+        <span class="c1"># Need to order the stream according to input_stachans</span>
+        <span class="n">_st</span> <span class="o">=</span> <span class="n">Stream</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">stachan</span> <span class="ow">in</span> <span class="n">input_stachans</span><span class="p">:</span>
+            <span class="n">tr</span> <span class="o">=</span> <span class="n">processed_stream</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                <span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">_st</span> <span class="o">+=</span> <span class="n">tr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">multiplex</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span>
+                    <span class="s1">&#39;Missing data for </span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="n">multiplex</span><span class="p">:</span>
+            <span class="n">st</span> <span class="o">=</span> <span class="n">multi</span><span class="p">(</span><span class="n">stream</span><span class="o">=</span><span class="n">_st</span><span class="p">)</span>
+            <span class="n">st</span> <span class="o">=</span> <span class="n">Stream</span><span class="p">(</span><span class="n">Trace</span><span class="p">(</span><span class="n">st</span><span class="p">))</span>
+            <span class="n">st</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span> <span class="o">=</span> <span class="s1">&#39;Multi&#39;</span>
+            <span class="n">st</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span> <span class="o">=</span> <span class="n">sampling_rate</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">st</span> <span class="o">=</span> <span class="n">_st</span>
+        <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">:</span>
+            <span class="c1"># Normalize the data</span>
+            <span class="n">norm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">norm</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">tr</span><span class="o">.</span><span class="n">data</span> <span class="o">/=</span> <span class="n">norm</span>
+        <span class="n">output_streams</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">st</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">output_streams</span><span class="p">,</span> <span class="n">input_stachans</span>
+
+
+<span class="k">def</span> <span class="nf">_internal_process</span><span class="p">(</span><span class="n">st</span><span class="p">,</span> <span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="p">,</span> <span class="n">filt_order</span><span class="p">,</span> <span class="n">sampling_rate</span><span class="p">,</span>
+                      <span class="n">first_length</span><span class="p">,</span> <span class="n">stachan</span><span class="p">,</span> <span class="n">debug</span><span class="p">,</span> <span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="n">tr</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">tr</span> <span class="o">=</span> <span class="n">Trace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">first_length</span> <span class="o">*</span> <span class="n">sampling_rate</span><span class="p">)))</span>
+        <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span> <span class="o">=</span> <span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span> <span class="o">=</span> <span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span> <span class="o">=</span> <span class="n">sampling_rate</span>
+        <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">=</span> <span class="n">st</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span>  <span class="c1"># Do this to make more</span>
+        <span class="c1"># sensible plots</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Padding stream with zero trace for &#39;</span> <span class="o">+</span>
+                      <span class="s1">&#39;station &#39;</span> <span class="o">+</span> <span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">tr</span> <span class="o">=</span> <span class="n">tr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">tr</span><span class="o">.</span><span class="n">detrend</span><span class="p">(</span><span class="s1">&#39;simple&#39;</span><span class="p">)</span>
+        <span class="n">tr</span> <span class="o">=</span> <span class="n">pre_processing</span><span class="o">.</span><span class="n">process</span><span class="p">(</span>
+            <span class="n">tr</span><span class="o">=</span><span class="n">tr</span><span class="p">,</span> <span class="n">lowcut</span><span class="o">=</span><span class="n">lowcut</span><span class="p">,</span> <span class="n">highcut</span><span class="o">=</span><span class="n">highcut</span><span class="p">,</span> <span class="n">filt_order</span><span class="o">=</span><span class="n">filt_order</span><span class="p">,</span>
+            <span class="n">samp_rate</span><span class="o">=</span><span class="n">sampling_rate</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span> <span class="n">seisan_chan_names</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Multiple channels for &#39;</span> <span class="o">+</span> <span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span>
+               <span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39; in a single design stream.&#39;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">i</span><span class="p">,</span> <span class="n">tr</span>
+
+
+<div class="viewcode-block" id="read_detector"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.core.subspace.read_detector.html#eqcorrscan.core.subspace.read_detector">[docs]</a><span class="k">def</span> <span class="nf">read_detector</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read detector from a filename.</span>
+
+<span class="sd">    :type filename: str</span>
+<span class="sd">    :param filename: Filename to save the detector to.</span>
+
+<span class="sd">    :return: Detector object</span>
+<span class="sd">    :rtype: eqcorrscan.core.subspace.Detector</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">detector</span> <span class="o">=</span> <span class="n">Detector</span><span class="p">()</span>
+    <span class="n">detector</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">detector</span>
+
+
+<div class="viewcode-block" id="multi"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.core.subspace.multi.html#eqcorrscan.core.subspace.multi">[docs]</a><span class="k">def</span> <span class="nf">multi</span><span class="p">(</span><span class="n">stream</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Internal multiplexer for multiplex_detect.</span>
+
+<span class="sd">    :type stream: obspy.core.stream.Stream</span>
+<span class="sd">    :param stream: Stream to multiplex</span>
+
+<span class="sd">    :return: trace of multiplexed data</span>
+<span class="sd">    :rtype: obspy.core.trace.Trace</span>
+
+<span class="sd">    .. Note: Requires all channels to be the same length.</span>
+
+<span class="sd">    Maps a standard multiplexed stream of seismic data to a single traces of \</span>
+<span class="sd">    multiplexed data as follows:</span>
+
+<span class="sd">    Input:</span>
+<span class="sd">    x = [x1, x2, x3, ...]</span>
+<span class="sd">    y = [y1, y2, y3, ...]</span>
+<span class="sd">    z = [z1, z2, z3, ...]</span>
+
+<span class="sd">    Output:</span>
+<span class="sd">    xyz = [x1, y1, z1, x2, y2, z2, x3, y3, z3, ...]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">stack</span> <span class="o">=</span> <span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span>
+    <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">stream</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dstack</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">stack</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">]))</span>
+    <span class="n">multiplex</span> <span class="o">=</span> <span class="n">stack</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">stack</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">multiplex</span>
+
+
+<span class="k">def</span> <span class="nf">align_design</span><span class="p">(</span><span class="n">design_set</span><span class="p">,</span> <span class="n">shift_len</span><span class="p">,</span> <span class="n">reject</span><span class="p">,</span> <span class="n">multiplex</span><span class="p">,</span> <span class="n">no_missed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">plot</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Align individual traces within streams of the design set.</span>
+
+<span class="sd">    Perform before Detector.construct to align traces before computing the \</span>
+<span class="sd">    singular value decomposition.</span>
+
+<span class="sd">    :type design_set: list</span>
+<span class="sd">    :param design_set: List of obspy.core.stream.Stream to be aligned</span>
+<span class="sd">    :type shift_len: float</span>
+<span class="sd">    :param shift_len: Maximum shift (plus/minus) in seconds.</span>
+<span class="sd">    :type reject: float</span>
+<span class="sd">    :param reject: Minimum correlation for traces, only used if align=True.</span>
+<span class="sd">    :type multiplex: bool</span>
+<span class="sd">    :param multiplex: If you are going to multiplex the data, then there has \</span>
+<span class="sd">        to be data for all channels, so we will pad with zeros, otherwise \</span>
+<span class="sd">        there is no need.</span>
+<span class="sd">    :type no_missed: bool</span>
+<span class="sd">    :param: no_missed: Reject streams with missed traces, defaults to True. \</span>
+<span class="sd">        A missing trace from lots of events will reduce the quality of the \</span>
+<span class="sd">        subspace detector if multiplexed.  Only used when multi is set to True.</span>
+<span class="sd">    :type plot: bool</span>
+<span class="sd">    :param plot: Whether to plot the aligned traces as we go or not.</span>
+
+<span class="sd">    :rtype: list</span>
+<span class="sd">    :return: List of obspy.core.stream.Stream of aligned streams</span>
+
+<span class="sd">    .. Note:: Assumes only one trace for each channel for each stream in the \</span>
+<span class="sd">        design_set. If more are present will only use the first one.</span>
+
+<span class="sd">    .. Note:: Will cut all traces to be the same length as required for the \</span>
+<span class="sd">        svd, this length will be the shortest trace length - 2 * shift_len</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">trace_lengths</span> <span class="o">=</span> <span class="p">[</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">endtime</span> <span class="o">-</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">design_set</span>
+                     <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">]</span>
+    <span class="n">clip_len</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">trace_lengths</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">shift_len</span><span class="p">)</span>
+    <span class="n">stachans</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">([(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span>
+                         <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">design_set</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">]))</span>
+    <span class="n">remove_set</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">stachan</span> <span class="ow">in</span> <span class="n">stachans</span><span class="p">:</span>
+        <span class="n">trace_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">trace_ids</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">st</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">design_set</span><span class="p">):</span>
+            <span class="n">tr</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">trace_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tr</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">trace_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Too many matches for </span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                                              <span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">shift_len_samples</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">shift_len</span> <span class="o">*</span> <span class="n">trace_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">)</span>
+        <span class="n">shifts</span><span class="p">,</span> <span class="n">cccs</span> <span class="o">=</span> <span class="n">stacking</span><span class="o">.</span><span class="n">align_traces</span><span class="p">(</span>
+            <span class="n">trace_list</span><span class="o">=</span><span class="n">trace_list</span><span class="p">,</span> <span class="n">shift_len</span><span class="o">=</span><span class="n">shift_len_samples</span><span class="p">,</span> <span class="n">positive</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">shift</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">shifts</span><span class="p">):</span>
+            <span class="n">st</span> <span class="o">=</span> <span class="n">design_set</span><span class="p">[</span><span class="n">trace_ids</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+            <span class="n">start_t</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                <span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span>
+            <span class="n">start_t</span> <span class="o">+=</span> <span class="n">shift_len</span>
+            <span class="n">start_t</span> <span class="o">-=</span> <span class="n">shift</span>
+            <span class="n">st</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                <span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">trim</span><span class="p">(</span>
+                <span class="n">start_t</span><span class="p">,</span> <span class="n">start_t</span> <span class="o">+</span> <span class="n">clip_len</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">cccs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">reject</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">multiplex</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">no_missed</span><span class="p">:</span>
+                    <span class="n">st</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                              <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                        <span class="nb">int</span><span class="p">(</span><span class="n">clip_len</span> <span class="o">*</span> <span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                            <span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                            <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+                    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Padding stream with zero trace for &#39;</span> <span class="o">+</span>
+                                  <span class="s1">&#39;station &#39;</span> <span class="o">+</span> <span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;zero padding&#39;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">multiplex</span> <span class="ow">and</span> <span class="n">no_missed</span><span class="p">:</span>
+                    <span class="n">remove_set</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">st</span><span class="p">)</span>
+                    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Will remove stream due to low-correlation&#39;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">st</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                              <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Removed channel with correlation at </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">cccs</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                    <span class="k">continue</span>
+    <span class="k">if</span> <span class="n">no_missed</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">remove_set</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">design_set</span><span class="p">:</span>
+                <span class="n">design_set</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">st</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">plot</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">stachan</span> <span class="ow">in</span> <span class="n">stachans</span><span class="p">:</span>
+            <span class="n">trace_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">design_set</span><span class="p">:</span>
+                <span class="n">tr</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">trace_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tr</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">trace_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">plotting</span><span class="o">.</span><span class="n">multi_trace_plot</span><span class="p">(</span><span class="n">traces</span><span class="o">=</span><span class="n">trace_list</span><span class="p">,</span> <span class="n">corr</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                          <span class="n">stack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">stachan</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No plot for you, only one trace left after rejection&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">design_set</span>
+
+
+<div class="viewcode-block" id="subspace_detect"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.core.subspace.subspace_detect.html#eqcorrscan.core.subspace.subspace_detect">[docs]</a><span class="k">def</span> <span class="nf">subspace_detect</span><span class="p">(</span><span class="n">detectors</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">threshold</span><span class="p">,</span> <span class="n">trig_int</span><span class="p">,</span> <span class="n">moveout</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                    <span class="n">min_trig</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">parallel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">num_cores</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Conduct subspace detection with chosen detectors.</span>
+
+<span class="sd">    :type detectors: list</span>
+<span class="sd">    :param detectors:</span>
+<span class="sd">        list of :class:`eqcorrscan.core.subspace.Detector` to be used</span>
+<span class="sd">        for detection.</span>
+<span class="sd">    :type stream: obspy.core.stream.Stream</span>
+<span class="sd">    :param stream: Stream to detect within.</span>
+<span class="sd">    :type threshold: float</span>
+<span class="sd">    :param threshold:</span>
+<span class="sd">        Threshold between 0 and 1 for detection, see :func:`Detector.detect`</span>
+<span class="sd">    :type trig_int: float</span>
+<span class="sd">    :param trig_int: Minimum trigger interval in seconds.</span>
+<span class="sd">    :type moveout: float</span>
+<span class="sd">    :param moveout:</span>
+<span class="sd">        Maximum allowable moveout window for non-multiplexed, network</span>
+<span class="sd">        detection.  See note.</span>
+<span class="sd">    :type min_trig: int</span>
+<span class="sd">    :param min_trig:</span>
+<span class="sd">        Minimum number of stations exceeding threshold for non-multiplexed,</span>
+<span class="sd">        network detection. See note in :func:`Detector.detect`.</span>
+<span class="sd">    :type parallel: bool</span>
+<span class="sd">    :param parallel: Whether to run detectors in parallel in groups.</span>
+<span class="sd">    :type num_cores: int</span>
+<span class="sd">    :param num_cores:</span>
+<span class="sd">        How many cpu cores to use if parallel==True. If set to None (default),</span>
+<span class="sd">        will use all available cores.</span>
+
+<span class="sd">    :rtype: list</span>
+<span class="sd">    :return:</span>
+<span class="sd">        List of :class:`eqcorrscan.core.match_filter.Detection` detections.</span>
+
+<span class="sd">    .. Note::</span>
+<span class="sd">        This will loop through your detectors using their detect method.</span>
+<span class="sd">        If the detectors are multiplexed it will run groups of detectors with</span>
+<span class="sd">        the same channels at the same time.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="k">import</span> <span class="n">Pool</span><span class="p">,</span> <span class="n">cpu_count</span>
+    <span class="c1"># First check that detector parameters are the same</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">detections</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">detector</span> <span class="ow">in</span> <span class="n">detectors</span><span class="p">:</span>
+        <span class="n">parameter</span> <span class="o">=</span> <span class="p">(</span><span class="n">detector</span><span class="o">.</span><span class="n">lowcut</span><span class="p">,</span> <span class="n">detector</span><span class="o">.</span><span class="n">highcut</span><span class="p">,</span>
+                     <span class="n">detector</span><span class="o">.</span><span class="n">filt_order</span><span class="p">,</span> <span class="n">detector</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">,</span>
+                     <span class="n">detector</span><span class="o">.</span><span class="n">multiplex</span><span class="p">,</span> <span class="n">detector</span><span class="o">.</span><span class="n">stachans</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">parameter</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+            <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parameter</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">parameter_set</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+        <span class="n">parameter_detectors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">detector</span> <span class="ow">in</span> <span class="n">detectors</span><span class="p">:</span>
+            <span class="n">det_par</span> <span class="o">=</span> <span class="p">(</span><span class="n">detector</span><span class="o">.</span><span class="n">lowcut</span><span class="p">,</span> <span class="n">detector</span><span class="o">.</span><span class="n">highcut</span><span class="p">,</span> <span class="n">detector</span><span class="o">.</span><span class="n">filt_order</span><span class="p">,</span>
+                       <span class="n">detector</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">,</span> <span class="n">detector</span><span class="o">.</span><span class="n">multiplex</span><span class="p">,</span>
+                       <span class="n">detector</span><span class="o">.</span><span class="n">stachans</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">det_par</span> <span class="o">==</span> <span class="n">parameter_set</span><span class="p">:</span>
+                <span class="n">parameter_detectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">detector</span><span class="p">)</span>
+        <span class="n">stream</span><span class="p">,</span> <span class="n">stachans</span> <span class="o">=</span> \
+            <span class="n">_subspace_process</span><span class="p">(</span>
+                <span class="n">streams</span><span class="o">=</span><span class="p">[</span><span class="n">stream</span><span class="o">.</span><span class="n">copy</span><span class="p">()],</span> <span class="n">lowcut</span><span class="o">=</span><span class="n">parameter_set</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">highcut</span><span class="o">=</span><span class="n">parameter_set</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">filt_order</span><span class="o">=</span><span class="n">parameter_set</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                <span class="n">sampling_rate</span><span class="o">=</span><span class="n">parameter_set</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">multiplex</span><span class="o">=</span><span class="n">parameter_set</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="n">stachans</span><span class="o">=</span><span class="n">parameter_set</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span> <span class="n">parallel</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">align</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">shift_len</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reject</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">parallel</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">detector</span> <span class="ow">in</span> <span class="n">parameter_detectors</span><span class="p">:</span>
+                <span class="n">detections</span> <span class="o">+=</span> <span class="n">_detect</span><span class="p">(</span>
+                    <span class="n">detector</span><span class="o">=</span><span class="n">detector</span><span class="p">,</span> <span class="n">st</span><span class="o">=</span><span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span>
+                    <span class="n">trig_int</span><span class="o">=</span><span class="n">trig_int</span><span class="p">,</span> <span class="n">moveout</span><span class="o">=</span><span class="n">moveout</span><span class="p">,</span> <span class="n">min_trig</span><span class="o">=</span><span class="n">min_trig</span><span class="p">,</span>
+                    <span class="n">process</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">extract_detections</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">num_cores</span><span class="p">:</span>
+                <span class="n">ncores</span> <span class="o">=</span> <span class="n">num_cores</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ncores</span> <span class="o">=</span> <span class="n">cpu_count</span><span class="p">()</span>
+            <span class="n">pool</span> <span class="o">=</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">ncores</span><span class="p">)</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">pool</span><span class="o">.</span><span class="n">apply_async</span><span class="p">(</span>
+                <span class="n">_detect</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">detector</span><span class="p">,</span> <span class="n">stream</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">threshold</span><span class="p">,</span> <span class="n">trig_int</span><span class="p">,</span>
+                               <span class="n">moveout</span><span class="p">,</span> <span class="n">min_trig</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+                       <span class="k">for</span> <span class="n">detector</span> <span class="ow">in</span> <span class="n">parameter_detectors</span><span class="p">]</span>
+            <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">_detections</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+            <span class="n">pool</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">_detections</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                    <span class="n">detections</span> <span class="o">+=</span> <span class="n">d</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">detections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">detections</span>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2015, 2016: EQcorrscan developers.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.3.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

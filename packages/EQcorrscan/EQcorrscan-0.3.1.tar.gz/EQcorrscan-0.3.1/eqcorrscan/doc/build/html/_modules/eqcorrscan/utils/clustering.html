@@ -1,0 +1,1246 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>eqcorrscan.utils.clustering &mdash; EQcorrscan 0.3.0 documentation</title>
+  
+
+  
+  
+    <link rel="shortcut icon" href="../../../_static/EQcorrscan_logo.ico"/>
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="EQcorrscan 0.3.0 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> EQcorrscan
+          
+
+          
+            
+            <img src="../../../_static/EQcorrscan_logo.jpg" class="logo" />
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">1. Introduction to the EQcorrscan package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">2. EQcorrscan installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../updates.html">3. What’s new</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">EQcorrscan tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../core.html">4. Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../utils.html">5. Utils</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">EQcorrscan</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>eqcorrscan.utils.clustering</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for eqcorrscan.utils.clustering</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Functions to cluster seismograms by a range of constraints.</span>
+
+<span class="sd">:copyright:</span>
+<span class="sd">    EQcorrscan developers.</span>
+
+<span class="sd">:license:</span>
+<span class="sd">    GNU Lesser General Public License, Version 3</span>
+<span class="sd">    (https://www.gnu.org/copyleft/lesser.html)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="k">import</span> <span class="n">Pool</span><span class="p">,</span> <span class="n">cpu_count</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">obspy</span> <span class="k">import</span> <span class="n">Stream</span><span class="p">,</span> <span class="n">Catalog</span><span class="p">,</span> <span class="n">UTCDateTime</span><span class="p">,</span> <span class="n">Trace</span>
+<span class="kn">from</span> <span class="nn">obspy.signal.cross_correlation</span> <span class="k">import</span> <span class="n">xcorr</span>
+<span class="kn">from</span> <span class="nn">scipy.cluster.hierarchy</span> <span class="k">import</span> <span class="n">linkage</span><span class="p">,</span> <span class="n">dendrogram</span><span class="p">,</span> <span class="n">fcluster</span>
+<span class="kn">from</span> <span class="nn">scipy.spatial.distance</span> <span class="k">import</span> <span class="n">squareform</span>
+
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils</span> <span class="k">import</span> <span class="n">stacking</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils.archive_read</span> <span class="k">import</span> <span class="n">read_data</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils.correlate</span> <span class="k">import</span> <span class="n">get_array_xcorr</span>
+<span class="kn">from</span> <span class="nn">eqcorrscan.utils.mag_calc</span> <span class="k">import</span> <span class="n">dist_calc</span>
+
+
+<div class="viewcode-block" id="cross_chan_coherence"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.clustering.cross_chan_coherence.html#eqcorrscan.utils.clustering.cross_chan_coherence">[docs]</a><span class="k">def</span> <span class="nf">cross_chan_coherence</span><span class="p">(</span><span class="n">st1</span><span class="p">,</span> <span class="n">st2</span><span class="p">,</span> <span class="n">allow_shift</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">shift_len</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                         <span class="n">xcorr_func</span><span class="o">=</span><span class="s1">&#39;time_domain&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate cross-channel coherency.</span>
+
+<span class="sd">    Determine the cross-channel coherency between two streams of multichannel</span>
+<span class="sd">    seismic data.</span>
+
+<span class="sd">    :type st1: obspy.core.stream.Stream</span>
+<span class="sd">    :param st1: Stream one</span>
+<span class="sd">    :type st2: obspy.core.stream.Stream</span>
+<span class="sd">    :param st2: Stream two</span>
+<span class="sd">    :type allow_shift: bool</span>
+<span class="sd">    :param allow_shift:</span>
+<span class="sd">        Whether to allow the optimum alignment to be found for coherence,</span>
+<span class="sd">        defaults to `False` for strict coherence</span>
+<span class="sd">    :type shift_len: float</span>
+<span class="sd">    :param shift_len: Seconds to shift, only used if `allow_shift=True`</span>
+<span class="sd">    :type i: int</span>
+<span class="sd">    :param i: index used for parallel async processing, returned unaltered</span>
+<span class="sd">    :type xcorr_func: str, callable</span>
+<span class="sd">    :param xcorr_func:</span>
+<span class="sd">        The method for performing correlations. Accepts either a string or</span>
+<span class="sd">         callabe. See :func:`eqcorrscan.utils.correlate.register_array_xcorr`</span>
+<span class="sd">         for more details</span>
+
+<span class="sd">    :returns:</span>
+<span class="sd">        cross channel coherence, float - normalized by number of channels,</span>
+<span class="sd">        and i, where i is int, as input.</span>
+<span class="sd">    :rtype: tuple</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cccoh</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">kchan</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">array_xcorr</span> <span class="o">=</span> <span class="n">get_array_xcorr</span><span class="p">(</span><span class="n">xcorr_func</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st1</span><span class="p">:</span>
+        <span class="n">tr2</span> <span class="o">=</span> <span class="n">st2</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span>
+                         <span class="n">channel</span><span class="o">=</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span> <span class="o">!=</span> \
+                <span class="n">tr2</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Sampling rates do not match, not using: </span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span>
+                          <span class="o">%</span> <span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">allow_shift</span><span class="p">:</span>
+            <span class="n">index</span><span class="p">,</span> <span class="n">corval</span> <span class="o">=</span> <span class="n">xcorr</span><span class="p">(</span><span class="n">tr</span><span class="p">,</span> <span class="n">tr2</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                  <span class="nb">int</span><span class="p">(</span><span class="n">shift_len</span> <span class="o">*</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">))</span>
+            <span class="n">cccoh</span> <span class="o">+=</span> <span class="n">corval</span>
+            <span class="n">kchan</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">min_len</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr2</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">))</span>
+            <span class="n">cccoh</span> <span class="o">+=</span> <span class="n">array_xcorr</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">min_len</span><span class="p">]]),</span> <span class="n">tr2</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">min_len</span><span class="p">],</span>
+                <span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">kchan</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">kchan</span><span class="p">:</span>
+        <span class="n">cccoh</span> <span class="o">/=</span> <span class="n">kchan</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">cccoh</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">i</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;No matching channels&#39;</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="mi">0</span><span class="p">,</span> <span class="n">i</span>
+
+
+<div class="viewcode-block" id="distance_matrix"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.clustering.distance_matrix.html#eqcorrscan.utils.clustering.distance_matrix">[docs]</a><span class="k">def</span> <span class="nf">distance_matrix</span><span class="p">(</span><span class="n">stream_list</span><span class="p">,</span> <span class="n">allow_shift</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">shift_len</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">cores</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute distance matrix for waveforms based on cross-correlations.</span>
+
+<span class="sd">    Function to compute the distance matrix for all templates - will give</span>
+<span class="sd">    distance as 1-abs(cccoh), e.g. a well correlated pair of templates will</span>
+<span class="sd">    have small distances, and an equally well correlated reverse image will</span>
+<span class="sd">    have the same distance as a positively correlated image - this is an issue.</span>
+
+<span class="sd">    :type stream_list: list</span>
+<span class="sd">    :param stream_list:</span>
+<span class="sd">        List of the :class:`obspy.core.stream.Stream` to compute the distance</span>
+<span class="sd">        matrix for</span>
+<span class="sd">    :type allow_shift: bool</span>
+<span class="sd">    :param allow_shift: To allow templates to shift or not?</span>
+<span class="sd">    :type shift_len: float</span>
+<span class="sd">    :param shift_len: How many seconds for templates to shift</span>
+<span class="sd">    :type cores: int</span>
+<span class="sd">    :param cores: Number of cores to parallel process using, defaults to 1.</span>
+
+<span class="sd">    :returns: distance matrix</span>
+<span class="sd">    :rtype: :class:`numpy.ndarray`</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Because distance is given as :math:`1-abs(coherence)`, negatively</span>
+<span class="sd">        correlated and positively correlated objects are given the same</span>
+<span class="sd">        distance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Initialize square matrix</span>
+    <span class="n">dist_mat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">stream_list</span><span class="p">))]</span> <span class="o">*</span>
+                        <span class="nb">len</span><span class="p">(</span><span class="n">stream_list</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">master</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stream_list</span><span class="p">):</span>
+        <span class="c1"># Start a parallel processing pool</span>
+        <span class="n">pool</span> <span class="o">=</span> <span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">cores</span><span class="p">)</span>
+        <span class="c1"># Parallel processing</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">pool</span><span class="o">.</span><span class="n">apply_async</span><span class="p">(</span><span class="n">cross_chan_coherence</span><span class="p">,</span>
+                                    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">master</span><span class="p">,</span> <span class="n">stream_list</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">allow_shift</span><span class="p">,</span>
+                                          <span class="n">shift_len</span><span class="p">,</span> <span class="n">j</span><span class="p">))</span>
+                   <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">stream_list</span><span class="p">))]</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="c1"># Extract the results when they are done</span>
+        <span class="n">dist_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+        <span class="c1"># Close and join all the processes back to the master process</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+        <span class="c1"># Sort the results by the input j</span>
+        <span class="n">dist_list</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">tup</span><span class="p">:</span> <span class="n">tup</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="c1"># Sort the list into the dist_mat structure</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stream_list</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">j</span><span class="p">:</span>
+                <span class="n">dist_mat</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dist_mat</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">dist_list</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># Reshape the distance matrix</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stream_list</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+            <span class="n">dist_mat</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">dist_mat</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span></div>
+    <span class="k">return</span> <span class="n">dist_mat</span>
+
+
+<div class="viewcode-block" id="cluster"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.clustering.cluster.html#eqcorrscan.utils.clustering.cluster">[docs]</a><span class="k">def</span> <span class="nf">cluster</span><span class="p">(</span><span class="n">template_list</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">corr_thresh</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">allow_shift</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">shift_len</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">save_corrmat</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">cores</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Cluster template waveforms based on average correlations.</span>
+
+<span class="sd">    Function to take a set of templates and cluster them, will return groups</span>
+<span class="sd">    as lists of streams.  Clustering is done by computing the cross-channel</span>
+<span class="sd">    correlation sum of each stream in stream_list with every other stream in</span>
+<span class="sd">    the list.  :mod:`scipy.cluster.hierarchy` functions are then used to</span>
+<span class="sd">    compute the complete distance matrix, where distance is 1 minus the</span>
+<span class="sd">    normalised cross-correlation sum such that larger distances are less</span>
+<span class="sd">    similar events.  Groups are then created by clustering the distance matrix</span>
+<span class="sd">    at distances less than 1 - corr_thresh.</span>
+
+<span class="sd">    Will compute the distance matrix in parallel, using all available cores</span>
+
+<span class="sd">    :type template_list: list</span>
+<span class="sd">    :param template_list:</span>
+<span class="sd">        List of tuples of the template (:class:`obspy.core.stream.Stream`)</span>
+<span class="sd">        and the template id to compute clustering for</span>
+<span class="sd">    :type show: bool</span>
+<span class="sd">    :param show: plot linkage on screen if True, defaults to True</span>
+<span class="sd">    :type corr_thresh: float</span>
+<span class="sd">    :param corr_thresh: Cross-channel correlation threshold for grouping</span>
+<span class="sd">    :type allow_shift: bool</span>
+<span class="sd">    :param allow_shift:</span>
+<span class="sd">        Whether to allow the templates to shift when correlating</span>
+<span class="sd">    :type shift_len: float</span>
+<span class="sd">    :param shift_len: How many seconds to allow the templates to shift</span>
+<span class="sd">    :type save_corrmat: bool</span>
+<span class="sd">    :param save_corrmat:</span>
+<span class="sd">        If True will save the distance matrix to dist_mat.npy in the local</span>
+<span class="sd">        directory.</span>
+<span class="sd">    :type cores: int</span>
+<span class="sd">    :param cores:</span>
+<span class="sd">        number of cores to use when computing the distance matrix, defaults to</span>
+<span class="sd">        &#39;all&#39; which will work out how many cpus are available and hog them.</span>
+<span class="sd">    :type debug: int</span>
+<span class="sd">    :param debug:</span>
+<span class="sd">        Level of debugging from 1-5, higher is more output,</span>
+<span class="sd">        currently only level 1 implemented.</span>
+
+<span class="sd">    :returns:</span>
+<span class="sd">        List of groups. Each group is a list of</span>
+<span class="sd">        :class:`obspy.core.stream.Stream` making up that group.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">cores</span> <span class="o">==</span> <span class="s1">&#39;all&#39;</span><span class="p">:</span>
+        <span class="n">num_cores</span> <span class="o">=</span> <span class="n">cpu_count</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">num_cores</span> <span class="o">=</span> <span class="n">cores</span>
+    <span class="c1"># Extract only the Streams from stream_list</span>
+    <span class="n">stream_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">template_list</span><span class="p">]</span>
+    <span class="c1"># Compute the distance matrix</span>
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Computing the distance matrix using </span><span class="si">%i</span><span class="s1"> cores&#39;</span> <span class="o">%</span> <span class="n">num_cores</span><span class="p">)</span>
+    <span class="n">dist_mat</span> <span class="o">=</span> <span class="n">distance_matrix</span><span class="p">(</span><span class="n">stream_list</span><span class="p">,</span> <span class="n">allow_shift</span><span class="p">,</span> <span class="n">shift_len</span><span class="p">,</span>
+                               <span class="n">cores</span><span class="o">=</span><span class="n">num_cores</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">save_corrmat</span><span class="p">:</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;dist_mat.npy&#39;</span><span class="p">,</span> <span class="n">dist_mat</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Saved the distance matrix as dist_mat.npy&#39;</span><span class="p">)</span>
+    <span class="n">dist_vec</span> <span class="o">=</span> <span class="n">squareform</span><span class="p">(</span><span class="n">dist_mat</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Computing linkage&#39;</span><span class="p">)</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="n">linkage</span><span class="p">(</span><span class="n">dist_vec</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">show</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Plotting the dendrogram&#39;</span><span class="p">)</span>
+        <span class="n">dendrogram</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">color_threshold</span><span class="o">=</span><span class="mi">1</span> <span class="o">-</span> <span class="n">corr_thresh</span><span class="p">,</span>
+                   <span class="n">distance_sort</span><span class="o">=</span><span class="s1">&#39;ascending&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    <span class="c1"># Get the indices of the groups</span>
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Clustering&#39;</span><span class="p">)</span>
+    <span class="n">indices</span> <span class="o">=</span> <span class="n">fcluster</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">1</span> <span class="o">-</span> <span class="n">corr_thresh</span><span class="p">,</span> <span class="n">criterion</span><span class="o">=</span><span class="s1">&#39;distance&#39;</span><span class="p">)</span>
+    <span class="c1"># Indices start at 1...</span>
+    <span class="n">group_ids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">indices</span><span class="p">))</span>  <span class="c1"># Unique list of group ids</span>
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;Found&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">group_ids</span><span class="p">)),</span> <span class="s1">&#39;groups&#39;</span><span class="p">])</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="c1"># Convert to tuple of (group id, stream id)</span>
+    <span class="n">indices</span> <span class="o">=</span> <span class="p">[(</span><span class="n">indices</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">))]</span>
+    <span class="c1"># Sort by group id</span>
+    <span class="n">indices</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">tup</span><span class="p">:</span> <span class="n">tup</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">debug</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Extracting and grouping&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">group_id</span> <span class="ow">in</span> <span class="n">group_ids</span><span class="p">:</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">group_id</span><span class="p">:</span>
+                <span class="n">group</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">template_list</span><span class="p">[</span><span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
+            <span class="k">elif</span> <span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">group_id</span><span class="p">:</span>
+                <span class="c1"># Because we have sorted by group id, when the index is greater</span>
+                <span class="c1"># than the group_id we can break the inner loop.</span>
+                <span class="c1"># Patch applied by CJC 05/11/2015</span>
+                <span class="n">groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
+                <span class="k">break</span>
+    <span class="c1"># Catch the final group</span>
+    <span class="n">groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">groups</span>
+
+
+<div class="viewcode-block" id="group_delays"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.clustering.group_delays.html#eqcorrscan.utils.clustering.group_delays">[docs]</a><span class="k">def</span> <span class="nf">group_delays</span><span class="p">(</span><span class="n">stream_list</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Group template waveforms according to their arrival times (delays).</span>
+
+<span class="sd">    :type stream_list: list</span>
+<span class="sd">    :param stream_list:</span>
+<span class="sd">        List of :class:`obspy.core.stream.Stream` waveforms you want to group.</span>
+
+<span class="sd">    :returns:</span>
+<span class="sd">        list of List of :class:`obspy.core.stream.Stream` where each initial</span>
+<span class="sd">        list is a group with the same delays.</span>
+<span class="sd">    :rtype: list</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">group_delays</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">group_chans</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Sort templates by number of channels</span>
+    <span class="n">stream_list</span> <span class="o">=</span> <span class="p">[(</span><span class="n">st</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">st</span><span class="p">))</span> <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">stream_list</span><span class="p">]</span>
+    <span class="n">stream_list</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">tup</span><span class="p">:</span> <span class="n">tup</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">stream_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">st</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">stream_list</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">st</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stream_list</span><span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;Working on waveform&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="s1">&#39;of&#39;</span><span class="p">,</span>
+                        <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">stream_list</span><span class="p">))])</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="c1"># Calculate the delays</span>
+        <span class="n">starttimes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">chans</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">:</span>
+            <span class="n">starttimes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span><span class="p">)</span>
+            <span class="n">chans</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">))</span>
+        <span class="c1"># This delays calculation will be an issue if we</span>
+        <span class="c1"># have changes in channels</span>
+        <span class="n">delays</span> <span class="o">=</span> <span class="p">[</span><span class="n">starttimes</span><span class="p">[</span><span class="n">m</span><span class="p">]</span> <span class="o">-</span> <span class="nb">min</span><span class="p">(</span><span class="n">starttimes</span><span class="p">)</span>
+                  <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">starttimes</span><span class="p">))]</span>
+        <span class="n">delays</span> <span class="o">=</span> <span class="p">[</span><span class="nb">round</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">delays</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">groups</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">groups</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">stream_list</span><span class="p">[</span><span class="n">i</span><span class="p">]])</span>
+            <span class="n">group_delays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">delays</span><span class="p">)</span>
+            <span class="n">group_chans</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chans</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">match</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">while</span> <span class="ow">not</span> <span class="n">match</span><span class="p">:</span>
+                <span class="n">kmatch</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="c1"># Find the set of shared stations and channels</span>
+                <span class="n">shared_chans</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">shared_delays_slave</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">shared_delays_master</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">chan</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">chans</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">chan</span> <span class="ow">in</span> <span class="n">group_chans</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                        <span class="n">shared_chans</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chan</span><span class="p">)</span>
+                        <span class="n">shared_delays_slave</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">delays</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+                        <span class="n">shared_delays_master</span><span class="o">.</span> \
+                            <span class="n">append</span><span class="p">(</span><span class="n">group_delays</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">group_chans</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">chan</span><span class="p">)])</span>
+                <span class="c1"># Normalize master and slave delay times</span>
+                <span class="n">shared_delays_slave</span> <span class="o">=</span> <span class="p">[</span><span class="n">delay</span> <span class="o">-</span> <span class="nb">min</span><span class="p">(</span><span class="n">shared_delays_slave</span><span class="p">)</span>
+                                       <span class="k">for</span> <span class="n">delay</span> <span class="ow">in</span> <span class="n">shared_delays_slave</span><span class="p">]</span>
+                <span class="n">shared_delays_master</span> <span class="o">=</span> <span class="p">[</span><span class="n">delay</span> <span class="o">-</span> <span class="nb">min</span><span class="p">(</span><span class="n">shared_delays_master</span><span class="p">)</span>
+                                        <span class="k">for</span> <span class="n">delay</span> <span class="ow">in</span> <span class="n">shared_delays_master</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shared_chans</span><span class="p">)):</span>
+                    <span class="c1"># Check if the channel and delay match another group</span>
+                    <span class="k">if</span> <span class="n">shared_delays_slave</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">==</span> <span class="n">shared_delays_master</span><span class="p">[</span><span class="n">k</span><span class="p">]:</span>
+                        <span class="n">kmatch</span> <span class="o">+=</span> <span class="mi">1</span>  <span class="c1"># increase the match index</span>
+                <span class="k">if</span> <span class="n">kmatch</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">shared_chans</span><span class="p">):</span>
+                    <span class="c1"># If all the channels match, add it to the group</span>
+                    <span class="n">groups</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stream_list</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                    <span class="n">match</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">elif</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">groups</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">j</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Create a new group and break the loop</span>
+                    <span class="n">groups</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">stream_list</span><span class="p">[</span><span class="n">i</span><span class="p">]])</span>
+                    <span class="n">group_delays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">delays</span><span class="p">)</span>
+                    <span class="n">group_chans</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chans</span><span class="p">)</span>
+                    <span class="n">match</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># Use this to break the loop</span></div>
+    <span class="k">return</span> <span class="n">groups</span>
+
+
+<span class="k">def</span> <span class="nf">SVD</span><span class="p">(</span><span class="n">stream_list</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Depreciated. Use svd.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Depreciated, use svd instead.&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">svd</span><span class="p">(</span><span class="n">stream_list</span><span class="o">=</span><span class="n">stream_list</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="n">full</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="svd"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.clustering.svd.html#eqcorrscan.utils.clustering.svd">[docs]</a><span class="k">def</span> <span class="nf">svd</span><span class="p">(</span><span class="n">stream_list</span><span class="p">,</span> <span class="n">full</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute the SVD of a number of templates.</span>
+
+<span class="sd">    Returns the singular vectors and singular values of the templates.</span>
+
+<span class="sd">    :type stream_list: List of :class: obspy.Stream</span>
+<span class="sd">    :param stream_list: List of the templates to be analysed</span>
+<span class="sd">    :type full: bool</span>
+<span class="sd">    :param full: Whether to compute the full input vector matrix or not.</span>
+
+<span class="sd">    :return: SValues(list) for each channel, SVectors(list of ndarray),  \</span>
+<span class="sd">        UVectors(list of ndarray) for each channel, \</span>
+<span class="sd">        stachans, List of String (station.channel)</span>
+
+<span class="sd">    .. note:: We recommend that you align the data before computing the \</span>
+<span class="sd">        SVD, e.g., the P-arrival on all templates for the same channel \</span>
+<span class="sd">        should appear at the same time in the trace.  See the \</span>
+<span class="sd">        stacking.align_traces function for a way to do this.</span>
+
+<span class="sd">    .. note:: Uses the numpy.linalg.svd function, their U, s and V are mapped \</span>
+<span class="sd">        to UVectors, SValues and SVectors respectively.  Their V (and ours) \</span>
+<span class="sd">        corresponds to V.H.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Convert templates into ndarrays for each channel</span>
+    <span class="c1"># First find all unique channels:</span>
+    <span class="n">stachans</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">([(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span>
+                         <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">stream_list</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">]))</span>
+    <span class="n">stachans</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+    <span class="c1"># Initialize a list for the output matrices, one matrix per-channel</span>
+    <span class="n">svalues</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">svectors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">uvectors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">stachan</span> <span class="ow">in</span> <span class="n">stachans</span><span class="p">:</span>
+        <span class="n">lengths</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">stream_list</span><span class="p">:</span>
+            <span class="n">tr</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                           <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">tr</span> <span class="o">=</span> <span class="n">tr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Stream does not contain </span><span class="si">%s</span><span class="s1">&#39;</span>
+                              <span class="o">%</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">stachan</span><span class="p">)))</span>
+                <span class="k">continue</span>
+            <span class="n">lengths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">))</span>
+        <span class="n">min_length</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">stream</span> <span class="ow">in</span> <span class="n">stream_list</span><span class="p">:</span>
+            <span class="n">chan</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                 <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">chan</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">chan</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">min_length</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chan</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">-</span> <span class="n">min_length</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.1</span> <span class="o">*</span> \
+                            <span class="n">chan</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="s1">&#39;More than 0.1 s length &#39;</span>
+                                         <span class="s1">&#39;difference, align and fix&#39;</span><span class="p">)</span>
+                    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Channels are not equal length, trimming&#39;</span><span class="p">)</span>
+                    <span class="n">chan</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">chan</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">min_length</span><span class="p">]</span>
+                <span class="k">if</span> <span class="s1">&#39;chan_mat&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">locals</span><span class="p">():</span>
+                    <span class="n">chan_mat</span> <span class="o">=</span> <span class="n">chan</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">chan_mat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">chan_mat</span><span class="p">,</span> <span class="n">chan</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">chan_mat</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Matrix of traces is less than 2D for </span><span class="si">%s</span><span class="s1">&#39;</span>
+                          <span class="o">%</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">stachan</span><span class="p">)))</span>
+            <span class="k">continue</span>
+        <span class="c1"># Be sure to transpose chan_mat as waveforms must define columns</span>
+        <span class="n">chan_mat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">chan_mat</span><span class="p">)</span>
+        <span class="n">u</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">svd</span><span class="p">(</span><span class="n">chan_mat</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">full_matrices</span><span class="o">=</span><span class="n">full</span><span class="p">)</span>
+        <span class="n">svalues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">svectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="n">uvectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+        <span class="k">del</span> <span class="p">(</span><span class="n">chan_mat</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">uvectors</span><span class="p">,</span> <span class="n">svalues</span><span class="p">,</span> <span class="n">svectors</span><span class="p">,</span> <span class="n">stachans</span>
+
+
+<span class="k">def</span> <span class="nf">empirical_SVD</span><span class="p">(</span><span class="n">stream_list</span><span class="p">,</span> <span class="n">linear</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Depreciated. Use empirical_svd.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Depreciated, use empirical_svd instead.&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">empirical_svd</span><span class="p">(</span><span class="n">stream_list</span><span class="o">=</span><span class="n">stream_list</span><span class="p">,</span> <span class="n">linear</span><span class="o">=</span><span class="n">linear</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="empirical_svd"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.clustering.empirical_svd.html#eqcorrscan.utils.clustering.empirical_svd">[docs]</a><span class="k">def</span> <span class="nf">empirical_svd</span><span class="p">(</span><span class="n">stream_list</span><span class="p">,</span> <span class="n">linear</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Empirical subspace detector generation function.</span>
+
+<span class="sd">    Takes a list of templates and computes the stack as the first order</span>
+<span class="sd">    subspace detector, and the differential of this as the second order</span>
+<span class="sd">    subspace detector following the empirical subspace method of</span>
+<span class="sd">    `Barrett &amp; Beroza, 2014 - SRL</span>
+<span class="sd">    &lt;http://srl.geoscienceworld.org/content/85/3/594.extract&gt;`_.</span>
+
+<span class="sd">    :type stream_list: list</span>
+<span class="sd">    :param stream_list:</span>
+<span class="sd">        list of streams to compute the subspace detectors from, where streams</span>
+<span class="sd">        are :class:`obspy.core.stream.Stream` objects.</span>
+<span class="sd">    :type linear: bool</span>
+<span class="sd">    :param linear: Set to true by default to compute the linear stack as the \</span>
+<span class="sd">        first subspace vector, False will use the phase-weighted stack as the \</span>
+<span class="sd">        first subspace vector.</span>
+
+<span class="sd">    :returns: list of two :class:`obspy.core.stream.Stream` s</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Run a check to ensure all traces are the same length</span>
+    <span class="n">stachans</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">([(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span>
+                         <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">stream_list</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">st</span><span class="p">]))</span>
+    <span class="k">for</span> <span class="n">stachan</span> <span class="ow">in</span> <span class="n">stachans</span><span class="p">:</span>
+        <span class="n">lengths</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">stream_list</span><span class="p">:</span>
+            <span class="n">lengths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                         <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="n">min_length</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">stream_list</span><span class="p">:</span>
+            <span class="n">tr</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                           <span class="n">channel</span><span class="o">=</span><span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">min_length</span><span class="p">:</span>
+                <span class="n">sr</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">sampling_rate</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">-</span> <span class="n">min_length</span><span class="p">)</span> <span class="o">&gt;</span> <span class="p">(</span><span class="mf">0.1</span> <span class="o">*</span> <span class="n">sr</span><span class="p">):</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;More than 0.1 s length difference, align and fix&#39;</span>
+                    <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39; is not the same length as others, trimming the end&#39;</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="o">+</span> <span class="n">msg</span><span class="p">)</span>
+                <span class="n">tr</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">min_length</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">linear</span><span class="p">:</span>
+        <span class="n">first_subspace</span> <span class="o">=</span> <span class="n">stacking</span><span class="o">.</span><span class="n">linstack</span><span class="p">(</span><span class="n">stream_list</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">first_subspace</span> <span class="o">=</span> <span class="n">stacking</span><span class="o">.</span><span class="n">PWS_stack</span><span class="p">(</span><span class="n">streams</span><span class="o">=</span><span class="n">stream_list</span><span class="p">)</span>
+    <span class="n">second_subspace</span> <span class="o">=</span> <span class="n">first_subspace</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">second_subspace</span><span class="p">)):</span>
+        <span class="n">second_subspace</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">second_subspace</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="n">second_subspace</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">delta</span>
+        <span class="n">second_subspace</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">+=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">delta</span>
+</div>
+    <span class="k">return</span> <span class="p">[</span><span class="n">first_subspace</span><span class="p">,</span> <span class="n">second_subspace</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">SVD_2_stream</span><span class="p">(</span><span class="n">uvectors</span><span class="p">,</span> <span class="n">stachans</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">sampling_rate</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Depreciated. Use svd_to_stream</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Depreciated, use svd_to_stream instead.&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">svd_to_stream</span><span class="p">(</span><span class="n">uvectors</span><span class="o">=</span><span class="n">uvectors</span><span class="p">,</span> <span class="n">stachans</span><span class="o">=</span><span class="n">stachans</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">,</span>
+                         <span class="n">sampling_rate</span><span class="o">=</span><span class="n">sampling_rate</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="svd_to_stream"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.clustering.svd_to_stream.html#eqcorrscan.utils.clustering.svd_to_stream">[docs]</a><span class="k">def</span> <span class="nf">svd_to_stream</span><span class="p">(</span><span class="n">uvectors</span><span class="p">,</span> <span class="n">stachans</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">sampling_rate</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert the singular vectors output by SVD to streams.</span>
+
+<span class="sd">    One stream will be generated for each singular vector level,</span>
+<span class="sd">    for all channels.  Useful for plotting, and aiding seismologists thinking</span>
+<span class="sd">    of waveforms!</span>
+
+<span class="sd">    :type svectors: list</span>
+<span class="sd">    :param svectors: List of :class:`numpy.ndarray` Singular vectors</span>
+<span class="sd">    :type stachans: list</span>
+<span class="sd">    :param stachans: List of station.channel Strings</span>
+<span class="sd">    :type k: int</span>
+<span class="sd">    :param k: Number of streams to return = number of SV&#39;s to include</span>
+<span class="sd">    :type sampling_rate: float</span>
+<span class="sd">    :param sampling_rate: Sampling rate in Hz</span>
+
+<span class="sd">    :returns:</span>
+<span class="sd">        svstreams, List of :class:`obspy.core.stream.Stream`, with</span>
+<span class="sd">        svStreams[0] being composed of the highest rank singular vectors.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">svstreams</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+        <span class="n">svstream</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">stachan</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stachans</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">uvectors</span><span class="p">[</span><span class="n">j</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="n">k</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Too few traces at </span><span class="si">%s</span><span class="s1"> for a </span><span class="si">%02d</span><span class="s1"> dimensional &#39;</span>
+                              <span class="s1">&#39;subspace. Detector streams will not include &#39;</span>
+                              <span class="s1">&#39;this channel.&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                                          <span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">k</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">svstream</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Trace</span><span class="p">(</span><span class="n">uvectors</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">i</span><span class="p">],</span>
+                                      <span class="n">header</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;station&#39;</span><span class="p">:</span> <span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                              <span class="s1">&#39;channel&#39;</span><span class="p">:</span> <span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                                              <span class="s1">&#39;sampling_rate&#39;</span><span class="p">:</span> <span class="n">sampling_rate</span><span class="p">}))</span>
+        <span class="n">svstreams</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Stream</span><span class="p">(</span><span class="n">svstream</span><span class="p">))</span></div>
+    <span class="k">return</span> <span class="n">svstreams</span>
+
+
+<div class="viewcode-block" id="corr_cluster"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.clustering.corr_cluster.html#eqcorrscan.utils.clustering.corr_cluster">[docs]</a><span class="k">def</span> <span class="nf">corr_cluster</span><span class="p">(</span><span class="n">trace_list</span><span class="p">,</span> <span class="n">thresh</span><span class="o">=</span><span class="mf">0.9</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Group traces based on correlations above threshold with the stack.</span>
+
+<span class="sd">    Will run twice, once with a lower threshold to remove large outliers that</span>
+<span class="sd">    would negatively affect the stack, then again with your threshold.</span>
+
+<span class="sd">    :type trace_list: list</span>
+<span class="sd">    :param trace_list:</span>
+<span class="sd">        List of :class:`obspy.core.stream.Trace` to compute similarity between</span>
+<span class="sd">    :type thresh: float</span>
+<span class="sd">    :param thresh: Correlation threshold between -1-1</span>
+
+<span class="sd">    :returns:</span>
+<span class="sd">        :class:`numpy.ndarray` of bool of whether that trace correlates well</span>
+<span class="sd">        enough (above your given threshold) with the stack.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        We recommend that you align the data before computing the clustering,</span>
+<span class="sd">        e.g., the P-arrival on all templates for the same channel should</span>
+<span class="sd">        appear at the same time in the trace.  See the</span>
+<span class="sd">        :func:`eqcorrscan.utils.stacking.align_traces` function for a way to do</span>
+<span class="sd">        this.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">stack</span> <span class="o">=</span> <span class="n">stacking</span><span class="o">.</span><span class="n">linstack</span><span class="p">([</span><span class="n">Stream</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">trace_list</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">False</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">trace_list</span><span class="p">))</span>
+    <span class="n">group1</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">array_xcorr</span> <span class="o">=</span> <span class="n">get_array_xcorr</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">trace_list</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">array_xcorr</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">]),</span> <span class="n">stack</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">0.6</span><span class="p">:</span>
+            <span class="n">output</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">group1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">group1</span><span class="p">:</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Nothing made it past the first 0.6 threshold&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span>
+    <span class="n">stack</span> <span class="o">=</span> <span class="n">stacking</span><span class="o">.</span><span class="n">linstack</span><span class="p">([</span><span class="n">Stream</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">group1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">group2</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">trace_list</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">array_xcorr</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tr</span><span class="o">.</span><span class="n">data</span><span class="p">]),</span> <span class="n">stack</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">:</span>
+            <span class="n">group2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tr</span><span class="p">)</span>
+            <span class="n">output</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span></div>
+    <span class="k">return</span> <span class="n">output</span>
+
+
+<div class="viewcode-block" id="extract_detections"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.clustering.extract_detections.html#eqcorrscan.utils.clustering.extract_detections">[docs]</a><span class="k">def</span> <span class="nf">extract_detections</span><span class="p">(</span><span class="n">detections</span><span class="p">,</span> <span class="n">templates</span><span class="p">,</span> <span class="n">archive</span><span class="p">,</span> <span class="n">arc_type</span><span class="p">,</span>
+                       <span class="n">extract_len</span><span class="o">=</span><span class="mf">90.0</span><span class="p">,</span> <span class="n">outdir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">extract_Z</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                       <span class="n">additional_stations</span><span class="o">=</span><span class="p">[]):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract waveforms associated with detections</span>
+
+<span class="sd">    Takes a list of detections for the template, template.  Waveforms will be</span>
+<span class="sd">    returned as a list of :class:`obspy.core.stream.Stream` containing</span>
+<span class="sd">    segments of extract_len.  They will also be saved if outdir is set.</span>
+<span class="sd">    The default is unset.  The  default extract_len is 90 seconds per channel.</span>
+
+<span class="sd">    :type detections: list</span>
+<span class="sd">    :param detections: List of :class:`eqcorrscan.core.match_filter.Detection`.</span>
+<span class="sd">    :type templates: list</span>
+<span class="sd">    :param templates:</span>
+<span class="sd">        A list of tuples of the template name and the template Stream used</span>
+<span class="sd">        to detect detections.</span>
+<span class="sd">    :type archive: str</span>
+<span class="sd">    :param archive:</span>
+<span class="sd">        Either name of archive or path to continuous data, see</span>
+<span class="sd">        :func:`eqcorrscan.utils.archive_read` for details</span>
+<span class="sd">    :type arc_type: str</span>
+<span class="sd">    :param arc_type: Type of archive, either seishub, FDSN, day_vols</span>
+<span class="sd">    :type extract_len: float</span>
+<span class="sd">    :param extract_len:</span>
+<span class="sd">        Length to extract around the detection (will be equally cut around</span>
+<span class="sd">        the detection time) in seconds.  Default is 90.0.</span>
+<span class="sd">    :type outdir: str</span>
+<span class="sd">    :param outdir:</span>
+<span class="sd">        Default is None, with None set, no files will be saved,</span>
+<span class="sd">        if set each detection will be saved into this directory with files</span>
+<span class="sd">        named according to the detection time, NOT than the waveform</span>
+<span class="sd">        start time. Detections will be saved into template subdirectories.</span>
+<span class="sd">        Files written will be multiplexed miniseed files, the encoding will</span>
+<span class="sd">        be chosen automatically and will likely be float.</span>
+<span class="sd">    :type extract_Z: bool</span>
+<span class="sd">    :param extract_Z:</span>
+<span class="sd">        Set to True to also extract Z channels for detections delays will be</span>
+<span class="sd">        the same as horizontal channels, only applies if only horizontal</span>
+<span class="sd">        channels were used in the template.</span>
+<span class="sd">    :type additional_stations: list</span>
+<span class="sd">    :param additional_stations:</span>
+<span class="sd">        List of tuples of (station, channel) to also extract data</span>
+<span class="sd">        for using an average delay.</span>
+
+<span class="sd">    :returns: list of :class:`obspy.core.streams.Stream`</span>
+<span class="sd">    :rtype: list</span>
+
+<span class="sd">    .. rubric: Example</span>
+
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.utils.clustering import extract_detections</span>
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.core.match_filter import Detection</span>
+<span class="sd">    &gt;&gt;&gt; from obspy import read, UTCDateTime</span>
+<span class="sd">    &gt;&gt;&gt; import os</span>
+<span class="sd">    &gt;&gt;&gt; # Use some dummy detections, you would use real one</span>
+<span class="sd">    &gt;&gt;&gt; detections = [Detection(&#39;temp1&#39;, UTCDateTime(2012, 3, 26, 9, 15), 2,</span>
+<span class="sd">    ...                         [&#39;WHYM&#39;, &#39;EORO&#39;], 2, 1.2, &#39;corr&#39;, &#39;MAD&#39;, 8.0),</span>
+<span class="sd">    ...               Detection(&#39;temp2&#39;,UTCDateTime(2012, 3, 26, 18, 5), 2,</span>
+<span class="sd">    ...                         [&#39;WHYM&#39;, &#39;EORO&#39;], 2, 1.2, &#39;corr&#39;, &#39;MAD&#39;, 8.0)]</span>
+<span class="sd">    &gt;&gt;&gt; path_to_templates = os.path.join(&#39;eqcorrscan&#39;, &#39;tests&#39;, &#39;test_data&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; archive = os.path.join(path_to_templates, &#39;day_vols&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; template_files = [os.path.join(path_to_templates, &#39;temp1.ms&#39;),</span>
+<span class="sd">    ...                   os.path.join(path_to_templates, &#39;temp2.ms&#39;)]</span>
+<span class="sd">    &gt;&gt;&gt; templates = [(&#39;temp&#39; + str(i), read(filename))</span>
+<span class="sd">    ...              for i, filename in enumerate(template_files)]</span>
+<span class="sd">    &gt;&gt;&gt; extracted = extract_detections(detections, templates,</span>
+<span class="sd">    ...                                archive=archive, arc_type=&#39;day_vols&#39;)</span>
+<span class="sd">    Working on detections for day: 2012-03-26T00:00:00.000000Z</span>
+<span class="sd">    Cutting for detections at: 2012/03/26 09:15:00</span>
+<span class="sd">    Cutting for detections at: 2012/03/26 18:05:00</span>
+<span class="sd">    &gt;&gt;&gt; print(extracted[0].sort())</span>
+<span class="sd">    2 Trace(s) in Stream:</span>
+<span class="sd">    AF.EORO..SHZ | 2012-03-26T09:14:15.000000Z - 2012-03-26T09:15:45.000000Z |\</span>
+<span class="sd"> 1.0 Hz, 91 samples</span>
+<span class="sd">    AF.WHYM..SHZ | 2012-03-26T09:14:15.000000Z - 2012-03-26T09:15:45.000000Z |\</span>
+<span class="sd"> 1.0 Hz, 91 samples</span>
+<span class="sd">    &gt;&gt;&gt; print(extracted[1].sort())</span>
+<span class="sd">    2 Trace(s) in Stream:</span>
+<span class="sd">    AF.EORO..SHZ | 2012-03-26T18:04:15.000000Z - 2012-03-26T18:05:45.000000Z |\</span>
+<span class="sd"> 1.0 Hz, 91 samples</span>
+<span class="sd">    AF.WHYM..SHZ | 2012-03-26T18:04:15.000000Z - 2012-03-26T18:05:45.000000Z |\</span>
+<span class="sd"> 1.0 Hz, 91 samples</span>
+<span class="sd">    &gt;&gt;&gt; # Extract from stations not included in the detections</span>
+<span class="sd">    &gt;&gt;&gt; extracted = extract_detections(</span>
+<span class="sd">    ...    detections, templates, archive=archive, arc_type=&#39;day_vols&#39;,</span>
+<span class="sd">    ...    additional_stations=[(&#39;GOVA&#39;, &#39;SHZ&#39;)])</span>
+<span class="sd">    Adding additional stations</span>
+<span class="sd">    Added station GOVA.SHZ</span>
+<span class="sd">    Added station GOVA.SHZ</span>
+<span class="sd">    Working on detections for day: 2012-03-26T00:00:00.000000Z</span>
+<span class="sd">    Cutting for detections at: 2012/03/26 09:15:00</span>
+<span class="sd">    Cutting for detections at: 2012/03/26 18:05:00</span>
+<span class="sd">    &gt;&gt;&gt; print(extracted[0].sort())</span>
+<span class="sd">    3 Trace(s) in Stream:</span>
+<span class="sd">    AF.EORO..SHZ | 2012-03-26T09:14:15.000000Z - 2012-03-26T09:15:45.000000Z |\</span>
+<span class="sd"> 1.0 Hz, 91 samples</span>
+<span class="sd">    AF.GOVA..SHZ | 2012-03-26T09:14:15.000000Z - 2012-03-26T09:15:45.000000Z |\</span>
+<span class="sd"> 1.0 Hz, 91 samples</span>
+<span class="sd">    AF.WHYM..SHZ | 2012-03-26T09:14:15.000000Z - 2012-03-26T09:15:45.000000Z |\</span>
+<span class="sd"> 1.0 Hz, 91 samples</span>
+<span class="sd">    &gt;&gt;&gt; # The detections can be saved to a file:</span>
+<span class="sd">    &gt;&gt;&gt; extract_detections(detections, templates, archive=archive,</span>
+<span class="sd">    ...                    arc_type=&#39;day_vols&#39;,</span>
+<span class="sd">    ...                    additional_stations=[(&#39;GOVA&#39;, &#39;SHZ&#39;)], outdir=&#39;.&#39;)</span>
+<span class="sd">    Adding additional stations</span>
+<span class="sd">    Added station GOVA.SHZ</span>
+<span class="sd">    Added station GOVA.SHZ</span>
+<span class="sd">    Working on detections for day: 2012-03-26T00:00:00.000000Z</span>
+<span class="sd">    Cutting for detections at: 2012/03/26 09:15:00</span>
+<span class="sd">    Written file: ./temp1/2012-03-26_09-15-00.ms</span>
+<span class="sd">    Cutting for detections at: 2012/03/26 18:05:00</span>
+<span class="sd">    Written file: ./temp2/2012-03-26_18-05-00.ms</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Sort the template according to start-times, needed so that stachan[i]</span>
+    <span class="c1"># corresponds to delays[i]</span>
+    <span class="n">all_delays</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># List of tuples of template name, delays</span>
+    <span class="n">all_stachans</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">template</span> <span class="ow">in</span> <span class="n">templates</span><span class="p">:</span>
+        <span class="n">templatestream</span> <span class="o">=</span> <span class="n">template</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">sort</span><span class="p">([</span><span class="s1">&#39;starttime&#39;</span><span class="p">])</span>
+        <span class="n">stachans</span> <span class="o">=</span> <span class="p">[(</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">station</span><span class="p">,</span> <span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">templatestream</span><span class="p">]</span>
+        <span class="n">mintime</span> <span class="o">=</span> <span class="n">templatestream</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span>
+        <span class="n">delays</span> <span class="o">=</span> <span class="p">[</span><span class="n">tr</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">starttime</span> <span class="o">-</span> <span class="n">mintime</span> <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">templatestream</span><span class="p">]</span>
+        <span class="n">all_delays</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">template</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">delays</span><span class="p">))</span>
+        <span class="n">all_stachans</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">template</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">stachans</span><span class="p">))</span>
+    <span class="c1"># Sort the detections and group by day</span>
+    <span class="n">detections</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">d</span><span class="p">:</span> <span class="n">d</span><span class="o">.</span><span class="n">detect_time</span><span class="p">)</span>
+    <span class="n">detection_days</span> <span class="o">=</span> <span class="p">[</span><span class="n">detection</span><span class="o">.</span><span class="n">detect_time</span><span class="o">.</span><span class="n">date</span>
+                      <span class="k">for</span> <span class="n">detection</span> <span class="ow">in</span> <span class="n">detections</span><span class="p">]</span>
+    <span class="n">detection_days</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">detection_days</span><span class="p">))</span>
+    <span class="n">detection_days</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+    <span class="n">detection_days</span> <span class="o">=</span> <span class="p">[</span><span class="n">UTCDateTime</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">detection_days</span><span class="p">]</span>
+
+    <span class="c1"># Initialize output list</span>
+    <span class="n">detection_wavefiles</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># Also include Z channels when extracting detections</span>
+    <span class="k">if</span> <span class="n">extract_Z</span><span class="p">:</span>
+        <span class="n">new_all_stachans</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">new_all_delays</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">template</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">all_stachans</span><span class="p">):</span>
+            <span class="n">stachans</span> <span class="o">=</span> <span class="n">template</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">delays</span> <span class="o">=</span> <span class="n">all_delays</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">new_stachans</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">new_delays</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">stachan</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stachans</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">new_stachans</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">stachan</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">stachan</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;Z&#39;</span><span class="p">))</span>
+                    <span class="n">new_delays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">delays</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                    <span class="n">new_stachans</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stachan</span><span class="p">)</span>
+                    <span class="n">new_delays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">delays</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                    <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">new_stachans</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stachan</span><span class="p">)</span>
+                    <span class="n">new_delays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">delays</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                    <span class="n">j</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">new_all_stachans</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">template</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">new_stachans</span><span class="p">))</span>
+            <span class="n">new_all_delays</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">template</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">new_delays</span><span class="p">))</span>
+        <span class="n">all_delays</span> <span class="o">=</span> <span class="n">new_all_delays</span>
+        <span class="n">all_stachans</span> <span class="o">=</span> <span class="n">new_all_stachans</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">additional_stations</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Adding additional stations&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">template</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">all_stachans</span><span class="p">):</span>
+            <span class="n">av_delay</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">all_delays</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">sta</span> <span class="ow">in</span> <span class="n">additional_stations</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">sta</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">template</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Added station &#39;</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sta</span><span class="p">))</span>
+                    <span class="n">template</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sta</span><span class="p">)</span>
+                    <span class="n">all_delays</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">av_delay</span><span class="p">)</span>
+    <span class="k">del</span> <span class="n">stachans</span>
+    <span class="c1"># Loop through the days</span>
+    <span class="k">for</span> <span class="n">detection_day</span> <span class="ow">in</span> <span class="n">detection_days</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Working on detections for day: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">detection_day</span><span class="p">))</span>
+        <span class="n">stachans</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">stachans</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">stachans</span> <span class="ow">in</span> <span class="n">all_stachans</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="c1"># List of all unique stachans - read in all data</span>
+        <span class="n">st</span> <span class="o">=</span> <span class="n">read_data</span><span class="p">(</span><span class="n">archive</span><span class="o">=</span><span class="n">archive</span><span class="p">,</span> <span class="n">arc_type</span><span class="o">=</span><span class="n">arc_type</span><span class="p">,</span> <span class="n">day</span><span class="o">=</span><span class="n">detection_day</span><span class="p">,</span>
+                       <span class="n">stachans</span><span class="o">=</span><span class="n">stachans</span><span class="p">)</span>
+        <span class="n">st</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">fill_value</span><span class="o">=</span><span class="s1">&#39;interpolate&#39;</span><span class="p">)</span>
+        <span class="n">day_detections</span> <span class="o">=</span> <span class="p">[</span><span class="n">detection</span> <span class="k">for</span> <span class="n">detection</span> <span class="ow">in</span> <span class="n">detections</span>
+                          <span class="k">if</span> <span class="n">UTCDateTime</span><span class="p">(</span><span class="n">detection</span><span class="o">.</span><span class="n">detect_time</span><span class="o">.</span><span class="n">date</span><span class="p">)</span> <span class="o">==</span>
+                          <span class="n">detection_day</span><span class="p">]</span>
+        <span class="k">del</span> <span class="n">stachans</span><span class="p">,</span> <span class="n">delays</span>
+        <span class="k">for</span> <span class="n">detection</span> <span class="ow">in</span> <span class="n">day_detections</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Cutting for detections at: &#39;</span> <span class="o">+</span>
+                  <span class="n">detection</span><span class="o">.</span><span class="n">detect_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y/%m/</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">))</span>
+            <span class="n">detect_wav</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">tr</span> <span class="ow">in</span> <span class="n">detect_wav</span><span class="p">:</span>
+                <span class="n">t1</span> <span class="o">=</span> <span class="n">UTCDateTime</span><span class="p">(</span><span class="n">detection</span><span class="o">.</span><span class="n">detect_time</span><span class="p">)</span> <span class="o">-</span> <span class="n">extract_len</span> <span class="o">/</span> <span class="mi">2</span>
+                <span class="n">t2</span> <span class="o">=</span> <span class="n">UTCDateTime</span><span class="p">(</span><span class="n">detection</span><span class="o">.</span><span class="n">detect_time</span><span class="p">)</span> <span class="o">+</span> <span class="n">extract_len</span> <span class="o">/</span> <span class="mi">2</span>
+                <span class="n">tr</span><span class="o">.</span><span class="n">trim</span><span class="p">(</span><span class="n">starttime</span><span class="o">=</span><span class="n">t1</span><span class="p">,</span> <span class="n">endtime</span><span class="o">=</span><span class="n">t2</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span>
+                                                  <span class="n">detection</span><span class="o">.</span><span class="n">template_name</span><span class="p">)):</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">detection</span><span class="o">.</span><span class="n">template_name</span><span class="p">))</span>
+                <span class="n">detect_wav</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">detection</span><span class="o">.</span><span class="n">template_name</span><span class="p">,</span>
+                                              <span class="n">detection</span><span class="o">.</span><span class="n">detect_time</span><span class="o">.</span>
+                                              <span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">_%H-%M-%S&#39;</span><span class="p">)</span> <span class="o">+</span>
+                                              <span class="s1">&#39;.ms&#39;</span><span class="p">),</span>
+                                 <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;MSEED&#39;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Written file: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                      <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">outdir</span><span class="p">,</span> <span class="n">detection</span><span class="o">.</span><span class="n">template_name</span><span class="p">,</span>
+                                <span class="n">detection</span><span class="o">.</span><span class="n">detect_time</span><span class="o">.</span>
+                               <span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">_%H-%M-%S&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.ms&#39;</span><span class="p">]))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">outdir</span><span class="p">:</span>
+                <span class="n">detection_wavefiles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">detect_wav</span><span class="p">)</span>
+            <span class="k">del</span> <span class="n">detect_wav</span>
+        <span class="k">del</span> <span class="n">st</span>
+        <span class="k">if</span> <span class="n">outdir</span><span class="p">:</span>
+            <span class="n">detection_wavefiles</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">outdir</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">detection_wavefiles</span>
+    <span class="k">else</span><span class="p">:</span></div>
+        <span class="k">return</span>
+
+
+<div class="viewcode-block" id="dist_mat_km"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.clustering.dist_mat_km.html#eqcorrscan.utils.clustering.dist_mat_km">[docs]</a><span class="k">def</span> <span class="nf">dist_mat_km</span><span class="p">(</span><span class="n">catalog</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute the distance matrix for all a catalog using epicentral separation.</span>
+
+<span class="sd">    Will give physical distance in kilometers.</span>
+
+<span class="sd">    :type catalog: obspy.core.event.Catalog</span>
+<span class="sd">    :param catalog: Catalog for which to compute the distance matrix</span>
+
+<span class="sd">    :returns: distance matrix</span>
+<span class="sd">    :rtype: :class:`numpy.ndarray`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Initialize square matrix</span>
+    <span class="n">dist_mat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">catalog</span><span class="p">))]</span> <span class="o">*</span>
+                        <span class="nb">len</span><span class="p">(</span><span class="n">catalog</span><span class="p">))</span>
+    <span class="c1"># Calculate distance vector for each event</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">master</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">catalog</span><span class="p">):</span>
+        <span class="n">mast_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">master</span><span class="o">.</span><span class="n">preferred_origin</span><span class="p">():</span>
+            <span class="n">master_ori</span> <span class="o">=</span> <span class="n">master</span><span class="o">.</span><span class="n">preferred_origin</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">master_ori</span> <span class="o">=</span> <span class="n">master</span><span class="o">.</span><span class="n">origins</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">master_tup</span> <span class="o">=</span> <span class="p">(</span><span class="n">master_ori</span><span class="o">.</span><span class="n">latitude</span><span class="p">,</span>
+                      <span class="n">master_ori</span><span class="o">.</span><span class="n">longitude</span><span class="p">,</span>
+                      <span class="n">master_ori</span><span class="o">.</span><span class="n">depth</span> <span class="o">//</span> <span class="mi">1000</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">slave</span> <span class="ow">in</span> <span class="n">catalog</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">slave</span><span class="o">.</span><span class="n">preferred_origin</span><span class="p">():</span>
+                <span class="n">slave_ori</span> <span class="o">=</span> <span class="n">slave</span><span class="o">.</span><span class="n">preferred_origin</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">slave_ori</span> <span class="o">=</span> <span class="n">slave</span><span class="o">.</span><span class="n">origins</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">slave_tup</span> <span class="o">=</span> <span class="p">(</span><span class="n">slave_ori</span><span class="o">.</span><span class="n">latitude</span><span class="p">,</span>
+                         <span class="n">slave_ori</span><span class="o">.</span><span class="n">longitude</span><span class="p">,</span>
+                         <span class="n">slave_ori</span><span class="o">.</span><span class="n">depth</span> <span class="o">//</span> <span class="mi">1000</span><span class="p">)</span>
+            <span class="n">mast_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dist_calc</span><span class="p">(</span><span class="n">master_tup</span><span class="p">,</span> <span class="n">slave_tup</span><span class="p">))</span>
+        <span class="c1"># Sort the list into the dist_mat structure</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">catalog</span><span class="p">)):</span>
+            <span class="n">dist_mat</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">mast_list</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+    <span class="c1"># Reshape the distance matrix</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">catalog</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+            <span class="n">dist_mat</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">dist_mat</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span></div>
+    <span class="k">return</span> <span class="n">dist_mat</span>
+
+
+<div class="viewcode-block" id="space_cluster"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.clustering.space_cluster.html#eqcorrscan.utils.clustering.space_cluster">[docs]</a><span class="k">def</span> <span class="nf">space_cluster</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="n">d_thresh</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Cluster a catalog by distance only.</span>
+
+<span class="sd">    Will compute the matrix of physical distances between events and utilize</span>
+<span class="sd">    the :mod:`scipy.clustering.hierarchy` module to perform the clustering.</span>
+
+<span class="sd">    :type catalog: obspy.core.event.Catalog</span>
+<span class="sd">    :param catalog: Catalog of events to clustered</span>
+<span class="sd">    :type d_thresh: float</span>
+<span class="sd">    :param d_thresh: Maximum inter-event distance threshold</span>
+
+<span class="sd">    :returns: list of :class:`obspy.core.event.Catalog` objects</span>
+<span class="sd">    :rtype: list</span>
+
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.utils.clustering import space_cluster</span>
+<span class="sd">    &gt;&gt;&gt; from obspy.clients.fdsn import Client</span>
+<span class="sd">    &gt;&gt;&gt; from obspy import UTCDateTime</span>
+<span class="sd">    &gt;&gt;&gt; client = Client(&quot;NCEDC&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; starttime = UTCDateTime(&quot;2002-01-01&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; endtime = UTCDateTime(&quot;2002-02-01&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; cat = client.get_events(starttime=starttime, endtime=endtime,</span>
+<span class="sd">    ...                         minmagnitude=2)</span>
+<span class="sd">    &gt;&gt;&gt; groups = space_cluster(catalog=cat, d_thresh=2, show=False)</span>
+
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.utils.clustering import space_cluster</span>
+<span class="sd">    &gt;&gt;&gt; from obspy.clients.fdsn import Client</span>
+<span class="sd">    &gt;&gt;&gt; from obspy import UTCDateTime</span>
+<span class="sd">    &gt;&gt;&gt; client = Client(&quot;https://earthquake.usgs.gov&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; starttime = UTCDateTime(&quot;2002-01-01&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; endtime = UTCDateTime(&quot;2002-02-01&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; cat = client.get_events(starttime=starttime, endtime=endtime,</span>
+<span class="sd">    ...                         minmagnitude=6)</span>
+<span class="sd">    &gt;&gt;&gt; groups = space_cluster(catalog=cat, d_thresh=1000, show=False)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Compute the distance matrix and linkage</span>
+    <span class="n">dist_mat</span> <span class="o">=</span> <span class="n">dist_mat_km</span><span class="p">(</span><span class="n">catalog</span><span class="p">)</span>
+    <span class="n">dist_vec</span> <span class="o">=</span> <span class="n">squareform</span><span class="p">(</span><span class="n">dist_mat</span><span class="p">)</span>
+    <span class="n">Z</span> <span class="o">=</span> <span class="n">linkage</span><span class="p">(</span><span class="n">dist_vec</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;average&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Cluster the linkage using the given threshold as the cutoff</span>
+    <span class="n">indices</span> <span class="o">=</span> <span class="n">fcluster</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="n">d_thresh</span><span class="p">,</span> <span class="n">criterion</span><span class="o">=</span><span class="s1">&#39;distance&#39;</span><span class="p">)</span>
+    <span class="n">group_ids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">indices</span><span class="p">))</span>
+    <span class="n">indices</span> <span class="o">=</span> <span class="p">[(</span><span class="n">indices</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">))]</span>
+
+    <span class="k">if</span> <span class="n">show</span><span class="p">:</span>
+        <span class="c1"># Plot the dendrogram...if it&#39;s not way too huge</span>
+        <span class="n">dendrogram</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span> <span class="n">color_threshold</span><span class="o">=</span><span class="n">d_thresh</span><span class="p">,</span>
+                   <span class="n">distance_sort</span><span class="o">=</span><span class="s1">&#39;ascending&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="c1"># Sort by group id</span>
+    <span class="n">indices</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">tup</span><span class="p">:</span> <span class="n">tup</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">group_id</span> <span class="ow">in</span> <span class="n">group_ids</span><span class="p">:</span>
+        <span class="n">group</span> <span class="o">=</span> <span class="n">Catalog</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">group_id</span><span class="p">:</span>
+                <span class="n">group</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">catalog</span><span class="p">[</span><span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
+            <span class="k">elif</span> <span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">group_id</span><span class="p">:</span>
+                <span class="c1"># Because we have sorted by group id, when the index is greater</span>
+                <span class="c1"># than the group_id we can break the inner loop.</span>
+                <span class="c1"># Patch applied by CJC 05/11/2015</span>
+                <span class="n">groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
+                <span class="k">break</span>
+    <span class="n">groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">groups</span>
+
+
+<div class="viewcode-block" id="space_time_cluster"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.clustering.space_time_cluster.html#eqcorrscan.utils.clustering.space_time_cluster">[docs]</a><span class="k">def</span> <span class="nf">space_time_cluster</span><span class="p">(</span><span class="n">catalog</span><span class="p">,</span> <span class="n">t_thresh</span><span class="p">,</span> <span class="n">d_thresh</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Cluster detections in space and time.</span>
+
+<span class="sd">    Use to separate repeaters from other events.  Clusters by distance</span>
+<span class="sd">    first, then removes events in those groups that are at different times.</span>
+
+<span class="sd">    :type catalog: obspy.core.event.Catalog</span>
+<span class="sd">    :param catalog: Catalog of events to clustered</span>
+<span class="sd">    :type t_thresh: float</span>
+<span class="sd">    :param t_thresh: Maximum inter-event time threshold in seconds</span>
+<span class="sd">    :type d_thresh: float</span>
+<span class="sd">    :param d_thresh: Maximum inter-event distance in km</span>
+
+<span class="sd">    :returns: list of :class:`obspy.core.event.Catalog` objects</span>
+<span class="sd">    :rtype: list</span>
+
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.utils.clustering import space_time_cluster</span>
+<span class="sd">    &gt;&gt;&gt; from obspy.clients.fdsn import Client</span>
+<span class="sd">    &gt;&gt;&gt; from obspy import UTCDateTime</span>
+<span class="sd">    &gt;&gt;&gt; client = Client(&quot;https://earthquake.usgs.gov&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; starttime = UTCDateTime(&quot;2002-01-01&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; endtime = UTCDateTime(&quot;2002-02-01&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; cat = client.get_events(starttime=starttime, endtime=endtime,</span>
+<span class="sd">    ...                         minmagnitude=6)</span>
+<span class="sd">    &gt;&gt;&gt; groups = space_time_cluster(catalog=cat, t_thresh=86400, d_thresh=1000)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">initial_spatial_groups</span> <span class="o">=</span> <span class="n">space_cluster</span><span class="p">(</span><span class="n">catalog</span><span class="o">=</span><span class="n">catalog</span><span class="p">,</span> <span class="n">d_thresh</span><span class="o">=</span><span class="n">d_thresh</span><span class="p">,</span>
+                                           <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="c1"># Need initial_spatial_groups to be lists at the moment</span>
+    <span class="n">initial_spatial_lists</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">initial_spatial_groups</span><span class="p">:</span>
+        <span class="n">initial_spatial_lists</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">group</span><span class="p">))</span>
+    <span class="c1"># Check within these groups and throw them out if they are not close in</span>
+    <span class="c1"># time.</span>
+    <span class="n">groups</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">initial_spatial_lists</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">master</span> <span class="ow">in</span> <span class="n">group</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">group</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">preferred_origin</span><span class="p">()</span><span class="o">.</span><span class="n">time</span> <span class="o">-</span>
+                       <span class="n">master</span><span class="o">.</span><span class="n">preferred_origin</span><span class="p">()</span><span class="o">.</span><span class="n">time</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">t_thresh</span><span class="p">:</span>
+                    <span class="c1"># If greater then just put event in on it&#39;s own</span>
+                    <span class="n">groups</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">event</span><span class="p">])</span>
+                    <span class="n">group</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+        <span class="n">groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="p">[</span><span class="n">Catalog</span><span class="p">(</span><span class="n">group</span><span class="p">)</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="re_thresh_csv"><a class="viewcode-back" href="../../../submodules/autogen/eqcorrscan.utils.clustering.re_thresh_csv.html#eqcorrscan.utils.clustering.re_thresh_csv">[docs]</a><span class="k">def</span> <span class="nf">re_thresh_csv</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">old_thresh</span><span class="p">,</span> <span class="n">new_thresh</span><span class="p">,</span> <span class="n">chan_thresh</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Remove detections by changing the threshold.</span>
+
+<span class="sd">    Can only be done to remove detection by increasing threshold,</span>
+<span class="sd">    threshold lowering will have no effect.</span>
+
+<span class="sd">    :type path: str</span>
+<span class="sd">    :param path: Path to the .csv detection file</span>
+<span class="sd">    :type old_thresh: float</span>
+<span class="sd">    :param old_thresh: Old threshold MAD multiplier</span>
+<span class="sd">    :type new_thresh: float</span>
+<span class="sd">    :param new_thresh: New threshold MAD multiplier</span>
+<span class="sd">    :type chan_thresh: int</span>
+<span class="sd">    :param chan_thresh: Minimum number of channels for a detection</span>
+
+<span class="sd">    :returns: List of detections</span>
+<span class="sd">    :rtype: list</span>
+
+<span class="sd">    .. rubric:: Example</span>
+
+<span class="sd">    &gt;&gt;&gt; from eqcorrscan.utils.clustering import re_thresh_csv</span>
+<span class="sd">    &gt;&gt;&gt; import os</span>
+<span class="sd">    &gt;&gt;&gt; det_file = os.path.join(&#39;eqcorrscan&#39;, &#39;tests&#39;, &#39;test_data&#39;,</span>
+<span class="sd">    ...                         &#39;expected_tutorial_detections.txt&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; detections = re_thresh_csv(path=det_file, old_thresh=8, new_thresh=10,</span>
+<span class="sd">    ...                            chan_thresh=3)</span>
+<span class="sd">    Read in 22 detections</span>
+<span class="sd">    Left with 17 detections</span>
+
+<span class="sd">    .. Note::</span>
+<span class="sd">        This is a legacy function, and will read detections from all versions.</span>
+
+<span class="sd">    .. Warning:: Only works if thresholding was done by MAD.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">eqcorrscan.core.match_filter</span> <span class="k">import</span> <span class="n">read_detections</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Legacy function, please use &#39;</span>
+                  <span class="s1">&#39;eqcorrscan.core.match_filter.Party.rethreshold.&#39;</span><span class="p">)</span>
+    <span class="n">old_detections</span> <span class="o">=</span> <span class="n">read_detections</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">old_thresh</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">old_thresh</span><span class="p">)</span>
+    <span class="n">new_thresh</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">new_thresh</span><span class="p">)</span>
+    <span class="c1"># Be nice, ensure that the thresholds are float</span>
+    <span class="n">detections</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">detections_in</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">detections_out</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">detection</span> <span class="ow">in</span> <span class="n">old_detections</span><span class="p">:</span>
+        <span class="n">detections_in</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">con1</span> <span class="o">=</span> <span class="p">(</span><span class="n">new_thresh</span> <span class="o">/</span> <span class="n">old_thresh</span><span class="p">)</span> <span class="o">*</span> <span class="n">detection</span><span class="o">.</span><span class="n">threshold</span>
+        <span class="n">con2</span> <span class="o">=</span> <span class="n">detection</span><span class="o">.</span><span class="n">no_chans</span> <span class="o">&gt;=</span> <span class="n">chan_thresh</span>
+        <span class="n">requirted_thresh</span> <span class="o">=</span> <span class="p">(</span><span class="n">new_thresh</span> <span class="o">/</span> <span class="n">old_thresh</span><span class="p">)</span> <span class="o">*</span> <span class="n">detection</span><span class="o">.</span><span class="n">threshold</span>
+        <span class="n">con3</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">detection</span><span class="o">.</span><span class="n">detect_val</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">requirted_thresh</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">([</span><span class="n">con1</span><span class="p">,</span> <span class="n">con2</span><span class="p">,</span> <span class="n">con3</span><span class="p">]):</span>
+            <span class="n">detections_out</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">detections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">detection</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Read in </span><span class="si">%i</span><span class="s1"> detections&#39;</span> <span class="o">%</span> <span class="n">detections_in</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Left with </span><span class="si">%i</span><span class="s1"> detections&#39;</span> <span class="o">%</span> <span class="n">detections_out</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">detections</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">doctest</span>
+
+    <span class="n">doctest</span><span class="o">.</span><span class="n">testmod</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2015, 2016: EQcorrscan developers.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.3.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
