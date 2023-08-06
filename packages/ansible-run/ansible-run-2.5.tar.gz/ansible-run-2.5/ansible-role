@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [[ "$1" == "--help" || "$1" == "" ]]; then
+    echo "USAGE: ansible-role role [-i inventory] [-c local]"
+    echo "Downloads and runs a ansible-galaxy role"
+    exit 0
+fi
+
+tmp=$(mktemp)
+role=$1
+shift
+
+if ansible-galaxy list $role | grep "not found"  2>&1 > /dev/null; then
+    ansible-galaxy install $role
+fi
+echo - {hosts: all, roles: [$role]} > $tmp
+ansible-playbook $tmp $@
+
+rm $tmp
