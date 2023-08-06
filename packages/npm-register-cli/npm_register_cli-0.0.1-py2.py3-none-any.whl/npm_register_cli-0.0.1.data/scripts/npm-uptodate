@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+{ set +x; } 2>/dev/null
+
+usage() {
+    cat <<EOF 1>&2
+usage: $(basename $0) name ...
+EOF
+[[ $1 == "-h" ]] || [[ $1 == "--help" ]]; exit
+}
+
+[[ $1 == "-h" ]] || [[ $1 == "--help" ]] && usage "$@"
+
+# https://www.npmjs.com/package/name
+# https://www.npmjs.com/package/name/v/X.Y.Z
+
+! [ -e package.json ] && echo "ERROR: package.json NOT EXISTS" 1>&2 && exit 1
+
+name="$(node -e "console.log(require('./package.json').name);")" || exit
+version="$(node -e "console.log(require('./package.json').version);")" || exit
+
+[[ -z "$name" ]] && echo "ERROR: name EMPTY" 1>&2 && exit 1
+[[ -z "$version" ]] && echo "ERROR: version EMPTY" 1>&2 && exit 1
+
+url="https://www.npmjs.com/package/$name"
+( set -x; curl -fs -I -o /dev/null "$url" ) || exit
+# `npm view` works only if package registered
+npm view "$name" versions --json | grep -q "\"$version\""
