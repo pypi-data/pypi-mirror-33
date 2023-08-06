@@ -1,0 +1,394 @@
+<html>
+  <head>
+      <link rel="icon" href="{{ url_for('static', filename='Studio.ml-icon-std-1000.png') }}">
+
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+      <link href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.12/css/dataTables.bootstrap.min.css" rel="stylesheet"/>
+      <link href="https://cdn.datatables.net/select/1.2.2/css/select.dataTables.css" rel="stylesheet"/> <div class="container">
+
+        
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.12/js/jquery.dataTables.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.12/js/dataTables.bootstrap.min.js"></script>
+      <script src="https://cdn.datatables.net/select/1.2.2/js/dataTables.select.js"></script>
+
+      {% block head %}
+      {% endblock %}
+  </head>
+  <body>
+      <nav class="navbar navbar-default">
+        <div class="container-fluid">
+          <!-- Brand and toggle get grouped for better mobile display -->
+          <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+              <span class="sr-only">Toggle navigation</span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Studio</a>
+          </div>
+
+          <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav">
+              <li><a href="/projects">Projects</a></li>
+              <li><a href="/users">Users</a></li>
+              <li><a href="/all">All</a></li>
+              <li><a href="" id="sign-in-button" hidden onclick=login()>Sign in</a></li>
+              <li><a href="" id="sign-out-button" hidden onclick=logout()>Sign out</a></li>
+            </ul>
+          </div>
+        </div>
+      </nav>
+
+    <div id="logged-in">     	 
+
+    {% macro experimenttable(showproject=true, delete_button=true) -%}
+        <table class="table table-striped" id="experimentTable"> </table>
+        <div id=buttonContainer hidden>
+            <button onclick='toggleSelectAll()' type="button" class="btn btn-default" id=selectAllButton>Select All</button>
+            {% if delete_button %}
+                <button onclick='deleteExperiments()' type="button" class="btn btn-danger" id=deleteButton>Delete</button>
+            {%- endif %}
+        </div>
+
+        <script>
+            $(function() {
+                $('#experimentTable').DataTable({
+                    select: {
+                        style: "multi"
+                    },
+
+                    "order":[[2, "desc"]],
+                    "paging":true,
+                    "stateSave": true,
+                    "columns": [
+                        {
+                            "title":"Key",
+                            "render":function(data, type, row) {
+                                return '<a href="/experiment/' + data + '">' + data + '</a>' 
+                            }  
+                        },
+                        {"title": "Script"},
+                        {
+                            "title":"Time added",
+                            "render":function(data, type, row) {
+                                return new Date(data * 1000)
+                            }   
+                        },
+                        {"title":"Metric"},
+                        {
+                            "title":"Metric Value",
+                            "render":function(data, type, row) {
+                                if (typeof data == 'number') {
+                                    return data.toFixed(4);
+                                } else {
+                                    return 'None';
+                                }
+                            }
+                        },
+                        {
+                            "title":"Project",
+                            "render":function(data, type, row) {
+                                if (data) {
+                                    return '<a href="/project/' + data + '">' + data + '</a>';
+                                } else {    
+                                    return 'None';
+                                }
+                            }  
+                        },
+                        {"title":"Status"}
+                    ]
+                });
+        });
+
+
+        $('#experimentTable tbody').on( 'click', 'tr', function () {
+        	$(this).toggleClass('selected');
+	    });
+
+        function fillExperimentTable(data, clearTable=true) {
+            response_data = JSON.parse(data)
+            if (response_data.status == 'ok') {
+                
+                addExperimentsToTable(response_data.experiments, clearTable)
+                updateExperiments()
+                
+                if (response_data.experiments.length > 0) {
+                    $('#buttonContainer').show()
+                }
+            }
+            return response_data
+        }
+
+        function addExperimentsToTable(experiments, clearTable=true) {
+            table = $('#experimentTable').DataTable()
+            if (clearTable) {
+                table.clear()
+            }
+            console.log(experiments)
+            for (var i = 0; i < experiments.length; i++) {
+                experiment = experiments[i]
+                new_row = [
+                    experiment,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                ]
+                table.row.add(new_row)
+            }
+            table.draw()
+        }
+
+        function updateExperiments() {
+            table = $('#experimentTable').DataTable()
+            rowsData = table.rows().data()
+            
+            experimentKeys = []
+            for (var i = 0; i < rowsData.length; i++) {
+                experimentKeys.push(rowsData[i][0])
+            }            
+
+            var keyIndex = 0
+            
+            function updateExperiment() {
+                if (keyIndex >= experimentKeys.length) {
+                    return;
+                }
+                key = experimentKeys[keyIndex]
+                console.log("experiment key = " + key);
+                data_ajax('get_experiment', data={"key":key, "get_artifact_urls":false}).then((data) => {
+                    updateRow(data);
+                    keyIndex++;
+                    updateExperiment();
+                });
+            }
+
+            function updateRow(data) {
+                parsedData = JSON.parse(data);
+                if (parsedData.status == "ok") {
+                    experiment = parsedData.experiment;
+                    newRow = [
+                        experiment.key,
+                        experiment.filename,
+                        experiment.time_added,
+                        experiment.metric,
+                        experiment.info ? experiment.info.metric_value : "None",
+                        experiment.project,
+                        experiment.status,
+                   ];
+                   console.log("newRow = " + newRow);
+                   table.row(keyIndex).data(newRow).draw();
+                } 
+            }
+            
+            updateExperiment();
+        }
+
+        function deleteExperiments() {
+            if (!confirm("Delete experiments?")) {
+                return 
+            }
+            keys = []
+            selectedData = $('#experimentTable').DataTable().rows('.selected').data()
+            console.log(selectedData)
+            for (var i = 0; i < selectedData.length; i++) {
+                console.log('Deleting experiment with key ' + selectedData[i][0])
+                data_ajax('delete_experiment', data={"key":selectedData[i][0]}).then((response) => {
+                    data = JSON.parse(response);
+                    if (data.status == 'Unauthorized') {
+                        alert('Unauthorized!')
+                    } else if (data.status != 'ok') {
+                        console.log('Deletion failed! Response:')
+                        console.log(response);
+                    }       
+                });                   
+            }            
+        }
+
+        function toggleSelectAll() {
+            btn = $('#selectAllButton')
+            table = $('#experimentTable').DataTable()
+            if (btn.html() == 'Select All') {
+                table.rows({page:'current'}).select()
+                btn.html('Deselect All')
+            } else {
+                table.rows({page:'current'}).deselect()
+                btn.html('Select All')
+            }
+        }
+
+        </script>
+    {%- endmacro %}
+    
+    
+    <script>
+        
+        function signInWithGithub() {
+          clientId = '{{ github_client_id }}'
+          state = Math.random().toString(36)
+          window.sessionStorage.setItem('githubAuthState', state)
+
+          returnUrl  = window.location.href.match('[^\?]*')[0]
+          redirect = 'https://github.com/login/oauth/authorize?'
+          redirect += 'client_id=' + clientId 
+          redirect += '&redirect_uri=' + returnUrl
+          redirect += '&scope=read:user'
+          redirect += '&state=' + state
+          
+          console.log('redirecting to github')
+          console.log(redirect)
+          // window.open(redirect)
+          window.location = redirect
+          
+        } 
+
+        function logout() {
+          window.localStorage.removeItem('authToken')
+          window.sessionStorage.removeItem('githubAuthState')
+          routeLogin()
+        }
+
+        function routeLogin() {
+          var state = window.sessionStorage.getItem('githubAuthState')
+          var token = window.localStorage.getItem('authToken')
+          console.log('token = ' + token)
+          console.log('state = ' + state)
+          if (state != null) {
+            console.log('State is not empty, continuing logging in')
+            login()
+          } else if (token) {
+            console.log('Logged in')
+            $.get('https://api.github.com/user?access_token=' + token, 
+              (data) => {
+                username = data.login
+                $('#sign-in-button').hide()
+                $('#sign-out-button').show()
+                $('#sign-out-button').html('Log out of ' + username)
+              })
+          } else {
+            console.log('Logged out')
+            $('#sign-in-button').show()
+            $('#sign-out-button').hide()
+          }
+        }
+
+        function login() {
+          var token = window.localStorage.getItem('authToken')
+          if (token == null) {
+            var state = window.sessionStorage.getItem('githubAuthState')
+            console.log('State = ' + state)
+            var url_string = window.location.href
+            var url = new URL(url_string);
+            var returned_state = url.searchParams.get("state");
+            var code = url.searchParams.get("code")
+            console.log('url_string = ' + url_string)
+            console.log('Returned state = ' + returned_state)
+
+            if (state && returned_state) {
+              window.sessionStorage.removeItem('githubAuthState')
+              if (state == returned_state) {
+                $.get('/api/exchange_github_code?code=' + code, data => {
+                  console.log(data)
+                  matches = data.match('(?<=access_token=)[0-9a-f]*(?=\&)')
+                  token = matches[0]
+                  window.localStorage.setItem('authToken', token)
+                  window.location = url_string.match('.*(?=\\?)')[0]
+                  // routeLogin()
+                })
+              } else {
+                console.log('saved state ' + state + ' does not match returned state ' + returned_state )
+              }
+            } else {
+              console.log('Signing in with github')
+              signInWithGithub()
+            }
+          } else {
+            routeLogin()
+          }
+        }
+        
+      {% if auth_token %}
+        window.localStorage.setItem('authToken', '{{ auth_token }}')
+      {% endif %}
+
+
+      $("#sign-in-button").click( event => {
+        login()
+        event.preventDefault()
+      })
+
+      $("#sign-out-button").click(  event => {
+        console.log(event)
+        logout()
+        event.preventDefault()
+      })
+
+      $(routeLogin)
+
+    </script>
+
+        
+    <script>
+
+        function reload(loader, thenFunc, minTimeout=1, maxTimeout=120, 
+                        equals=(a,b) => (JSON.stringify(a) == JSON.stringify(b))) {
+            var timeout = minTimeout
+            var oldData = null
+            
+            var headerData = $('#header').html()
+
+            function reload() {
+                $('#header').html(headerData + ' <i class="fa fa-cog fa-spin"></i>');
+                loader().then(function(data) {
+                    console.log(data)
+                    if (equals(oldData, data)) {
+                        timeout = timeout * 2
+                        $('#header').html(headerData)
+                    } else {
+                        timeout = minTimeout;
+                        oldData = data
+                        thenFunc(data);
+                    }
+                    timeout = Math.min(timeout, maxTimeout);
+                    console.log("Timeout = " + timeout)
+                    setTimeout(reload, timeout * 1000);
+                });               
+            }
+            reload(); 
+        }
+
+        function data_ajax(apiMethod, data={}) {
+            token = window.localStorage.getItem('authToken')
+            console.log('Sending POST request to ' + apiMethod + ' with data')
+            console.log(data)
+
+            return $.ajax(
+                '/api/' + apiMethod,
+                {
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    method: 'POST',
+                    data: JSON.stringify(data),
+                    contentType:"application/json"
+                }
+            )
+        }
+
+
+    </script>
+  
+   {% block content %}
+   {% endblock %}
+   <p></p>
+
+    </div>
+      
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+  </body>
+</html>
