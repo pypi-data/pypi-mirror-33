@@ -1,0 +1,330 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>15.3.12. crate_anon.crateweb.consent.celery &#8212; CRATE  documentation</title>
+    <link rel="stylesheet" href="../../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/css/crate_docs.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="15.3.13. crate_anon.crateweb.consent.forms" href="forms.html" />
+    <link rel="prev" title="15.3.11. crate_anon.crateweb.consent.management.commands.test_email" href="management/commands/test_email.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="forms.html" title="15.3.13. crate_anon.crateweb.consent.forms"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="management/commands/test_email.html" title="15.3.11. crate_anon.crateweb.consent.management.commands.test_email"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">CRATE  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >15. Automatic documentation of source code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../_index.html" accesskey="U">15.3. crate_anon.crateweb</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-crate_anon.crateweb.consent.celery">
+<span id="crate-anon-crateweb-consent-celery"></span><h1>15.3.12. crate_anon.crateweb.consent.celery<a class="headerlink" href="#module-crate_anon.crateweb.consent.celery" title="Permalink to this headline">¶</a></h1>
+<hr class="docutils" />
+<blockquote>
+<div><p>Copyright (C) 2015-2018 Rudolf Cardinal (<a class="reference external" href="mailto:rudolf&#37;&#52;&#48;pobox&#46;com">rudolf<span>&#64;</span>pobox<span>&#46;</span>com</a>).</p>
+<p>This file is part of CRATE.</p>
+<p>CRATE is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.</p>
+<p>CRATE is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with CRATE. If not, see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+</div></blockquote>
+<hr class="docutils" />
+<p><strong>To test:</strong></p>
+<ol class="arabic simple">
+<li>Launch the Celery worker:</li>
+</ol>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span># no directory change required for an installed package
+# in early testing:
+#   $ cd [...]/crateweb
+#   $ celery --app consent worker --loglevel=debug
+# but with a proper package:
+
+$ celery worker --app crate_anon.crateweb.consent --loglevel debug
+</pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li>Call the function asynchronously</li>
+</ol>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ manage.py shell
+&gt; from consent.celery import debug_task
+&gt; debug_task.delay()
+
+or simply:
+$ python
+&gt; from crate_anon.crateweb.consent.celery import debug_task
+&gt; debug_task.delay()
+</pre></div>
+</div>
+<p><strong>Command-line testing under Windows (2016-05-12):</strong></p>
+<ol class="arabic simple">
+<li>Run crate_launch_celery (which runs the “celery worker” command).
+With that running…</li>
+<li>Do this:</li>
+</ol>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ python
+&gt; from crate_anon.crateweb.consent.tasks import add
+&gt; add(3, 4)  # call immediately
+7
+&gt; result = add.delay(3, 5)  # call via Celery
+
+# AT THAT MOMENT, THE CELERY WORKER PROCESS SHOULD SAY:
+# [... INFO/MainProcess] Received task: celery.local.add[...]
+# [... INFO/MainProcess] Task celery.local.add[...] succeeded in ...s: 8
+
+&gt; result
+&lt;AsyncResult: 48ad8faa-ce75-4a19-bb0e-77feb9567b06&gt;
+&gt; result.ready()
+&gt; result.state
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li>When it doesn’t work…</li>
+</ol>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ sudo rabbitmqctl list_queues name messages consumers
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; from crate_anon.crateweb.consent.celery import app
+&gt; app.control.purge()
+# Should report the number of tasks in the queue, after which the rabbitmqctl
+# should show an empty queue.
+
+# Using the lengthy &quot;--include&quot; argument to &quot;celery worker&quot;, which I was using
+# (in launch_celery.py) before creating a proper pip-installed package, seems
+# to be unnecessary.
+
+# With &quot;--loglevel info&quot;, the task list looks like:
+[tasks]
+  . crate_anon.crateweb.consent.celery.debug_task
+  . crate_anon.crateweb.consent.tasks.add
+  . crate_anon.crateweb.consent.tasks.email_rdbm_task
+  . crate_anon.crateweb.consent.tasks.finalize_clinician_response
+  . crate_anon.crateweb.consent.tasks.process_consent_change
+  . crate_anon.crateweb.consent.tasks.process_contact_request
+  . crate_anon.crateweb.consent.tasks.process_patient_response
+  . crate_anon.crateweb.consent.tasks.resend_email
+  . crate_anon.crateweb.consent.tasks.test_email_rdbm_task
+
+With &quot;--loglevel debug&quot;, it looks like this:
+[tasks]
+  . celery.backend_cleanup
+  . celery.chain
+  . celery.chord
+  . celery.chord_unlock
+  . celery.chunks
+  . celery.group
+  . celery.local.add
+  . celery.local.email_rdbm_task
+  . celery.local.finalize_clinician_response
+  . celery.local.process_consent_change
+  . celery.local.process_contact_request
+  . celery.local.process_patient_response
+  . celery.local.resend_email
+  . celery.local.test_email_rdbm_task
+  . celery.map
+  . celery.starmap
+  . crate_anon.crateweb.consent.celery.debug_task
+  . crate_anon.crateweb.consent.tasks.add
+  . crate_anon.crateweb.consent.tasks.email_rdbm_task
+  . crate_anon.crateweb.consent.tasks.finalize_clinician_response
+  . crate_anon.crateweb.consent.tasks.process_consent_change
+  . crate_anon.crateweb.consent.tasks.process_contact_request
+  . crate_anon.crateweb.consent.tasks.process_patient_response
+  . crate_anon.crateweb.consent.tasks.resend_email
+  . crate_anon.crateweb.consent.tasks.test_email_rdbm_task
+</pre></div>
+</div>
+<p>… but that doesn’t stop it working under Linux.</p>
+<p>Inspecting workers:</p>
+<ul class="simple">
+<li><a class="reference external" href="http://docs.celeryproject.org/en/latest/userguide/workers.html#inspecting-workers">http://docs.celeryproject.org/en/latest/userguide/workers.html#inspecting-workers</a>  # noqa</li>
+</ul>
+<p>Inspecting lots of things:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install flower
+celery -A crate_anon.crateweb.consent flower
+<span class="c1"># now browse to http://localhost:5555/</span>
+</pre></div>
+</div>
+<p>Celery bug under Windows? <a class="reference external" href="https://github.com/celery/celery/issues/897">https://github.com/celery/celery/issues/897</a></p>
+<p>Upgrade from Celery 3.1.19 to 3.1.23:
+OK! Now we’re talking.</p>
+<ul class="simple">
+<li>Flower can now connect to the Celery worker (which reports things in its
+log as Flower does so).</li>
+<li>Tasks now show up in Flower -&gt; Tasks, marked “Received”, with appropriate
+arguments, and with a worker assigned, but the “Started” column remains
+blank.</li>
+</ul>
+<p>But then it stopped working again.</p>
+<ul>
+<li><p class="first"><a class="reference external" href="https://github.com/mher/flower/issues/452">https://github.com/mher/flower/issues/452</a>
+… indicates that <code class="docutils literal notranslate"><span class="pre">celery</span> <span class="pre">inspect</span> <span class="pre">ping</span></code> should be doing something, but I’m
+getting “No workers replied within time constraint.” On Linux, we get:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>-&gt; celery@wombat: OK
+        pong
+</pre></div>
+</div>
+</li>
+</ul>
+<p>Improvement if you run the Celery worker with “–concurrency=4” (up from its
+default of 1). Flower talks to the nodes. The tasks appear in the worker’s
+task list. Both “celery status” and “celery inspect ping” work. But tasks
+still go into the “Reserved” list.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">-Ofair</span></code> option didn’t fix it:</p>
+<ul class="simple">
+<li><a class="reference external" href="http://stackoverflow.com/questions/24519559">http://stackoverflow.com/questions/24519559</a></li>
+</ul>
+<p>And then it screwed up again, and became unresponsive to the status things.
+Argh!</p>
+<ul class="simple">
+<li>Close all Celery things.</li>
+<li>Hard reset of RabbitMQ:</li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rabbitmqctl stop_app
+rabbitmqctl reset
+rabbitmqctl start_app
+</pre></div>
+</div>
+<ul class="simple">
+<li>Start Celery worker(s).</li>
+<li><code class="docutils literal notranslate"><span class="pre">celery</span> <span class="pre">-A</span> <span class="pre">crate_anon.crateweb.consent</span> <span class="pre">status</span></code>
+… now works</li>
+<li>But tasks are still going into the reserved queue.</li>
+</ul>
+<p>People have achieved this with Win10:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://github.com/hotdogee/django-blast/Windows-Development-Environment-Setup">https://github.com/hotdogee/django-blast/Windows-Development-Environment-Setup</a>  # noqa</li>
+</ul>
+<p>Aha! Using <code class="docutils literal notranslate"><span class="pre">--pool=solo</span></code> made it work!</p>
+<ul class="simple">
+<li><a class="reference external" href="https://stackoverflow.com/questions/20309954">https://stackoverflow.com/questions/20309954</a></li>
+</ul>
+<p><strong>See also…</strong></p>
+<p>See also <a class="reference internal" href="tasks.html#module-crate_anon.crateweb.consent.tasks" title="crate_anon.crateweb.consent.tasks"><code class="xref py py-mod docutils literal notranslate"><span class="pre">crate_anon.crateweb.consent.tasks</span></code></a>, with more notes.</p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h3><a href="../../../index.html">Table Of Contents</a></h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../introduction/overview.html">1. Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../introduction/package_elements.html">2. Package elements in brief</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../introduction/publications.html">3. Reference publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation/installation.html">4. Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation/database_drivers.html">5. Databases and database drivers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../anonymisation/index.html">6. Anonymisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../nlp/index.html">7. Natural language processing (NLP)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../website_config/index.html">8. Configuring the CRATE web interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../website_using/index.html">9. Using the CRATE web interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/ancillary_tools.html">10. Ancillary tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/troubleshooting.html">11. Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/technical_notes.html">12. Technical notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/upgrading.html">13. Upgrading CRATE</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../misc/tcpip_ports.html">14. Common relevant TCP/IP ports</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../index.html">15. Automatic documentation of source code</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../../anonymise/_index.html">15.1. crate_anon.anonymise</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../common/_index.html">15.2. crate_anon.common</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../_index.html">15.3. crate_anon.crateweb</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../nlp_manager/_index.html">15.4. crate_anon.nlp_manager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../preprocess/_index.html">15.5. crate_anon.preprocess</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../tools/_index.html">15.6. crate_anon.tools</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">16. Change log/history</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../to_do.html">17. Things to do</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../glossary.html">18. Abbreviations and glossary</a></li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="management/commands/test_email.html"
+                        title="previous chapter">15.3.11. crate_anon.crateweb.consent.management.commands.test_email</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="forms.html"
+                        title="next chapter">15.3.13. crate_anon.crateweb.consent.forms</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../../../_sources/autodoc/crateweb/consent/celery.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="forms.html" title="15.3.13. crate_anon.crateweb.consent.forms"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="management/commands/test_email.html" title="15.3.11. crate_anon.crateweb.consent.management.commands.test_email"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">CRATE  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >15. Automatic documentation of source code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../_index.html" >15.3. crate_anon.crateweb</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Rudolf Cardinal.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.5.
+    </div>
+  </body>
+</html>
