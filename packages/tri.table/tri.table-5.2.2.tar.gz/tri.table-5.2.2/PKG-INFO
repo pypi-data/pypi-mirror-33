@@ -1,0 +1,398 @@
+Metadata-Version: 1.1
+Name: tri.table
+Version: 5.2.2
+Summary: tri.table is a library to make full featured HTML tables easily
+Home-page: https://github.com/TriOptima/tri.table
+Author: Anders Hovmöller
+Author-email: anders.hovmoller@trioptima.com
+License: BSD
+Description: .. image:: https://travis-ci.org/TriOptima/tri.table.svg?branch=master
+            :target: https://travis-ci.org/TriOptima/tri.table
+        
+        
+        .. image:: https://codecov.io/github/TriOptima/tri.table/coverage.svg?branch=master
+            :target: https://codecov.io/github/TriOptima/tri.table?branch=master
+        
+        
+        tri.table
+        =========
+        
+        tri.table is a library to make full featured HTML tables easily:
+        
+        * generates header, rows and cells
+        * grouping of headers
+        * filtering
+        * sorting
+        * bulk edit
+        * pagination
+        * automatic rowspan
+        * link creation
+        * customization on multiple levels, all the way down to templates for cells
+        
+        All these examples and a bigger example using many more features can be found in the examples django project.
+        
+        Read the full documentation for more.
+        
+        .. contents::
+        
+        Simple example
+        --------------
+        
+        .. code:: python
+        
+            def readme_example_1(request):
+                # Say I have a class...
+                class Foo(object):
+                    def __init__(self, i):
+                        self.a = i
+                        self.b = 'foo %s' % (i % 3)
+                        self.c = (i, 1, 2, 3, 4)
+        
+                # and a list of them
+                foos = [Foo(i) for i in xrange(4)]
+        
+                # I can declare a table:
+                class FooTable(Table):
+                    a = Column.number()  # This is a shortcut that results in the css class "rj" (for right justified) being added to the header and cell
+                    b = Column()
+                    c = Column(cell__format=lambda table, column, row, value, **_: value[-1])  # Display the last value of the tuple
+                    sum_c = Column(cell__value=lambda table, column, row, **_: sum(row.c), sortable=False)  # Calculate a value not present in Foo
+        
+                # now to get an HTML table:
+                return render_table_to_response(request, FooTable(data=foos), template='base.html')
+        
+        And this is what you get:
+        
+        .. image:: table_example_1.png
+        
+        Fancy django features
+        ---------------------
+        
+        Say I have some models:
+        
+        .. code:: python
+        
+            class Foo(models.Model):
+                a = models.IntegerField()
+        
+                def __unicode__(self):
+                    return 'Foo: %s' % self.a
+        .. code:: python
+        
+            class Bar(models.Model):
+                b = models.ForeignKey(Foo)
+                c = models.CharField(max_length=255)
+        
+        Now I can display a list of Bars in a table like this:
+        
+        .. code:: python
+        
+            def readme_example_2(request):
+                fill_dummy_data()
+        
+                class BarTable(Table):
+                    select = Column.select()  # Shortcut for creating checkboxes to select rows
+                    b__a = Column.number(  # Show "a" from "b". This works for plain old objects too.
+                        query__show=True,  # put this field into the query language
+                        query__gui__show=True)  # put this field into the simple filtering GUI
+                    c = Column(
+                        bulk=True,  # Enable bulk editing for this field
+                        query_show=True,
+                        query__gui__show=True)
+        
+                return render_table_to_response(request, BarTable(data=Bar.objects.all()), template='base.html', paginate_by=20)
+        
+        This gives me a view with filtering, sorting, bulk edit and pagination.
+        
+        All these examples and a bigger example using many more features can be found in the examples django project.
+        
+        Read the full documentation for more.
+        
+        Usage
+        -----
+        
+        Add tri.form, tri.query, tri.table to INSTALLED_APPS.
+        
+        Motivation
+        ----------
+        
+        tri.table grew out of a frustration with how tables were created at TriOptima. We have a /lot/ of tables and the code to produce them included long HTML templates and often the code to extract and massage the data in some trivial way ended up as methods on the model classes or template tags, even though it was only used by one view.
+        
+        This code was also error prone to change since we often have columns that we show or hide based on the permissions of the user, which meant the `thead` and `tbody` had to be in sync. When you have a lot of columns and more and more complex logic for when to show/hide columns this can become harder than it sounds!
+        
+        We also saw that almost always the names of the columns (aka the headers) could be derived from the name of the field they should display data for, so we opted for defaults to make this case easier.
+        
+        It was very important for us to have customization available at many levels. Many table libraries have really nice and short code for the default case but when you have to customize some tiny thing you have to rewrite huge swaths of the library's code. We didn't want to do that since we made this library in order to refactor out exactly this thing from our existing code base. We ended up with the powerful pattern of being able to supply callables for the points of customization, leading to small tweaks moving into the table definition instead of being scattered in model or template tag code. We also have many levels or customization so that the path from "just display columns x, y and z somehow" to heavy customization is smooth and gradual.
+        
+        We chose to mimic how django forms and models are declared because we really like that kind of declarative style, but you can also use it in a more functional style if you want. The latter is useful when you want to create a list of the columns to display programmatically for example.
+        
+        This library has been a big win for us. The time to create a page with a table on it has been drastically reduced without sacrificing any flexibility when we later want to tweak the view.
+        
+        Running tests
+        -------------
+        
+        You need tox installed then just `make test`.
+        
+        
+        License
+        -------
+        
+        BSD
+        
+        
+        Documentation
+        -------------
+        
+        https://tritable.readthedocs.org.
+        
+        
+        Changelog
+        ---------
+        
+        5.2.2 (2018-06-29)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Fix bad mark_safe invocation on custom cell format output.
+        
+        
+        5.2.1 (2018-06-18)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Fixed bug with backwards compatibility for `Link`.
+        
+        
+        5.2.0 (2018-06-15)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * New feature: default sort ordering. Just pass `default_sort_order` to `Table`.
+        
+        * `Link` class is now just inherited from tri.form `Link`. Introduced a deprecation warning for the constructor argument `url`.
+        
+        * Simplified `prepare` handling for `Table`. You should no longer need to care about this for most operations. You will still need to call `prepare` to trigger the parsing of URL parameters for sorting etc.
+        
+        * Fixed many_to_many_factory
+        
+        
+        5.1.1 (2018-04-09)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Lazy and memoized BoundCell.value
+        
+        
+        5.1.0 (2018-01-08)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Fix sorting of columns that contains None, this was not working in Python 3
+        
+        
+        5.0.0 (2017-08-22)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Moved to tri.declarative 0.35, tri.form 5.0 and tri.query 4.0. Check release notes for tri.form and tri.query for backwards incompatible changes
+        
+        * Removed deprecated `template_name` parameter to `render_table`
+        
+        * Note that `foo__class` to specify a constructor/callable is no longer a valid parameter, because of updated tri.form, use `foo__call_target` or just `foo`
+        
+        
+        4.3.1 (2017-05-31)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Bugfix: sorting on reverse relations didn't work
+        
+        
+        4.3.0 (2017-04-25)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Bugfix for Django 1.10 template handling
+        
+        * Updated to tri.form 4.7.1
+        
+        * Moved bulk button inside the table tag
+        
+        * Dropped support for Django 1.7
+        
+        
+        4.2.0 (2017-04-21)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * New feature: post bulk edit callback
+        
+        
+        4.1.2 (2017-04-19)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Fixed silly non-ascii characters in README.rst and also changed to survive silly non-ascii characters in that same file.
+        
+        
+        4.1.1 (2017-04-10)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Fix missing copy of `attrs__class`
+        
+        
+        4.1.0 (2017-03-22)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * `Column` class now inherits from `object`, making the implementation more pythonic.
+          (Attributes still possible to override in constructor call, see `NamespaceAwareObject`)
+        
+        * `*.template` overrides can now be specified as `django.template.Template` instances.
+        
+        * The `template_name` parameter to `render_table` is now deprecated and superceeded by a `template` parameter.
+        
+        
+        4.0.0 (2016-09-15)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Updated to newest tri.form, tri.query, tri.declarative. This gives us simpler factories for `from_model` methods.
+        
+        * Added shortcuts to `Column`: `time` and `decimal`
+        
+        * The following shortcuts have been updated to use the corresponding `Variable` shortcuts: date, datetime and email
+        
+        * Fix failure in endpoint result return on empty payload.
+          `[]` is a valid endpoint dispatch result.
+        
+        * `render_table`/`render_table_to_response` no longer allow table to be passed as a positional argument
+        
+        
+        3.0.1 (2016-09-06)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Fix crash on unidentified sort parameter.
+        
+        
+        3.0.0 (2016-09-02)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * `bound_row` is passed to row level callables. This is a potential breaking
+          change if you didn't do `**_` at the end of your function signatures (which you
+          should!)
+        
+        * `bound_row` and `bound_column` is passed to cell level callables. This is a
+          potential breaking change like above.
+        
+        * `BoundRow` now supports `extra`.
+        
+        * compatibible with Django 1.9 & 1.10
+        
+        * Added strict check on the kwargs config namespace of `Table`
+        
+        * Added `extra` namespace to `Table`
+        
+        * Added `bound_cell` parameter to rendering of cell templates.
+        
+        
+        2.5.0 (2016-07-14)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Added optional `endpoint_dispatch_prefix` table configuration to enable multiple
+          tables on the same endpoint.
+        
+        
+        2.4.0 (2016-07-13)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Made more parts of `BoundCell` available for reuse.
+        
+        
+        2.3.0 (2016-07-12)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Added pass-through of extra arguments to `Link` objects for custom attributes.
+        
+        
+        2.2.0 (2016-06-23)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Fix missing namespace collection for column custimization of Table.from_model
+        
+        
+        2.1.0 (2016-06-16)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Renamed `db_compat.register_field_factory` to the clearer `register_column_factory`
+        
+        * Improved error reporting on missing django field type column factory declaration.
+        
+        * Added iteration interface to table to loop over bound rows
+        
+        * Added `endpoint` meta class parameter to table to enable custom json endpoints
+        
+        
+        2.0.0 (2016-06-02)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Support for ajax backend
+        
+        * Dependent tri.form and tri.query libraries have new major versions
+        
+        
+        1.16.0 (2016-04-25)
+        ~~~~~~~~~~~~~~~~~~~
+        
+        * Minor bugfix for fields-from-model handling of auto fields
+        
+        
+        1.15.0 (2016-04-21)
+        ~~~~~~~~~~~~~~~~~~~
+        
+        * Table.from_model implemented
+        
+        
+        1.14.0 (2016-04-19)
+        ~~~~~~~~~~~~~~~~~~~
+        
+        * Added `after` attribute on `Column` to enable custom column ordering (See `tri.declarative.sort_after()`)
+        
+        * Enable mixing column definitions in both declared fields and class meta.
+        
+        * Don't show any results if the form is invalid
+        
+        
+        1.13.0 (2016-04-08)
+        ~~~~~~~~~~~~~~~~~~~
+        
+        * Add python 3 support
+        
+        
+        1.12.0 (2016-02-29)
+        ~~~~~~~~~~~~~~~~~~~
+        
+        * Changed syntax for specifying html attributes and classes. They are now use the same way of addressing as
+          other things, e.g.: Column(attrs__foo="bar", attrs__class__baz=True) will yield something like
+          `<th class="baz" foo=bar>...</th>`
+        
+        
+        1.11.0 (2016-02-04)
+        ~~~~~~~~~~~~~~~~~~~
+        
+        * Fix missing evaluation of row__attr et al.
+        
+        
+        1.10.0 (2016-01-28)
+        ~~~~~~~~~~~~~~~~~~~
+        
+        * Changed cell__template and row__template semantics slightly to enable customized cell ordering in templates.
+        
+          row__template implementations can now access a BoundCell object to use the default cell rendering.
+        
+          cell__template implementation are now assumed to render the <td> tags themself.
+        
+        
+        1.9.0 (2016-01-19)
+        ~~~~~~~~~~~~~~~~~~
+        
+        * Fixed to work with latest version of tri.form
+        
+Keywords: tri.table
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
