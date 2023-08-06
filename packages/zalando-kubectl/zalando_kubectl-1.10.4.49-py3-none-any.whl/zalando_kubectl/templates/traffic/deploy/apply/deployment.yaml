@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{{APPLICATION}}}-{{{VERSION}}}"
+  labels:
+    application: "{{{APPLICATION}}}"
+spec:
+  replicas: {{{REPLICAS}}}
+  selector:
+    matchLabels:
+      application: "{{{APPLICATION}}}"
+      version: "{{{VERSION}}}"
+  template:
+    metadata:
+      labels:
+        application: "{{{APPLICATION}}}"
+        version: "{{{VERSION}}}"
+        # OPTIONAL: AWS IAM role (must be created separately via CF) to use
+        # annotations:
+        #   iam.amazonaws.com/role: "app-{{{APPLICATION}}}"
+    spec:
+      containers:
+        - name: "{{{APPLICATION}}}"
+          image: "{{{DEP_IMAGE_REF}}}:{{{DEP_IMAGE_VERSION}}}"
+          env:
+            # for JVM applications: set the maximum available memory as JVM
+            # would assume host/node capacity otherwise this is evaluated by
+            # java-dynamic-memory-opts in the Zalando OpenJDK base image
+            # see https://github.com/zalando/docker-openjdk
+            - name: MEM_TOTAL_KB
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.memory
+                  divisor: 1Ki
+            # This environment variable is used in the example application for
+            # this template. You can remove it when adapting it for your
+            # project.
+            - name: COLOR
+              value: "{{{COLOR}}}"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              memory: "128Mi"
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
