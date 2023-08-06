@@ -1,0 +1,123 @@
+#!python
+
+#    Copyright (C) 2018 Dylan Stephano-Shachter
+#
+#    This file is part of Checklist.
+#
+#    Checklist is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    Checklist is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with Checklist.  If not, see <https://www.gnu.org/licenses/>.
+
+import argparse
+import os
+import pptree
+import sys
+
+import checklist
+
+CHECKLIST_DIR = os.path.expanduser('~/.config/checklist')
+PICKLE_PATH = '{}/data.pkl'.format(CHECKLIST_DIR)
+CONFIG_PATH = '{}/checklist.ini'.format(CHECKLIST_DIR)
+SYMBOLS = {True: '\u2612',
+           False: '\u2610'}
+
+
+def error(message):
+    print(message, file=sys.stderr)
+    exit(1)
+
+
+def create_subnodes(task, parent_node, checklst):
+    for child in task.children:
+        task = checklst.getTask(child)
+        node = pptree.Node('{} {}'.format(SYMBOLS[task.completed], task.name), parent_node)
+        create_subnodes(task, node, checklst)
+
+
+def list_tasks(args, checklst):
+    main_node = pptree.Node("Tasks")
+    for task in checklst.tasks:
+        if task.parent is None:
+            node = pptree.Node('{} {}'.format(SYMBOLS[task.completed], task.name), main_node)
+            create_subnodes(task, node, checklst)
+    pptree.print_tree(main_node)
+    if args.all:
+        main_node = pptree.Node("Completed Tasks")
+        for task in checklst.completed_tasks:
+            if task.parent is None:
+                node = pptree.Node('{} {}'.format(SYMBOLS[task.completed], task.name), main_node)
+                create_subnodes(task, node, checklst)
+        pptree.print_tree(main_node)
+
+
+
+def add(args, checklst):
+    try:
+        checklst.newTask(name=args.task_name, parent=args.parent)
+        checklst.save(PICKLE_PATH)
+    except checklist.checklist.TaskExistsException:
+        error('The task "{}" already exists.'.format(args.task_name))
+    except checklist.checklist.ParentNotExistsException:
+        error('The chosen parent "{}" does not exist.'.format(args.parent))
+
+
+def complete(args, checklst):
+    checklst.completeTask(args.task_name)
+    checklst.save(PICKLE_PATH)
+
+
+COMMANDS = {'list': list_tasks,
+            'add': add,
+            'complete': complete,
+            }
+
+
+def parse():
+    main_parser = argparse.ArgumentParser(prog='checklist',
+                                          description='A simple program '
+                                          'for keeping track of tasks')
+    subparsers = main_parser.add_subparsers(dest='command')
+
+    parser_list = subparsers.add_parser('list', help='List open tasks')
+    parser_list.add_argument('--all', '-a', action='store_true',
+                             help='Print all tasks '
+                             '(including completed tasks)')
+
+    parser_add = subparsers.add_parser('add', help='Add a new task')
+    parser_add.add_argument('task_name', help='A description of the task')
+    parser_add.add_argument('--parent', help='Parent task')
+
+    parser_complete = subparsers.add_parser('complete', help='Mark a task complete')
+    parser_complete.add_argument('task_name', help='The task to mark complete')
+
+    args = main_parser.parse_args()
+
+    if not args.command:
+        main_parser.print_usage()
+        sys.exit(1)
+
+    return args
+
+
+def main():
+    if not os.path.isdir(CHECKLIST_DIR):
+        os.mkdir(CHECKLIST_DIR)
+    args = parse()
+    if os.path.exists(PICKLE_PATH):
+        checklst = checklist.Checklist(PICKLE_PATH)
+    else:
+        checklst = checklist.Checklist()
+    COMMANDS[args.command](args, checklst)
+
+
+if __name__ == '__main__':
+    main()
