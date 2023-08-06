@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head><title>Demonstration</title></head>
+<body>
+<h1>Event Updates</h1>
+<div class="updates"></div>
+<p>This is a trivial HTML client for the EventSource/SSE server. To use it,
+run:</p>
+<pre>fussy-sse-server -r <path to directory to watch></pre>
+<p>Then watch for events showing up here whenever you write to files in the directory.</p>
+<p>Notes:</p>
+<ul>
+    <li>This demo uses the <a href="https://github.com/amvtek/EventSource">amvtek polyfill</a></li>
+</ul>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+<script src="./eventsource.min.js"></script>
+<script>
+    $(document).ready( function() {
+        var interests = []; //'test2.txt','test.txt','moo.json'];
+        var event_url = "http://localhost:12000/"+interests.join('+');
+        var eventSource = new EventSource(event_url);
+        var show_incoming = function(event) {
+            var parent = $(".updates");
+            var update = $('<div class="update"></div>');
+            update.text( event.type+' '+event.lastEventId+' '+event.data );
+            parent.append( update );
+        };
+        /* $.map( interests, function( interest ){ 
+            eventSource.addEventListener(interest,show_incoming);
+        });*/
+        /* Doesn't work for me on chromium :( */
+        eventSource.onmessage = show_incoming;
+        eventSource.onerror = function( err ) {
+            if (console) {
+                console.log( "" + err );
+            };
+        };
+    });
+</script>
+</body>
+</html>
