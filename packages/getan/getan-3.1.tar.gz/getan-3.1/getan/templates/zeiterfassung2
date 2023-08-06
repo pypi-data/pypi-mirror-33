@@ -1,0 +1,21 @@
+{% for proj in projects %}
+{%- if proj.entries %}
+## category: {{ proj.key }} ({{ proj.desc }})
+{% for grouper, gentries in proj.entries|sort(attribute='startisoday')|groupby('startisoday') %}
+{#- grouper will contain the attribute used for groupby() -#}
+
+{% for ggrouper, ggentries in gentries|groupby('workpackage') %}
+{{ gentries[0].start|date_format }} {{ (ggentries|duration|human_time).rjust(5) }}h a {{ user.ljust(3) }} [{{ ggrouper }}]
+    {%- for entry in ggentries -%}
+        {%- if loop.index == 1 -%}{{ ' ' }}
+        {%- else -%}{{ ';\n                        ' }}
+        {%- endif -%}
+        {{ entry.get_comment() }}
+    {%- endfor -%}
+{%- endfor %}
+# daily sum: {{ gentries|duration|human_time }}h
+{% endfor -%}
+## total category {{ proj.key }}: {{ proj.get_total_duration()|human_time }}h
+{% endif -%}
+{% endfor %}
+### total all categories: {{ total_time|human_time }}h
