@@ -1,0 +1,89 @@
+Metadata-Version: 2.1
+Name: avi-okta
+Version: 0.0.7
+Summary: Avi Networks Okta sdk
+Home-page: https://github.com/avinetworks/avi-internal
+Author: Neel Parikh
+Author-email: nparikh@avinetworks.com
+License: UNKNOWN
+Description: # Avi Networks Okta SDK
+        
+        Provides a client abstraction to programmatically perform CRUD operations on resources in the
+        avinetworks Okta org.
+        
+        Supported objects
+        * Applications
+        * Users
+        * User groups
+        * Trusted origins
+        * API tokens
+        
+        The design philosphy is for client operations to achieve a desired state. Therefore if a resource
+        aleady exists, calling create on that same resource will simply return the existing resource.
+        Likewise a delete operations will succeed if the resource already does not exist. Calling get on
+        a non-existant resource will throw an exception.
+        
+        
+        ## Usage Examples
+        
+        Most client methods will return a JSON representation of a resource, but a few such as delete
+        operations will return the status code of the API request.
+        
+        ### Initialize an API client
+        
+        The client will typically be initizialized with an API token, but if you need to programatically
+        create API tokens you'll need to initialize with a username and password.
+        
+        ```python
+        client = AviOktaClient(token='<your API token>')
+        ```
+        
+        ### Applications
+        ```python
+        app = client.create_app("test-app") # Creates a SAML app
+        app['_created'] # True
+        app = client.create_app("test-app")
+        app['_created'] # False
+        app = client.get_app(label="example-app")
+        apps = client.list_apps()
+        client.delete_app(app['id'])
+        ```
+        
+        ### Users
+        User creation will also send a user activation email to the specified email address
+        ```python
+        user = client.create_user("FirstName", "LastName", "example@avinetworks.com")
+        user = client.get_user(login="example@avinetorks.com")
+        users = client.list_users()
+        app_user = client.assign_user_to_app(app['id'], user['id'])
+        client.delete_user(user['id'])
+        ```
+        
+        ### User Groups
+        ```python
+        group = client.create_group('example-group')
+        group = client.get_group(name='example-group')
+        groups = client.list_groups()
+        client.assign_user_to_group(user['id'], group['id'])
+        client.delete_group(group['id'])
+        ```
+        
+        ### Trusted Origins
+        ```python
+        trusted_origin = client.create_trusted_origin('My App', 'https://myapp.example.com', cors=False, redirect=True)
+        ```
+        
+        ### API Tokens
+        Created tokens will be associated with the user who's credentials were used to initialize the client
+        ```python
+        token = client.create_token('example-token')
+        ```
+        
+        
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.6
+Classifier: Programming Language :: Python :: 2.7
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Description-Content-Type: text/markdown
