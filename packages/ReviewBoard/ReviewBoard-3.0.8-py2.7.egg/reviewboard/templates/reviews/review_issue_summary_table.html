@@ -1,0 +1,79 @@
+{% load accounts avatars djblets_utils i18n reviewtags %}
+
+<div id="issue-summary" class="review-request-section"{% if issue_counts.total == 0 %} style="display: none;"{% endif %}>
+ <a name="issue-summary"></a>
+ <label class="review-request-section-label">{% trans "Issues" %}</label>
+ <div class="issue-summary-header">
+  <div class="issue-summary-filters">
+   <select class="issue-summary-filter" id="issue-reviewer-filter">
+    <option value="all">{% trans "All Users" %}</option>
+   </select>
+  </div>
+  <ul class="issue-summary-tabs">
+   <li class="issue-summary-tab active" title="{% trans 'Open issues' %}"
+       data-issue-state="open">
+    <label><span class="rb-icon rb-icon-issue-open"></span></label>
+    <span id="open-counter" class="issue-counter-value">{{issue_counts.open}}</span>
+   </li>
+   <li class="issue-summary-tab" title="{% trans 'Issues waiting for verification' %}"
+       data-issue-state="verifying">
+    <label><span class="rb-icon rb-icon-issue-verifying"></span></label>
+    <span id="open-counter" class="issue-counter-value">{{issue_counts.verifying}}</span>
+   </li>
+   <li class="issue-summary-tab" title="{% trans 'Resolved issues' %}"
+       data-issue-state="resolved">
+    <label><span class="rb-icon rb-icon-issue-resolved"></span></label>
+    <span id="resolved-counter" class="issue-counter-value">{{issue_counts.resolved}}</span>
+   </li>
+   <li class="issue-summary-tab" title="{% trans 'Dropped issues' %}"
+       data-issue-state="dropped">
+    <label><span class="rb-icon rb-icon-issue-dropped"></span></label>
+    <span id="dropped-counter" class="issue-counter-value">{{issue_counts.dropped}}</span>
+   </li>
+   <li class="issue-summary-tab issue-summary-total"
+       title="{% trans 'All issues' %}"
+       data-issue-state="all">
+    <label>{% trans "All Issues" %}:</label>
+    <span id="total-counter" class="issue-counter-value">{{issue_counts.total}}</span>
+   </li>
+  </ul>
+ </div>
+ <div class="issue-table-wrapper">
+  <table id="issue-summary-table">
+   <thead>
+    <tr>
+     <th class="description-header">{% trans "Description" %}</th>
+     <th class="from-header">{% trans "From" %}</th>
+     <th class="last-updated-header">{% trans "Last Updated" %}</th>
+    </tr>
+   </thead>
+   <tbody>
+{% for comment in issues %}
+{%  definevar 'reviewer_name' %}{% user_profile_display_name comment.review_obj.user %}{% enddefinevar %}
+    <tr id="summary-table-entry-{{comment.id}}"
+        class="issue {{comment.issue_status|pretty_print_issue_status}}{% if comment.issue_status != 'O' %} hidden{% endif %}"
+        data-issue-id="{{comment.pk}}"
+        data-reviewer="{{reviewer_name}}"
+        data-comment-type="{{comment.comment_type}}"
+        data-comment-href="#{{comment.anchor_prefix}}{{comment.pk}}">
+     <td class="summary-table-description">
+      <span class="issue-icon rb-icon {{comment.issue_status|issue_status_icon}}"></span>
+      <span class="issue-text">{{comment.text|render_markdown:comment.rich_text|striptags|truncatewords:20}}</span>
+     </td>
+     <td class="reviewer">
+      <a href="{% url 'user' comment.review_obj.user %}" class="user">
+{%  if siteconfig_settings.avatars_enabled %}
+       {% avatar comment.review_obj.user 24 %}
+{%  endif %}
+       {{reviewer_name}}
+      </a>
+     </td>
+     <td class="last-updated">
+      <time class="timesince" datetime="{{comment.timestamp|date:'c'}}">{{comment.timestamp}}</time>
+     </td>
+    </tr>
+{% endfor %}
+   </tbody>
+  </table>
+ </div>
+</div>
