@@ -1,0 +1,92 @@
+/*********************************************************************/
+/* File:   p1interpol.cpp                                            */
+/* Author: Christoph Lehrenfeld                                      */
+/* Date:   July 17th 2015                                            */
+/*********************************************************************/
+
+#include "p1interpol.hpp"
+
+namespace ngcomp
+{
+
+/* ----------------------------------------
+   Interpolate a coefficient function
+   or an h1ho function into the space of
+   piecewise linears
+   ---------------------------------------- */
+  InterpolateP1::InterpolateP1 (shared_ptr<CoefficientFunction> a_coef, shared_ptr<GridFunction> a_gf_p1)
+    : ma(a_gf_p1->GetMeshAccess()), coef(a_coef), gf(nullptr), gf_p1(a_gf_p1)
+  {; }
+
+  InterpolateP1::InterpolateP1 (shared_ptr<GridFunction> a_gf, shared_ptr<GridFunction> a_gf_p1)
+    : ma(a_gf_p1->GetMeshAccess()), coef(nullptr), gf(a_gf), gf_p1(a_gf_p1)
+  {; }
+
+  void InterpolateP1::Do(LocalHeap & lh, double eps_perturbation)
+  {
+    static Timer time_fct ("LsetCurv::InterpolateP1::Do");
+    RegionTimer reg (time_fct);
+
+    int nv=ma->GetNV();
+    gf_p1->GetVector() = 0.0;
+
+    for (int vnr = 0; vnr < nv; ++vnr)
+    {
+      HeapReset hr(lh);
+
+      double val_lset;
+      if (coef)
+      {
+        Array<int> elnums;
+        ma -> GetVertexElements (vnr, elnums);
+        Ngs_Element ngel = ma -> GetElement (ElementId(VOL,elnums[0]));
+        auto & eltrans = ma -> GetTrafo (ngel, lh);
+
+        if( ma -> GetDimension() == 2)
+        {
+          Vec<2> point;
+          ma->GetPoint<2>(vnr,point);
+          IntegrationPoint ip(0,0,0,0);
+          MappedIntegrationPoint<2,2> mip(ip,eltrans);
+          Vec<2> refpoint = mip.GetJacobianInverse() * (point - mip.GetPoint());
+          IntegrationPoint ip_f(refpoint[0],refpoint[1],0.0,0.0);
+          MappedIntegrationPoint<2,2> mip_f(ip_f,eltrans);
+          val_lset = coef->Evaluate(mip_f);
+        }
+        else if ( ma -> GetDimension() == 3)
+        {
+          Vec<3> point;
+          ma->GetPoint<3>(vnr,point);
+          IntegrationPoint ip(0,0,0,0);
+          MappedIntegrationPoint<3,3> mip(ip,eltrans);
+          Vec<3> refpoint = mip.GetJacobianInverse() * (point - mip.GetPoint());
+          IntegrationPoint ip_f(refpoint,0.0);
+          MappedIntegrationPoint<3,3> mip_f(ip_f,eltrans);
+          val_lset = coef->Evaluate(mip_f);
+        }
+        else
+          throw Exception ("D==0,D==1 not yet implemnted");
+      }
+      else
+      {
+        Array<int> dof;
+        // gf->GetFESpace()->GetVertexDofNrs(vnr, dof);
+        gf->GetFESpace()->GetDofNrs(NodeId(NT_VERTEX,vnr), dof); //vnr, dof);
+        FlatVector<> fval(1,&val_lset);
+        gf->GetVector().GetIndirect(dof,fval);
+      }
+
+      Array<int> dof;
+      gf_p1->GetFESpace()->GetVertexDofNrs(vnr,dof);
+      FlatVector<> val(1,&val_lset);
+      // avoid vertex cuts by introducing a small perturbation:
+      if (abs(val(0)) < eps_perturbation)
+        val(0) = eps_perturbation;
+      if (dof[0] != -1)
+        gf_p1->GetVector().SetIndirect(dof,val);
+    }
+
+
+  }
+
+}
