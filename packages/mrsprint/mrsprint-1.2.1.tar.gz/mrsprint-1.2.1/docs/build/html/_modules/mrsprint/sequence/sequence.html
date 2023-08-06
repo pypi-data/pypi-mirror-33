@@ -1,0 +1,352 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>mrsprint.sequence.sequence &mdash; MR SPRINT 1.2 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> MR SPRINT
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                1.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Welcome!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../history.html">History</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../download.html">Downloads</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MR SPRINT</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>mrsprint.sequence.sequence</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for mrsprint.sequence.sequence</h1><div class="highlight"><pre>
+<span></span><span class="ch">#! python</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+
+
+<span class="sd">&quot;&quot;&quot;Module for pulse sequence related classes and functions.</span>
+
+<span class="sd">Authors:</span>
+<span class="sd">    * Victor Hugo de Mello Pessoa &lt;victor.pessoa@usp.br&gt;</span>
+<span class="sd">    * Daniel Cosmo Pizetta &lt;daniel.pizetta@usp.br&gt;</span>
+
+<span class="sd">Since:</span>
+<span class="sd">    2017/07/01</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pyqtgraph.parametertree</span> <span class="k">as</span> <span class="nn">pt</span>
+
+<span class="kn">from</span> <span class="nn">mrsprint.system</span> <span class="k">import</span> <span class="n">gradient</span><span class="p">,</span> <span class="n">rf</span>
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Sequence"><a class="viewcode-back" href="../../../autodoc/mrsprint/mrsprint.sequence.html#mrsprint.sequence.sequence.Sequence">[docs]</a><span class="k">class</span> <span class="nc">Sequence</span><span class="p">(</span><span class="n">pt</span><span class="o">.</span><span class="n">parameterTypes</span><span class="o">.</span><span class="n">GroupParameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class that represents a sequence for magnetic resonance systems.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">settings</span><span class="p">,</span> <span class="n">nucleus</span><span class="p">,</span> <span class="o">**</span><span class="n">opts</span><span class="p">):</span>
+        <span class="n">opts</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Sequence&#39;</span>
+        <span class="n">opts</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;bool&#39;</span>
+        <span class="n">opts</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">pt</span><span class="o">.</span><span class="n">parameterTypes</span><span class="o">.</span><span class="n">GroupParameter</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">opts</span><span class="p">)</span>
+
+        <span class="c1"># Main constant values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dt</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">simulator_group</span><span class="o">.</span><span class="n">timeResolution</span><span class="o">.</span><span class="n">value</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">b1_max</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">rf_group</span><span class="o">.</span><span class="n">amMaxValue</span><span class="o">.</span><span class="n">value</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span> <span class="o">=</span> <span class="n">nucleus</span><span class="o">.</span><span class="n">gamma</span><span class="o">.</span><span class="n">value</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__rf</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">rf_delay</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__gradient</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">gradient_delay</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dt</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Sequence.setRF"><a class="viewcode-back" href="../../../autodoc/mrsprint/mrsprint.sequence.html#mrsprint.sequence.sequence.Sequence.setRF">[docs]</a>    <span class="k">def</span> <span class="nf">setRF</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rf_value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Properly sets the rf stream signal.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">rep_num</span><span class="p">,</span> <span class="n">events</span> <span class="ow">in</span> <span class="n">rf_value</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">rep_num</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">events</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__rf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__rf</span><span class="p">,</span> <span class="n">event</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Sequence.getRF"><a class="viewcode-back" href="../../../autodoc/mrsprint/mrsprint.sequence.html#mrsprint.sequence.sequence.Sequence.getRF">[docs]</a>    <span class="k">def</span> <span class="nf">getRF</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the entire rf.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__rf</span></div>
+
+<div class="viewcode-block" id="Sequence.setGradient"><a class="viewcode-back" href="../../../autodoc/mrsprint/mrsprint.sequence.html#mrsprint.sequence.sequence.Sequence.setGradient">[docs]</a>    <span class="k">def</span> <span class="nf">setGradient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grad_value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Properly sets the gradient.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">rep_num</span><span class="p">,</span> <span class="n">events</span> <span class="ow">in</span> <span class="n">gradient_value</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">rep_num</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">events</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__gradient</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__gradient</span><span class="p">,</span> <span class="n">event</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Sequence.getGradient"><a class="viewcode-back" href="../../../autodoc/mrsprint/mrsprint.sequence.html#mrsprint.sequence.sequence.Sequence.getGradient">[docs]</a>    <span class="k">def</span> <span class="nf">getGradient</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the entire gradient.&quot;&quot;&quot;</span>
+        <span class="n">rf_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__rf</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">gradient_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__gradient</span><span class="o">.</span><span class="n">size</span>
+
+        <span class="n">grad_zero</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="p">(</span><span class="n">rf_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">rf_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">rf_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">gradient_size</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">gradient_size</span> <span class="o">&lt;=</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__gradient</span> <span class="o">=</span> <span class="n">grad_zero</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;RF and Gradient must have the same temporal size!&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__gradient</span></div></div>
+
+
+<div class="viewcode-block" id="CPMGSequence"><a class="viewcode-back" href="../../../autodoc/mrsprint/mrsprint.sequence.html#mrsprint.sequence.sequence.CPMGSequence">[docs]</a><span class="k">class</span> <span class="nc">CPMGSequence</span><span class="p">(</span><span class="n">Sequence</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Generates a CPMG sequence.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">Sequence</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="c1"># sequence specific parameters</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">numberOfCycles</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">addChild</span><span class="p">({</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Number of Cycles&#39;</span><span class="p">,</span> <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;int&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">te</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">addChild</span><span class="p">({</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Time to Echo&#39;</span><span class="p">,</span> <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;float&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">0.02</span><span class="p">,</span> <span class="s1">&#39;suffix&#39;</span><span class="p">:</span> <span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="s1">&#39;siPrefix&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">addChild</span><span class="p">({</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Delay TR&#39;</span><span class="p">,</span> <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;float&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">0.02</span><span class="p">,</span> <span class="s1">&#39;suffix&#39;</span><span class="p">:</span> <span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="s1">&#39;siPrefix&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+
+        <span class="c1"># pulse of 90 degrees in x</span>
+        <span class="n">rf_90_x</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">square_rf_pulse</span><span class="p">(</span><span class="n">flip_angle</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">t_half_rf_90</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">rf_duration</span><span class="p">(</span><span class="n">rf_90_x</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.</span>
+        <span class="c1"># pulse of 180 degrees in y</span>
+        <span class="n">rf_180_y</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">square_rf_pulse</span><span class="p">(</span><span class="n">flip_angle</span><span class="o">=</span><span class="mi">180</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
+        <span class="n">t_half_rf_180</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">rf_duration</span><span class="p">(</span><span class="n">rf_180_y</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.</span>
+
+        <span class="c1"># delay between pulse 90x and 180y  = te/2 between pulse centers</span>
+        <span class="n">d_90_180</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">rf_delay</span><span class="p">(</span><span class="o">-</span><span class="n">t_half_rf_90</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">te</span><span class="o">.</span><span class="n">value</span><span class="p">()</span> <span class="o">/</span> <span class="mf">2.</span> <span class="o">-</span> <span class="n">t_half_rf_180</span><span class="p">)</span>
+        <span class="c1"># delay between pulse 180y and 180y  = te between pulse centers</span>
+        <span class="n">d_180_180</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">rf_delay</span><span class="p">(</span><span class="o">-</span><span class="n">t_half_rf_180</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">te</span><span class="o">.</span><span class="n">value</span><span class="p">()</span> <span class="o">-</span> <span class="n">t_half_rf_180</span><span class="p">)</span>
+        <span class="c1"># delay repetition time before restart</span>
+        <span class="n">d_tr</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">rf_delay</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtr</span><span class="o">.</span><span class="n">value</span><span class="p">())</span>
+
+        <span class="c1"># rf for CPMG</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setRF</span><span class="p">([(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="n">rf_90_x</span><span class="p">,</span> <span class="n">d_90_180</span><span class="p">]),</span>
+                    <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">numberOfCycles</span><span class="o">.</span><span class="n">value</span><span class="p">(),</span> <span class="p">[</span><span class="o">-</span><span class="n">rf_180_y</span><span class="p">,</span> <span class="n">d_180_180</span><span class="p">,</span> <span class="n">rf_180_y</span><span class="p">,</span> <span class="n">d_180_180</span><span class="p">]),</span>
+                    <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="n">d_tr</span><span class="p">])])</span></div>
+
+
+<div class="viewcode-block" id="GradientEchoSequence"><a class="viewcode-back" href="../../../autodoc/mrsprint/mrsprint.sequence.html#mrsprint.sequence.sequence.GradientEchoSequence">[docs]</a><span class="k">class</span> <span class="nc">GradientEchoSequence</span><span class="p">(</span><span class="n">Sequence</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Generate a Gradient Echo sequence.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">Sequence</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="c1"># sequence specific parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a90</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">addChild</span><span class="p">({</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Delay After RF&#39;</span><span class="p">,</span> <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;float&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s1">&#39;suffix&#39;</span><span class="p">:</span> <span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="s1">&#39;siPrefix&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">te</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">addChild</span><span class="p">({</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Time to Echo&#39;</span><span class="p">,</span> <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;float&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">0.02</span><span class="p">,</span> <span class="s1">&#39;suffix&#39;</span><span class="p">:</span> <span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="s1">&#39;siPrefix&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dtr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">addChild</span><span class="p">({</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Delay TR&#39;</span><span class="p">,</span> <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;float&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s1">&#39;suffix&#39;</span><span class="p">:</span> <span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="s1">&#39;siPrefix&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+
+        <span class="c1"># first event, excitation</span>
+        <span class="n">rf_90_x</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">square_rf_pulse</span><span class="p">(</span><span class="n">flip_angle</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">t_rf_90</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">rf_duration</span><span class="p">(</span><span class="n">rf_90_x</span><span class="p">)</span>
+        <span class="n">d_gr_90</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">gradient_delay</span><span class="p">(</span><span class="n">t_rf_90</span><span class="p">)</span>
+
+        <span class="c1"># second event, a delay</span>
+        <span class="n">d_rf_a90</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">rf_delay</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dbgr</span><span class="o">.</span><span class="n">value</span><span class="p">())</span>
+        <span class="n">d_gr_a90</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">gradient_delay</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dbgr</span><span class="o">.</span><span class="n">value</span><span class="p">())</span>
+
+        <span class="c1"># third event, dephasing</span>
+        <span class="n">d_rf_deph</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">rf_delay</span><span class="p">()</span>
+        <span class="n">gr_deph</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">SquareGradient</span><span class="p">()</span>
+
+        <span class="c1"># fourth event, read</span>
+        <span class="n">d_rf_read</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">rf_delay</span><span class="p">()</span>
+        <span class="n">gr_read</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">SquareGradient</span><span class="p">()</span>
+
+        <span class="c1"># fifty event, a delay</span>
+        <span class="n">d_rf_tr</span> <span class="o">=</span> <span class="n">rf</span><span class="o">.</span><span class="n">rf_delay</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtr</span><span class="o">.</span><span class="n">value</span><span class="p">())</span>
+        <span class="n">d_gr_tr</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">gradient_delay</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dtr</span><span class="o">.</span><span class="n">value</span><span class="p">())</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setRF</span><span class="p">([(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="n">rf_90_x</span><span class="p">,</span> <span class="n">d_rf_a90</span><span class="p">,</span> <span class="n">d_rf_deph</span><span class="p">,</span> <span class="n">d_rf_read</span><span class="p">,</span> <span class="n">d_rf_tr</span><span class="p">])])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setGradient</span><span class="p">([(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="n">d_gr_90</span><span class="p">,</span> <span class="n">d_gr_a90</span><span class="p">,</span> <span class="n">gr_deph</span><span class="p">,</span> <span class="n">gr_read</span><span class="p">,</span> <span class="n">d_gr_tr</span><span class="p">])])</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2015-2018 Daniel Cosmo Pizetta, Victor Hugo de Mello Pessoa.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'1.2',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
