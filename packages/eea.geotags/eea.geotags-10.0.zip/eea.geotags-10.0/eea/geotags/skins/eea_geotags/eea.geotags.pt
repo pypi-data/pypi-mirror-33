@@ -1,0 +1,89 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:tal="http://xml.zope.org/namespaces/tal"
+      xmlns:metal="http://xml.zope.org/namespaces/metal"
+      xmlns:i18n="http://xml.zope.org/namespaces/i18n"
+      i18n:domain="eea">
+
+  <head><title></title></head>
+
+  <body>
+
+  <tal:comment condition="nothing">
+<!--
+
+Usage:
+   <metal:field use-macro="python:context.widget('location', mode='view')">
+        Location field view macro
+    </metal:field>
+
+-->
+  </tal:comment>
+
+  <metal:view_macro define-macro="view">
+    <tal:view_macro define="geotags python:field.getAccessor(here)();
+                            getJSON nocall:field/getJSON|nothing;
+                            json2items nocall:field/json2items|nothing;
+                            geojson python:getJSON(here) if getJSON else {};
+                            geoitems python:json2items(geojson) if json2items else ((tag, tag) for tag in geotags);
+                            geoitems python:dict(geoitems);
+                            portal_state context/@@plone_portal_state;
+                            portal_url portal_state/portal_url;"
+                    condition="geotags">
+      <tal:block metal:define-slot="location-listing">
+        <dt class="eea-location-listing" metal:define-slot="geotags">
+          <span i18n:translate="">Geotags:</span>
+        </dt>
+        <dd class="geotags" metal:define-slot="geotags-body">
+          <tal:tags tal:repeat="tag python:sorted(geoitems)">
+            <span>
+              <a class="link-category" rel="tag" tal:define="
+                 title python:tag;
+                 description python:geoitems[tag]"
+                 tal:content="python:'{title} ({description})'.format(title=title, description=description) if (description and title != description) else title"></a>
+              <span class="separator" tal:condition="python:not repeat['tag'].end">,</span>
+            </span>
+          </tal:tags>
+        </dd>
+      </tal:block>
+    </tal:view_macro>
+  </metal:view_macro>
+
+  <div metal:define-macro="location" tal:define="
+    widget_params widget_params|nothing;
+    widget_params python: widget_params or widget.get_params(field, fieldName, context, request);
+    api_key python:widget_params.get('api_key')">
+
+    <tal:google condition="python:'schemata_edit' not in context.REQUEST.URL">
+      <script type="text/javascript" tal:condition="api_key"
+         tal:attributes="src python:'https://maps.google.com/maps/api/js?key={api_key}&amp;language=en'.format(api_key=widget_params['api_key'])"></script>
+      <script type="text/javascript" tal:condition="not:api_key" tal:attributes="src string:http://www.openlayers.org/api/OpenLayers.js"></script>
+    </tal:google>
+    <script src="++resource++eea.geotags.static/split.min.js"></script>
+    <div tal:attributes="id widget_params/id; title string:Edit ${widget_params/label}"></div>
+    <textarea style="display: none" rows="10" tal:attributes="name widget_params/name; title widget_params/label" tal:content="widget_params/geojson">{}</textarea>
+    <div tal:attributes="id string:${widget_params/id}-geopreview"></div>
+    <input type="button" name="edit" i18n:attributes="value" value="Edit" tal:attributes="id string:${widget_params/id}-edit" class="standardButton input-block" />
+    <script tal:attributes="src string:${widget_params/base_url}++resource++eea.geotags.static/widget.js"></script>
+    <script type="text/javascript" tal:content="string:
+      (function() {
+        var widget = eea_geotags.init(${widget_params/js_props});
+        window.addEventListener('load', widget);
+      })();
+    "></script>
+
+  </div>
+
+  <metal:edit_macro define-macro="edit">
+    <metal:use use-macro="field_macro | here/widgets/field/macros/edit">
+      <metal:fill fill-slot="widget_body">
+        <metal:use use-macro="here/eea.geotags/macros/location" />
+      </metal:fill>
+    </metal:use>
+  </metal:edit_macro>
+
+  <metal:search_macro define-macro="search">
+    <div metal:use-macro="here/eea.geotags/macros/edit"></div>
+  </metal:search_macro>
+
+</body>
+</html>

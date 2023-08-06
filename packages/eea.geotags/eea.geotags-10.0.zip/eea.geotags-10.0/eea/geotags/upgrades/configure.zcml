@@ -1,0 +1,95 @@
+<configure
+  xmlns="http://namespaces.zope.org/zope"
+  xmlns:genericsetup="http://namespaces.zope.org/genericsetup"
+  xmlns:browser="http://namespaces.zope.org/browser"
+  xmlns:zcml="http://namespaces.zope.org/zcml"
+  i18n_domain="eea">
+
+  <include file="eea.design.zcml" zcml:condition="installed eea.design" />
+
+  <genericsetup:upgradeSteps
+    source="*"
+    destination="4.0"
+    profile="eea.geotags:default">
+
+    <genericsetup:upgradeDepends
+      title="Import all steps from eea.geotags profile"
+      import_profile="eea.geotags:default"
+    />
+
+  </genericsetup:upgradeSteps>
+
+  <genericsetup:upgradeSteps
+    source="*"
+    destination="4.7"
+    profile="eea.geotags:default">
+
+    <genericsetup:upgradeDepends
+      title="Import profile steps with changes: catalog"
+      import_steps="catalog"
+    />
+
+    <genericsetup:upgradeDepends
+      title="Import profile steps with changes: jsregistry"
+      import_steps="jsregistry"
+    />
+
+    <genericsetup:upgradeStep
+      title="Set IGeoTagged for every object that has geotags"
+      handler="eea.geotags.upgrades.evolve47.set_geotags_interface"
+    />
+
+  </genericsetup:upgradeSteps>
+
+  <genericsetup:upgradeSteps
+    source="5.3"
+    destination="6.7"
+    profile="eea.geotags:default">
+
+    <genericsetup:upgradeDepends
+      title="Add Select2 jQuery plugin"
+      import_profile="eea.jquery:23-select2"
+    />
+
+  </genericsetup:upgradeSteps>
+
+  <genericsetup:upgradeSteps
+    source="6.9"
+    destination="7.0"
+    profile="eea.geotags:default">
+
+    <genericsetup:upgradeDepends
+      title="Add plone.app.registry entry for eea.geotags."
+      description="Google Maps API key and Geonames key."
+      import_steps="plone.app.registry"
+    />
+
+    <genericsetup:upgradeStep
+      title="Copy geonames_key/google_key from portal_properties.geographical_properties"
+      description="If portal_properties.geographical_properties is defined, copy the keys to p.a.registry."
+      handler="eea.geotags.upgrades.evolve70.migrate_to_registry"
+    />
+
+  </genericsetup:upgradeSteps>
+
+  <genericsetup:upgradeSteps
+    source="7.0"
+    destination="10.0"
+    profile="eea.geotags:default">
+
+    <genericsetup:upgradeDepends
+      title="Import changed steps: controlpanel jsregistry"
+      description="Google Maps API key and Geonames key."
+      import_steps="jsregistry controlpanel"
+    />
+
+  </genericsetup:upgradeSteps>
+
+  <browser:page
+    for="eea.geotags.interfaces.IGeoTaggable"
+    name="eea.geotags.migrate_country_names"
+    class=".evolve69.MigrateCountryNames"
+    permission="cmf.ModifyPortalContent"
+  />
+
+</configure>
