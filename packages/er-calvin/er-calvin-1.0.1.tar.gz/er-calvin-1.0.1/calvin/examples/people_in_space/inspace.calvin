@@ -1,0 +1,43 @@
+/* Components (reuse from newsticker.calvin) */
+component PrintFormattedList(item_fmt) list ->  {
+  """
+  Iterate over a list and print each item (dictionary) formatted according to item_fmt.
+
+  Inputs:
+    list : a list of items in JSON format
+  """
+  commitlist : json.Items()
+  fmt: text.Format(fmt=item_fmt)
+  printout : io.Print()
+
+  .list > commitlist.list
+  commitlist.item > fmt.dict
+  fmt.text > printout.token
+}
+
+
+/* Actors */
+tick : std.Trigger(tick=10.0, data=null)
+iip : flow.Init(data="nothing")
+client : net.HTTPGetS(url="http://api.open-notify.org/astros.json", params=null, headers={"content-type": "application/json"}, auth=null)
+cmp : std.Compare(rel="=")
+sel : flow.Select()
+to_json: json.FromString()
+get_list : json.GetValue()
+print : PrintFormattedList(item_fmt="{name}, {craft}")
+
+
+/* Connections */
+tick.data > client.data
+client.status > voidport
+client.headers > voidport
+client.data > cmp.a
+iip.out > cmp.b
+cmp.result > sel.select
+client.data > sel.data
+sel.case_true > voidport
+sel.case_false > iip.in
+sel.case_false > to_json.string
+to_json.data > get_list.container
+"people" > get_list.key
+get_list.value > print.list

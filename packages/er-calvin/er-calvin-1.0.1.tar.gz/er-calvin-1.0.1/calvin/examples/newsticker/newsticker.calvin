@@ -1,0 +1,170 @@
+define URL = "https://api.github.com/repos/EricssonResearch/calvin-base/commits"
+define DELAY = 60
+define NO_CHANGE = 304
+
+
+component FormatCommit() dict -> commit_info {
+  """
+  Produce nicely a formatted string from a commit.
+
+  Extracts date, committer, and commit message from a github commit.
+
+  Inputs:
+    dict : a github commit
+  Outputs:
+    commit_info : formatted string
+  """
+
+  get_commit : json.GetValue()
+  fmt: text.Format(fmt="{author.date} {author.name} '{message}'")
+
+  .dict > get_commit.container
+  "commit" > get_commit.key
+  get_commit.value > fmt.dict
+  fmt.text > .commit_info
+}
+
+component Timer(url, delay) -> url {
+  """
+  Produces url argument at its url outport every delay seconds
+
+  Outputs:
+    url : the URL given as argument
+  """
+  init_url : flow.Init(data=url)
+  delay : std.ClassicDelay(delay=delay)
+
+  delay.token > init_url.in
+  init_url.out > delay.token, .url
+
+  # Debugging
+  # log : io.Print()
+  # init_url.out >log.token
+}
+
+component HeaderGen() header -> header {
+  """
+  Prepare a request header.
+
+  Retrieve the latest ETag from github server response header and
+  prepare a request header. Initial header is empty.
+
+  Inputs:
+    header : github response header
+  Outputs:
+    header : header with current 'ETag' value
+  """
+
+  init_header : flow.Init(data={})
+  etag : json.GetValue()
+  header : json.Dict(n=1)
+
+  .header > etag.container
+  "etag" > etag.key
+  etag.value > header.value
+  "If-None-Match" > header.key
+  header.dict > init_header.in
+  init_header.out > .header
+
+}
+
+component PackLatestCommitDate() data -> params {
+  """
+  Extract the latest commit date from an updated github server response.
+
+  Inputs:
+    data : github server response in JSON format
+  Outputs:
+    params : date of most recent commit packed in param dict
+  """
+  commit_date : json.GetValue()
+  params : json.SetValue()
+
+  .data > commit_date.container
+  # What we get is a list of commits, each with nested dicts.
+  # Pick the first commit and drill down to its date
+  [0, "commit", "author", "date"] > commit_date.key
+  commit_date.value > params.value
+
+  {"sha":"develop"} > params.container
+  "since" > params.key
+  params.container > .params
+}
+
+component PrintCommits() commits ->  {
+  """
+  Iterate over a commitlist and print each one nicely formatted.
+
+  Inputs:
+    commits : a list of commits in JSON format
+  """
+  commitlist : json.Items()
+  extract : FormatCommit()
+  printout : io.Print()
+
+  .commits > commitlist.list
+  commitlist.item > extract.dict
+  extract.commit_info > printout.token
+}
+
+component ParamGen() status, data -> params {
+  """
+  Generate request params from latest commit date.
+
+  Only generate new params if there was an update as indicated by the status.
+  If not, use previous params.
+
+  Inputs:
+    status : request status
+    data : request response in JSON format
+
+  Outputs:
+    params : request params
+  """
+
+  cmp : std.Compare(rel="=")
+  route : flow.Switch()
+  init_params : flow.Init(data={"sha":"develop", "per_page":1})
+  pack : PackLatestCommitDate()
+
+  .status > cmp.a
+  NO_CHANGE > cmp.b
+  cmp.result > route.switch
+  .data > pack.data
+  pack.params > route.a
+  init_params.out > route.b, .params
+  route.a > init_params.in
+  route.b > voidport
+}
+
+component GetCommitData() url, params -> status, data {
+  """
+  Wrap up the GET request to minimize clutter.
+  """
+  header_gen : HeaderGen()
+  request : net.HTTPGet()
+  body_to_json : json.FromString()
+
+  .url > request.URL
+  .params > request.params
+  null > request.auth
+  header_gen.header > request.headers
+
+  request.data > body_to_json.string
+  request.headers > header_gen.header
+  request.status > .status
+  body_to_json.data > .data
+
+}
+
+timer : Timer(url=URL, delay=DELAY)
+get_commit: GetCommitData()
+param_gen : ParamGen()
+print_commits: PrintCommits()
+
+timer.url > get_commit.url
+param_gen.params > get_commit.params
+get_commit.data > param_gen.data, print_commits.commits
+get_commit.status > param_gen.status
+
+

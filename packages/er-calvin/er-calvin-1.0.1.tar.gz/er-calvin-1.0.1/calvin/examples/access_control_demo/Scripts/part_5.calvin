@@ -1,0 +1,23 @@
+button : io.Button()
+bell: media.PlayAudio(audiofile="dingdong.ogg")
+camera : media.ImageSource()
+screen : media.ImageSink()
+fd : media.FaceObjects()
+
+button.state > camera.trigger
+camera.b64image > fd.b64image
+camera.b64image > screen.b64image
+fd.objects > bell.play
+
+
+# Deployment
+
+rule inside  : node_attr_match(index=["address", {"locality": "inside"}])
+rule outside : node_attr_match(index=["address", {"locality": "outside"}])
+rule server  : runtime_name(name="server")
+
+apply button : outside
+apply bell   : inside
+apply camera : server
+apply screen : server
+apply fd     : server
