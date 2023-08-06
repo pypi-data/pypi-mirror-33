@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+  {% set facet='tagger' %}
+  <head>
+    <title>Add hashtags @ HXL Proxy</title>
+    {% include "includes/headers.html" %}
+  </head>
+  <body class="container-fluid">
+    {% set page_help='Tagger-page' %}
+    {% include "includes/navbar.html" %}
+    <header class="col-sm-12">
+      {% include "includes/data-tabs.html" %}
+      <h1>
+        Tag a non-HXL dataset
+      </h1>
+      {% include "includes/source.html" %}
+
+      {% if not using_tagger_p(recipe) %}
+      <p class="alert alert-warning">
+        We can't find any <a href="http://hxlstandard.org">HXL
+        hashtags</a> in your data, but all is not lost!  You can define
+        tags to go with your headers below, and the HXL Proxy will add
+        them automatically.
+      </p>
+      {% endif %}
+
+    </header>
+    <main id="tagger" class="col-md-6 col-lg-5">
+      {% if (not recipe.recipe_id) and (not header_row) %}
+      <section class="col-sm-12">
+        {% include "includes/source.html" %}
+
+        {% if not using_tagger_p(recipe) %}
+        <p class="alert alert-warning">
+          We can't find any <a href="http://hxlstandard.org">HXL
+          hashtags</a> in your data, but all is not lost!  You can define
+          tags to go with your headers below, and the HXL Proxy will add
+          them automatically.
+        </p>
+        {% endif %}
+
+        <p>First, select the <b>last header row</b> before the data starts.</p>
+
+        <table class="table">
+          {% for row in preview %}
+          <tr>
+            <td>
+              <form method="GET" action="">
+                <input type="hidden" name="header-row" value="{{ loop.index }}" />
+                {% include "includes/metadata-params.html" %}
+                {% include "includes/recipe-params.html" %}
+                <button class="btn btn-default">Row {{ loop.index }}</button>
+              </form>
+            </td>
+            {% for value in row %}
+            <td>{{ value }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </table>
+
+      </section>
+      {% else %}
+      <section>
+
+        {% if recipe.recipe_id %}
+        {% set method="POST" %}
+        {% set action=url_for('do_data_save') %}
+        {% else %}
+        {% set method="GET" %}
+        {% set action=url_for('data_edit') %}
+        {% endif %}
+        <form class="tagger" action="{{ action }}" method="{{ method }}">
+
+          {% if recipe.recipe_id %}
+          <input type="hidden" name="recipe_id" value="{{ recipe.recipe_id }}"/>
+          {% endif %}
+          {% import 'includes/filters/filter-variables.j2' as vars %}
+
+          <div class="panel panel-primary">
+            <div class="panel-heading">
+              <h2 class="panel-title">Tagger settings</h2>
+            </div>
+            <div class="form-group row panel-body">
+
+              <div class="checkbox col-sm-6">
+                <label>
+                  <input type="checkbox" name="tagger-match-all"
+                         {% if recipe.args.get('tagger-match-all') or not using_tagger_p(recipe) %}
+                         checked="checked"
+                         {% endif %}/>
+                    Match full header text?
+                </label>
+              </div>
+
+              <div class="form-field col-sm-6">
+                <label for="tagger-default-tag">
+                  Default HXL hashtag
+                </label>
+                <input class="form-control"
+                       name="tagger-default-tag"
+                       value="{{recipe.args['tagger-default-tag']}}"
+                       pattern="^{{vars.tag_pattern}}$"
+                       title="{{ vars.tag_help }}"
+                       placeholder="#tag"/>
+              </div>
+
+            </div>
+          </div>
+
+          <p class="alert alert-info">
+            Pick HXL tags for some or all of your headers.
+          </p>
+
+          <p class="visible-xs visible-sm">
+            (<a href="#preview">jump to raw source data preview</a>)
+          </p>
+
+          <div class="form-group">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Header (sub)string</th>
+                  <th>HXL hashtag</th>
+                </tr>
+                <tr>
+                  <td><i>E.g.</i></td>
+                  <td><code>Province</code></td>
+                  <td><code>#adm1</code></td>
+                </tr>
+              </thead>
+              <tbody>
+                {% for value in preview[header_row-1] %}
+                {% set name='tagger-%02d' % loop.index %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>
+                    <input class="form-control" name="{{ name + '-header' }}"
+                           value="{{ recipe.args[name + '-header'] or value|strnorm }}"
+                           placeholder="Header text" />
+                  </td>
+                  <td>
+                    <input class="form-control" name="{{ name + '-tag' }}"
+                           value="{{ recipe.args[name + '-tag'] }}"
+                           pattern="^{{ vars.tag_pattern }}$" title="{{ vars.tag_help }}"
+                           placeholder="{{ vars.tag_placeholder }}" />
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="form-group">
+            <button class="btn btn-success" type="submit">Next</button>
+          </div>
+
+          {% include "includes/metadata-params.html" %}
+          {% include "includes/recipe-params.html" %}
+
+        </form>
+      </section>
+      {% endif %}
+    </main>
+    <aside id="preview" class="preview col-md-6 col-lg-7">
+      <h2>Raw source data (preview)</h2>
+      <p class="visible-xs visible-sm">
+        (<a href="#tagger">jump to tagger</a>)
+      </p>
+      <table class="table">
+        {% for row in preview %}
+        <tr>
+          {% for cell in row %}
+          <td>{{ cell }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </table>
+    </aside>
+    {% include "includes/scripts.html" %}
+  </body>
+</html>
