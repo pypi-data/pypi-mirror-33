@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+
+import svhc
+import sys
+import pandas as pd
+import numpy as np
+import argparse
+
+def read_valid(file_r):
+	with open(file_r,'r') as fr:
+		x = fr.read().split('\n')
+	x = [tuple(map(int,a.split(','))) for a in x]
+	return x
+
+def read_dendro(file_r):
+	with open(file_r,'r') as fr:
+		x = fr.read().split('\n')[:-1]
+	x = {tuple(map(int,a.split('\t')[0].split(','))): (tuple(map(int,a.split('\t')[1].split(','))),tuple(map(int,a.split('\t')[2].split(','))) ) 
+	 for a in x}
+	
+	return x
+	
+		
+
+if __name__=='__main__':
+	
+	parser = argparse.ArgumentParser(description='Create a multivariate data series strarting from an input factor loading matrix')
+	parser.add_argument('inputfile', type=str, help='tab separated data series (the objectes must be stored by row)')
+	parser.add_argument('validated_clusters', type=str,  help='output file of the svhc script')
+	parser.add_argument('dendrogram', type=str,  help='output file of the svhc script')
+	parser.add_argument('--row', type=int, nargs='?', const=1,  default=1,  help='data series store by row (default 1)')	
+	parser.add_argument('pdfname', type=str,  help='name of the pdf output file')
+	
+	args = parser.parse_args()
+
+	
+	inputfile,valid,all_file,file_w = args.inputfile, args.validated_clusters, args.dendrogram, args.pdfname
+	row = args.row
+	
+	X = np.array(pd.read_csv(inputfile,sep='\t',header=None))
+	if row==0:
+		X = X.T
+
+	
+	L = read_valid(valid)
+	LV = read_dendro(all_file)
+	
+	svhc.DendroAndCorrDist(X,L,LV,file_w=file_w)
+	
