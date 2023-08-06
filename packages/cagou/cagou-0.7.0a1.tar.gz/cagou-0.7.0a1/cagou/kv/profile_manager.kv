@@ -1,0 +1,168 @@
+# Cagou: desktop/mobile frontend for Salut à Toi XMPP client
+# Copyright (C) 2016-2018 Jérôme Poisson (goffi@goffi.org)
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+<ProfileManager>:
+    Label:
+        text: "Profile Manager"
+        size_hint: 1,0.05
+
+<PMLabel@Label>:
+    size_hint: 1, None
+    height: sp(30)
+
+<PMInput@TextInput>:
+    multiline: False
+    size_hint: 1, None
+    height: sp(30)
+    write_tab: False
+
+<PMButton@Button>:
+    size_hint: 1, 0.2
+
+
+<NewProfileScreen>:
+    profile_name: profile_name
+    jid: jid
+    password: password
+
+    BoxLayout:
+        orientation: "vertical"
+
+        Label:
+            text: "Creation of a new profile"
+            bold: True
+            size_hint: 1, 0.1
+        Label:
+            text: root.error_msg
+            bold: True
+            size_hint: 1, 0.1
+            color: 1,0,0,1
+        GridLayout:
+            cols: 2
+
+            PMLabel:
+                text: "Profile name"
+            PMInput:
+                id: profile_name
+
+            PMLabel:
+                text: "JID"
+            PMInput:
+                id: jid
+
+            PMLabel:
+                text: "Password"
+            PMInput:
+                id: password
+                password: True
+
+            Widget:
+                size_hint: 1, 0.2
+
+            Widget:
+                size_hint: 1, 0.2
+
+            PMButton:
+                text: "OK"
+                on_press: root.doCreate()
+
+            PMButton:
+                text: "Cancel"
+                on_press:
+                    root.pm.screen_manager.transition.direction = 'right'
+                    root.pm.screen_manager.current = 'profiles'
+
+            Widget:
+
+
+<DeleteProfilesScreen>:
+    BoxLayout:
+        orientation: "vertical"
+
+        Label:
+            text: "Are you sure you want to delete the following profiles?"
+            size_hint: 1, 0.1
+
+        Label:
+            text: u'\n'.join([i.text for i in root.pm.profiles_screen.list_adapter.selection])
+            bold: True
+
+        Label:
+            text: u'/!\\ WARNING: this operation is irreversible'
+            color: 1,0,0,1
+            bold: True
+            size_hint: 1, 0.2
+
+        GridLayout:
+            cols: 2
+
+            Button:
+                text: "Delete"
+                size_hint: 1, 0.2
+                on_press: root.doDelete()
+
+            Button:
+                text: "Cancel"
+                size_hint: 1, 0.2
+                on_press:
+                    root.pm.screen_manager.transition.direction = 'right'
+                    root.pm.screen_manager.current = 'profiles'
+
+            Widget:
+
+
+<ProfilesScreen>:
+    layout: layout
+    BoxLayout:
+        id: layout
+        orientation: 'vertical'
+
+        Label:
+            text: "Select a profile or create a new one"
+            size_hint: 1,0.05
+
+        GridLayout:
+            cols: 2
+            size_hint: 1, 0.1
+            Button:
+                size_hint: 1, 0.1
+                text: "New"
+                on_press:
+                    root.pm.screen_manager.transition.direction = 'left'
+                    root.pm.screen_manager.current = 'new_profile'
+            Button:
+                disabled: not root.list_adapter.selection
+                text: "Delete"
+                size_hint: 1, 0.1
+                on_press:
+                    root.pm.screen_manager.transition.direction = 'left'
+                    root.pm.screen_manager.current = 'delete_profiles'
+
+
+<ConnectButton>:
+    text: "Connect"
+    size_hint: 1, 0.1
+    disabled: not self.profile_screen.list_adapter.selection
+    on_press: self.pm._onConnectProfiles()
+
+
+<ProfileItem>:
+    background_normal: ""
+    background_down: ""
+    deselected_color: (1,1,1,1) if self.index%2 else (0.87,0.87,0.87,1)
+    selected_color: 0.67,1.0,1.0,1
+    color: 0,0,0,1
