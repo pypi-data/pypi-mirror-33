@@ -1,0 +1,253 @@
+Metadata-Version: 2.1
+Name: mt-940
+Version: 4.12.2
+Summary: A library to parse MT940 files and returns smart Python collections for statistics and manipulation.
+Home-page: https://github.com/WoLpH/mt940
+Author: Rick van Hattem (wolph)
+Author-email: wolph@wol.ph
+License: BSD
+Keywords: MT940
+Platform: UNKNOWN
+Classifier: Development Status :: 6 - Mature
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: Implementation :: PyPy
+Provides-Extra: tests
+Provides-Extra: docs
+Requires-Dist: enum34 (>=1.1.6); python_version <= "2.7"
+Provides-Extra: docs
+Requires-Dist: sphinx (>=1.7.2); extra == 'docs'
+Requires-Dist: GitPython (>=2.1.9); extra == 'docs'
+Requires-Dist: sphinx2rst; extra == 'docs'
+Provides-Extra: tests
+Requires-Dist: pyyaml; extra == 'tests'
+Requires-Dist: pytest; extra == 'tests'
+Requires-Dist: pytest-cache; extra == 'tests'
+Requires-Dist: pytest-cover; extra == 'tests'
+Requires-Dist: pytest-flakes; extra == 'tests'
+Requires-Dist: pytest-pep8; extra == 'tests'
+Requires-Dist: flake8; extra == 'tests'
+
+=====
+MT940
+=====
+
+
+.. image:: https://travis-ci.org/WoLpH/mt940.svg?branch=master
+    :alt: MT940 test status
+    :target: https://travis-ci.org/WoLpH/mt940
+
+.. image:: https://badge.fury.io/py/mt-940.svg
+    :alt: MT940 Pypi version
+    :target: https://pypi.python.org/pypi/mt-940
+
+.. image:: https://coveralls.io/repos/WoLpH/mt940/badge.svg?branch=master
+    :alt: MT940 code coverage
+    :target: https://coveralls.io/r/WoLpH/mt940?branch=master
+
+.. image:: https://img.shields.io/pypi/pyversions/mt-940.svg
+    :alt: Supported Python versions
+    :target: https://crate.io/packages/mt-940?version=latest
+
+``mt940`` - A library to parse MT940 files and returns smart Python collections
+for statistics and manipulation.
+
+Links
+-----
+
+* Documentation
+    - http://mt940.readthedocs.org/en/latest/
+* Source
+    - https://github.com/WoLpH/mt940
+* Bug reports 
+    - https://github.com/WoLpH/mt940/issues
+* Package homepage
+    - https://pypi.python.org/pypi/mt-940
+* My blog
+    - http://wol.ph/
+
+Install
+-------
+
+To install the latest release:
+
+.. code-block:: bash
+
+    pip install mt-940
+
+Or if `pip` is not available:
+
+.. code-block:: bash
+
+    easy_install mt-940
+
+To install the latest development release:
+
+.. code-block:: bash
+
+    git clone --branch develop https://github.com/WoLpH/mt940.git mt940
+    cd ./mt940
+    virtualenv .env
+    source .env/bin/activate
+    pip install -e .
+
+To run the tests you can use the `py.test` command or just run `tox` to test
+everything in all supported python versions.
+
+Usage
+-----
+
+Basic parsing:
+
+.. code-block:: python
+
+   import mt940
+   import pprint
+
+   transactions = mt940.parse('tests/jejik/abnamro.sta')
+
+   print 'Transactions:'
+   print transactions
+   pprint.pprint(transactions.data)
+
+   print
+   for transaction in transactions:
+       print 'Transaction: ', transaction
+       pprint.pprint(transaction.data)
+
+Set opening / closing balance information on each transaction:
+
+.. code-block:: python
+
+   import mt940
+   import pprint
+
+   mt940.tags.BalanceBase.scope = mt940.models.Transaction
+
+   # The currency has to be set manually when setting the BalanceBase scope to Transaction.
+   transactions = mt940.models.Transactions(processors=dict(
+       pre_statement=[
+           mt940.processors.add_currency_pre_processor('EUR'),
+       ],
+   ))
+
+   with open('tests/jejik/abnamro.sta') as f:
+       data = f.read()
+
+   transactions.parse(data)
+
+   for transaction in transactions:
+       print 'Transaction: ', transaction
+       pprint.pprint(transaction.data)
+
+Simple json encoding:
+
+.. code-block:: python
+
+    import json
+    import mt940
+
+    transactions = mt940.parse('tests/jejik/abnamro.sta')
+
+    def default(value):
+        if isinstance(value, mt940.models.Transactions):
+            data = value.data.copy()
+            data['transactions'] = value.transactions
+            return data
+
+        elif hasattr(value, 'data'):
+            return value.data
+
+    print(json.dumps(transactions, default=default, indent=4))
+
+Contributing
+------------
+
+Help is greatly appreciated, just please remember to clone the **development**
+branch and to run `tox` before creating pull requests.
+
+Travis tests for `flake8` support and test coverage so it's always good to
+check those before creating a pull request.
+
+Development branch: https://github.com/WoLpH/mt940/tree/develop
+
+To run the tests:
+
+.. code-block:: shell
+
+    pip install -r tests/requirements.txt
+    py.test
+
+Or to run the tests on all available Python versions:
+
+.. code-block:: shell
+
+    pip install tox
+    tox
+
+Info
+----
+
+==============  ==========================================================
+Python support  Python 2.7, >= 3.3
+Blog            http://wol.ph/
+Source          https://github.com/WoLpH/mt940
+Documentation   http://mt940.rtfd.org
+Changelog       http://mt940.readthedocs.org/en/latest/history.html
+API             http://mt940.readthedocs.org/en/latest/modules.html
+Issues/roadmap  https://github.com/WoLpH/mt940/issues
+Travis          http://travis-ci.org/WoLpH/mt940
+Test coverage   https://coveralls.io/r/WoLpH/mt940
+Pypi            https://pypi.python.org/pypi/mt-940
+Ohloh           https://www.ohloh.net/p/mt-940
+License         `BSD`_.
+git repo        .. code-block:: bash
+
+                    $ git clone https://github.com/WoLpH/mt940.git
+install dev     .. code-block:: bash
+
+                    $ git clone https://github.com/WoLpH/mt940.git mt940
+                    $ cd ./mt940
+                    $ virtualenv .env
+                    $ source .env/bin/activate
+                    $ pip install -e .
+tests           .. code-block:: bash
+
+                    $ py.test
+==============  ==========================================================
+
+.. _BSD: http://opensource.org/licenses/BSD-3-Clause
+.. _Documentation: http://mt940.readthedocs.org/en/latest/
+.. _API: http://mt940.readthedocs.org/en/latest/modules.html
+
+
+Changelog
+---------
+ * **v4.12.2** Relaxed regexes for Fiducia/Volksbank Ortenau thanks to @jahir v4.12.2
+ * **v4.11.0** Fixes #56: Transaction details parsing error if content is unfortunately wrapped v4.11.0
+ * **v4.10.0** Fixed overzealous whitespace trimming thanks to @FelixSchwarz and added `:61:` support for Sberbank thanks to @csfulop v4.10.0
+ * **v4.9.0** Fixed #47 and #48 thanks to @sbi v4.9.0
+ * **v4.8.1** removed debug statement thanks to @robfech v4.8.1
+ * **v4.8.0** Added German transaction details parsing (#30, thanks to @sweh) and fixed february 29th support (#45, thanks to @fHachenberg) v4.8.0
+ * **v4.7** Fixed #42 thanks to @cluck. NS records are now parsed correctly v4.7
+ * **v4.6** Fixed #42 thanks to @cluck. NS records are now parsed correctly v4.6
+ * **v4.5** fixed wrong repetitions cound in TransactionDetails (fixes #37) v4.5
+ * **v4.4** Added support for mBank Collect and fixed MT942 support thanks to @sq9mev v4.4
+ * **v4.3** Added mt942 support thanks to @bumi
+ * **v4.2** Added single input agnostic parse method. Thanks to @philippeowagner
+ * **v4.1** Added NS (non-swift) support. Fixes #23
+ * **v4.0** Added support for many more MT940 variants
+ * **v3.2** Added support for intermediate/final closing/opening balance
+ * **v3.1** Fixed #12. Previously matched tags in the middle of the line
+ * **v3.0** Added Python 3 support
+ * **v2.0** Version 2.0 with 100% test coverage and better docs
+
