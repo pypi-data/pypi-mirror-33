@@ -1,0 +1,69 @@
+language: python
+python:
+  - "2.7"
+  - "3.6"
+sudo: false
+
+cache: pip
+cache:		
+   directories:		
+      - ../pyglow
+ 
+addons:
+  apt:
+    packages:
+    - gfortran
+    - libncurses5-dev
+
+# Setup anaconda
+before_install:
+  #- apt-get update
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
+    else
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+    fi
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q --yes conda
+  # Useful for debugging any issues with conda
+  - conda info -a
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION atlas numpy scipy matplotlib nose pandas statsmodels coverage netCDF4 ipython
+
+# command to install dependencies
+install:
+  # Coverage packages are on my binstar channel
+  # - conda install --yes -c dan_blanchard python-coveralls nose-cov
+  - source activate test-environment
+  - pip install coveralls
+  - pip install pysatCDF >/dev/null
+    # install pyglow, space science models
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      travis_wait 20 pip install ipdb --user;
+      cd ..;
+    fi
+  - pwd
+  - ls
+  - if [[ -d "$pyglow_dir" && -e "$pyglow_dir/setup.py" && "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      cd pyglow;
+      python setup.py install;
+      cd ..;
+    fi
+  - if [[ ! -d "$pyglow_dir" || ! -e "$pyglow_dir/setup.py" && "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      travis_wait 30 git clone https://github.com/timduly4/pyglow.git;
+      cd pyglow;
+      travis_wait 30 ./pyglow_install.sh >/dev/null;
+      cd ..;
+    fi
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      cd pysat;
+    fi
+  # install pysat
+  - "python setup.py install"
+# command to run tests
+script: 
+  - nosetests -vs --with-coverage --cover-package=pysat
+after_success:
+  coveralls
