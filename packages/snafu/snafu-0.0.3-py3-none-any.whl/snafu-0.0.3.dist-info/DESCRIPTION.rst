@@ -1,0 +1,189 @@
+Snafu: Snake Functions
+=========================================================
+
+Snafu is a tiny flexible Function-as-a-Service (FaaS) host process and
+tool for Python and other programming languages. Snafu is unique in
+reducing the effort to get going (no configuration is required, although
+a configuration file is available for optional customisation), in
+choosing the execution model (with and without isolation for instance),
+in exposure of functions, and in integration with other FaaS runtimes
+and commercial services.
+
+Think of it as the 'Swiss Army Knife of Serverless Computing'!
+
+Functions are read from specified source files. If no directory is
+specified, 'functions' with some sample functions as well as
+'functions-local' for user-imported functions are scanned. The set of
+exported functions consists of all of them (convention name: any) or
+just one pre-defined function by default named 'lambda_handler' with
+specific arguments, for compatibility with AWS Lambda's Python 2.7
+runtime (convention name: 'lambda'). For languages requiring compilation
+(i.e. Java), this is attempted transparently.
+
+Functions are invoked through connectors, for instance HTTP requests or
+interactive command-line input or both at the same time. They correspond
+roughly to Lambda triggers. The invocations are recorded in loggers, for
+instance CSV files. They are furthermore checked against authenticators.
+All connectors, loggers, executors and authenticators are described
+below.
+
+The utility script 'snafu-import' exists to slurp Lambda, OpenWhisk and
+Google Cloud functions and configurations for execution with Snafu or to
+some extent with other FaaS runtimes.
+Configuration support is limited to environment variables at the moment.
+Configuration files are read as *.config associated to *.py. In their
+absence, the handler name (<source>.<function>) becomes the function
+name.
+
+The daemon 'snafu-control' implements a FaaS control plane in partial
+compliance to Lambda, OpenWhisk and Google Cloud Functions so that the
+respective command-line tools (aws, wsk, gcloud) can be used against it.
+
+Snafu is implemented in Python 3 so that any Lambda functions need to be
+passed through the 2to3 tool which 'snafu-import' can automate. It is
+expected that Python 3 will be added to Lambda in the near future,
+making this step then obsolete. Alternatively, out-of-process execution
+exists for all supported programming languages, including Python 3 for
+improved parallel execution performance.
+
+The runtime and success status of invoked functions are measured through
+the loggers and can be further processed for statistical analysis and
+billing purposes.
+
+Requirements
+------------
+Python 3 is required. For the full functionality, install the 'flask'
+and 'pyesprima3' modules as well as compilers and interpreters for all
+supported languages (i.e. python2, python3, nodejs, gcc, javac/java).
+
+Usage
+-----
+Snafu runs interactively until interrupted with Ctrl+C.
+
+% ./snafu [-h]
+% ./snafu --executor <e> --logger <l> --convention <c>
+
+# e.g. ./snafu --executor python2stateful --logger sqlite
+
+To fill up the functions pool with some already deployed in AWS, IBM or
+Google, use the import utility.
+
+% ./snafu-import [--convert] [--source <s>] [--target <t>]
+
+# e.g. --source gfunctions: deploy from Google into Snafu
+# e.g. --source openwhisk --target funktion: from IBM into Funktion
+
+Apart from hosting the functions, Snafu can also be used in batch
+processing to test functions systematically. For instance:
+
+% echo "{}" | ./snafu -x lambda_function.lambda_handler
+
+The control plane 'snafu-control' implements essential functionality
+found in the Lambda control plane via Snafu. Use aws-cli with the option
+--endpoint-url to redirect all requests to your instance (by default, it
+runs on http://localhost:10000/). It is highly recommended to add
+--cli-read-timeout 0 as well. The gcloud tool needs patching
+(tools/patch-gcloud), the wsk tool needs --apihost set to
+http://localhost:10000.
+
+% ./snafu-control [-h]
+
+# e.g. ./snafu-control --reaper --deployer --authenticator aws
+
+The file snafu.ini.dist can be copied to snafu.ini to customise the
+configuration of Snafu.
+
+Connectors (only in snafu)
+--------------------------
+* cli (interactive function name choice; payload asked or read from
+  stdin)
+* web (function name chosen via URL path; payload via HTTP POST)
+* messaging (no function name choice apart from config; no payload choice: )
+* filesystem (no function name choice apart from config; no payload choice: )
+* cron (no function name choice apart from config; no payload choice: empty)
+
+Loggers
+-------
+* csv
+* sqlite
+* (none)
+
+Executors
+---------
+Note: one default executor is defined and can be overridden for each
+file type (.py, .js, .class, .so).
+
+For Python:
+* inmemory (fastest, in-memory, only for truly stateless function)
+* inmemstateless (higher isolation level through module reload)
+* python2 (external
+* python2stateful (re-used instance with lower isolation level)
+* python3 (external)
+* lxc (wrapping function instances into LXC contexts for isolation)
+
+For other programming languages:
+* java (external, under development)
+* javascript (external, under development)
+* c (external, under development)
+
+Forwarders (only in snafu-control, as pseudo-executors)
+-------------------------------------------------------
+* proxy (redirect to another fixed or per-tenant instance of Snafu)
+* docker (redirect to a dynamically created per-tenant instance)
+* openshift (under development)
+
+Authenticators (only in snafu-control)
+--------------------------------------
+* aws (AWS4 signature algorithm)
+* (none)
+
+Import/Export
+-------------
+* imports: from Google Cloud Functions, OpenWhisk, AWS Lambda
+* exports: to Funktion, Fission, Kubeless + of course Snafu
+
+Packaged Snafu
+--------------
+A containerised version is made available for running Snafu in a Docker
+environment. An alternate version of the image is complete rather than
+minimal and includes among others the command-line tools of several
+commercial FaaS providers.
+
+% docker run -ti jszhaw/snafu
+% docker run -ti jszhaw/snafucomplete
+
+Integration into OpenShift and Kubernetes is available for experiments
+and documented in the 'openshift' directory.
+
+Furthermore, a Python package is made available on PyPI.
+
+% pip install snafu
+
+Research and Further Reading
+----------------------------
+Snafu results from service tooling research at the Service Prototyping
+Lab at Zurich University of Applied Sciences. Preprints and
+peer-reviewed papers analyse the tool's characteristics and compare it
+with other FaaS runtimes. While not recommended for production use,
+these publications may give inspiration for using Snafu in prototyping
+and piloting settings.
+
+Licence
+-------
+(☺) 2017, 2018 Josef Spillner <josef.spillner@zhaw.ch>
+    with contributions from Tobias Brunner, Bernard Jollans and others
+(C) 2017, 2018 Zürcher Hochschule für Angewandte Wissenschaften
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use any file in this repository except in compliance with
+the License. You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
