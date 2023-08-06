@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+#
+# (c) 2017 Fetal-Neonatal Neuroimaging & Developmental Science Center
+#                   Boston Children's Hospital
+#
+#              http://childrenshospital.org/FNNDSC/
+#                        dev@babyMRI.org
+#
+
+import sys, os
+
+import  socket
+from    argparse                import RawTextHelpFormatter
+from    argparse                import ArgumentParser
+from    distutils.sysconfig     import get_python_lib
+
+import  pudb
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../pfmisc'))
+try:
+    from        pfmisc          import  pfmisc
+except:
+    sys.path.insert(1, os.path.join(get_python_lib(True, True), 'site-packages'))
+    sys.path.insert(1, os.path.join(get_python_lib(True, True), 'site-packages/pfmisc'))
+    import      pfmisc
+
+try:
+    from        pfmisc2         import pfmisc2
+except:
+    from        pfmisc.pfmisc2  import pfmisc2
+
+try:
+    from        _colors         import Colors
+except:
+    from        pfmisc._colors  import Colors
+
+str_defIP = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
+str_version = "1.3.12"
+str_desc = Colors.CYAN + """
+
+
+        __           _          
+       / _|         (_)         
+ _ __ | |_ _ __ ___  _ ___  ___ 
+| '_ \|  _| '_ ` _ \| / __|/ __|
+| |_) | | | | | | | | \__ \ (__ 
+| .__/|_| |_| |_| |_|_|___/\___|
+| |                             
+|_|                             
+
+
+                            Path-File-misc
+
+           Miscellaneous utilities for the pf* family.
+
+                              -- version """ + \
+             Colors.YELLOW + str_version + Colors.CYAN + """ --
+
+    'pfmisc' is a simple example script of how to use the various family
+    of miscellaneous help utilties (typically the debug utility) in misc
+    settings. 
+
+""" + Colors.NO_COLOUR
+
+parser  = ArgumentParser(description = str_desc, formatter_class = RawTextHelpFormatter)
+
+parser.add_argument(
+    '--test',
+    help    = 'if specified, perform internal tests',
+    dest    = 'b_test',
+    action  = 'store_true',
+    default = False
+)
+parser.add_argument(
+    '--version',
+    help    = 'if specified, print version number',
+    dest    = 'b_version',
+    action  = 'store_true',
+    default = False
+)
+
+args            = parser.parse_args()
+
+if args.b_version:
+    print("Version: %s" % str_version)
+    sys.exit(1)
+
+# pudb.set_trace()
+
+print(str_desc)
+
+example         = pfmisc()
+example2        = pfmisc2()
+
+print("*********************** using classes from module file 'pfmisc.py' *****")
+example.demo()
+
+print("\n")
+print("*********************** using classes from module file 'pfmisc2.py' *****")
+example2.demo()
