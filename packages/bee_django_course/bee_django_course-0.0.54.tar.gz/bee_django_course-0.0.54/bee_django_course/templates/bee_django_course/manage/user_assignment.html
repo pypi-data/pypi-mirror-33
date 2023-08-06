@@ -1,0 +1,115 @@
+{% extends "bee_django_course/base.html" %}
+{% load bootstrap3 %}
+{% block content %}
+    <h4>{{ ucs.section.name }} | 学生: {{ ucs.user_course.user.username }}</h4>
+
+    {% if ucs.section.has_imagework %}
+        <div class="well">
+            <h5>图片作业：需要上传{{ ucs.section.image_count_req }}张图片</h5>
+            {% if assignment_images.exists %}
+                <h5>
+                    已上传图片：
+                    {% for e in assignment_images %}
+                        <a href="{{ e.image.url }}" target="_blank">{{ forloop.counter }}</a>
+                    {% endfor %}
+                </h5>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if ucs.section.has_videowork %}
+        <div class="well">
+            <h5>需要录制{{ ucs.section.video_length_req }}分钟的作业</h5>
+            <h5>已录制{{ ucs.work_time }}分钟</h5>
+            <a href="{% url 'bee_django_course:user_live_list' user_id=ucs.user_course.user.id %}" class="btn btn-default">查看</a>
+        </div>
+    {% endif %}
+
+    {% if ucs.section.has_textwork %}
+        <div class="well">
+            <h5>作业要求：{{ ucs.section.textwork_info }}</h5>
+            {% if ucs.is_learning %}
+                <h5>未提交</h5>
+            {% elif ucs.is_rejected %}
+                <h5>已退回</h5>
+            {% else %}
+                <h5>状态：已提交</h5>
+                {% for e in assignments %}
+                    <div>
+                        {{ e.content | safe }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if not ucs.is_passed %}
+        {% if perms.user_assignment.can_review %}
+            <div class="form-group">
+                <label for="comment">评语:</label>
+                <textarea type="text" id="comment" rows="5" class="form-control"></textarea>
+            </div>
+            <div class="form-group">
+                <a href="#" class="btn btn-primary confirm" id="level_1"
+                   data-confirm="{% url 'bee_django_course:review_user_assignment' ucs_id=ucs.id level=1 %}">普通</a>
+                <a href="#" class="btn btn-success confirm" id="level_2"
+                   data-confirm="{% url 'bee_django_course:review_user_assignment' ucs_id=ucs.id level=2 %}">优秀</a>
+                <a href="#" class="btn btn-danger confirm" id="level_0"
+                   data-confirm="{% url 'bee_django_course:review_user_assignment' ucs_id=ucs.id level=0 %}">退回</a>
+            </div>
+        {% endif %}
+    {% else %}
+        {% if ucs.is_passed %}
+            <span class="btn btn-success">已通过，得分 {{ ucs.score }}</span>
+            <div class="well">
+                评语: {{ ucs.comment | default:'无' }}
+            </div>
+        {% elif ucs.is_rejected %}
+            <span class="btn btn-warning">退回重修</span>
+        {% endif %}
+    {% endif %}
+
+{% endblock content %}
+
+{% block scripts %}
+
+    {% if perms.user_assignment.can_review %}
+        <script type="text/javascript">
+            $(document).ready(function () {
+                $('.confirm').click(function (e) {
+                    e.preventDefault();
+                    var level = $(this).attr('id');
+                    var url = $(this).attr('data-confirm');
+                    var comment = $('#comment').val();
+                    if (level === 'level_1') {
+                        if (confirm('此篇作业完成质量为【普通】')) {
+                            $.post(url, {'level': 1, 'comment': comment}).done(function (data) {
+                                alert(data['message']);
+                                window.location.href = data['new_url'];
+                            })
+                        }
+                    } else if (level === 'level_2') {
+                        if (confirm('此篇作业完成质量为【优秀】')) {
+                            $.post(url, {'level': 2, 'comment': comment}).done(function (data) {
+                                alert(data['message']);
+                                window.location.href = data['new_url'];
+                            })
+                        }
+                    } else if (level === 'level_0') {
+                        if (confirm('确定要退回此作业吗？')) {
+                            $.post(url, {'level': 0, 'comment': comment}).done(function (data) {
+                                alert(data['message']);
+                                window.location.href = data['new_url'];
+                            })
+                        }
+                    }
+                });
+            });
+        </script>
+    {% endif %}
+{% endblock scripts %}
+
+{% block styles %}
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'bee_django_course/wangEditor/css/wangEditor.css' %}">
+{% endblock styles %}
