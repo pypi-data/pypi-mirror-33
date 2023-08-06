@@ -1,0 +1,50 @@
+from __future__ import print_function
+
+import sys
+major_version = sys.version_info.major
+if major_version < 3:
+    import subprocess32 as subprocess
+else:
+    import subprocess
+import time
+
+from jenkinsflow.utils.set_build_description import set_build_description
+
+
+def run_job(job_name, job_prefix_filter, username, password, securitytoken, cause, build_params):
+<?py if print_env: ?>
+    import os
+    print(os.environ)
+<?py #endif ?>
+
+<?py if script is not None: ?>
+<?py     raise Exception("Script is not supported: " + script) ?>
+<?py else: ?>
+    print('sleeping=', {==exec_time==})
+    time.sleep({==exec_time==})
+
+<?py for description, replace, separator in set_build_descriptions: ?>
+    set_build_description("{==description==}", {==replace==}, "{==separator==}")
+<?py #endfor ?>
+<?py #endif ?>
+
+    force_result = build_params.get('force_result')
+    print('force_result:', force_result)
+    if not force_result or force_result == 'SUCCESS':
+        return 0
+    if force_result == 'FAILURE':
+        raise Exception('Something went wrong')
+<?py if final_result_use_cli: ?>
+    if force_result == 'UNSTABLE':
+        cli_call = ['{==pseudo_install_dir==}/cli/cli.py', 'set_build_result',
+                    '--username', repr(username),
+                    '--password', repr(password),
+                    '--direct-url', '{==direct_url==}']
+        print("cli call:", cli_call)
+        subprocess.check_call(cli_call)
+        return 0
+<?py else: ?>
+    if force_result == 'UNSTABLE':
+        return 2
+<?py #endif ?>
+    raise Exception("Unknown force_result: " + repr(force_result))
