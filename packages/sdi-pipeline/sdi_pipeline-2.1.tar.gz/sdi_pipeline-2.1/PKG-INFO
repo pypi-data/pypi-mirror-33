@@ -1,0 +1,63 @@
+Metadata-Version: 1.0
+Name: sdi_pipeline
+Version: 2.1
+Summary: Optical SETI Image Subtraction Pipeline
+Home-page: https://github.com/andrewhstewart/SDI.git
+Author: Andrew Stewart
+Author-email: andrew.henry.stewart@emory.edu
+License: UNKNOWN
+Description: SDI Pipeline
+        This is an image processing pipeline built for the University of California Santa Barbara's Experimental Cosmology Lab to be used in the SDI Optical SETI program in conjunction with the Las Cumbres Observatory Telescope Network. The pipeline downloads source images from LCO's network, aligns and co-adds them to create template images, and subtracts each template from the source images to create residual frames. These residuals are then searched for exceedingly large flux distributions indicative of an extraterrestrial's laser hitting LCO's CCD. More documentation can be found at ().
+        
+        
+        Install:
+        Install on Linux machines from PyPi with
+            pip install sdi_pipeline
+            
+        
+        Software Requirements:
+        Running the pipeline requires a number of supplementary image processing packages to function properly. Install these on your machine before running the pipeline.
+        
+        -Sextractor (astromatic.net)
+        -SWarp (astromatic.net)
+        -PSFex (astromatic.net) (optional, only needed for simulations)
+        -Skymaker (astromatic.net) (optional, only needed for simulations)
+        -hotpants (image subtraction program written by Andrew Becker)
+        -PYRAF/IRAF (optional if all other packages are successfully installed)
+        -CFITSIO (fits image proccessing package from NASA)
+        
+        The pipeline itself will run on any OS, however, many of the supplementary image processing packages are only distrubuted for Linux systems.
+        
+        
+        Using the pipeline:
+        The software's physical architecture is a tree of directories created in the "loc" path. The "loc" variable is defined in the initialize.py script and defaults to the user's home directory. If you want to install the pipeline's directory tree in a different location, you need to change the "loc" variable before running the initialize.py script.
+        
+        The basic pipeline functions are-
+        initialize-- Run this script after installing the package. This will create the pipeline's architecture and ensure all of the appropriate auxillary software is installed.
+        
+        get-- Move downloaded LCO images from the Downloads directory (or any other specified directory) to the SDI directory tree, decompress the images, and rename and sort them according to observation target/filter/exposure time/etc.
+        
+        align-- Align all images in a target's "data" directory to a chosen reference image. This reference image is chosen by the software as that with the least amount of sky noise. There are two different alignment methods: one that uses IRAF's routine imalign and another that uses the package astroalign (written by Martin Beroiz). Astroalign requires less user input and is more forgiving to misaligned/inconsistent source images. Images that are aligned are given the "_A_.fits" suffix, while images that are not remain with the "_N_.fits" suffix.
+        
+        combine-- Combines all "_A_.fits" images in a directory into one co-added template image, then moves this image to the target's "template" directory. There are three combination methods: SWarp, IRAF's imarith, and numpy. All of these should give the same outputted image, with the main difference being each's computation time. Often SWarp will be the fastest method, but may require editing of the swarp.config configuration file at times. numpy is the most user-friendly method but will take the longest.
+        
+        subtract-- Subtracts the template created with the "combine" function from each source image, then places the resulting residual image in the "residuals" directory. There are three subtraction methods: hotpants, IRAF's imarith routine, and numpy. Numpy and IRAF are very similar and will produce the same residual image. Hotpants is completely different and must be used with caution, although if used correctly will produce the most accurate and usable residuals of the three. See hotpant's documentation here https://github.com/acbecker/hotpants.
+        
+        pipeline-- Simply combines the align, combine, and subtract functions into one command. Running this will implement these in the order align->combine->subtract.
+        
+        sextractor-- Runs SExtractor on each residual image and creates a catalog of sources for each in the target's "sources" directory. SExtractor parameters can be configured in the package's .param and .config files. See SExtractor's documentation on astromatic.net
+        
+        Run these scripts in the terminal with
+            python -m sdi_pipeline.scriptname
+            
+            Example: To align images -> python -m sdi_pipeline.align
+        
+        The simulation of ETI laser transmissions is done with Skymaker. The code for this is included but not yet neatly packaged into a singular function. It is still possible for users to use this code, but it will require manipulating scripts that are largely uncommented and have little documentation. I am working on an updated package that will include easy source-simulation functionality. Until then let me know if you have any questions about this part of the pipeline.
+        
+        
+        Future Improvements:
+        There is much room for improvement with the current code. Comments need to be added and a more detailed documentation needs to be created. Until then give the pipeline a shot and email me with any questions/critiques. andrew.henry.stewart@emory.edu
+        
+        
+        
+Platform: UNKNOWN
