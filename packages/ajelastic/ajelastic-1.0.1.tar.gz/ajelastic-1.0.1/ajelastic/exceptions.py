@@ -1,0 +1,2 @@
+class AJElasticSettingsError(Exception):
+    pass
