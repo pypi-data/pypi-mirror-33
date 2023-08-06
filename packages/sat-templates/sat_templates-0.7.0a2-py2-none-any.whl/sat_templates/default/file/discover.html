@@ -1,0 +1,73 @@
+{% extends 'base/base.html' %}
+{% import 'components/block.html' as block %}
+{% import 'components/images.html' as images with context %}
+{% import 'input/form.html' as form with context %}
+{% import 'input/field.html' as field with context %}
+
+{% block body %}
+{{ icon_defs('server', 'desktop', 'mobile', 'globe', 'terminal') }}
+<p class="instructions--head">
+    {% trans %}
+    Please select the device you want to access
+    {% endtrans %}
+</p>
+<div class="disco_files">
+    {% if disco_service_entities %}
+        <div class="files__services">
+            {{ block.separator(_("services")) }}
+            <ul class="grid grid--center">
+                {% for entity,ident in disco_service_entities.iteritems() %}
+                    <li class='grid__item grid__item--medium grid__item--selectable'>
+                        <a href="{{entities_url[entity]}}">
+                            {{ icon('server', cls='file__icon') }}
+                            <span>
+                                {% if disco_service_entities|count == 1 %}
+                                    {% trans %}your server{% endtrans %}
+                                {% else %}
+                                    {{ ident.values()[0].values()[0][0] }}
+                                {% endif %}
+                            </span>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+    {% if disco_own_entities %}
+        <div class="files__own">
+            {{ block.separator(_("your devices")) }}
+            <ul class="grid grid--center">
+                {% for entity,ident in disco_own_entities.iteritems() %}
+                    <li class='grid__item grid__item--medium grid__item--selectable'>
+                        <a href="{{entities_url[entity]}}">
+                            {{images.get_icon_client(ident)}}
+                            <span>{{ ident.values()[0].values()[0][0] }}</span>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+    {% if disco_roster_entities %}
+        <div class="files__roster">
+            {{ block.separator(_("your contacts devices")) }}
+            <ul class="grid grid--center">
+                {% for entity,ident in disco_roster_entities.iteritems() %}
+                    <li class='grid__item grid__item--medium grid__item--selectable'>
+                        <a href="{{entities_url[entity]}}">
+                            {{images.get_icon_client(ident)}}
+                            <span>{{entity.userhost()}}</span>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+</div>
+
+<p class="instructions--alt">{% trans %}Or enter a full jid of a device{% endtrans %}</p>
+{% call form.form(class="form--single") %}
+    {{ field.text("jid", _("device full jid"), required=true)}}
+    {{ field.submit(_("Access")) }}
+{% endcall %}
+{% endblock body %}

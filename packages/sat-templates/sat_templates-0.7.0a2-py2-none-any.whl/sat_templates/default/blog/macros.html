@@ -1,0 +1,41 @@
+{% import 'input/textbox.html' as textbox with context %}
+
+{% macro show_items(items, comments=False, expanded=false, dates_fmt=none) %}
+    {# show items and comments items if present after each item,
+        then post form if allow_commenting is set
+        @param items(BlogItems): items to show
+        @param comments(bool): True items are comments
+            if False, a div with "main_article" class will be added
+        @param expanded(bool): initial state of items
+    #}
+    {% if dates_format is undefined %}
+        {% set dates_format = dates_fmt or 'short' %}
+    {% endif %}
+    {% for item in items %}
+        {% if not comments %}<div class="main_article">{% endif %}
+            {% include 'blog/item.html' %}
+        {% if not comments %}</div>{% endif %}
+
+        {# we recursively display comments for all comments nodes (usually there's only one) #}
+        {% for comments_items in item.comments_items_list %}
+            <button class="comments_btn" onclick="clicked_mh_fix('{{'comments_panel'|next_gidx}}');clicked_cls(this)">
+                <span class='show'>{% trans %}show comments{% endtrans %}</span>
+                <span class='hide'>{% trans %}hide comments{% endtrans %}</span>
+                ({{comments_items|count}})
+            </button>
+            <div id="{{'comments_panel'|cur_gidx}}" class="comments_panel">
+                {% if allow_commenting %}
+                    <div class="comment_post">
+                        {{- textbox.comment(service=comments_items.service, node=comments_items.node) -}}
+                    </div>
+                {% endif %}
+
+                <div class="comments">
+                    {{show_items(comments_items, comments=True)}}
+                </div>
+            </div>
+
+        {% endfor %}
+
+    {% endfor %}
+{% endmacro %}
