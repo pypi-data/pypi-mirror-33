@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+
+import os
+import subprocess
+
+if __name__ == '__main__':
+    print('running {}'.format(os.path.basename(__file__)))
+
+    print('Basic setup tests')
+    print('-----------------')
+
+    # 0. check if AVC lib is installed
+    try:
+        import adversarial_vision_challenge
+    except ImportError:
+        raise ImportError('Please make sure the "adversarial_vision_challenge"'
+                          ' package is installed for python3.')
+
+    import sys
+    import requests
+    from packaging.version import parse
+    from distutils.version import LooseVersion
+    from distutils.spawn import find_executable
+
+    # print python version for debugging purposes
+    print('Python version: {}.{}'.format(
+        sys.version_info[0], sys.version_info[1]))
+
+    # 1. check if docker is available and running
+    try:
+        FNULL = open(os.devnull, 'w')
+        subprocess.check_call('docker ps', shell=True, stdout=FNULL, close_fds=True)
+    except subprocess.CalledProcessError:
+        print('Error: Docker is installed on your system but seems not to be running.')
+        raise
+    except OSError:
+        print('Error: Docker is not installed on your system!')
+        raise
+    
+    print('Docker installed & running: \u2713')
+    
+    # 1. check if nvidia-docker is available and running
+    try:
+        FNULL = open(os.devnull, 'w')
+        subprocess.check_call('nvidia-docker -v', shell=True, stdout=FNULL, close_fds=True)
+    except subprocess.CalledProcessError:
+        print('Error: nvidia-docker is not installed on your system!')
+        raise
+    except OSError:
+        print('Error: nvidia-docker is not installed on your system!')
+        raise
+
+    print('Nvidia-docker installed: \u2713')
+
+    # 1. test that the crowdai_repo2docker is installed
+    if find_executable('crowdai-repo2docker') is None:
+        raise AssertionError(
+            """crowdai-repo2docker is need to build a docker image of your model/attack
+            submission but is not installed on your system. Please install with
+
+                python3 -m pip install crowdai-repo2docker
+
+            """)
+    else:
+        print('Crowdai_repo2docker installed: \u2713')
+
+    # 2. test that latest adversarial vision challenge is installed
+    url = 'https://pypi.python.org/pypi/adversarial-vision-challenge/json'
+    data = requests.get(url).json()
+    latest_version = max([LooseVersion(release) for release in data['releases']
+                          if not parse(release).is_prerelease])
+
+    current_version = adversarial_vision_challenge.__version__
+
+    if latest_version > LooseVersion(current_version):
+        raise AssertionError(
+            """Your version of the adversarial-vision-challenge ({})
+            does not match the latest version ({}). Please make
+            sure you are using the latest version, e.g. using pip:
+
+            python3 -m pip install --upgrade adversarial_vision_challenge
+
+            before you proceed.
+            """.format(current_version, latest_version))
+    else:
+        print('AVC package up-to-date: \u2713')
+
+    # 3. test that upt file exists (to install git)
