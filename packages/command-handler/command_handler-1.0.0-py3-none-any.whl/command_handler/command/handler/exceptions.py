@@ -1,0 +1,2 @@
+class HandlerAlreadyExistsException(ValueError):
+    pass
