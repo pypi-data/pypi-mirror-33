@@ -1,0 +1,53 @@
+#!/bin/sh
+
+if [ $# -ne 1 ]; then
+    printf "usage: changelog <new tag>\n" >&2
+    printf "  (note: last tag is %s)\n" "`git describe --abbrev=0 --tags`" >&2
+    exit 1
+fi
+
+newtag="$1"
+
+export LANG=C
+
+cd "`git rev-parse --show-toplevel`"
+last_tag="`git describe --tags --abbrev=0`"
+
+changes=`git log --first-parent --pretty="format:  * %w(0,0,2)%s" $last_tag...HEAD src | dos2unix | sed -e '/^  See merge request ![0-9]\+.*$/d' -e 's/^  $//' | cat -s`
+user=`git config user.name`
+email=`git config user.email`
+date=`date '+%a, %d %b %Y %H:%M:%S %z'`
+
+tmp="CHANGELOG_NEW"
+printf "twweb (%s)\n\n%s\n\n -- %s <%s> %s\n\n%s\n" "$newtag" "$changes" "$user" "$email" "$date" "`cat CHANGELOG`" > "$tmp"
+${EDITOR:-vi} "$tmp"
+ret=$?
+
+if [ $ret -eq 0 -a -s "$tmp" ]; then
+    mv "$tmp" CHANGELOG
+
+    printf "CHANGELOG saved. Commit? [y/n] "
+    read ans
+    test "$ans" = "y" || exit
+
+    git add CHANGELOG && git commit -m "Release $newtag" -e
+    success=$?
+    test $success -eq 0 || exit $?
+
+    printf "CHANGELOG committed. Create a new tag? [y/n] "
+    read ans
+    test "$ans" = "y" || exit
+
+    git tag -m "Release $newtag" -s "$newtag"
+    success=$?
+    test $success -eq 0 || exit $?
+
+    printf "Tag $newtag created. Push? [y/n] "
+    read ans
+    test "$ans" = "y" || exit
+
+    git push && git push --tags
+    exit $?
+else
+    printf "CHANGELOG wasn't modified\n" >&2
+fi

@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+
+{% import 'macros.html' as macros %}
+
+{% block heading %}
+    <div class="row d-flex">
+        <div class="mr-auto p-2">
+            <h4>{{ page.title }}</h4>
+        </div>
+        <div class="p-2">
+            <a href="{{url_for('task.edit', uuid=task.uuid)}}" role="button" class="btn btn-primary">Edit</a>
+        </div>
+    </div>
+{% endblock heading %}
+
+{% block content %}
+    {% if task %}
+    <div class="row">
+        <div class="col pb-2">
+            <table class="table table-hover">
+                <tbody>
+                    {{ macros.trow("Description", task.description|urlize) }}
+
+                    <tr>
+                        <td>Annotations</td>
+                        {% if task.annotations %}
+                        <td>
+                            <ul class="list-unstyled">
+                            {% for ann in task.annotations %}
+                            <li><em class="text-muted">{{ ann.entry.strftime('%Y-%m-%d %H:%M:%S') }}:</em> {{ ann|urlize }} </li>
+                            {% endfor %}
+                            </ul>
+                        </td>
+                        {% else %}
+                        <td>-</td>
+                        {% endif %}
+                    </tr>
+
+                    {{ macros.trow("Status", task.status|capitalize, url_for('task.tasks', status=task.status)) }}
+
+                    {{ macros.trow("Project", task.project, url_for('task.tasks', project=task.project)) }}
+
+                    <tr>
+                        <td>Tags</td>
+                        {% if task.tags %}
+                        <td>{% for tag in task.tags %}<a href="{{url_for('task.tasks', tags=tag)}}">{{tag}}</a>{% if not loop.last %}, {% endif %}{% endfor %}</td>
+                        {% else %}
+                        <td>-</td>
+                        {% endif %}
+                    </tr>
+
+                    {{ macros.trow("Priority", task.priority, url_for('task.tasks', priority=task.priority)) }}
+                    {{ macros.trow("Urgency", task.urgency|int) }}
+
+                    <tr>
+                        <td>Depends on</td>
+                        {% if task.depends %}
+                        <td>{% for dep in task.depends %}<a href="{{ url_for('task.task', uuid=dep) }}" title="{{ get_task(uuid=dep).description }}">{{ dep }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</td>
+                        {% else %}
+                        <td>-</td>
+                        {% endif %}
+                    </tr>
+
+                    {% if task.due %}{{ macros.trow("Due date", task.due.strftime('%Y-%m-%d %H:%M:%S')) }}{% endif %}
+                    {% if task.scheduled %}{{ macros.trow("Scheduled on", task.scheduled.strftime('%Y-%m-%d %H:%M:%S')) }}{% endif %}
+                    {% if task.wait %}{{ macros.trow("Waits until", task.wait.strftime('%Y-%m-%d %H:%M:%S')) }}{% endif %}
+                    {% if task.start %}{{ macros.trow("Started", task.start.strftime('%Y-%m-%d %H:%M:%S')) }}{% endif %}
+                    {% if task.end %}{{ macros.trow("Ended", task.end.strftime('%Y-%m-%d %H:%M:%S')) }}{% endif %}
+
+                    {{ macros.trow("Recurs until", task.until) }}
+                    {{ macros.trow("Frequency", task.recur) }}
+                    {{ macros.trow("Parent", task.parent, url_for('task.task', uuid=task.parent)) }}
+
+                    {% for uda in udas %}
+                    {{ macros.trow(uda|capitalize, task[uda]) }}
+                    {% endfor %}
+
+                    {{ macros.trow("UUID", task.uuid) }}
+                    {{ macros.trow("ID", task.id) }}
+
+
+                    {{ macros.trow("Entry", task.entry.strftime('%Y-%m-%d %H:%M:%S')) }}
+                    {{ macros.trow("Last modification", task.modified.strftime('%Y-%m-%d %H:%M:%S')) }}
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+{% endblock content %}
