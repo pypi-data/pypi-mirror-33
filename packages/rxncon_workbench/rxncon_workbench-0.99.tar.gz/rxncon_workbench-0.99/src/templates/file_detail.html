@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block head_title %} {{ title | truncatechars:20}} | {{ block.super }}  {% endblock %}
+
+
+{% block content %}
+<div class="detail">
+    <div class="detail_header">
+        <h2> {{ title }} </h2>
+        <h4>{{instance.updated}}</h4>
+    </div>
+
+    <div class="detail_content">
+        <h5>Filename: </h5>
+        <a class="project_name" href="{{ instance.get_download_url }}"><p>{{ instance.get_filename }}</p></a>
+
+        <h5>All versions:</h5>
+        <table>
+            {% for file in project_files %}
+            <tr>
+                <td {% if file.get_filename == loaded_file %}
+                    style="color: green;"
+                    {% endif %}>
+                    {{file.timestamp}}
+                    <div class="btn-group btn-group-sm" role="group">
+                        <a href="{{ file.get_absolute_url }}" class="btn btn-sm" role="button" title="View details">
+                            <span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span>
+                        </a>
+                        <a href="{% url 'fileTree:load' id=file.id %}" class="btn btn-sm" title="Load file"
+                           role="button">
+                            <span class="glyphicon glyphicon-flash" aria-hidden="true"></span>
+                        </a>
+                        <a href="{{ file.get_download_url }}" class="btn btn-sm" role="button" title="Download">
+                            <span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span>
+                        </a>
+                        <a href="{% url 'fileTree:delete' pk=file.pk %}" class="btn btn-sm" role="button"
+                           title="Delete File">
+                            <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+                        </a>
+                    </div>
+
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        {% if instance.comment %}
+            <h5>Comment:</h5>
+            <p>{{instance.comment|linebreaks|slice:":300"}}</p>
+            {% if instance.comment|length >= 300 %}
+                <div id="collapse_file_comment">
+                    <a class="btn btn-link" role="button" style="float: none;margin-top: -15px;">
+                        <span class="button-text">Show all</span>
+                    </a><br/>
+                    <div style="display: none">
+                        <p>{{instance.comment|linebreaks}}</p>
+                    </div>
+                </div>
+            {% endif %}
+        {% endif %}
+        {% if nr_reactions %}
+            {% if compare_nr_reactions is None %}
+            <div class="infos">
+                <h5>Infos:</h5>
+                <ul>
+                    <li>Number of Reactions: {{ nr_reactions }}</li>
+                    <li>Number of Contingencies: {{ nr_contingencies }}</li>
+                    <li>Loaded: {{ loaded }}</li>
+                </ul>
+
+                {% if loaded == False %}
+                <div class="compare_button">
+                    <a href="{% url 'fileTree:compare' id=instance.id %}" class="btn btn-primary btn-xs "
+                       title="Compare with loaded">Compare</a>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <h5>Infos:</h5>
+            <div class="infos">
+                <div class="tg-wrap">
+                    <table>
+                        <tr>
+                            <th></th>
+                            <th>This system<br></th>
+                            <th>Loaded system<br></th>
+                            <th title="Number of entries, that do not occur in the loaded system."># different <br></th>
+                        </tr>
+                        <tr>
+                            <td># Reactions<br></td>
+                            <td>{{ nr_reactions }}</td>
+                            <td>{{ compare_nr_reactions }}</td>
+                            <td>{{ nr_different_reactions}}</td>
+                        </tr>
+                        <tr>
+                            <td># Contingencies</td>
+                            <td>{{ nr_contingencies }}</td>
+                            <td>{{ compare_nr_contingencies }}</td>
+                            <td>{{ nr_different_contingencies}}</td>
+                        </tr>
+
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        {% endif %}
+
+        {% if instance.rea_graph %}
+        <h5>Reaction Graph:</h5>
+        <p style="display: inline-block">Created: {{ instance.rea_graph.timestamp }}
+        <div class="btn-group btn-group-sm" role="group">
+                <a href="{{ instance.rea_graph.get_download_url }}" class="btn btn-sm" role="button" title="Download">
+                    <span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span>
+                </a>
+                <a href="{% url 'graphs:delete' pk=instance.rea_graph.pk %}" class="btn btn-sm" role="button"
+                   title="Delete File">
+                    <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+                </a>
+        </div>
+        {% if instance.rea_graph.comment %}
+        <div class="rea_graph_comment">
+            <h6>Comment: </h6>
+            {{ instance.rea_graph.comment | linebreaks}}
+        </div>
+        </p>
+        {% endif %}
+
+        {% endif %}
+
+        {% if instance.reg_graph %}
+        <h5>Regulatory Graph:</h5>
+        <p style="display: inline-block">Created: {{ instance.reg_graph.timestamp }}
+        <div class="btn-group btn-group-sm" role="group">
+                <a href="{{ instance.reg_graph.get_download_url }}" class="btn btn-sm" role="button" title="Download">
+                    <span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span>
+                </a>
+                <a href="{% url 'graphs:delete' pk=instance.reg_graph.pk %}" class="btn btn-sm" role="button"
+                   title="Delete File">
+                    <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+                </a>
+        </div>
+        {% if instance.reg_graph.comment %}
+        <div class="reg_graph_comment">
+            <h6>Comment: </h6>
+            {{ instance.reg_graph.comment | linebreaks}}
+        </div>
+        </p>
+        {% endif %}
+
+        {% endif %}
+
+        {% if instance.sRea_graph %}
+        <h5>Species Reaction graph:</h5>
+        <p style="display: inline-block">Created: {{ instance.sRea_graph.timestamp }}
+        <div class="btn-group btn-group-sm" role="group">
+                <a href="{{ instance.sRea_graph.get_download_url }}" class="btn btn-sm" role="button" title="Download">
+                    <span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span>
+                </a>
+                <a href="{% url 'graphs:delete' pk=instance.sRea_graph.pk %}" class="btn btn-sm" role="button"
+                   title="Delete File">
+                    <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+                </a>
+        </div>
+        {% if instance.sRea_graph.comment %}
+        <div class="sRea_graph_comment">
+            <h6>Comment: </h6>
+            {{ instance.sRea_graph.comment | linebreaks}}
+        </div>
+        </p>
+        {% endif %}
+
+        {% endif %}
+
+
+        {% if instance.boolean_model %}
+        <div class="boolean_model">
+            <h5>Boolean Model:
+
+            </h5>
+            <h6>Created: {{ instance.boolean_model.timestamp }}
+                <a href="{% url 'bool:boolnetDelete' pk=instance.boolean_model.pk %}" class="btn btn-sm" role="button"
+                   title="Delete File">
+                    <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+                </a>
+                <!--# TODO: download zip/tar would be nice here -->
+            </h6>
+            {% if instance.boolean_model.comment %}
+            <div class="boolnet_comment">
+                <b>Comment: </b>
+                {{ instance.boolean_model.comment | linebreaks}}
+            </div>
+
+            {% endif %}
+            <div class="boolean_model_files">
+                <b>Files:</b>
+                <ul>
+                    <li style="display: inline-block">BoolNet model
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="{{ instance.boolean_model.get_model_download_url }}" class="btn btn-sm"
+                               role="button"
+                            title="Download">
+                            <span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span>
+                            </a>
+                        </div>
+                    </li>
+
+                    <li style="display: inline-block">Symbols
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="{{ instance.boolean_model.get_symbol_download_url }}" class="btn btn-sm"
+                               role="button"
+                            title="Download">
+                            <span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span>
+                            </a>
+                        </div>
+                    </li>
+
+                    <li style="display: inline-block">Initial values
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="{{ instance.boolean_model.get_init_download_url }}" class="btn btn-sm"
+                               role="button"
+                            title="Download">
+                            <span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span>
+                            </a>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if instance.rule_based_model %}
+        <div class="rule_based_model">
+            <h5>Rule based model:</h5>
+            <h6>Created: {{ instance.rule_based_model.timestamp }}
+                <a href="{% url 'rule_based:rule_basedDelete' pk=instance.rule_based_model.pk %}" class="btn btn-sm"
+                   role="button"
+                   title="Delete File">
+                    <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+                </a>
+                <a href="{{ instance.rule_based_model.get_model_download_url }}" class="btn btn-sm" role="button"
+                title="Download">
+                <span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span>
+                </a>
+            </h6>
+            {% if instance.rule_based_model.comment %}
+            <div class="rule_based_comment">
+                <b>Comment: </b>
+                {{ instance.rule_based_model.comment | linebreaks}}
+            </div>
+
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </div>
+
+
+</div>
+
+<script type="text/javascript">
+    $('#collapse_file_comment > a').click(function () {
+        var span = $(this).find('span');
+        if (span.text() == "Show all") {
+            span.text("Show less");
+        } else {
+            span.text("Show all");
+        }
+        $(this).next().next().slideToggle();
+        return false;
+    });
+</script>
+
+<!--</div>-->
+{% endblock content %}

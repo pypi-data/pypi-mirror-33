@@ -1,0 +1,88 @@
+begin model
+begin parameters
+NumHog1   1000
+NumHot1   1000
+NumPPT    1000
+NumPbs2   1000
+NumSln1   1000
+NumSsk1   1000
+NumSsk2   1000
+NumYpd1   1000
+k_10      1.0		#  PPT_p-_Pbs2_[(Ssk2Site)]
+k_11      1.0		#  PPT_p-_Hog1_[(Pbs2Site)]
+k_12      1.0		#  PPT_p-_Hot1_[(Hog1Site)]
+k_2       1.0		#  Sln1_[(Site)]_pt_Ypd1_[(H64)]
+k_3       1.0		#  Ypd1_[(H64)]_pt_Ssk1_[(D544)]
+k_4       1.0		#  Ssk1_[RR]_ppi+_Ssk2_[ssk1]
+k_5       1.0		#  Ssk1_[RR]_ppi-_Ssk2_[ssk1]
+k_6       1.0		#  Ssk2_p+_Pbs2_[(Ssk2Site)]
+k_7       1.0		#  Pbs2_p+_Hog1_[(Pbs2Site)]
+k_8       1.0		#  Hog1_p+_Hot1_[(Hog1Site)]
+k_9       1.0		#  PPT_p-_Ssk1_[(D544)]
+end parameters
+
+begin molecule types
+Hog1(Pbs2SiteR~0~p)
+Hot1(Hog1SiteR~0~p)
+PPT()
+Pbs2(Ssk2SiteR~0~p)
+Sln1(SiteR~0~p)
+Ssk1(D544R~0~p,RRD)
+Ssk2(ssk1D)
+Ypd1(H64R~0~p)
+end molecule types
+
+begin seed species
+Hog1(Pbs2SiteR~0)	NumHog1
+Hot1(Hog1SiteR~0)	NumHot1
+PPT()	NumPPT
+Pbs2(Ssk2SiteR~0)	NumPbs2
+Sln1(SiteR~0)	NumSln1
+Ssk1(D544R~0,RRD)	NumSsk1
+Ssk2(ssk1D)	NumSsk2
+Ypd1(H64R~0)	NumYpd1
+end seed species
+
+begin observables
+
+end observables
+
+begin reaction rules
+# Rule 1. rxn: Sln1_[(Site)]_pt_Ypd1_[(H64)], quant_cont: UniversalSet
+Sln1(SiteR~p) + Ypd1(H64R~0) -> Sln1(SiteR~0) + Ypd1(H64R~p)   k_2
+
+# Rule 2. rxn: Ypd1_[(H64)]_pt_Ssk1_[(D544)], quant_cont: UniversalSet
+Ssk1(D544R~0) + Ypd1(H64R~p) -> Ssk1(D544R~p) + Ypd1(H64R~0)   k_3
+
+# Rule 3. rxn: Ssk1_[RR]_ppi+_Ssk2_[ssk1], quant_cont: UniversalSet
+Ssk1(D544R~p,RRD) + Ssk2(ssk1D) -> Ssk1(D544R~p,RRD!1).Ssk2(ssk1D!1)   k_4
+
+# Rule 4. rxn: Ssk1_[RR]_ppi-_Ssk2_[ssk1], quant_cont: UniversalSet
+Ssk1(RRD!1).Ssk2(ssk1D!1) -> Ssk1(RRD) + Ssk2(ssk1D)   k_5
+
+# Rule 5. rxn: Ssk2_p+_Pbs2_[(Ssk2Site)], quant_cont: UniversalSet
+Pbs2(Ssk2SiteR~0) + Ssk1(RRD!1).Ssk2(ssk1D!1) -> Pbs2(Ssk2SiteR~p) + Ssk1(RRD!1).Ssk2(ssk1D!1)   k_6
+
+# Rule 6. rxn: Pbs2_p+_Hog1_[(Pbs2Site)], quant_cont: UniversalSet
+Hog1(Pbs2SiteR~0) + Pbs2(Ssk2SiteR~p) -> Hog1(Pbs2SiteR~p) + Pbs2(Ssk2SiteR~p)   k_7
+
+# Rule 7. rxn: Hog1_p+_Hot1_[(Hog1Site)], quant_cont: UniversalSet
+Hog1(Pbs2SiteR~p) + Hot1(Hog1SiteR~0) -> Hog1(Pbs2SiteR~p) + Hot1(Hog1SiteR~p)   k_8
+
+# Rule 8. rxn: PPT_p-_Ssk1_[(D544)], quant_cont: UniversalSet
+PPT() + Ssk1(D544R~p) -> PPT() + Ssk1(D544R~0)   k_9
+
+# Rule 9. rxn: PPT_p-_Pbs2_[(Ssk2Site)], quant_cont: UniversalSet
+PPT() + Pbs2(Ssk2SiteR~p) -> PPT() + Pbs2(Ssk2SiteR~0)   k_10
+
+# Rule 10. rxn: PPT_p-_Hog1_[(Pbs2Site)], quant_cont: UniversalSet
+Hog1(Pbs2SiteR~p) + PPT() -> Hog1(Pbs2SiteR~0) + PPT()   k_11
+
+# Rule 11. rxn: PPT_p-_Hot1_[(Hog1Site)], quant_cont: UniversalSet
+Hot1(Hog1SiteR~p) + PPT() -> Hot1(Hog1SiteR~0) + PPT()   k_12
+
+end reaction rules
+
+end model
+
+simulate_nf({t_end=>100,n_steps=>10});
