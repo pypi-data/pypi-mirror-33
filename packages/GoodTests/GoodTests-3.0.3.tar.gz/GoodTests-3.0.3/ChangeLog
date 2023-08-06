@@ -1,0 +1,177 @@
+3.0.3 - Jul 8 2018
+
+- Do not execute setup_class or teardown_class on test classes with 0 matched test functions (like with -m flag)
+
+
+3.0.2 - Jul 8 2018
+
+- Fix a possible divide-by-zero in new percent calculating code when no tests are ran (like a -m with no matches)
+
+3.0.1 - Jul 7 2018
+
+- If a test fails to compile (like from a syntax error), count it as 1 failed test (instead of 0, to prevent 100% score). Also fix an exception in handling this case, and log a note in summary.
+
+- Add a % passed to the final summary line
+
+3.0.0 - Dec 3 2017
+
+- Bring back the --pdb switch
+
+  * When executing a test method, if an uncaught Exception is raised or an AssertionError occurs, you will be dropped into an interactive debugging shell (pdb) directly in the frame and on the line where that failure occured. This will allow you to inspect the variables at the time the failure occured in order to aid in debugging and problem resolution.
+
+  * After you enter "next" or "continue" from that first shell, the "setup" method (if present) for that test will be called again, and you will be dropped to a pdb prompt starting at the top of the method which originally gave the failure. This will allow you to inspect variables as the method progresses, make changes to values, etc. in order to quickly test a resolution inline. If the entire method passes while in this run (due to the changes you made), a new pass-like status will be issued for the result, 'PASS (debugger)'. The aggregate summary results will note that it failed originally, was fixed in an interactive debug session, and what the original traceback was.
+
+  * A "quick reference" guide is printed on the screen just above the pdb prompt, instructing novice users how to work the basic commands.
+
+- Change class and method search to use the 'inspect' module to replace all slow calls to dir() function. The performance improvement is most noticable on python2, which I benched at a 40% speed improvement on AdvancedHTMLParser test suite.
+
+- Major Performance increase in numRunners > 1 ( Default on multiprocessor system, and any -n option greater than -n1 )
+
+	* I've profiled and found that a large portion of the time for maxRunners>1 scenarios is in multiprocessing.Process.poll, so revamped the way that is done:
+
+	* Create a multiprocessing.Array('b', maxRunners) which we call "doneRunning." This is used by the processes when they complete running their test set to mark that it is ready to be joined/cleaned up
+
+	* Slightly increase the time in the primary event loop of the parent to prevent interrupting the children as often
+
+	* Pull out the collection of data from child->parent (which includes the results of its test run) to not run every loop iteration (which used to be set to 1000 times per second). More on this below.
+
+	* 49 out of every 50 (49/50) iterations of the event loop, instead of polling every child process to see if they have stopped running (expensive), we instead query the self.doneRunning array and join on any of the children which have marked themselves done. Since this does not involve polling, this leads to a very measurable increase in performance ( the AdvancedHTMLParser test suite runs about 30% faster with this change).
+
+	* 1 out of every 50 (1/50) iterations of the event loop we take the "long" path. This will run through each child and specifically poll their status. This is necessary to handle/clean-up processes that crash because of, for example, running out of memory on the system or a segmentation fault or any other out-of-band error. Also, in this "long" path we will collect the child->parent data currently available
+
+	* Remove the lock (self.communicationLock) from child->parent data transfer. It is not needed.
+
+- Besides taking the child->parent data collection out of the majority of event loop iterations (minus the 1/50 as mentioned before), we now collect that data (which is used for the aggregate report) after completion of all tests.
+
+- Change the _getAvailableData function to return ALL child->parent data waiting ot be picked up, instead of only returning one (the underlying method, _readChildObj still must be called for each item, however, due to the interface provided by multiprocessing.Pipe. I've looked into Queue and other methods without success at increasing performance. This DOES perform a poll though, and may be a useful refactor later to remove this poll.
+
+- Several other micro-optimizations
+
+- Some micro-optimizations involving using local scope within loops and comprehensions
+
+- Some updates to docstrings and comments, and some better variable names
+
+- Fix where under certain conditions old style test names ( just method begins with "test", not necessarily "test_" ) would be used
+in some cases we should be limiting to test_. This was not intended behaviour, but probably didn't cause any issues unless you had a non-test method named something like "testifyObject" in a "New" style test (class name BEGINS with "Test")
+
+- Fixup spacing in "--help" and document that "--version" is an option
+
+- Regenerate the README.rst from README.md using mdToRst (https://github.com/kata198/mdToRst) -- it had gotten out of date.
+
+- Change how "quiet mode" works. Instead of just globally disabling sys.stdout, which could cause issues if you, say, import GoodTests.py and have your own wrapper, and also would prevent the debugger from working properly, sys.stdout is disabled at the start of any test execution, re-enabled prior to dropping you to the debug shell in --pdb mode (and disabled again after that shell completes), and sys.stdout is enabled again at the completion of the test suite.
+
+- Refactor "main" function to return the exit code, rather than calling sys.exit directly. This allows you to more easilly import GoodTests.py and use the "main" function in your wrapper.
+
+- Generate pydocs and include them within the distribution, which may be useful to somebody.
+
+- Some other minor cleanups / improvements
+
+
+2.2.0 - Nov 19 2017
+
+- distrib/runTests.py - Change to use sys.executable when executing GoodTests,
+which allows you to run as "python2 ./runTests.py" to run test suite in
+python2, and "python3 ./runTests.py" to run test suite in python3
+
+- distrib/runTests.py - Improve the fallback pip install for obtaining GoodTests.
+It now forces execution to happen with the sys.executable (currently running python
+executable). Also instead of blindly relying on the shell to execute "pip
+install" properly, we go through the following:
+  1. Try to use the pip module directly to install GoodTests
+  2. If that fails, try to locate pip executable
+     2a.) First, try looking at sys.executable directory for a "pip"
+	 executable (so, if running under /opt/python-3.6/bin/python we will try
+	 /opt/python-3.6/bin/pip), same with virtualenvs
+	 2b.) If that isn't found, then we scan PATH environment variable to
+	 locate the first usable pip.
+
+This ensures that we use the correct version of python (instead of, for
+example, using python3 to try to install into a python2 virtualenv in some
+cases, etc.) 
+
+
+2.1.1 - May 19 2017
+
+- distrib/runTests.py: Fix issue with obscure usage (probably not used anywhere) -- wherein
+MY_PACKAGE_MODULE is defined as a .py file explicitly and not a directory.
+- distrib/runTests.py: Try pip install when download fails for any reason
+
+
+2.1.0 - Apr 19 2017
+
+- Change to using deque for internal structures that only popleft
+
+- Use "realpath" to avoid some strange issues which can occur with relative
+paths
+
+- Use OS-independent operations, which should make GoodTests.py windows
+compatible again
+
+- Some cleanups, docstrings, etc
+
+- Simplifications on using specific test pattern (-m)
+
+- Remove __pycache__ directory before running test (can cause issues when
+using multiple branches)
+
+- Allow using -m like -m$PATTERN in addition to -m $PATTERN
+
+- Alert right away if specific test pattern (-m) can't be compiled as a
+regular expression
+
+- Handle terminates better, and OS-independent
+
+- Print a message when GoodTests is terminating
+
+- distrib/runTests.py - Update to better handle pressing control+c, first will
+so a soft terminate, second will do a hard kill on GoodTests.py
+
+- Move GoodTests.py main into a function: main(args) to make it more easily
+called from a wrapper script, if required.
+
+
+2.0.1 - Apr 6 2017
+* Better error reporting:
+	- Report on errors in class setup
+	- Report on errors in class teardown
+	- Note that a failure in method setup/teardown was in that method
+
+* Exclude "GoodTests.py" code from the reported tracebacks
+* Ensure we replace only the START test_ for setup/teardown names, so methods named strangely like test_Whatever_test will work
+
+* 1.2.3 Sep 9 2016
+- Update distrib/runTests.py to support older versions of python (< 2.7.9 or 3.1,3.2, some 3.3 series) which don't support relative path in imp.find_module
+- Update distrib/runTests.py to be importable and functionality called from an external application (like a GUI), and even adjust the globals by passing their names to the new main() function.
+- Update distrib/runTests.py add __version__ marker, some docstrings, extra comments, etc.
+- Update distrib/runTests.py change default of ALLOW_SITE_INSTALL to be the intended "False", so it will only test the LOCAL version of a package (as intended during development)
+
+* 1.2.2 Jul 25 2016
+- Update distrib/runTests.py to support passing arguments to GoodTests
+
+* 1.2.1 Jun 22 2016
+- Update distrib/runTests.py to support relative test directories
+- Update distrib/runTests.py to support providing a relative or absolute path
+to a file or directory as MY_PACKAGE_MODULE and runTests.py will set the
+PYTHONPATH such that the tests will use that directory.
+- Update distrib/runTests.py adding variable ALLOW_SITE_INSTALL, when False
+(default), runTests.py will refuse to run if it can only find a global install
+of the given module, i.e. when False it must find a local install. This can
+help during development, so you aren't testing the wrong code!
+
+* 1.2.0 Apr 25 2016
+- Disable colour by default if platform is windows
+- Default number of processes to the number of CPUs on the system
+- Allow "-n" to be used in more forms (like "-n 1" or "-n1")
+- Update "distrib/runTests.py" script to tell if it failed, or if there were missing
+dependencies (and suggest how to resolve)
+- Fix distrib/runTests.py
+
+* 1.1.4 Mar 25 2016
+- Fix order of arguments in os.symlink in distrib/runTests
+
+* 1.1.2.2 Sep 20 2015
+ - Cleanup READMEs and make README.rst external
+ - Fix typo in help description
+ - Add MANIFEST.in to the project
+ - Add "distrib" directory, which contains 
+
