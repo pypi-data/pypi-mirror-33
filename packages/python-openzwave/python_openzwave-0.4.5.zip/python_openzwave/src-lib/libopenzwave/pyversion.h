@@ -1,0 +1,22 @@
+#define STRINGIZER(arg)     #arg
+#define STR_VALUE(arg)      STRINGIZER(arg)
+#ifdef PY_LIB_VERSION
+#define PY_LIB_VERSION_STRING STR_VALUE(PY_LIB_VERSION)
+#endif
+#ifndef PY_LIB_VERSION
+#define PY_LIB_VERSION_STRING STR_VALUE("Undef")
+#endif
+#ifdef PY_LIB_FLAVOR
+#define PY_LIB_FLAVOR_STRING STR_VALUE(PY_LIB_FLAVOR)
+#endif
+#ifndef PY_LIB_FLAVOR
+#define PY_LIB_FLAVOR_STRING STR_VALUE("embed")
+#endif
+#define PY_LIB_DATE_STRING __DATE__
+#define PY_LIB_TIME_STRING __TIME__
+#ifdef PY_LIB_BACKEND
+#define PY_LIB_BACKEND_STRING STR_VALUE(PY_LIB_BACKEND)
+#endif
+#ifndef PY_LIB_BACKEND
+#define PY_LIB_BACKEND_STRING STR_VALUE("cython")
+#endif
