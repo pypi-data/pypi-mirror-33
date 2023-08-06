@@ -1,0 +1,342 @@
+#!/usr/bin/env python
+
+import sys
+import argparse
+import threading
+import os
+from subprocess import call, check_call, CalledProcessError
+from shutil import copyfile
+from itertools import izip
+from sshmm.structure_prediction import calculate_rna_shapes_from_file, calculate_rna_structures_from_file
+
+#Class defining a thread to run secondary structure prediction
+class FoldThread(threading.Thread):
+     def __init__(self, script, fasta, profile):
+         super(FoldThread, self).__init__()
+         self.daemon = True
+         self.script = script
+         self.fasta = open(fasta, 'r')
+         self.profile = open(profile, 'w')
+
+     def run(self):
+         call([self.script, '-W', '240', '-L', '160', '-u', '1'], stdin=self.fasta, stdout=self.profile)
+
+def parseArguments(args):
+    """Sets up the command-line parser and calls it on the command-line arguments to the program.
+
+    arguments:
+    args -- command-line arguments to the program"""
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     description="""Pipeline for the preparation of a CLIP-Seq dataset in BED format. The pipeline consists of the following steps:
+1 - Filter BED file
+2 - Elongate BED file for later structure prediction
+3 - Fetch genomic sequences for elongated BED file
+4 - Produce FASTA file with genomic sequences in viewpoint format
+5 - Secondary structure prediction with RNAshapes
+6 - Secondary structure prediction with RNAstructures
+
+DEPENDENCIES: This script requires bedtools (shuffle, slop, getfasta), RNAshapes, and RNAstructures.
+
+A working directory and a dataset name (e.g., the protein name) have to be given. The output files can be found in:
+- <workingdir>/fasta/<dataset_name>/positive.fasta - genomic sequences in viewpoint format
+- <workingdir>/shapes/<dataset_name>/positive.txt - secondary structures of genomic sequence (predicted by RNAshapes)
+- <workingdir>/structures/<dataset_name>/positive.txt - secondary structures of genomic sequence (predicted by RNAstructures)
+
+For classification, a negative set of binding sites with shuffled coordinates can be generated with the --generate_negative option.
+For this option, gene boundaries are required and need to be given as --genome_genes. They can be downloaded e.g. from the UCSC table 
+browser (http://genome.ucsc.edu/cgi-bin/hgTables). Choose the most recent GENCODE track (currently GENCODE Gene V24lift37->Basic (for hg19) 
+and All GENCODE V24->Basic (for hg38)) and 'BED' as output format.
+""")
+    parser.add_argument('working_dir', type=str, help='working/output directory')
+    parser.add_argument('dataset_name', type=str, help='dataset name')
+    parser.add_argument('input', type=str, help='input file in .bed format')
+    parser.add_argument('genome', type=str, help='reference genome in FASTA format')
+    parser.add_argument('genome_sizes', type=str, help='chromosome sizes of reference genome (e.g. from http://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/hg19.chrom.sizes)')
+
+    parser.add_argument('--disable_filtering', '-f', action='store_true', help='skip the filtering step')
+    parser.add_argument('--disable_RNAshapes', action='store_true', help='skip secondary structure prediction with RNAshapes')
+    parser.add_argument('--disable_RNAstructure', action='store_true', help='skip secondary structure prediction with RNAstructures')
+    parser.add_argument('--generate_negative', '-n', action='store_true', help='generate a negative set for classification')
+
+    parser.add_argument('--min_score', type=float, default=0.0, help='filtering: minimum score for binding site (default: 0.0)')
+    parser.add_argument('--min_length', type=int, default=8, help='filtering: minimum binding site length (default: 8)')
+    parser.add_argument('--max_length', type=int, default=75, help='filtering: maximum binding site length (default: 75)')
+    parser.add_argument('--elongation', type=int, default=20, help='elongation: span for up- and downstream elongation of binding sites (default: 20)')
+    parser.add_argument('--genome_genes', type=str, default = "", help='negative set generation: gene boundaries')
+
+    parser.add_argument('--skip_check', '-s', action='store_true', help='skip check for installed prerequisites')
+    return parser.parse_args()
+
+def checkPrereqs():
+    devnull = open(os.devnull, 'w')
+    try:
+        check_call(["bedtools", "--version"], stdout=devnull, stderr=devnull)
+    except OSError as e:
+        if e.errno == os.errno.ENOENT:
+            print>>sys.stderr, "ERROR: bedtools not found. Tried to execute 'bedtools --version'."
+            return False
+    except CalledProcessError:
+        print>>sys.stderr, "ERROR: bedtools fails with option --version."
+        return False
+
+    try:
+        check_call(["RNAshapes", "-v"], stdout=devnull, stderr=devnull)
+    except OSError as e:
+        print>>sys.stderr, "ERROR: RNAshapes not found. Tried to execute 'RNAshapes -v'."
+        return False
+    except CalledProcessError:
+        print>>sys.stderr, "ERROR: RNAshapes fails with option -v. Is a wrong version installed?"
+        return False
+
+    try:
+        check_call(["which", "Fold"], stdout=devnull, stderr=devnull)
+        check_call(["which", "ct2dot"], stdout=devnull, stderr=devnull)
+    except CalledProcessError:
+        print>>sys.stderr, "ERROR: RNAstructure not found. Tried to execute 'which Fold' and 'which ct2dot'."
+        return False
+
+    return True
+
+def prepareFolderStructure(directory, proteinName):
+    if not os.path.exists(directory):
+        print>>sys.stderr, 'ERROR: Directory \'{0}\' not found.'.format(directory)
+        return False
+    if not os.path.exists(directory + '/bed/' + proteinName):
+        os.makedirs(directory + '/bed/' + proteinName)
+    if not os.path.exists(directory + '/fasta/' + proteinName):
+        os.makedirs(directory + '/fasta/' + proteinName)
+    if not os.path.exists(directory + '/temp/' + proteinName):
+        os.makedirs(directory + '/temp/' + proteinName)
+    if not os.path.exists(directory + '/shapes/' + proteinName):
+        os.makedirs(directory + '/shapes/' + proteinName)
+    if not os.path.exists(directory + '/structures/' + proteinName):
+        os.makedirs(directory + '/structures/' + proteinName)
+    return True
+
+def filteringBed(filteredBedFileName, rawBedFileName, genomeFileName, lowest_score, min_length, max_length):
+    print>>sys.stderr, '###STEP 1: Filter raw bed-file'
+    print>>sys.stderr, 'INPUT:', rawBedFileName
+    print>>sys.stderr, 'OUTPUT:', filteredBedFileName
+    
+    #Read chromosome names from genome file
+    genomeFile = open(genomeFileName, 'r')
+    chromosomes = set()
+    for line in genomeFile:
+        chromosomes.add(line.strip().split()[0])
+    genomeFile.close()
+
+    rawBed = open(rawBedFileName, 'r')
+    filteredBed = open(filteredBedFileName, 'w')
+    num_filtered = 0
+    for line in rawBed:
+        fields = line.strip().split()
+        siteLength = int(fields[2]) - int(fields[1])
+        if siteLength <= max_length and siteLength >= min_length and float(fields[4]) >= lowest_score:
+            if fields[0] in chromosomes:
+                print>>filteredBed, line.strip()
+                num_filtered += 1
+            else:
+                print>>sys.stderr, 'WARNING: Raw bed-file contains unknown chromosome \'{0}\' that is not contained in \'{1}\'. Skipped this line.'.format(fields[0], genomeFileName)
+
+    #filter for max length, min length, and min score
+    rawBed.close()
+    filteredBed.close()
+    
+    print>>sys.stderr, 'STEP 1 finished (filtering resulted in {0} good binding sites)'.format(num_filtered)
+
+def shuffleBed(bedPositiveFileName, bedHg19FileName, genesFileName, bedNegativeFileName):
+    print>>sys.stderr, '###STEP 1: Shuffle positive binding sites to obtain negative binding sites'
+    print>>sys.stderr, 'INPUT:', bedPositiveFileName
+    print>>sys.stderr, 'OUTPUT:', bedNegativeFileName
+
+    bedNegativeFile = open(bedNegativeFileName, 'w')
+    call(['bedtools', 'shuffle', '-i', bedPositiveFileName, '-g', bedHg19FileName, '-incl', genesFileName], stdout=bedNegativeFile)
+    bedNegativeFile.close()
+    
+    print>>sys.stderr, 'STEP 1 finished'
+
+def elongatingBed(bedIntervalLongFileName, genomeFileName, bedIntervalFileName, elongation):
+    bedIntervalLongFile = open(bedIntervalLongFileName, 'w')
+    print>>sys.stderr, '###STEP 2: Elongate binding sites by', elongation, 'nt for structure prediction'
+    print>>sys.stderr, 'INPUT:', bedIntervalFileName
+    print>>sys.stderr, 'OUTPUT:', bedIntervalLongFileName
+    
+    call(['bedtools', 'slop', '-i', bedIntervalFileName, '-g', genomeFileName, '-b', str(elongation)], stdout=bedIntervalLongFile)
+    bedIntervalLongFile.close()
+    
+    print>>sys.stderr, 'STEP 2 finished'
+
+def fetchingSequences(genomeFastaFileName, fastaTempFileName, bedIntervalLongFileName):
+    print>>sys.stderr, '###STEP 3: Fetch nucleotide sequence for elongated binding sites'
+    print>>sys.stderr, 'INPUT:', bedIntervalLongFileName
+    print>>sys.stderr, 'OUTPUT:', fastaTempFileName
+    
+    call(['fastaFromBed', '-s', '-fi', genomeFastaFileName, '-bed', bedIntervalLongFileName, '-fo', fastaTempFileName])
+    
+    print>>sys.stderr, 'STEP 3 finished'
+
+def formatFasta(fastaFormattedFileName, bedIntervalFileName, bedIntervalLongFileName, fastaTempFileName, genome):
+    print>>sys.stderr, '###STEP 4: Reformat nucleotide sequences into viewpoint format (binding sites in uppercase, elongation in lowercase)'
+    print>>sys.stderr, 'INPUT:', fastaTempFileName
+    print>>sys.stderr, 'OUTPUT:', fastaFormattedFileName
+    
+    fastaTempFile = open(fastaTempFileName, 'r')
+    fastaFormattedFile = open(fastaFormattedFileName, 'w')
+    line = 0
+    with open(bedIntervalFileName, 'r') as bedIntervalFile, open(bedIntervalLongFileName, 'r') as bedIntervalLongFile: 
+        for x, y in izip(bedIntervalFile, bedIntervalLongFile):
+            line += 1
+            intervalFields = x.strip().split('\t')
+            intervalLongFields = y.strip().split('\t')
+            elongationUpstream = int(intervalFields[1]) - int(intervalLongFields[1])
+            viewpointLength = int(intervalFields[2]) - int(intervalFields[1])
+            elongationDownstream = int(intervalLongFields[2]) - int(intervalFields[2])
+            totalBindingSiteLength = int(intervalLongFields[2]) - int(intervalLongFields[1])
+
+            header = fastaTempFile.readline().strip()
+            sequence = fastaTempFile.readline().strip()
+            if totalBindingSiteLength <= 0:
+                print>>sys.stderr, 'ERROR: Malformed elongated binding site (line {0})'.format(line)
+                print>>sys.stderr, 'The start of the elongated binding site ({0}: {1}-{2}) is greater than its end'.format(
+                    intervalLongFields[0], int(intervalLongFields[1]), int(intervalLongFields[2]))
+                print>>sys.stderr, 'A common cause for this error is a mismatch in genome version between the bed-files and the \'genome\' parameter to this script. Check whether your binding sites are on {0}. If not, change the \'genome\' parameter accordingly.'.format(genome)
+                
+                cont = raw_input("Stop script (y/n)?")
+                if cont == 'y':
+                    return False
+            elif totalBindingSiteLength != elongationUpstream + viewpointLength + elongationDownstream:
+                print>>sys.stderr, 'ERROR: Binding sites in bed-files do not match correctly (line {0})'.format(line)
+                print>>sys.stderr, 'The elongated binding site ({0}: {1}-{2}) does not contain the original binding site ({3}: {4}-{5})'.format(
+                    intervalLongFields[0], int(intervalLongFields[1]), int(intervalLongFields[2]), int(intervalFields[0]), int(intervalFields[1]), int(intervalFields[2]))
+                print>>sys.stderr, 'A common cause for this error is a mismatch in genome version between the bed-files and the \'genome\' parameter to this script. Check whether your binding sites are on {0}. If not, change the \'genome\' parameter accordingly.'.format(genome)
+                
+                cont = raw_input("Stop script (y/n)?")
+                if cont == 'y':
+                    return False
+            elif len(sequence) != totalBindingSiteLength:
+                print>>sys.stderr, 'ERROR: Binding site in bed-files does not match with the corresponding nucleotide sequence (line {0} in bed-files, sequence \'{1}\' in nucleotide sequence file)'.format(line, sequence)
+                print>>sys.stderr, 'The length of the elongated binding site ({0} nt) is unequal to the length of the nucleotide sequence ({1} nt)'.format(totalBindingSiteLength, len(sequence))
+                
+                cont = raw_input("Stop script (y/n)?")
+                if cont == 'y':
+                    return False
+            else:
+                formattedSequence = sequence[:elongationUpstream].lower() + sequence[elongationUpstream:elongationUpstream + viewpointLength].upper() + sequence[elongationUpstream + viewpointLength:].lower()
+                print>>fastaFormattedFile, header
+                print>>fastaFormattedFile, formattedSequence
+    fastaFormattedFile.close()
+    fastaTempFile.close()
+    
+    print>>sys.stderr, 'STEP 4 finished'
+    
+    return True
+
+
+def main(args):
+    options = parseArguments(args)
+
+    #Check required programs bedtools, RNAshapes, and RNAstructures
+    if not options.skip_check and not checkPrereqs():
+        return
+
+    #Check for gene boundaries when negative set shall be generated
+    if options.generate_negative and options.genome_genes == "":
+        print>>sys.stderr, "ERROR: Generating a negative set requires gene boundaries for the genome (see help message)"
+        return
+
+    #Prepare folder structure
+    if not(prepareFolderStructure(options.working_dir, options.dataset_name)):
+        return
+
+    #Copy input file into working directory
+    bedFileName = options.working_dir + '/bed/' + options.dataset_name + '/positive_raw.bed'
+    bedPositiveFileName = options.working_dir + '/bed/' + options.dataset_name + '/positive.bed'
+    if options.disable_filtering:
+        copyfile(options.input, bedPositiveFileName)
+    else:
+        copyfile(options.input, bedFileName)
+
+    #Filter bed
+    if not options.disable_filtering:
+        filteringBed(bedPositiveFileName, bedFileName, options.genome_sizes, options.min_score, options.min_length, options.max_length)
+
+    #Elongate bed
+    bedPositiveLongFileName = options.working_dir + '/bed/' + options.dataset_name + '/positive_long.bed'
+    elongatingBed(bedPositiveLongFileName, options.genome_sizes, bedPositiveFileName, options.elongation)
+
+    #Fetch sequences
+    fastaTempPositiveFileName = options.working_dir + '/temp/' + options.dataset_name + '/positive_long.fasta'
+    fetchingSequences(options.genome, fastaTempPositiveFileName, bedPositiveLongFileName)
+
+    #Format FASTA
+    fastaPositiveFileName = options.working_dir + '/fasta/' + options.dataset_name + '/positive.fasta'
+    if not formatFasta(fastaPositiveFileName, bedPositiveFileName, bedPositiveLongFileName, fastaTempPositiveFileName, options.genome):
+        return
+
+    #Calculate RNA shapes
+    if not options.disable_RNAshapes:
+        shapePositiveFileName = options.working_dir + '/shapes/' + options.dataset_name + '/positive.txt'
+        print>>sys.stderr, '###STEP 5: Calculate RNAshapes'
+        print>>sys.stderr, 'INPUT:', fastaPositiveFileName
+        print>>sys.stderr, 'OUTPUT:', shapePositiveFileName
+        
+        calculate_rna_shapes_from_file(shapePositiveFileName, fastaPositiveFileName, 10)
+        
+        print>>sys.stderr, 'STEP 5 finished'
+
+    #Calculate RNA structures
+    if not options.disable_RNAstructure:
+        structuresPositiveFileName = options.working_dir + '/structures/' + options.dataset_name + '/positive.txt'
+        print>>sys.stderr, '###STEP 6: Calculate RNAstructures'
+        print>>sys.stderr, 'INPUT:', fastaPositiveFileName
+        print>>sys.stderr, 'OUTPUT:', structuresPositiveFileName
+        
+        calculate_rna_structures_from_file(structuresPositiveFileName, fastaPositiveFileName)
+        
+        print>>sys.stderr, 'STEP 6 finished'
+
+
+    if options.generate_negative:
+        print>>sys.stderr, '###Generate a negative set for classification'
+
+        #Shuffle positive bed to get negative bed
+        bedNegativeFileName = options.working_dir + '/bed/' + options.dataset_name + '/negative.bed'
+        shuffleBed(bedPositiveFileName, options.genome_sizes, options.genome_genes, bedNegativeFileName)
+
+        #Elongate negative bed
+        bedNegativeLongFileName = options.working_dir + '/bed/' + options.dataset_name + '/negative_long.bed'
+        elongatingBed(bedNegativeLongFileName, options.genome_sizes, bedNegativeFileName, options.elongation)
+
+        #Fetch negative sequences
+        fastaTempNegativeFileName = options.working_dir + '/temp/' + options.dataset_name + '/negative_long.fasta'
+        fetchingSequences(options.genome, fastaTempNegativeFileName, bedNegativeLongFileName)
+
+        #Format negative FASTA
+        fastaNegativeFileName = options.working_dir + '/fasta/' + options.dataset_name + '/negative.fasta'
+        if not formatFasta(fastaNegativeFileName, bedNegativeFileName, bedNegativeLongFileName, fastaTempNegativeFileName, options.genome):
+                return
+
+        #Calculate negative RNA shapes
+        shapeNegativeFileName = options.working_dir + '/shapes/' + options.dataset_name + '/negative.txt'
+        if not options.disable_RNAshapes:
+            print>>sys.stderr, '###STEP 6: Calculating RNAshapes'
+            print>>sys.stderr, 'INPUT:', fastaNegativeFileName
+            print>>sys.stderr, 'OUTPUT:', shapeNegativeFileName
+
+            calculate_rna_shapes_from_file(shapeNegativeFileName, fastaNegativeFileName, 10)
+
+            print>>sys.stderr, 'STEP 6 finished'
+
+        #Calculate negative RNA structures
+        structuresNegativeFileName = options.working_dir + '/structures/' + options.dataset_name + '/negative.txt'
+        if not options.disable_RNAstructure:
+            print>>sys.stderr, '###STEP 7: Calculating RNAstructures'
+            print>>sys.stderr, 'INPUT:', fastaNegativeFileName
+            print>>sys.stderr, 'OUTPUT:', structuresNegativeFileName
+
+            calculate_rna_structures_from_file(structuresNegativeFileName, fastaNegativeFileName)
+
+            print>>sys.stderr, 'STEP 7 finished'
+
+if __name__ == "__main__" :
+    sys.exit(main(sys.argv))
