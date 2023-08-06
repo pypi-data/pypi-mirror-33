@@ -1,0 +1,28 @@
+# django-aiss-online
+
+> 本项目借鉴于 [aiss-spider](https://github.com/x-spiders/aiss-spider)
+
+
+
+现在你可以通过`pip install django-aissonline`来安装
+
+安装app后
+
+1. 在django `setting.py`中`INSTALLED_APPS`加入django-aissonline 如
+    ```python
+    INSTALLED_APPS = [
+        ...
+        'django-aissonline',
+    ]
+    ```
+
+2. 在django `urls.py`中`urlpatterns`加入url 如
+
+    ```python
+    urlpatterns = [
+        ...
+        path('', include('django-aissonline.urls')),
+    ]
+    ```
+
+3. 启动django server 并游览`/aissonline/`
