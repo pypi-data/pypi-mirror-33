@@ -1,0 +1,60 @@
+Metadata-Version: 2.1
+Name: cico
+Version: 0.1.3
+Summary: stores results created during a CI in a special git branch
+Home-page: http://github.com/stefanhoelzl/cico
+Author: Stefan Hoelzl
+Author-email: stefan.hoelzl@posteo.de
+License: MIT
+Keywords: ci travis git badge
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Operating System :: MacOS :: MacOS X
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Topic :: Software Development
+Classifier: Topic :: Software Development :: Version Control :: Git
+Description-Content-Type: text/markdown
+Requires-Dist: anybadge (==1.1.1)
+Requires-Dist: GitPython (==2.1.10)
+Requires-Dist: CairoSVG (==2.1.3)
+
+# cico
+
+[![Build Status](https://travis-ci.org/stefanhoelzl/cico.svg?branch=master)](https://travis-ci.org/stefanhoelzl/cico)
+[![PyPI](https://img.shields.io/pypi/v/cico.svg)](https://pypi.org/project/cico/)
+[![License](https://img.shields.io/pypi/l/cico.svg)](LICENSE)
+
+cico stores results created during a CI in a special git branch
+
+cico.py
+```python
+from cico import TravisCI
+from cico.results import Directory, File, Badge
+
+TravisCI(
+    repo = GitHub(USERNAME, REPO_NAME, TOKEN),
+    branch = "ci-results",
+    results = [
+        Files("testresults.tap", destination="tap"),
+        Directory("covhtml", destination="coverage"),
+        Badge("badges/mybadge", png=True, label="My Badge", value=96,
+              **anybadge_arguments),  # https://github.com/jongracecox/anybadge
+    ]
+).commit(
+    message="build {build} on branch {branch}",  # commit message (optional)
+    no_ci_push=True                              # push if no CI environment (default=False)
+)
+```
+
+.travis.yml
+```yaml
+after_script:
+  - python cico.py
+```
+
+
