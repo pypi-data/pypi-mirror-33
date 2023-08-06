@@ -1,0 +1,150 @@
+import time
+from logging import Logger
+from typing import List, Dict
+
+from sidecar.app_instance_identifier import AppInstanceIdentifier
+from sidecar.aws_session import AwsSession
+from sidecar.aws_tag_helper import AwsTagHelper
+from sidecar.const import Const
+from sidecar.app_instance_service import IAppInstanceService, StaleAppInstanceException
+
+
+class AwsAppInstanceService(IAppInstanceService):
+    def __init__(self, sandbox_id: str, logger: Logger, aws_session: AwsSession):
+        super().__init__(logger)
+        self.aws_session = aws_session
+        self.sandbox_id = sandbox_id
+
+    def _update_app_status(self, instance_id: str, app_name: str, status: str):
+        instance = self._get_existing_instance(instance_id, app_name)
+        # should update status only for a "live" instance
+        if not self._is_instance_part_of_sandbox(instance):
+            raise StaleAppInstanceException("cannot update '{APP_NAME}' status to '{STATUS}' since the app instance is "
+                                            "no longer a part of the sandbox. infra id: {INFRA_ID}"
+                                            .format(APP_NAME=app_name, STATUS=status, INFRA_ID=instance_id))
+        self._logger.info("updating status on instance '{INSTANCE_ID}' when its state is '{STATE}'".format(
+            INSTANCE_ID=instance_id, STATE=instance.state["Name"]))
+        updated_state = self._create_instance_state(instance=instance, status=status, app_name=app_name)
+        instance.create_tags(Tags=[AwsTagHelper.create_tag(Const.APP_STATUS_TAG, updated_state)])
+
+    def _get_existing_instance(self, instance_id: str, app_name: str):
+        instance = self._get_instance_by_id(instance_id)
+        if instance is None:
+            raise Exception("instance for app '{APP_NAME}' not found. instance_id={INSTANCE_ID}"
+                            .format(APP_NAME=app_name, INSTANCE_ID=instance_id))
+        return instance
+
+    def update_status_if_not_stale(self, app_instance_identifier: AppInstanceIdentifier, status: str):
+        instance_id = app_instance_identifier.infra_id
+        self._update_app_status(instance_id, app_instance_identifier.name, status)
+
+    def get_all_app_instances(self) -> List[AppInstanceIdentifier]:
+        instances = self._get_sandbox_instances()
+
+        app_instance_identifiers = [app_instance_identifier
+                                    for instance in instances
+                                    for app_instance_identifier in self._create_app_instance_identifiers(instance)]
+        return app_instance_identifiers
+
+    def get_all_app_instances_statuses(self) -> Dict[AppInstanceIdentifier, str]:
+        result = {}
+        instances = self._get_sandbox_instances()
+        for instance in instances:
+            app_to_status_map = AwsTagHelper.get_apps_status_map(instance=instance)
+            for app_instance_identifier in self._create_app_instance_identifiers(instance):
+                result[app_instance_identifier] = app_to_status_map.get(app_instance_identifier.name, None)
+        return result
+
+    def _create_instance_state(self, instance, status, app_name) -> str:
+        app_to_status_map = AwsTagHelper.get_apps_status_map(instance)
+        app_to_status_map[app_name] = status
+        return AwsTagHelper.format_apps_status_tag_value(app_to_status_map)
+
+    def _get_instance_by_id(self, instance_id: str):
+        ec2 = self.aws_session.get_ec2_resource()
+        return ec2.Instance(instance_id)
+
+    def _get_instance_by_ip(self, sandbox_id: str, private_ip_address: str):
+        ec2 = self.aws_session.get_ec2_resource()
+
+        filters = [{'Name': 'tag:' + Const.SANDBOX_ID_TAG,
+                    'Values': [sandbox_id]},
+                   {'Name': 'private-ip-address',
+                    'Values': [private_ip_address]}]
+
+        instance = next(iter(list(ec2.instances.filter(Filters=filters))), None)
+        start_time = time.time()
+        while instance is None:
+            instance = next(iter(list(ec2.instances.filter(Filters=filters))), None)
+            if instance is None:
+                if time.time() - start_time >= 60:
+                    raise Exception('Timeout: Waiting for instance with ip {}'.format(private_ip_address))
+                time.sleep(5)
+        return instance
+
+    def _is_instance_part_of_sandbox(self, instance) -> bool:
+        instance_as_list = [instance]
+        self._filter_out_autoscaling_instances_not_in_asg(instance_as_list)
+        return instance in instance_as_list
+
+    def _get_sandbox_instances(self) -> list():
+        sandbox_tag_filter = {'Name': 'tag:' + Const.SANDBOX_ID_TAG, 'Values': [self.sandbox_id]}
+        filters = [sandbox_tag_filter]
+        instances = list(self.aws_session.get_ec2_resource().instances.filter(Filters=filters))
+        self._filter_out_infra_instances(instances)
+        self._filter_out_autoscaling_instances_not_in_asg(instances)
+        return instances
+
+    def _filter_out_infra_instances(self, instances: list()):
+        for instance in instances[:]:
+            if self._is_infra_instance(instance):
+                instances.remove(instance)
+
+    def _filter_out_autoscaling_instances_not_in_asg(self, instances_to_filter: list()):
+        asg_name_to_instances_map = self._get_asg_name_to_instances_map(instances_to_filter)
+        asg_names = list(asg_name_to_instances_map.keys())
+        if not asg_names:
+            return
+        asg_name_to_existing_instance_ids_map = self._get_existing_asg_instance_ids(asg_names)
+
+        for asg_name, asg_instances_list in asg_name_to_instances_map.items():
+            existing_instance_ids = asg_name_to_existing_instance_ids_map.get(asg_name, [])
+            for instance in asg_instances_list:
+                if instance.instance_id not in existing_instance_ids:
+                    instances_to_filter.remove(instance)
+
+    def _get_asg_name_to_instances_map(self, instances):
+        asg_name_to_instances_map = dict()
+        for instance in instances:
+            asg_tag_value = AwsTagHelper.safely_get_tag(instance, AwsTagHelper.AutoScalingGroupNameTag)
+            if asg_tag_value:
+                asg_instances_list = asg_name_to_instances_map.setdefault(asg_tag_value, [])
+                asg_instances_list.append(instance)
+        return asg_name_to_instances_map
+
+    def _get_existing_asg_instance_ids(self, asg_names: List[str]) -> dict():
+        if not asg_names:
+            return {}
+        autoscaling_groups = self._query_autoscaling_groups_by_names(asg_names)
+        asg_name_to_existing_instance_ids_map = \
+            {asg['AutoScalingGroupName']: [as_inst['InstanceId'] for as_inst in asg['Instances']]
+             for asg in autoscaling_groups}
+        return asg_name_to_existing_instance_ids_map
+
+    def _query_autoscaling_groups_by_names(self, asg_names: List[str]) -> []:
+        autoscaling_client = self.aws_session.get_autoscaling_client()
+        response = autoscaling_client.describe_auto_scaling_groups(AutoScalingGroupNames=asg_names)
+        autoscaling_groups = response['AutoScalingGroups']
+        return autoscaling_groups
+
+    def _create_app_instance_identifiers(self, instance)-> List[AppInstanceIdentifier]:
+        app_name_tag_value = AwsTagHelper.safely_get_tag(instance, Const.APP_NAME_TAG)
+        if not app_name_tag_value:
+            return []
+        all_app_names = app_name_tag_value.split(Const.CSV_TAG_VALUE_SEPARATE)
+        instance_id = instance.instance_id
+        return [AppInstanceIdentifier(name=app_name, infra_id=instance_id) for app_name in all_app_names]
+
+    def _is_infra_instance(self, instance) -> bool:
+        app_name_tag_value = AwsTagHelper.safely_get_tag(instance, Const.APP_NAME_TAG)
+        return app_name_tag_value == Const.AWS_SIDECAR_APP_NAME or app_name_tag_value == Const.QUALY_SERVICE_NAME
