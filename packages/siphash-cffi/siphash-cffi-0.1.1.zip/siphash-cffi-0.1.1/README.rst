@@ -1,0 +1,88 @@
+SipHash CFFI
+============
+
+`SipHash <https://131002.net/siphash/>`__ is a family of pseudorandom
+functions (i.e. keyed hash functions) optimized for speed on short
+messages, designed by `Jean-Philippe Aumasson <https://131002.net/>`__
+and `Daniel J. Bernstein <https://cr.yp.to/>`__.
+
+This package provides tested, performant **Python 3** CFFI bindings to
+the `SipHash 2-4 reference
+implementation <https://github.com/veorq/SipHash>`__ by `Jean-Philippe
+Aumasson <https://github.com/veorq>`__ (including support for
+double-output-size and half-word variants) along with extensions to
+support tweakable numbers of compression and finalization rounds.
+
+Installation
+============
+
+You can install this package using ``pip`` or the included ``setup.py``
+script:
+
+::
+
+   # Using pip
+   pip install siphash-cffi
+
+   # Using setup.py
+   python setup.py install
+
+Usage
+=====
+
+.. code:: python
+
+   from siphash import *
+
+   # Demonstration key and data
+   key = b"\0" * 16
+   data = b"\0" * 64
+
+   # SipHash-2-4 working with 64-bit words and a 64-bit output length
+   output = siphash_64(key, data)
+
+   # SipHash-2-4 working with 64-bit words and a 128-bit output length
+   output = siphash_128(key, data)
+
+   # SipHash-2-4 working with 32-bit words and a 32-bit output length
+   output = half_siphash_32(key, data)
+
+   # SipHash-2-4 working with 32-bit words and a 64-bit output length
+   output = half_siphash_64(key, data)
+
+   # SipHash-4-8 working with 64-bit words and a 64-bit output length
+   output = siphash_64(key, data, 4, 8)
+
+   # SipHash-4-8 working with 64-bit words and a 128-bit output length
+   output = siphash_128(key, data, 4, 8)
+
+   # SipHash-4-8 working with 32-bit words and a 32-bit output length
+   output = half_siphash_32(key, data, 4, 8)
+
+   # SipHash-4-8 working with 32-bit words and a 64-bit output length
+   output = half_siphash_64(key, data, 4, 8)
+
+License
+=======
+
+.. code:: text
+
+   Copyright (c) 2018 Phil Demetriou
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
