@@ -1,0 +1,52 @@
+Clusterplot
+===========
+**clusterplot** is a python tool to recognise trends in datasets. It uses different clustering algorithms on >=2-dimensional network histograms. 
+Getting Started
+---------------
+For the start, have a look in the examples/ directory. Execute the mkfiles.py:
+>>> python3 mkfiles.py
+This will create 660 files in a subdirectory data/. Each file contains sine or cosine curves with a random period.
+Two packets of sine functions with 20 files each have the same period within the packet. The periods can be seen in the file randinfo.txt. The set up goal for clusterplot is to identify the two sine periods, that occur more often.
+Next, execute (step by step) the file xample.py:
+>>>python3 xample.py
+This should get you a basic idea of how Clusterplot works.
+
+### Prerequisites
+- numpy
+- networkx
+- os
+
+### Installing
+The project is available via pypi and can be installed with pip:
+>>> pip install clusterplot
+
+If you want to have an newer or older Version, clone the git repository, checkout the specific tag and do:
+>>> pip install -e .
+Changelog
+---------
+### Version 0.1.0
+First release, for functionality look into the documentation.
+
+License
+-------
+   Copyright 2018 Felix Meggendorfer, Carlos Andres Palma, Willi Auwaerter
+
+      Licensed under the Apache License, Version 2.0 (the "License");
+      you may not use this file except in compliance with the License.
+      You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+      Unless required by applicable law or agreed to in writing, software
+      distributed under the License is distributed on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+      See the License for the specific language governing permissions and
+      limitations under the License.
+
+
+Authors
+-------
+Felix Meggendorfer
+Carlos A. Palma
+Willi Auwaerter
+
