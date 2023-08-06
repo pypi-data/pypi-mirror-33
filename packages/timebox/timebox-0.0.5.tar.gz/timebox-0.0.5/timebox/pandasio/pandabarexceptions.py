@@ -1,0 +1,3 @@
+class PandaBarIdentifierByteRepresentationError(TypeError):
+    pass
+
