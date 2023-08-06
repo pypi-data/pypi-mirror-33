@@ -1,0 +1,76 @@
+#!/bin/sh
+################################################################################
+# merges head to release branch and tags with specified version
+# switches back to dev and bumps dev version
+# looks for version file config/VERSION in git root
+
+ver=$1
+dev_branch=master
+rls_branch=release
+
+function die_usage
+  {
+  test -n "$1" && echo $1
+  echo "usage merge_release <version>"
+  exit 1
+  }
+
+cd `git rev-parse --show-toplevel`
+
+hash version_bump_dev || die_usage "Unable to find version_bump_dev"
+if test -f "config/VERSION"; then
+  version_file="config/VERSION"
+elif test -f "facsimile/VERSION"; then
+  version_file="facsimile/VERSION"
+else
+  die_usage "Missing version file $version_file, you're probably in the wrong directory"
+fi
+
+if test -z "$ver"; then
+  # get current version from file
+  curver=`grep -v ^# $version_file`
+  test `echo $curver | tr "." "\n" | wc -l` -eq 4 || die_usage "invalid version $curver"
+
+  # bump to new version
+  ver_list=`echo $curver | tr "." " "`
+  ver_patch=`echo $ver_list | awk '{print $3}'`
+  ver_patch=`expr $ver_patch + 1`
+  ver=`echo $ver_list | awk '{print $1 "." $2}'`
+  ver="${ver}.${ver_patch}"
+fi
+
+test `echo $ver | tr "." "\n" | wc -l` -eq 3 || die_usage
+
+git branch | grep "^* $dev_branch" || die_usage "Not currently on $dev_branch"
+
+test 0 -ne `git rev-list origin/$dev_branch..$dev_branch | wc -l` && \
+  die_usage "unpushed commits on $dev_branch"
+test -n "`git status --porcelain`" && \
+  die_usage "current branch is not clean"
+
+# set version
+echo "$ver" > $version_file
+git commit $version_file -m "set version $ver"
+git push
+
+git checkout $rls_branch
+git merge $dev_branch
+# overwrite version in case of conflict
+echo "$ver" > $version_file
+
+# make sure submodules are set
+git submodule init
+git submodule update
+
+git commit -a -m "merge from $dev_branch"
+git tag -a $ver -m "version $ver"
+git push --tags
+
+# bump dev ver
+newver="${ver}.1"
+git checkout $dev_branch
+echo "${newver}" > $version_file
+git commit $version_file -m "set version $newver"
+git push
+#version_bump_dev
+

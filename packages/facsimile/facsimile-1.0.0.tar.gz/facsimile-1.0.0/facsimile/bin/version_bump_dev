@@ -1,0 +1,54 @@
+#!/bin/bash
+################################################################################
+# bumps development version by 1
+# looks for version file config/VERSION in git root
+
+branch=master
+
+function die_usage
+  {
+  test -n "$1" && echo $1
+  echo "usage bump_dev"
+  exit 1
+  }
+
+test $# -eq 0 || die_usage
+
+git branch | grep "^* $branch" || die_usage "Not currently on $branch"
+
+test 0 -ne `git rev-list origin/$branch..$branch | wc -l` && \
+  die_usage "unpushed commits on $branch"
+test -n "`git status --porcelain`" && \
+  die_usage "current branch is not clean"
+
+cd `git rev-parse --show-toplevel`
+
+if test -f "config/VERSION"; then
+  version_file="config/VERSION"
+elif test -f "facsimile/VERSION"; then
+  version_file="facsimile/VERSION"
+else
+  die_usage "Missing version file $version_file, you're probably in the wrong directory"
+fi
+
+# get current version and sanity check that its a dev version
+curver=`grep -v ^# $version_file`
+test `echo $curver | tr "." "\n" | wc -l` -eq 4 || die_usage "invalid version $curver"
+
+# bump to new version
+ver_list=`echo $curver | tr "." " "`
+ver_build=`echo $ver_list | awk '{print $4}'`
+ver_build=`expr $ver_build + 1`
+ver=`echo $ver_list | awk '{print $1 "." $2 "." $3}'`
+ver="${ver}.${ver_build}"
+
+echo "bumping ver $curver to $ver"
+
+# set version
+echo "$ver" > $version_file
+git commit $version_file -m "set version $ver"
+git push
+
+git tag -a $ver -m "version $ver"
+git push --tags
+
