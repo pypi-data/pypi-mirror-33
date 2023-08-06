@@ -1,0 +1,37 @@
+from distutils.core import setup, Extension
+
+VERSION = '0.0.2'
+PYDEPQBF_MODULE = Extension("pydepqbf",
+                            include_dirs=["."],
+                            sources=["pydepqbf.c",
+                                     "qdpll.c",
+                                     "qdpll_dep_man_qdag.c",
+                                     "qdpll_dynamic_nenofex.c",
+                                     "qdpll_mem.c",
+                                     "qdpll_pqueue.c",
+                                     "picosat/picosat.c",
+                                     "picosat/version.c",
+                                     "nenofex/atpg.c",
+                                     "nenofex/mem.c",
+                                     "nenofex/nenofex.c",
+                                     "nenofex/queue.c",
+                                     "nenofex/stack.c"])
+
+setup(name="pydepqbf",
+      version=VERSION,
+      author="Alexander Feldman",
+      author_email="alex@llama.gs",
+      url="https://github.com/abfeldman/pydepqbf",
+      license="MIT",
+      classifiers=["Development Status :: 4 - Beta",
+                   "Intended Audience :: Developers",
+                   "Operating System :: OS Independent",
+                   "Programming Language :: C",
+                   "Programming Language :: Python :: 2",
+                   "Programming Language :: Python :: 3",
+                   "Topic :: Scientific/Engineering :: Artificial Intelligence",
+                   "Topic :: Utilities"],
+      ext_modules=[PYDEPQBF_MODULE],
+      py_modules=['test_pydepqbf'],
+      description="bindings to depqbf (a QBF solver)",
+      long_description=open('README.rst').read())
