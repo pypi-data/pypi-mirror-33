@@ -1,0 +1,294 @@
+{% extends 'bee_django_social_feed/base.html' %}
+
+{% block content %}
+    <div class="col-md-12">
+        <div id="new_album" v-if="show">
+            <input type="file" style="display: none;" @change="on_upload_image_change"
+                   ref="image_input" accept="image/*" multiple/>
+            {% verbatim %}
+            <h2>
+                美好的生活
+                <a href="#" @click.prevent="$refs.image_input.click()">
+                    <i class="glyphicon glyphicon-plus-sign"></i>
+                </a>
+            </h2>
+            <h3 v-if="message" class="bg-success" style="padding:3px;">
+                {{ message }}
+                <a href="#" @click.prevent="close_message()" style="float:right;">
+                    <i class="glyphicon glyphicon-remove"></i>
+                </a>
+            </h3>
+            <div v-if="selected_files">
+                <div class="image-list">
+                    <h5>上传图片：</h5>
+                    <div v-for="file in selected_files">
+                        {{ file.name }}
+                    </div>
+                </div>
+
+                <textarea v-model="note" class="form-control" rows="5"></textarea>
+                <button class="btn btn-default" @click="on_upload">发布</button>
+            </div>
+
+            {% endverbatim %}
+        </div>
+
+        <div id="albums" v-if="show">
+            <album-box v-for="album in albums"
+                       v-bind:key="album.id" v-bind:album="album"></album-box>
+        </div>
+
+        <div id="pop_album" v-if="album" class="col-md-12"
+             style="border:1px solid #ccc; padding-bottom:5px;">
+            <a href="#" @click.prevent="close()">
+                <h3>
+                    <button class="btn btn-default">返回</button>
+                </h3>
+            </a>
+            <h3>{{ album.user_name }}</h3>
+            <img v-for="photo in album.photos"
+                 v-bind:key="photo.id" v-bind:src="photo.medium_url" class="img-responsive"/>
+            <br/>
+            <div>
+                {% verbatim %}
+                <span style="white-space: pre;">{{ album.note }}</span>
+                {% endverbatim %}
+            </div>
+        </div>
+
+        <div id="album-loader" class="col-md-12">
+            <div v-if="status == 1">页面加载中，请稍后...</div>
+            <div v-else-if="status == 2" v-on:click="load_more_page">
+                加载超时，点击重试
+            </div>
+            <div v-else>
+                下面没有了
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+
+{% block scripts %}
+    {% load static %}
+    <script src="{% static 'bee_django_social_feed/axios.min.js' %}"></script>
+
+    <script type="text/x-template" id="album-box-template">
+        <div class="album-box col-md-3 col-sm-6 col-xs-12">
+            <div style="border:1px solid #ccc;margin:5px; padding: 5px;">
+                <a href="#" @click.prevent="show_album()">
+                    {% verbatim %}
+                    <div>
+                        {{ album.user_name }}：
+                        <span v-if="album.status == 0" class="bg-warning">待审核</span>
+                        <span v-else-if="album.status == 3" class="bg-danger">审核失败</span>
+                    </div>
+
+                    <img v-bind:src="album.cover_image" class="img-responsive"
+                         style="height:120px;width:100%;">
+                    <div class="album_note" style="height:30px; overflow: hidden;">
+                        {{ album.note }}
+                    </div>
+                    {% endverbatim %}
+                </a>
+            </div>
+        </div>
+    </script>
+
+
+    <script type="text/x-template" id="image-box-template">
+        <div class="image_box col-md-3" style="border:1px solid #ccc;padding:5px;margin:5px;">
+            <img v-bind:src="image.image" class="img-responsive"/>
+            <div v-if="edit_mode">
+                <input type="text" v-model="image.note" class="form-control"/>
+                <button @click="leave_edit_mode()" class="btn btn-default">保存</button>
+            </div>
+            <div v-else>
+                <div v-if="image.note">
+                    {% verbatim %}
+                    <div>{{ image.note }}</div>
+                    {% endverbatim %}
+                    <button @click="enter_edit_mode()" class="btn btn-default">编辑</button>
+                </div>
+                <div v-else>
+                    <button class="btn btn-default" @click="enter_edit_mode()">添加描述</button>
+                </div>
+            </div>
+
+        </div>
+    </script>
+
+    <script type="text/javascript">
+        axios.defaults.xsrfCookieName = 'csrftoken';
+        axios.defaults.xsrfHeaderName = 'X-CSRFToken';
+
+        Vue.component('album-box', {
+            template: '#album-box-template',
+            props: ['album'],
+
+            methods: {
+                show_album: function () {
+                    var url = '/feed/album/' + String(this.album.id);
+
+                    axios.get(url).then(function (resp) {
+                        var data = resp.data;
+                        pop_album.album = JSON.parse(data['album']);
+                        albums.show = false;
+                        new_album.show = false;
+                    });
+                }
+            }
+        });
+
+        Vue.component('image-box', {
+            template: '#image-box-template',
+            props: ['image'],
+            data: function () {
+                return {
+                    edit_mode: false
+                };
+            },
+
+            methods: {
+                enter_edit_mode: function () {
+                    this.edit_mode = true;
+                },
+
+                leave_edit_mode: function () {
+                    this.edit_mode = false;
+                    // TODO: 同时将image.note 保存至服务器
+                    var url = '/feed/photo/' + String(this.image.id) + '/update';
+                    var form_data = new FormData();
+                    form_data.append('note', this.image.note);
+                    axios.post(url, form_data).then(function (resp) {
+                        var data = resp.data;
+                        console.log(data);
+                    });
+                }
+            },
+
+        });
+
+        var new_album = new Vue({
+            el: "#new_album",
+            data: {
+                selected_files: null,
+                note: '',
+                show: true,
+                message: null,
+            },
+
+            methods: {
+                on_upload_image_change: function (e) {
+                    this.selected_files = e.target.files;
+                    this.note = '分享图片';
+                },
+
+                on_upload: function () {
+                    var form_data = new FormData();
+                    if (this.selected_files) {
+                        for (var i = 0; i < this.selected_files.length; i++) {
+                            var file = this.selected_files[i];
+                            form_data.append('files', file, file.name);
+                        }
+                        form_data.append('note', this.note);
+
+                        var url = "{% url 'bee_django_social_feed:create_album' %}";
+
+                        axios.post(url, form_data).then(function (resp) {
+                            var data = resp.data;
+
+                            new_albums = JSON.parse(data['albums']);
+                            albums.albums = new_albums.concat(albums.albums);
+
+                            new_album.selected_files = null;
+                            new_album.note = '';
+                            new_album.message = data['message'];
+                        });
+                    } else {
+                        alert('请先选择要上传的图片')
+                    }
+                },
+
+                close_message: function () {
+                    this.message = null;
+                }
+            }
+        });
+
+        var albums = new Vue({
+            el: '#albums',
+            data: {
+                page: 1,
+                albums: [],
+                show: true,
+            },
+        });
+
+        var pop_album = new Vue({
+            el: '#pop_album',
+            data: {
+                album: null,
+            },
+
+            methods: {
+                close: function () {
+                    this.album = null;
+                    albums.show = true;
+                    new_album.show = true;
+                }
+            }
+        });
+
+        var loader = new Vue({
+            el: '#album-loader',
+            data: {
+                status: 0
+            },
+
+            methods: {
+                load_more_page: function () {
+                    albums.page++;
+                    loader.status = 1;
+                    load_page_data();
+                }
+            }
+        });
+
+        // 拉取指定页面的照片
+        var load_page_data = function () {
+            var options = {
+                page: albums.page,
+            };
+
+            axios.get("/feed/get_albums", {
+                params: options
+            }).then(function (resp) {
+                var data = resp.data;
+                var new_albums = JSON.parse(data['albums']);
+
+                if (new_albums.length === 0) {
+                    loader.status = 3;
+                } else {
+                    albums.albums = albums.albums.concat(new_albums);
+                    loader.status = 0;
+                }
+                albums.page = data['page'];
+            }).catch(function (reason) {
+                loader.status = 2;
+            });
+
+        };
+        load_page_data();
+
+        // 下拉翻页的处理
+        window.onscroll = function (e) {
+            var bottomOfWindow = document.documentElement.scrollTop
+                + window.innerHeight === document.documentElement.offsetHeight;
+
+            if (bottomOfWindow) {
+                loader.load_more_page(e);
+            }
+        }
+    </script>
+
+{% endblock scripts %}
