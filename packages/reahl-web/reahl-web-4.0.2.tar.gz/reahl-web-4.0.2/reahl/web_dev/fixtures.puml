@@ -1,0 +1,86 @@
+' Copyright 2017, 2018 Reahl Software Services (Pty) Ltd. All rights reserved.
+
+@startuml
+!include base.iuml
+show members
+skinparam class{
+ BorderColor Black
+}
+
+title Fixtures
+
+package reahl-dev{
+	class ContextAwareFixture {
+	}
+
+	class ReahlSystemSessionFixture <<session-scoped>> {
+	    context
+	    config
+	    reahl_system
+	    system_control
+	}
+
+	class ReahlSystemFixture {
+	    context
+	    @system_control
+	    config
+	}
+}
+
+package reahl-sqlalchemysupport{
+	class SqlAlchemyFixture {
+	    persistent_test_classes
+	    start_transaction()
+	    finalise_transaction()
+	}
+}
+
+package reahl-webdev{
+	class WebServerFixture <<session-scoped>> {
+	    reahl_server
+	    web_driver
+	    driver_browser
+	    firefox_driver
+	    chrome_driver
+	}
+}
+
+package reahl-web_dev{
+	class WebFixture {
+	      request
+	      view
+	      current_location
+	      wsgi_app
+	      user_interface
+	      driver_browser
+	      log_in()
+	}
+}
+
+package reahl-domain_dev{
+	class PartyAccountFixture {
+	      session
+	      party
+	      system_account
+	}
+}
+
+
+ContextAwareFixture <|-- ReahlSystemSessionFixture
+ContextAwareFixture <|-- ReahlSystemFixture
+ReahlSystemSessionFixture <-left- ReahlSystemFixture 
+
+ReahlSystemFixture <-- SqlAlchemyFixture 
+WebServerFixture -up-> ReahlSystemSessionFixture
+
+ReahlSystemFixture <-- WebFixture
+WebServerFixture <-- WebFixture
+PartyAccountFixture <-- WebFixture
+
+
+ReahlSystemFixture <-- PartyAccountFixture
+SqlAlchemyFixture <-- PartyAccountFixture
+
+
+
+@enduml
