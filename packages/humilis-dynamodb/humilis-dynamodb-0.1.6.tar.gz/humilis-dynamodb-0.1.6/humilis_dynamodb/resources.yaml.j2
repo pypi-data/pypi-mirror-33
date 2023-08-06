@@ -1,0 +1,524 @@
+---
+{% if not default_resource %}
+{% set default_resource=resources[0] %}
+{% endif %}
+resources:
+    {% for resource in resources %}
+    Table{{resource.replace('.', '').title()}}:
+      Type: "AWS::DynamoDB::Table"
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: key
+            AttributeType: S
+        KeySchema:
+          - AttributeName: key
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: {{read_capacity}}
+          WriteCapacityUnits: {{write_capacity}}
+        TableName: {{table_name}}-{{resource}}
+    {% endfor %}
+
+    {% if dax_subnets %}
+    DaxIamRole:
+        Type: "AWS::IAM::Role"
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                  -
+                    Effect: "Allow"
+                    Principal:
+                      Service:
+                        - "dax.amazonaws.com"
+                    Action:
+                      - "sts:AssumeRole"
+            Policies:
+              - PolicyName: "FullAccessDynamoDBTable"
+                PolicyDocument:
+                  Version: "2012-10-17"
+                  Statement:
+                    - Effect: Allow
+                      # Permissions to access the DynamoDB table
+                      Action:
+                        - "dynamodb:*"
+                      Resource:
+                        {% for resource in resources %}
+                        - "Fn::GetAtt":
+                          - Table{{resource.replace('.', '').title()}}
+                          - Arn
+                        {% endfor %}
+
+    DaxCluster:
+        Type: AWS::DAX::Cluster
+        Properties:
+          NodeType: "{{dax_node_type}}"
+          ReplicationFactor: {{dax_replication_factor}}
+          IAMRoleARN:
+            "Fn::GetAtt":
+              - DaxIamRole
+              - Arn
+          Description: "DAX cluster for table {{__context.environment.name}}-{{__context.layer.name}}-{{__context.stage}}"
+          SubnetGroupName: {Ref: DaxSubnetGroup}
+
+    DaxSubnetGroup:
+        Type: AWS::DAX::SubnetGroup
+        Properties:
+          Description: "Subnet group for DAX cluster "
+          SubnetIds:
+            {% for subnet in dax_subnets %}
+            - {{subnet}}
+            {% endfor %}
+    {% endif %}
+
+    {% if has_public_api %}
+    UsagePlan:
+        Type: AWS::ApiGateway::UsagePlan
+        DependsOn:
+          - "RestApiDeployment"
+          - "RestApi"
+        Properties:
+          ApiStages:
+              - ApiId: {"Ref": "RestApi"}
+                Stage: "{{__context.stage.lower()}}"
+          Description: Customer ABC's usage plan
+          {% if api_monthly_quota_limit %}
+          Quota:
+            Limit: {{api_monthly_quota_limit}}
+            Period: MONTH
+          {% elif api_daily_quota_limit %}
+          Quota:
+            Limit: {{api_dayly_quota_limit}}
+            Period: DAY
+          {% endif %}
+          {% if api_burst_limit or api_rate_limit %}
+          Throttle:
+            {% if api_burst_limit %}
+            BurstLimit: {{api_burst_limit}}
+            {% endif %}
+            {% if api_rate_limit %}
+            RateLimit: {{api_rate_limit}}
+            {% endif %}
+          {% endif %}
+
+    UsagePlanKey:
+      Type: "AWS::ApiGateway::UsagePlanKey"
+      DependsOn:
+        - "RestApiDeployment"
+        - "RestApi"
+      Properties:
+        KeyId: {Ref: ApiKey}
+        KeyType: API_KEY
+        UsagePlanId: {Ref: UsagePlan}
+
+    RestApi:
+      Type: "AWS::ApiGateway::RestApi"
+      Properties:
+        Name: "{{__context.environment.name}}-{{__context.stage}}-{{__context.layer.name}}"
+        Description: "{{api_description or __context.environment.name}}"
+
+    {% if domain_name and certificate_arn %}
+    DomainName:
+        Type: "AWS::ApiGateway::DomainName"
+        Properties:
+            CertificateArn: {{certificate_arn}}
+            DomainName: {{domain_name}}
+
+    DomainNameMapping:
+       Type: "AWS::ApiGateway::BasePathMapping"
+       Properties:
+         Stage: "{{__context.stage.lower()}}"
+         RestApiId:
+            Ref: RestApi
+         DomainName:
+            Ref: DomainName
+
+    ApiDnsRecord:
+      Type: AWS::Route53::RecordSetGroup
+      Properties:
+        {% if hosted_zone_id %}
+        HostedZoneId: {{hosted_zone_id}}
+        {% else %}
+        HostedZoneName: {{'.'.join(domain_name.split('.')[-2:])}}.
+        {% endif %}
+        RecordSets:
+            - Name: "{{domain_name}}"
+              Type: A
+              AliasTarget:
+                HostedZoneId: Z2FDTNDATAQYW2
+                DNSName:
+                    "Fn::GetAtt":
+                        - DomainName
+                        - DistributionDomainName
+    {% endif %}
+
+    Role:
+      Type: "AWS::IAM::Role"
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                  Service: 'apigateway.amazonaws.com'
+              Action: 'sts:AssumeRole'
+        # Keep all environment role under the same path
+        Path: {{ "/{}/".format(__context.environment.name) }}
+        Policies:
+          - PolicyName: ReadFromDynamoDB
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  # Permissions to read from the DynamoDB table
+                  Action:
+                    - "dynamodb:BatchGetItem"
+                    - "dynamodb:GetItem"
+                  Resource:
+                    {% for resource in resources %}
+                    - "Fn::GetAtt":
+                        - Table{{resource.replace('.', '').title()}}
+                        - Arn
+                    {% endfor %}
+
+    RequestValidator:
+      Type: "AWS::ApiGateway::RequestValidator"
+      Properties:
+        Name: 'RequestValidator'
+        RestApiId: {"Ref": "RestApi"}
+        ValidateRequestParameters: yes
+
+    {% for resource in resources %}
+    Resource{{loop.index}}:
+      Type: "AWS::ApiGateway::Resource"
+      Properties:
+        RestApiId:
+          {"Ref": "RestApi"}
+        ParentId:
+            "Fn::GetAtt":
+              - RestApi
+              - RootResourceId
+        PathPart: "{{resource}}"
+
+    MethodGet{{loop.index}}:
+      Type: "AWS::ApiGateway::Method"
+      Properties:
+        RestApiId: {"Ref": "RestApi"}
+        ResourceId: {"Ref": "Resource{{loop.index}}"}
+        ApiKeyRequired: {{api_key_required}}
+        HttpMethod: GET
+        AuthorizationType: NONE
+        RequestValidatorId:
+            Ref: RequestValidator
+        MethodResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: true
+              method.response.header.Access-Control-Allow-Methods: true
+              method.response.header.Access-Control-Allow-Origin: true
+            StatusCode: 200
+          - StatusCode: 400
+          - StatusCode: 500
+        RequestParameters:
+          "method.request.querystring.{{key_attribute}}": yes
+          {% if namespace_parameter %}
+          "method.request.querystring.{{namespace_parameter}}": no
+          {% endif %}
+          {% for k, v in request_parameters.items() %}
+          "method.request.{{k}}": {{v}}
+          {% endfor %}
+        Integration:
+          Type: AWS
+          IntegrationHttpMethod: POST
+          CacheKeyParameters:
+            - "method.request.querystring.{{key_attribute}}"
+          {% if namespace_parameter %}
+            - "method.request.querystring.{{namespace_parameter}}"
+          {% endif %}
+          Credentials: {"Fn::GetAtt": ["Role", "Arn"]}
+          Uri:
+            "Fn::Join":
+              - ""
+              - ["arn:aws:apigateway:", {"Ref": "AWS::Region"}, ":", "dynamodb:action/BatchGetItem"]
+          PassthroughBehavior: WHEN_NO_TEMPLATES
+          IntegrationResponses:
+              - StatusCode: 200
+                SelectionPattern: 200
+                ResponseParameters:
+                  method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+                  method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+                  method.response.header.Access-Control-Allow-Origin: "'*'"
+                ResponseTemplates:
+                    "application/json": |
+                      #set($resps=$input.path("$.Responses.['{{table_name}}-{{resource}}']"))
+                      #set($unproc=$input.path("$.UnprocessedKeys.['{{table_name}}-{{resource}}'].Keys"))
+                      {
+                        "Response": {{'{#'}}foreach($resp in $resps)"$resp.key.S": $resp.value.S#if($foreach.hasNext), #end#end},
+                        "UnprocessedKeys": [#foreach($item in $unproc)"$item.key.S"#if($foreach.hasNext),#end#end]
+                      }
+              - StatusCode: 400
+                SelectionPattern: 400
+              - StatusCode: 500
+                SelectionPattern: 500
+          RequestTemplates:
+            "application/json": |
+              #set($keyList = $input.params().querystring.get('{{key_attribute}}'))
+              {% if namespace_parameter %}
+              #set($namespace = $input.params().querystring.get('{{namespace_parameter}}'))
+              {% endif %}
+              {
+                  "RequestItems":
+                  {
+                    "{{table_name}}-{{resource}}": {
+                      "Keys": [
+                          #foreach( $key in $keyList.split("[,]") )
+                          {
+                              "key": {
+                                  #if($namespace=='')
+                                  "S": "$key"
+                                  #else
+                                  "S": "$namespace:$key"
+                                  #end
+                              }
+                          }
+                          #if($foreach.hasNext),#end
+                          #end
+                      ]
+                    }
+                  }
+              }
+
+    MethodOptions{{loop.index}}:
+      Type: "AWS::ApiGateway::Method"
+      Properties:
+        ResourceId: {"Ref": "Resource{{loop.index}}"}
+        RestApiId: {"Ref": "RestApi"}
+        AuthorizationType: NONE
+        HttpMethod: OPTIONS
+        Integration:
+          Type: MOCK
+          IntegrationResponses:
+            - ResponseParameters:
+                method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+                method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+                method.response.header.Access-Control-Allow-Origin: "'*'"
+              ResponseTemplates:
+                application/json: ''
+              StatusCode: 200
+          PassthroughBehavior: NEVER
+          RequestTemplates:
+            application/json: '{"statusCode": 200}'
+        MethodResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: true
+              method.response.header.Access-Control-Allow-Methods: true
+              method.response.header.Access-Control-Allow-Origin: true
+            StatusCode: '200'
+    {% endfor %}
+    MethodGet:
+      Type: "AWS::ApiGateway::Method"
+      Properties:
+        RestApiId: {"Ref": "RestApi"}
+        ResourceId:
+            "Fn::GetAtt":
+              - RestApi
+              - RootResourceId
+        ApiKeyRequired: {{api_key_required}}
+        HttpMethod: GET
+        AuthorizationType: NONE
+        RequestValidatorId:
+            Ref: RequestValidator
+        MethodResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: true
+              method.response.header.Access-Control-Allow-Methods: true
+              method.response.header.Access-Control-Allow-Origin: true
+            StatusCode: 200
+          - StatusCode: 400
+          - StatusCode: 500
+        RequestParameters:
+          "method.request.querystring.{{key_attribute}}": yes
+          {% if namespace_parameter %}
+          "method.request.querystring.{{namespace_parameter}}": no
+          {% endif %}
+          {% for k, v in request_parameters.items() %}
+          "method.request.{{k}}": {{v}}
+          {% endfor %}
+        Integration:
+          Type: AWS
+          IntegrationHttpMethod: POST
+          CacheKeyParameters:
+            - "method.request.querystring.{{key_attribute}}"
+          {% if namespace_parameter %}
+            - "method.request.querystring.{{namespace_parameter}}"
+          {% endif %}
+          Credentials: {"Fn::GetAtt": ["Role", "Arn"]}
+          Uri:
+            "Fn::Join":
+              - ""
+              - ["arn:aws:apigateway:", {"Ref": "AWS::Region"}, ":", "dynamodb:action/BatchGetItem"]
+          PassthroughBehavior: WHEN_NO_TEMPLATES
+          IntegrationResponses:
+              - StatusCode: 200
+                SelectionPattern: 200
+                ResponseParameters:
+                  method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+                  method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+                  method.response.header.Access-Control-Allow-Origin: "'*'"
+                ResponseTemplates:
+                    "application/json": |
+                      #set($resps=$input.path("$.Responses.['{{table_name}}-{{default_resource}}']"))
+                      #set($unproc=$input.path("$.UnprocessedKeys.['{{table_name}}-{{default_resource}}'].Keys"))
+                      {
+                        "Response": {{'{#'}}foreach($resp in $resps)"$resp.key.S": $resp.value.S #if($foreach.hasNext),#end#end},
+                        "UnprocessedKeys": [#foreach($item in $unproc)"$item.key.S"#if($foreach.hasNext),#end#end]
+                      }
+              - StatusCode: 400
+                SelectionPattern: 400
+              - StatusCode: 500
+                SelectionPattern: 500
+          RequestTemplates:
+            "application/json": |
+              #set($keyList = $input.params().querystring.get('{{key_attribute}}'))
+              {% if namespace_parameter %}
+              #set($namespace = $input.params().querystring.get('{{namespace_parameter}}'))
+              {% endif %}
+              {
+                  "RequestItems":
+                  {
+                    "{{table_name}}-{{default_resource}}": {
+                      "Keys": [
+                          #foreach( $key in $keyList.split("[,]") )
+                          {
+                              "key": {
+                                  #if($namespace=='')
+                                  "S": "$key"
+                                  #else
+                                  "S": "$namespace:$key"
+                                  #end
+                              }
+                          }
+                          #if($foreach.hasNext),#end
+                          #end
+                      ]
+                    }
+                  }
+              }
+
+    MethodOptions:
+      Type: "AWS::ApiGateway::Method"
+      Properties:
+        ResourceId:
+            "Fn::GetAtt":
+              - RestApi
+              - RootResourceId
+        RestApiId: {"Ref": "RestApi"}
+        AuthorizationType: NONE
+        HttpMethod: OPTIONS
+        Integration:
+          Type: MOCK
+          IntegrationResponses:
+            - ResponseParameters:
+                method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+                method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+                method.response.header.Access-Control-Allow-Origin: "'*'"
+              ResponseTemplates:
+                application/json: ''
+              StatusCode: 200
+          PassthroughBehavior: NEVER
+          RequestTemplates:
+            application/json: '{"statusCode": 200}'
+        MethodResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: true
+              method.response.header.Access-Control-Allow-Methods: true
+              method.response.header.Access-Control-Allow-Origin: true
+            StatusCode: '200'
+
+    RestApiDeployment:
+      Type: "AWS::ApiGateway::Deployment"
+      DependsOn:
+      {% for resource in resources %}
+        - MethodGet{{loop.index}}
+        - MethodOptions{{loop.index}}
+      {% endfor %}
+        - MethodGet
+        - MethodOptions
+      Properties:
+          Description: "{{__context.environment.name}} ({{__context.stage}})"
+          RestApiId: {"Ref": "RestApi"}
+          StageName: {{__context.stage|lower}}
+          {% if has_api_cache %}
+          StageDescription:
+            CacheClusterEnabled: yes
+            CacheTtlInSeconds: {{api_cache_ttl}}
+            CachingEnabled: yes
+            CacheClusterSize: {{api_cache_size}}
+          {% endif %}
+
+    ApiKey:
+      Type: "AWS::ApiGateway::ApiKey"
+      DependsOn:
+        - "RestApiDeployment"
+        - "RestApi"
+      Properties:
+        Name: "{{__context.environment.name}}-{{__context.layer.name}}-{{__context.stage}}"
+        Description: "API key for stage {{__context.stage}} of environment {{__context.environment.name}}"
+        Enabled: "true"
+        StageKeys:
+          - RestApiId: {"Ref": "RestApi"}
+            StageName: "{{__context.stage|lower}}"
+
+    {% for key in client_keys %}
+    ApiKey{{key.name.title()}}:
+      Type: "AWS::ApiGateway::ApiKey"
+      DependsOn:
+        - "RestApiDeployment"
+        - "RestApi"
+      Properties:
+        Name: "{{__context.environment.name}}-{{__context.layer.name}}-{{key.name}}-{{__context.stage}}"
+        Description: "API key for stage client {{key.name}} of environment {{__context.environment.name}}"
+        Enabled: "true"
+        StageKeys:
+          - RestApiId: {"Ref": "RestApi"}
+            StageName: "{{__context.stage|lower}}"
+
+    UsagePlan{{key.name.title()}}:
+      Type: AWS::ApiGateway::UsagePlan
+      DependsOn:
+        - "RestApiDeployment"
+        - "RestApi"
+      Properties:
+        ApiStages:
+            - ApiId: {"Ref": "RestApi"}
+              Stage: "{{__context.stage.lower()}}"
+        Description: "Customer {{key.name}} usage plan"
+        {% if key.api_monthly_quota_limit %}
+        Quota:
+          Limit: {{key.api_monthly_quota_limit}}
+          Period: MONTH
+        {% elif key.api_daily_quota_limit %}
+        Quota:
+          Limit: {{key.api_dayly_quota_limit}}
+          Period: DAY
+        {% endif %}
+        {% if key.api_burst_limit or key.api_rate_limit %}
+        Throttle:
+          {% if key.api_burst_limit %}
+          BurstLimit: {{key.api_burst_limit}}
+          {% endif %}
+          {% if api_rate_limit %}
+          RateLimit: {{key.api_rate_limit}}
+          {% endif %}
+        {% endif %}
+
+    UsagePlanKey{{key.name.title()}}:
+      Type: "AWS::ApiGateway::UsagePlanKey"
+      DependsOn:
+        - "RestApiDeployment"
+        - "RestApi"
+      Properties:
+        KeyId: {Ref: ApiKey{{key.name.title()}}}
+        KeyType: API_KEY
+        UsagePlanId: {Ref: UsagePlan{{key.name.title()}}}
+    {% endfor %}
+    {% endif %}
