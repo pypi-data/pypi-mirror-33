@@ -1,0 +1,49 @@
+' Copyright 2017, 2018 Reahl Software Services (Pty) Ltd. All rights reserved.
+
+
+@startuml
+!include base.iuml
+
+title Accounts
+
+class OpenIDSystemAccount ##[dashed]
+class Payment ##[dashed]
+class AccountManagementInterface <<session>>
+class AccountUI <<session>>
+class EmailAndPasswordSystemAccount{
+	log_in(credentials)
+	reserve(credentials)
+	cancel()
+	approve()
+}
+
+Party -- SystemAccount
+SystemAccount <|--- EmailAndPasswordSystemAccount
+SystemAccount <|... OpenIDSystemAccount
+SystemAccount -right- ActiveAccount
+SystemAccount -- NewPasswordRequest
+SystemAccount -- AccountManagementInterface
+
+DeferredAction <|-- ActiveAccount
+DeferredAction <|-- ChangeAccountEmail
+DeferredAction "*" -right- "*" Requirement
+
+Requirement <|-- VerificationRequest
+VerificationRequest <|--- NewPasswordRequest
+VerificationRequest <|--- VerifyEmailRequest
+
+Requirement <|-- Payment
+SystemAccount -right- ChangeAccountEmail
+
+AccountManagementInterface -left- AccountUI
+
+UserSession <|-- WebUserSession
+
+note as N1
+interface:
+  Fields
+  Actions
+  Events (produced / consumed)
+end note
+
+@enduml
