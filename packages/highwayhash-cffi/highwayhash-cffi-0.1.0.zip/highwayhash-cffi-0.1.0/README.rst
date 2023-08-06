@@ -1,0 +1,71 @@
+highwayhash-cffi
+================
+
+`HighwayHash <https://arxiv.org/abs/1612.06257>`__ is a pseudorandom
+function (i.e. keyed hash function) optimized for speed on short
+messages, designed by Jyrki Alakuijala, Bill Cox and Jan Wassenberg of
+Google research.
+
+This package provides tested, performant **Python 3** CFFI bindings to
+the `HighwayHash reference
+implementation <https://github.com/google/highwayhash>`__, including
+support for all output lengths.
+
+Installation
+============
+
+You can install this package using ``pip`` or the included ``setup.py``
+script:
+
+::
+
+   # Using pip
+   pip install highwayhash-cffi
+
+   # Using setup.py
+   python setup.py install
+
+Usage
+=====
+
+.. code:: python
+
+   from highwayhash import *
+
+   # Demonstration key and data
+   key = b"\0" * 32
+   data = b"\0" * 64
+
+   # HighwayHash with a 64-bit output length
+   output = highwayhash_64(key, data)
+
+   # HighwayHash with a 128-bit output length
+   output = highwayhash_128(key, data)
+
+   # HighwayHash with a 256-bit output length
+   output = highwayhash_256(key, data)
+
+License
+=======
+
+.. code:: text
+
+   Copyright (c) 2018 Phil Demetriou
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
