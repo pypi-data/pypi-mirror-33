@@ -1,0 +1,40 @@
+{% load navsy_tags %}
+{% spaceless %}
+    {% if menu_root %}
+        <div class="navsy-menu">
+    {% endif %}
+    {% if menu_tree|length and menu_level < menu_levels or not menu_levels %}
+        {% if menu_select %}
+            {% if menu_root %}
+                <select onchange="document.location.href=$(this).val(); return false;">
+            {% endif %}
+            {% for menu_item in menu_tree %}
+                {% with menu_item.node as page %}
+                    {% if page.in_menu and page.is_published %}
+                        <option value="{{ page.url }}" {% if navsy_page == page %}selected{% endif %}>{% navsy_page_label page=page label=menu_label %}</option>
+                        {% include "navsy/menu.html" with menu_tree=menu_item.tree menu_root=False menu_level=page.level %}
+                    {% endif %}
+                {% endwith %}
+            {% endfor %}
+            {% if menu_root %}
+                </select>
+            {% endif %}
+        {% else %}
+            <ul>
+            {% for menu_item in menu_tree %}
+                {% with menu_item.node as page %}
+                    {% if page.in_menu and page.is_published %}
+                        <li class="{% if navsy_page == page %}active {% elif page in navsy_page.ancestors %}active-ancestor {% elif page in navsy_page.descendants %}active-descendant {% endif %}">
+                            <a href="{{ page.url }}">{% navsy_page_label page=page label=menu_label %}</a>
+                            {% include "navsy/menu.html" with menu_tree=menu_item.tree menu_root=False menu_level=page.level %}
+                        </li>
+                    {% endif %}
+                {% endwith %}
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endif %}
+    {% if menu_root %}
+        </div>
+    {% endif %}
+{% endspaceless %}
