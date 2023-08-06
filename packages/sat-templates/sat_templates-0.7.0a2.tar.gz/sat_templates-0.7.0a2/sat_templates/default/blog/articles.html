@@ -1,0 +1,30 @@
+{% if not embedded %}{% extends 'base/base.html' %}{% endif %}
+{% set single = items|length == 1 %}
+{% set dates_format='relative' if single else 'short' %}
+{% import 'blog/macros.html' as blog with context %}
+{% import 'input/navigation.html' as navigation with context %}
+
+{%- block title scoped -%}
+    {%- if not embedded -%}
+        {%- if single -%}
+            {{- items[0].title|default(items[0].content, true)|truncate(60, True, '…') + ' - ' + C.APP_NAME -}}
+        {%- else -%}
+            {{C.APP_NAME}}
+            {# {{- super() -}}
+               FIXME: super() is failing if blog is embedded (i.e. base/base.html is not its direct parent)
+                      not sure what's the best way to avoid that, so just using C.APP_NAME for now #}
+        {%- endif -%}
+    {%- endif -%}
+{%- endblock title -%}
+
+{% block body %}
+{% if items %}
+    <div id="blog_items">
+        {{ blog.show_items(items, expanded=single) }}
+    </div>
+{% else %}
+    <p class="message--info">{% trans %}No articles found in this blog!{% endtrans %}</p>
+{% endif %}
+
+{{ navigation.prev_next(_("newer articles"), _("older articles")) }}
+{% endblock body %}

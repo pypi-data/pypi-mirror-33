@@ -1,0 +1,33 @@
+{% extends 'base/base.html' %}
+{% import 'input/textbox.html' as textbox with context %}
+{% import 'blog/macros.html' as blog with context %}
+
+{% block body %}
+{{ icon_defs('comment-empty') }}
+<div class="album">
+    {% for file in files_data %}
+        {% if file.type == C.FILE_TYPE_FILE %}
+            <div class="album__item">
+                <div class="album__vignette">
+                    <img src="{{file.thumb_url}}" class="album__thumbnail" alt="{{file.name}}">
+                </div>
+                {% if file.comments_url is defined %}
+                    <span class='album__comments-bar' onclick="clicked_mh_fix('{{'comments_panel'|next_gidx}}')">
+                        {% trans %}comments{% endtrans %}
+                        {% if file.comments_count %}
+                            <span class='comments__count'>({{file.comments_count}})</span>
+                        {% endif %}
+                        {{ icon('comment-empty', cls='icon--small') }}
+                    </span>
+                    <div id='{{'comments_panel'|cur_gidx}}' class="panel-drawer">
+                        {{ blog.show_items(file.comments, expanded=true, dates_fmt='relative') }}
+                        <div class="comment_post">
+                            {{- textbox.comment_or_login(service=file.comments_service, node=file.comments_node) -}}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% endfor %}
+</div>
+{% endblock body %}

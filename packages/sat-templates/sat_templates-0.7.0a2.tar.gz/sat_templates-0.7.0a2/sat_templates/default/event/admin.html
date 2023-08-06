@@ -1,0 +1,85 @@
+{% extends 'base/base.html' %}
+{% import 'input/form.html' as form with context %}
+{% import 'input/field.html' as field with context %}
+{% import 'input/textbox.html' as textbox with context %}
+
+{% block body %}
+<div class='invitation_header box'>
+    <h1>{% trans name=event.name %}{{name}} administration{% endtrans %}</h1>
+    {% if event.image is defined %}
+        <p><img class='event__picture' src="{{event.image}}"></p>
+    {% endif %}
+    {% if event.description is defined %}
+        <p>{{event.description}}</p>
+    {% endif %}
+</div>
+
+{% include 'event/counter.html' %}
+
+{% if invitees %}
+    <div class="box">
+    <h3 class="title">{% trans %}invitees{% endtrans %}</h3>
+    <table class="table--main">
+    <tr>
+        <th>{% trans %}name{% endtrans %}</th>
+        <th>{% trans %}coming?{% endtrans %}</th>
+        <th>{% trans %}guests{% endtrans %}</th>
+    {% for name, data in invitees.iteritems() %}
+        <tr>
+            <td>{{name}}</td>
+            <td>{{data.attend|default('')}}</td>
+            {% if data.attend == 'no' %}
+                <td>&nbsp;</td>
+            {% else %}
+                <td>{{data.guests|default(0)}}</td>
+            {% endif %}
+        </tr>
+    {% endfor %}
+    <tr>
+        <td colspan=2 class="table__total">{% trans %}total expected{% endtrans %}</td>
+        <td class="table__total_value">{{invitees_guests|default('0')}}</td>
+    </tr>
+    </table>
+    </div>
+{% endif %}
+
+<div class="box">
+<h3 class="title">{% trans %}invite people{% endtrans %}</h3>
+{% call form.form(class="form--paper form__panel--vertical form__panel--center") %}
+    {{ textbox.head(event_service, event_node, 'event') }}
+    {{ field.meta('event_id', event_id) }}
+    {{ field.textarea("jids",
+                      _("enter here a list of jid (one per line) to invite"),
+                      class="form__field--medium") }}
+    {{ field.textarea("emails",
+                      _("enter here a list of emails addresses (one per line) to invite"),
+                      class="form__field--medium") }}
+    {{ field.submit(_("Invite people")) }}
+{% endcall %}
+</div>
+
+<div class="box">
+<h3 class="title">{% trans %}write a blog post{% endtrans %}</h3>
+{% call form.form(class="form--paper form__panel--vertical form__panel--center") %}
+    {{ textbox.head(service, node, 'blog') }}
+    {{ field.text("title",
+                  _("title"),
+                  class="form__field--big") }}
+    {{ field.textarea("body",
+                      _("body"),
+                      class="form__field--big") }}
+    {{ field.text("language",
+                  _("language"),
+                  class="form__field--tiny") }}
+    {{ field.checkbox("comments",
+                      _("allow comments"),
+                      checked=true) }}
+    {{ field.submit(_("send")) }}
+{% endcall %}
+</div>
+
+{% if items is defined %}
+    {% include 'blog/articles.html' %}
+{% endif %}
+
+{% endblock body %}

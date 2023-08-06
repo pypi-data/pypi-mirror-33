@@ -1,0 +1,60 @@
+{% import 'input/form.html' as form with context %}
+{% import 'input/field.html' as field with context %}
+
+{% macro head(service, node, type="textbox") %}
+    {# include data needed to identify the node to use for commenting #}
+    <input type="hidden" name="type" value="{{type}}">
+    <input type="hidden" name="service" value="{{service}}">
+    <input type="hidden" name="node" value="{{node}}">
+{% endmacro %}
+
+{% macro submit(label=_("Send")) %}
+    <input type="submit" value="{{label}}">
+{% endmacro %}
+
+{% macro textbox(service, node, action='', placeholder='',
+                 submit_label=_("Send"), type="textbox",
+                 class='', ta_class='') %}
+    {# generic content area for comments/blog posts/etc.
+       Only a body by default, but new elements can be
+       added by using this macro with call #}
+    {% set extra_content = caller() if caller is defined else '' %}
+    {% call form.form(action=action, class="textbox " + class) %}
+        {{ head(service, node, type) }}
+        {{ extra_content }}
+        {{ field.textarea("body", placeholder=placeholder, required=True,
+                          class=ta_class) }}
+        {{ submit(label=submit_label) }}
+    {% endcall %}
+{% endmacro %}
+
+{% macro blog_text(service, node, action='', placeholder=_("Your comment")) %}
+    {{ textbox(service, node, action=action, placeholder=placeholder, type="comment") }}
+{% endmacro %}
+
+{% macro comment(service, node, action='', placeholder=_("Your comment"), class='box--medium') %}
+    {{ textbox(service, node, action=action, placeholder=placeholder, type="comment", class=class) }}
+{% endmacro %}
+
+{% macro comment_or_login(service, node, action='', placeholder=none) %}
+    {# show comment form a a message asking to log in
+       login is checked using profile #}
+    {% if profile %}
+        {% if placeholder is none %}
+            {{ comment(service, node, action) }}
+        {% else %}
+            {{ comment(service, node, action, placeholder=placeholder) }}
+        {% endif %}
+    {% else %}
+        <div class="log_request">
+        <p class="not_logged">{% trans %}You are not logged. You need to log in to comment.{% endtrans %}</p>
+        {% if login_url is defined %}
+            <p class="log_in_url">
+                {% trans link_start=('<a href="',login_url,'">')|join|safe, link_end='</a>'|safe %}
+                    To log in {{link_start}}follow this link{{link_end}}
+                {% endtrans %}
+            </p>
+        {% endif %}
+        </div>
+    {% endif %}
+{% endmacro %}
