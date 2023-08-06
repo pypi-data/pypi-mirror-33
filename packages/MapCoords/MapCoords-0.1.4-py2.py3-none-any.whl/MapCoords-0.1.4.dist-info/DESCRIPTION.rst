@@ -1,0 +1,110 @@
+MapCoords
+======
+
+|Python2| |Python3|
+
+MapCoords is an open source api for map coordinates.
+
+coordtransform module can be used to transform coordinates among some common coordinate systems.
+
+**Installation**
+
+.. code:: bash
+
+    pip install MapCoords
+
+**coordtransform**
+
+.. code:: python
+
+    from MapCoords.coordtransform import *
+
+    # test wgs84_to_gcj02_point, Amap api: http://lbs.amap.com/api/webservice/guide/api/convert
+    print(wgs84_to_gcj02_point(116.481499, 39.990475))  # [116.48758599999999, 39.991754]
+    print(wgs84_to_gcj02_point([116.481499, 39.990475]))  # [116.48758599999999, 39.991754]
+    print(wgs84_to_gcj02_point((116.481499, 39.990475)))  # [116.48758599999999, 39.991754]
+    print(wgs84_to_gcj02_point(np.array([116.481499, 39.990475])))  # [116.48758599999999, 39.991754]
+    print(wgs84_to_gcj02_point(140, 60))  # [140, 60]
+
+    # test gcj02_to_bd09_point
+    print()
+    print(gcj02_to_bd09_point(116.487586, 39.991754))  # [116.49412, 39.997716]
+    print(gcj02_to_bd09_point([116.487586, 39.991754]))  # [116.49412, 39.997716]
+    print(gcj02_to_bd09_point((116.487586, 39.991754)))  # [116.49412, 39.997716]
+    print(gcj02_to_bd09_point(np.array([116.487586, 39.991754])))  # [116.49412, 39.997716]
+
+    # test wgs84_to_bd09_point
+    print()
+    print(wgs84_to_bd09_point(116.481499, 39.990475))  # [116.49412, 39.997716]
+    print(wgs84_to_bd09_point([116.481499, 39.990475]))  # [116.49412, 39.997716]
+    print(wgs84_to_bd09_point((116.481499, 39.990475)))  # [116.49412, 39.997716]
+    print(wgs84_to_bd09_point(np.array([116.481499, 39.990475])))  # [116.49412, 39.997716]
+
+    # test gcj02_to_wgs84_point
+    print()
+    print(gcj02_to_wgs84_point(116.487586, 39.991754))  # [116.481499, 39.990475000000004]
+    print(gcj02_to_wgs84_point([116.487586, 39.991754]))  # [116.481499, 39.990475000000004]
+    print(gcj02_to_wgs84_point((116.487586, 39.991754)))  # [116.481499, 39.990475000000004]
+    print(gcj02_to_wgs84_point(np.array([116.487586, 39.991754])))  # [116.481499, 39.990475000000004]
+
+    # test bd09_to_gcj02_point
+    print()
+    print(bd09_to_gcj02_point(116.49412, 39.997716))  # [116.487586, 39.991754]
+    print(bd09_to_gcj02_point([116.49412, 39.997716]))  # [116.487586, 39.991754]
+    print(bd09_to_gcj02_point((116.49412, 39.997716)))  # [116.487586, 39.991754]
+    print(bd09_to_gcj02_point(np.array([116.49412, 39.997716])))  # [116.48758599999999, 39.991754]
+
+    # test bd09_to_wgs84_point
+    print()
+    print(bd09_to_wgs84_point(116.49412, 39.997716))  # [116.481499, 39.990475000000004]
+    print(bd09_to_wgs84_point([116.49412, 39.997716]))  # [116.481499, 39.990475000000004]
+    print(bd09_to_wgs84_point((116.49412, 39.997716)))  # [116.481499, 39.990475000000004]
+    print(bd09_to_wgs84_point(np.array([116.49412, 39.997716])))  # [116.481499, 39.990475000000004]
+
+    # test wgs84_to_gcj02_array
+    print()
+    print(wgs84_to_gcj02_array(np.array([116.481499, 116.481499, 116.481499]),
+                               np.array([39.990475, 39.990475, 39.990475])))
+    print(wgs84_to_gcj02_array([116.481499, 116.481499, 116.481499],
+                               [39.990475, 39.990475, 39.990475]))
+
+    # test gcj02_to_bd09_array
+    print()
+    print(gcj02_to_bd09_array(np.array([116.487586, 116.487586, 116.487586]),
+                              np.array([39.991754, 39.991754, 39.991754])))
+    print(gcj02_to_bd09_array([116.487586, 116.487586, 116.487586],
+                              [39.991754, 39.991754, 39.991754]))
+
+    # test wgs84_to_bd09_array
+    print()
+    print(wgs84_to_bd09_array(np.array([116.481499, 116.481499, 116.481499]),
+                               np.array([39.990475, 39.990475, 39.990475])))
+    print(wgs84_to_bd09_array([116.481499, 116.481499, 116.481499],
+                              [39.990475, 39.990475, 39.990475]))
+
+
+    # test gcj02_to_wgs84_array
+    print()
+    print(gcj02_to_wgs84_array(np.array([116.487586, 116.487586, 116.487586]),
+                               np.array([39.991754, 39.991754, 39.991754])))
+    print(gcj02_to_wgs84_array([116.487586, 116.487586, 116.487586],
+                               [39.991754, 39.991754, 39.991754]))
+
+    # test bd09_to_gcj02_array
+    print()
+    print(bd09_to_gcj02_array(np.array([116.49412, 116.49412, 116.49412]),
+                              np.array([39.997716, 39.997716, 39.997716])))
+    print(bd09_to_gcj02_array([116.49412, 116.49412, 116.49412],
+                              [39.997716, 39.997716, 39.997716]))
+
+    # test bd09_to_wgs84_array
+    print()
+    print(bd09_to_wgs84_array(np.array([116.49412, 116.49412, 116.49412]),
+                              np.array([39.997716, 39.997716, 39.997716])))
+    print(bd09_to_wgs84_array([116.49412, 116.49412, 116.49412],
+                              [39.997716, 39.997716, 39.997716]))
+
+
+.. |Python2| image:: https://img.shields.io/badge/python-2.7-ff69b4.svg
+.. |Python3| image:: https://img.shields.io/badge/python-3.5-red.svg
+
