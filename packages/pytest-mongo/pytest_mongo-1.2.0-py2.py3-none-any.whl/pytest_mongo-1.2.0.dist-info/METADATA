@@ -1,0 +1,187 @@
+Metadata-Version: 2.1
+Name: pytest-mongo
+Version: 1.2.0
+Summary: MongoDB process and client fixtures plugin for py.test.
+Home-page: https://github.com/ClearcodeHQ/pytest-mongo
+Author: Clearcode - The A Room
+Author-email: thearoom@clearcode.cc
+License: LGPL
+Keywords: tests py.test pytest fixture mongo mongodb
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Web Environment
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)
+Classifier: Natural Language :: English
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Provides-Extra: docs
+Provides-Extra: tests
+Requires-Dist: pytest (>=3.0.0)
+Requires-Dist: pymongo (>=3.6)
+Requires-Dist: mirakuru
+Requires-Dist: port-for
+Provides-Extra: docs
+Requires-Dist: sphinx; extra == 'docs'
+Provides-Extra: tests
+Requires-Dist: pytest; extra == 'tests'
+Requires-Dist: pytest-cov (==2.5.1); extra == 'tests'
+Requires-Dist: pytest-xdist (==1.22.2); extra == 'tests'
+
+pytest-mongo
+============
+
+.. image:: https://img.shields.io/pypi/v/pytest-mongo.svg
+    :target: https://pypi.python.org/pypi/pytest-mongo/
+    :alt: Latest PyPI version
+
+.. image:: https://img.shields.io/pypi/wheel/pytest-mongo.svg
+    :target: https://pypi.python.org/pypi/pytest-mongo/
+    :alt: Wheel Status
+
+.. image:: https://img.shields.io/pypi/pyversions/pytest-mongo.svg
+    :target: https://pypi.python.org/pypi/pytest-mongo/
+    :alt: Supported Python Versions
+
+.. image:: https://img.shields.io/pypi/l/pytest-mongo.svg
+    :target: https://pypi.python.org/pypi/pytest-mongo/
+    :alt: License
+
+Package status
+--------------
+
+.. image:: https://travis-ci.org/ClearcodeHQ/pytest-mongo.svg?branch=v1.2.0
+    :target: https://travis-ci.org/ClearcodeHQ/pytest-mongo
+    :alt: Tests
+
+.. image:: https://coveralls.io/repos/ClearcodeHQ/pytest-mongo/badge.png?branch=v1.2.0
+    :target: https://coveralls.io/r/ClearcodeHQ/pytest-mongo?branch=v1.2.0
+    :alt: Coverage Status
+
+.. image:: https://requires.io/github/ClearcodeHQ/pytest-mongo/requirements.svg?tag=v1.2.0
+     :target: https://requires.io/github/ClearcodeHQ/pytest-mongo/requirements/?tag=v1.2.0
+     :alt: Requirements Status
+
+
+What is this?
+=============
+
+This is a pytest plugin, that enables you to test your code that relies on a running MongoDB database.
+It allows you to specify fixtures for MongoDB process and client.
+
+How to use
+==========
+
+Plugin contains two fixtures
+
+* **mongodb** - it's a client fixture that has functional scope, and which cleans MongoDB at the end of each test.
+* **mongo_proc** - session scoped fixture, that starts MongoDB instance at the first use and stops at the end of the tests.
+
+Simply include one of these fixtures into your tests fixture list.
+
+You can also create additional MongoDB client and process fixtures if you'd need to:
+
+
+.. code-block:: python
+
+    from pytest_mongo import factories
+
+    mongo_my_proc = factories.mongo_proc(
+        port=None, logsdir='/tmp')
+    mongo_my = factories.mongodb('mongo_my_proc')
+
+.. note::
+
+    Each MongoDB process fixture can be configured in a different way than the others through the fixture factory arguments.
+
+Configuration
+=============
+
+You can define your settings in three ways, it's fixture factory argument, command line option and pytest.ini configuration option.
+You can pick which you prefer, but remember that these settings are handled in the following order:
+
+    * ``Fixture factory argument``
+    * ``Command line option``
+    * ``Configuration option in your pytest.ini file``
+
++-----------------------+--------------------------+---------------------+-------------------+-----------------+
+| What                  | Fixture factory argument | Command line option | pytest.ini option | Default         |
++=======================+==========================+=====================+===================+=================+
+| Path to mongodb exec  | executable               | --mongo-exec        | mongo_exec        | /usr/bin/mongod |
++-----------------------+--------------------------+---------------------+-------------------+-----------------+
+| MongoDB host          | host                     | --mongo-host        | mongo_host        | 127.0.0.1       |
++-----------------------+--------------------------+---------------------+-------------------+-----------------+
+| MongoDB port          | port                     | --mongo-port        | mongo_port        | random          |
++-----------------------+--------------------------+---------------------+-------------------+-----------------+
+| Path to store logs    | logsdir                  | --mongo-logsdir     | mongo_logsdir     | $TMPDIR         |
++-----------------------+--------------------------+---------------------+-------------------+-----------------+
+| Additional parameters | params                   | --mongo-params      | mongo_params      |                 |
++-----------------------+--------------------------+---------------------+-------------------+-----------------+
+
+Example usage:
+
+* pass it as an argument in your own fixture
+
+    .. code-block:: python
+
+        mongo_proc = factories.mongo_proc(port=8888)
+
+* use ``--mongo-port`` command line option when you run your tests
+
+    .. code-block::
+
+        py.test tests --mongo-port=8888
+
+
+* specify your directory as ``mongo_port`` in your ``pytest.ini`` file.
+
+    To do so, put a line like the following under the ``[pytest]`` section of your ``pytest.ini``:
+
+    .. code-block:: ini
+
+        [pytest]
+        mongo_port = 8888
+
+Package resources
+-----------------
+
+* Bug tracker: https://github.com/ClearcodeHQ/pytest-mongo/issues
+
+
+CHANGELOG
+=========
+
+- [enhancement] require at least pymongo 3.6
+
+1.2.0
+-------
+-------
+
+- [enhancement] removed path.py depdendency
+
+1.1.1
+-------
+
+- [enhancements] set executor timeout to 60. By default mirakuru waits indefinitely, which might cause test hangs
+
+1.1.0
+-------
+
+- [feature] - migrate usage of getfuncargvalue to getfixturevalue. require at least pytest 3.0.0
+
+1.0.0
+-------
+
+- [feature] defaults logs dir to $TMPDIR by default
+- [feature] run on random port by default (easier xdist integration)
+- [feature] add command line and ini option for: executable, host, port, params and logsdir
+
+
