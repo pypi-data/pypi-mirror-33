@@ -1,0 +1,119 @@
+Impetuous
+=========
+
+.. image:: https://img.shields.io/badge/TODOs-420-729fcf.svg
+.. image:: https://img.shields.io/badge/downloads-743M%2Fday-brightgreen.svg
+.. image:: https://img.shields.io/badge/coverage-no-lightgrey.svg
+.. image:: https://img.shields.io/badge/build-disappointed-blue.svg
+.. image:: https://img.shields.io/badge/node.js-webscale-orange.svg
+.. image:: https://img.shields.io/badge/available%20on-itunes-9377db.svg
+.. image:: https://img.shields.io/badge/uptime-since%20lunch-78bdf2.svg
+.. image:: https://img.shields.io/badge/kony-2012-ff69b4.svg
+
+This is some time/task tracking software. It can talk (barely) to/at JIRA and Freshdesk. 🐑
+
+Requirements
+------------
+
+python 3.6
+
+Installation
+------------
+
+Install from pypi with pip. Like `sudo python3 -m pip install impetuous` or `python3 -m pip install --user impetuous` or something.
+
+Clone the source code and install with :code:`python3 -m pip install --user -e .[jira,freshdesk]`. If you want. :sup:`You don't have to.` :sub:`I'm not the police.`
+
+CLI Usage
+---------
+
+The data is stored in a sqlite3 database at :code:`~/.local/share/impetuous/data.sqlite`. This can be overridden by setting :code:`IM_DB`. I think you can even set that to :code:`:memory:` and it will work. It just probably won't save your data to disk ...
+
+To start doing something, run :code:`im doing something`. Once you're not doing anything anymore, run it again but doing tell it what you're doing; :code:`im doing`. If you start doing something and you're already doing a thing, it'll try to stop the thing you're doing before starting the new one. You can use :code:`-w` to specify the date and/or time you're starting the thing.
+
+:code:`im show` will list time entries. It uses :code:`--since` and :code:`--until` to filter on entries to show. By default, that range is today. Sometimes it's nice to look at yesterday, so you can pass :code:`-y` or :code:`--yesterday` for that. You can provide :code:`-y` multiple times to keep going back. These time range options should be given after :code:`im` and before the action (such as :code:`doing` or :code:`show`).
+
+:code:`--yesterday` works by moving back the dates given for :code:`--since` and :code:`--until`. It also affects the default date for :code:`im doing` if all you do is specfiy a time or something.
+
+Many actions can do dry runs with :code:`--dry-run`.
+
+When all else fails, use :code:`im edit` to open a YAML representation of your time entries in :code:`EDITOR`.
+
+:code:`im post` will post your time entries to an external service you have configured. The responses are saved in the database, so impetuous will remember the result and won't double-post if you run :code:`im post` again.
+
+Examples
+^^^^^^^^
+
+Here's a thing.
+
+.. image:: https://asciinema.org/a/rAmVRGoo0x4SdaRBZoXQf9kEx.png?theme=tango
+    :width: 640px
+    :alt: Usage Demo
+    :target: https://asciinema.org/a/rAmVRGoo0x4SdaRBZoXQf9kEx?theme=tango
+
+Configuration and JIRA and Freskdesk
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Edit the configuration by running :code:`im config-edit`, which just opens the configuration file in :code:`~/.config/impetuous/config.ini` in :code:`EDITOR`. This is an example :code:`config.ini`::
+
+    [jira]
+    api = jira
+    server = https://funkymonkey.atlassian.net
+    basic_auth = admin:hunter2
+    pattern = ((?:FOO-\d+)|(?:BAR-\d+))
+
+    [freshdesk]
+    api = freshdesk
+    server = https://funkymonkey.freshdesk.com
+    api_key = xxxxxxxxxxxxxxxxxxxx
+    pattern = freskdesk (\d+)
+    name = sheepdesk
+    abbr = 🐑
+
+.. note::
+
+    The section names are written into the database and used to track entry
+    postings. If you change the section names, it'll mess everything up. So
+    don't do it.
+
+Each section defines an external service for logging time against. The
+:code:`api` determines how we can talk to it. You can add multiple sections and
+call them whatever you want.
+
+By default, the name and abbreviated name are taken from the section name, but
+you can set them as shown in the "freshdesk" section above.
+
+Encoding
+''''''''
+
+You can use `im encode` to get impetuous to encode your passwords in the configuration file. Then it decodes them when it uses them. It supports a few different encodings. You can encode it multiple times. I don't know why you want to use this. But it's there now.
+
+
+Development
+-----------
+
+Versioning
+^^^^^^^^^^
+
+This project does not follow semantic versioning yet as it doesn't have anything considered to have a public API. The version numbers are entirely arbitrary and meaningless, just like everything else in life.
+
+Tests
+^^^^^
+
+Oh man, I don't know. Just run :code:`python3 -m pytest` and hope for the best I suppose.
+
+Internationalization / Localization
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Maybe?
+
+#. :code:`python3 setup.py extract_messages`
+#. :code:`python3 setup.py update_catalog -l fr`
+#. Modify the translation file ending in :code:`.po` ... if you want
+#. :code:`python3 setup.py compile_catalog`
+#. Run with :code:`LANGUAGE=fr`
+
+You actually only need to do step 4 and 5 to run the program with localization
+if you don't want to make modifications.
+
+
