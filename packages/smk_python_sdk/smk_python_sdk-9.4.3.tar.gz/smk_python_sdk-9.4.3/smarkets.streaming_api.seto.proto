@@ -1,0 +1,509 @@
+package smarkets.seto;
+
+import "smarkets.streaming_api.eto.proto";
+
+message Payload {
+    required PayloadType type = 1;
+    required .smarkets.eto.Payload eto_payload = 2;
+    optional Login login = 3;
+    optional OrderCreate order_create = 4;
+    optional OrderRejected order_rejected = 5;
+    optional OrderAccepted order_accepted = 6;
+    optional OrderExecuted order_executed = 7;
+    optional OrderCancel order_cancel = 8;
+    optional OrderCancelled order_cancelled = 9;
+    optional OrderInvalid order_invalid = 10;
+    optional MarketSubscribe market_subscribe = 11;
+    optional MarketUnsubscribe market_unsubscribe = 12;
+    optional MarketQuotes market_quotes = 13;
+    optional ContractQuotes contract_quotes = 14;
+    optional OrderCancelRejected order_cancel_rejected = 15;
+    optional OrderExecutedVoid order_execute_voided = 16;
+    optional MarketState market_state = 17;
+    optional EventSubscribe event_subscribe = 18;
+    optional EventUnsubscribe event_unsubscribe = 19;
+    optional RunningballNotification runningball_notification = 20;
+    optional MarketManagedState market_managed_state = 21;
+    optional PriceFeedSubscribe price_feed_subscribe = 25;
+    optional PriceFeedUnsubscribe price_feed_unsubscribe = 26;
+    optional OrderExecuteConfirmed order_execute_confirmed = 27;
+    optional MarketFeedSubscribe market_feed_subscribe = 28;
+    optional MarketFeedUnsubscribe market_feed_unsubscribe = 29;
+    optional OrderQuantityReduce order_quantity_reduce = 30;
+    optional OrderQuantityReduced order_quantity_reduced = 31;
+    optional OrderQuantityReduceRejected order_quantity_reduce_rejected = 32;
+    optional OrderReduced order_reduced = 33;
+    optional OrderCancelAll order_cancel_all = 34;
+    optional OrderCancelAllAccepted order_cancel_all_accepted = 35;
+    optional OrderCancelAllRejected order_cancel_all_rejected = 36;
+    optional ThrottleLimitsChanged throttle_limits_changed = 37;
+    optional Settings settings = 38;
+    optional SettingsAccepted settings_accepted = 39;
+    optional BalanceChanged balance_changed = 40;
+    optional OrderVoided order_voided = 41;
+}
+
+enum PayloadType {
+    PAYLOAD_ETO = 1;
+    PAYLOAD_LOGIN = 2;
+    PAYLOAD_ORDER_CREATE = 3;
+    PAYLOAD_ORDER_REJECTED = 4;
+    PAYLOAD_ORDER_ACCEPTED = 5;
+    PAYLOAD_ORDER_EXECUTED = 6;
+    PAYLOAD_ORDER_CANCEL = 7;
+    PAYLOAD_ORDER_CANCELLED = 8;
+    PAYLOAD_ORDER_INVALID = 9;
+    PAYLOAD_MARKET_SUBSCRIBE = 10;
+    PAYLOAD_MARKET_UNSUBSCRIBE = 11;
+    PAYLOAD_MARKET_QUOTES = 12;
+    PAYLOAD_CONTRACT_QUOTES = 13;
+    PAYLOAD_ORDER_CANCEL_REJECTED = 14;
+    PAYLOAD_ORDER_EXECUTE_VOIDED = 15;
+    PAYLOAD_MARKET_STATE = 16;
+    PAYLOAD_EVENT_SUBSCRIBE = 17;
+    PAYLOAD_EVENT_UNSUBSCRIBE = 18;
+    PAYLOAD_RUNNINGBALL_NOTIFICATION = 19;
+    PAYLOAD_MARKET_MANAGED_STATE = 20;
+    PAYLOAD_PRICE_FEED_SUBSCRIBE = 24;
+    PAYLOAD_PRICE_FEED_UNSUBSCRIBE = 25;
+    PAYLOAD_ORDER_EXECUTE_CONFIRMED = 26;
+    PAYLOAD_MARKET_FEED_SUBSCRIBE = 27;
+    PAYLOAD_MARKET_FEED_UNSUBSCRIBE = 28;
+    PAYLOAD_ORDER_QUANTITY_REDUCE = 29;
+    PAYLOAD_ORDER_QUANTITY_REDUCED = 30;
+    PAYLOAD_ORDER_QUANTITY_REDUCE_REJECTED = 31;
+    PAYLOAD_ORDER_REDUCED = 32;
+    PAYLOAD_ORDER_CANCEL_ALL = 33;
+    PAYLOAD_ORDER_CANCEL_ALL_ACCEPTED = 34;
+    PAYLOAD_ORDER_CANCEL_ALL_REJECTED = 35;
+    PAYLOAD_THROTTLE_LIMITS_CHANGED = 36;
+    PAYLOAD_SETTINGS = 37;
+    PAYLOAD_SETTINGS_ACCEPTED = 38;
+    PAYLOAD_BALANCE_CHANGED = 39;
+    PAYLOAD_ORDER_VOIDED = 40;
+}
+
+message Login {
+    optional string username = 1;
+    optional string password = 2;
+    optional bytes cookie = 3;
+    optional uint32 account_sequence = 4;
+    optional uint64 account_sequence_64 = 5;
+}
+
+message OrderCreate {
+    optional OrderCreateType type = 1 [default = ORDER_CREATE_LIMIT];
+    required Side side = 4;
+    optional QuantityType quantity_type = 5 [default = QUANTITY_PAYOFF_CURRENCY];
+    required uint64 quantity = 6;
+    optional PriceType price_type = 7 [default = PRICE_PERCENT_ODDS];
+    optional uint32 price = 8;
+    optional uint32 maq = 9;
+    optional TimeInForceType tif = 10 [default = GOOD_TIL_CANCELLED];
+    optional uint64 reference = 11;
+    required uint32 market_id = 12;
+    required uint32 contract_id = 13;
+    optional string label = 14;
+}
+
+enum OrderCreateType {
+    ORDER_CREATE_LIMIT = 1;
+}
+
+enum TimeInForceType {
+    GOOD_TIL_CANCELLED = 1;
+    IMMEDIATE_OR_CANCEL = 2;
+    KEEP_IN_PLAY = 3;
+    GOOD_TILL_HALTED = 4;
+}
+
+message OrderRejected {
+    optional uint64 seq = 1;
+    required OrderRejectedReason reason = 2;
+    optional uint32 account_sequence = 3;
+    optional uint64 reference = 4;
+    optional uint64 account_sequence_64 = 5;
+    optional string label = 6;
+}
+
+message OrderCancelRejected {
+    required OrderCancelRejectedReason reason = 2;
+    optional uint32 account_sequence = 3;
+    optional uint64 reference = 4;
+    required uint64 order_id = 5;
+    optional uint64 account_sequence_64 = 6;
+    optional string label = 7;
+}
+
+message OrderQuantityReduceRejected {
+    required uint64 order_id = 1;
+    required OrderQuantityReduceRejectedReason reason = 2;
+    optional uint64 reference = 3;
+    required uint64 new_quantity = 4;
+    optional uint32 account_sequence = 5;
+    optional uint64 account_sequence_64 = 6;
+    optional string label = 7;
+}
+
+enum OrderRejectedReason {
+    ORDER_REJECTED_INSUFFICIENT_FUNDS = 1;
+    ORDER_REJECTED_LIMIT_EXCEEDED = 2;
+    ORDER_REJECTED_MARKET_NOT_OPEN = 3;
+    ORDER_REJECTED_MARKET_SETTLED = 4;
+    ORDER_REJECTED_MARKET_HALTED = 5;
+    ORDER_REJECTED_CROSSED_SELF = 6;
+    ORDER_REJECTED_MARKET_NOT_FOUND = 7;
+    ORDER_REJECTED_SERVICE_TEMPORARILY_UNAVAILABLE = 8;
+    ORDER_REJECTED_CONTRACT_NOT_FOUND = 9;
+    ORDER_REJECTED_ACCOUNT_SUSPENDED = 10;
+    ORDER_REJECTED_CAPACITY_REACHED = 11;
+    ORDER_REJECTED_CONTRACT_SETTLED = 12;
+    ORDER_REJECTED_THROTTLE_EXCEEDED = 13;
+    ORDER_REJECTED_TRADING_SUSPENDED = 14;
+}
+
+enum OrderCancelRejectedReason {
+    ORDER_CANCEL_REJECTED_NOT_FOUND = 1;
+    ORDER_CANCEL_REJECTED_NOT_LIVE = 2;
+    ORDER_CANCEL_REJECTED_CAPACITY_REACHED = 3;
+    ORDER_CANCEL_REJECTED_THROTTLE_EXCEEDED = 4;
+    ORDER_CANCEL_REJECTED_SERVICE_TEMPORARILY_UNAVAILABLE = 5;
+}
+
+enum OrderQuantityReduceRejectedReason {
+    ORDER_QUANTITY_REDUCE_REJECTED_NOT_FOUND = 1;
+    ORDER_QUANTITY_REDUCE_REJECTED_NOT_LIVE = 2;
+    ORDER_QUANTITY_REDUCE_REJECTED_CAPACITY_REACHED = 3;
+    ORDER_QUANTITY_REDUCE_REJECTED_THROTTLE_EXCEEDED = 4;
+    ORDER_QUANTITY_REDUCE_REJECTED_INVALID_NEW_QUANTITY = 5;
+}
+
+message OrderAccepted {
+    required uint64 seq = 1;
+    optional uint32 account_sequence = 3;
+    optional uint64 reference = 4;
+    optional uint32 price = 5;
+    optional uint64 quantity = 6;
+    required uint64 order_id = 7;
+    optional uint64 account_sequence_64 = 8;
+    optional double available_balance = 9;
+    optional double exposure = 10;
+    optional uint32 contract_id = 11;
+    optional Side side = 12;
+    optional uint32 market_id = 13;
+    optional string label = 14;
+}
+
+message OrderExecuted {
+    required uint32 price = 2;
+    optional QuantityType quantity_type = 3 [default = QUANTITY_PAYOFF_CURRENCY];
+    required uint64 quantity = 4;
+    optional uint32 account_sequence = 5;
+    optional uint32 pending_timeout = 6 [default = 0];
+    required uint64 order_id = 7;
+    required Side side = 8;
+    required uint32 market_id = 9;
+    required uint32 contract_id = 10;
+    optional uint64 account_sequence_64 = 11;
+    optional uint64 total_executed_quantity = 12;
+    optional uint32 executed_avg_price = 13;
+    optional uint64 available_quantity = 14;
+    optional uint32 orig_price = 15;
+    optional double available_balance = 16;
+    optional double exposure = 17;
+    optional string label = 18;
+}
+
+message OrderCancel {
+    optional uint64 reference = 2;
+    required uint64 order_id = 3;
+}
+
+message OrderCancelled {
+    required OrderCancelledReason reason = 2;
+    optional uint32 account_sequence = 3;
+    optional uint64 reference = 4;
+    required uint64 order_id = 5;
+    optional uint64 executed_quantity = 6;
+    optional uint32 executed_avg_price = 7;
+    optional uint64 account_sequence_64 = 8;
+    optional uint32 market_id = 9;
+    optional uint32 contract_id = 10;
+    optional Side side = 11;
+    optional uint32 orig_price = 12;
+    optional double available_balance = 13;
+    optional double exposure = 14;
+    optional string label = 15;
+}
+
+enum OrderCancelledReason {
+    ORDER_CANCELLED_MEMBER_REQUESTED = 1;
+    ORDER_CANCELLED_MARKET_HALTED = 2;
+    ORDER_CANCELLED_INSUFFICIENT_LIQUIDITY = 3;
+    ORDER_CANCELLED_ADMIN_REQUESTED = 4;
+    ORDER_CANCELLED_TRADING_SUSPENDED = 5;
+}
+
+message OrderQuantityReduce {
+    required uint64 order_id = 1;
+    required uint64 new_quantity = 2;
+    optional uint64 reference = 3;
+}
+
+message OrderQuantityReduced {
+    required uint64 order_id = 1;
+    required OrderQuantityReducedReason reason = 2;
+    optional uint64 reference = 3;
+    required uint64 new_quantity = 4;
+    optional uint32 account_sequence = 5;
+    optional uint64 account_sequence_64 = 6;
+    optional uint32 market_id = 7;
+    optional uint32 contract_id = 8;
+    optional Side side = 9;
+    optional uint32 orig_price = 10;
+    optional uint64 executed_quantity = 11;
+    optional uint32 executed_avg_price = 12;
+    optional string label = 13;
+}
+
+enum OrderQuantityReducedReason {
+    ORDER_QUANTITY_REDUCED_MEMBER_REQUESTED = 1;
+}
+
+message OrderInvalid {
+    required uint64 seq = 1;
+    repeated OrderInvalidReason reasons = 2;
+    optional uint64 reference = 3;
+}
+
+enum OrderInvalidReason {
+    ORDER_INVALID_INVALID_PRICE = 1;
+    ORDER_INVALID_INVALID_QUANTITY = 2;
+}
+
+message MarketSubscribe {
+    required uint32 market_id = 2;
+}
+
+message MarketUnsubscribe {
+    required uint32 market_id = 2;
+}
+
+message MarketQuotes {
+    repeated ContractQuotes contract_quotes = 2;
+    optional PriceType price_type = 3 [default = PRICE_PERCENT_ODDS];
+    optional QuantityType quantity_type = 4 [default = QUANTITY_PAYOFF_CURRENCY];
+    optional uint64 executed_volume = 5;
+    required uint32 market_id = 6;
+}
+
+message ContractQuotes {
+    repeated Quote bids = 3;
+    repeated Quote offers = 4;
+    repeated Execution executions = 5;
+    optional Execution last_execution = 6;
+    optional uint32 high_price = 7;
+    optional uint32 low_price = 8;
+    required uint32 market_id = 9;
+    required uint32 contract_id = 10;
+}
+
+message Quote {
+    required uint32 price = 1;
+    required uint64 quantity = 2;
+}
+
+enum QuantityType {
+    QUANTITY_PAYOFF_CURRENCY = 1;
+}
+
+enum PriceType {
+    PRICE_PERCENT_ODDS = 1;
+}
+
+enum Side {
+    SIDE_BUY = 1;
+    SIDE_SELL = 2;
+}
+
+message Execution {
+    required uint32 price = 1;
+    required uint64 quantity = 2;
+    required Side liquidity = 3;
+    required uint64 microseconds = 4;
+}
+
+message OrderExecutedVoid {
+    required uint32 price = 2;
+    optional QuantityType quantity_type = 3 [default = QUANTITY_PAYOFF_CURRENCY];
+    required uint64 quantity = 4;
+    optional uint32 account_sequence = 5;
+    required uint64 order_id = 6;
+    optional uint64 account_sequence_64 = 7;
+    optional uint32 market_id = 8;
+    optional uint32 contract_id = 9;
+    optional Side side = 10;
+    optional uint32 orig_price = 11;
+    optional uint64 executed_quantity = 12;
+    optional uint32 executed_avg_price = 13;
+    optional uint64 available_quantity = 14;
+    optional double available_balance = 15;
+    optional double exposure = 16;
+    optional string label = 17;
+}
+
+enum MarketStateType {
+    MARKET_STATE_NEW = 1;
+    MARKET_STATE_OPEN = 2;
+    MARKET_STATE_LIVE = 3;
+    MARKET_STATE_HALTED = 4;
+    MARKET_STATE_SETTLED = 5;
+    MARKET_STATE_VOIDED = 6;
+}
+
+message MarketState {
+    required MarketStateType state = 2;
+    required uint32 market_id = 3;
+}
+
+enum RunningballState {
+    RUNNINGBALL_STATE_SAFE = 1;
+    RUNNINGBALL_STATE_DANGER = 2;
+    RUNNINGBALL_STATE_ALERT = 3;
+    RUNNINGBALL_STATE_FINISHED = 4;
+}
+
+enum RunningballPeriod {
+    RUNNINGBALL_PERIOD_FIRSTHALF = 1;
+    RUNNINGBALL_PERIOD_PAUSE = 2;
+    RUNNINGBALL_PERIOD_SECONDHALF = 3;
+    RUNNINGBALL_PERIOD_FINISHED = 4;
+}
+
+message EventSubscribe {
+    required uint32 event_id = 2;
+}
+
+message EventUnsubscribe {
+    required uint32 event_id = 2;
+}
+
+message RunningballNotification {
+    required RunningballState state = 2;
+    required string details = 3;
+    optional RunningballPeriod period = 4;
+    optional uint32 playtime = 5;
+    optional uint32 score_home = 6;
+    optional uint32 score_away = 7;
+    required uint32 event_id = 8;
+}
+
+enum MarketManagementType {
+    MARKET_UNMANAGED = 1;
+    MARKET_MANAGED = 2;
+}
+
+message MarketManagedState {
+    required MarketManagementType managed_state = 2;
+    required uint32 market_id = 3;
+}
+
+message PriceFeedSubscribe {
+    
+}
+
+message PriceFeedUnsubscribe {
+    
+}
+
+message OrderExecuteConfirmed {
+    required uint32 price = 2;
+    required uint64 quantity = 3;
+    optional uint32 account_sequence = 4;
+    required uint64 order_id = 5;
+    optional uint64 account_sequence_64 = 6;
+    optional string label = 7;
+}
+
+message OrderReduced {
+    required uint64 order_id = 1;
+    required uint32 price = 2;
+    required uint64 quantity = 3;
+    required uint64 source_quantity = 4;
+    optional uint32 account_sequence = 5;
+    optional uint64 account_sequence_64 = 6;
+    optional uint32 market_id = 7;
+    optional uint32 contract_id = 8;
+    optional Side side = 9;
+    optional uint32 orig_price = 10;
+    optional uint64 executed_quantity = 11;
+    optional uint32 executed_avg_price = 12;
+    optional uint64 available_quantity = 13;
+    optional string label = 14;
+}
+
+message OrderCancelAll {
+    optional uint64 reference = 1;
+    optional uint32 market_id = 2;
+}
+
+message OrderCancelAllAccepted {
+    optional uint32 account_sequence = 1;
+    optional uint64 reference = 2;
+    optional uint64 account_sequence_64 = 3;
+}
+
+message OrderCancelAllRejected {
+    required OrderCancelAllRejectedReason reason = 1;
+    optional uint32 account_sequence = 2;
+    optional uint64 reference = 3;
+    optional uint64 account_sequence_64 = 4;
+}
+
+enum OrderCancelAllRejectedReason {
+    ORDER_CANCEL_ALL_REJECTED_UNKNOWN_ERROR = 1;
+}
+
+message MarketFeedSubscribe {
+    
+}
+
+message MarketFeedUnsubscribe {
+    
+}
+
+message ThrottleLimitsChanged {
+    required uint32 average_rate_ps = 1;
+    required uint32 burst_size = 2;
+    required uint32 tick_ms = 3;
+}
+
+message Settings {
+    optional bool cancel_all_on_failure = 1;
+}
+
+message SettingsAccepted {
+    required bool cancel_all_on_failure = 1;
+}
+
+message BalanceChanged {
+    required string reason = 1;
+    required double available_balance = 2;
+    optional double exposure = 3;
+}
+
+message OrderVoided {
+    required uint64 order_id = 1;
+    required uint64 quantity = 2;
+    required uint64 source_quantity = 3;
+    optional uint32 account_sequence = 4;
+    optional uint64 account_sequence_64 = 5;
+    optional uint32 market_id = 6;
+    optional uint32 contract_id = 7;
+    optional Side side = 8;
+    optional uint32 orig_price = 9;
+    optional uint64 executed_quantity = 10;
+    optional uint32 executed_avg_price = 11;
+    optional string label = 12;
+}
+
