@@ -1,0 +1,51 @@
+#!/usr/bin/python3
+import sys, argparse
+
+from karamel.exception import KaramelException
+from karamel.command import *
+
+from kooki.version import __version__
+from kooki.exception import KookiException
+from kooki.config import get_kooki_jar_manager, get_kooki_dir_jars
+from kooki.cli import BakeCommand
+
+__program__ = 'kooki'
+__description__ = 'Generate any kind of documents.'
+
+
+class KookiCommand(Command):
+
+    def __init__(self):
+        super(KookiCommand, self).__init__(__program__, __description__)
+        self.add_argument('-v', '--version', help='Show program\'s version number and exit.', action='store_true')
+        self.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS, help='Show this help message and exit.')
+
+        self.add_command(BakeCommand())
+
+        package_manager_url = get_kooki_jar_manager()
+        package_install_dir = get_kooki_dir_jars()
+
+        self.add_command(SearchCommand(package_manager_url))
+        self.add_command(InstallCommand(package_manager_url, package_install_dir))
+        self.add_command(UninstallCommand(package_manager_url, package_install_dir))
+        self.add_command(UpdateCommand(package_manager_url, package_install_dir))
+        self.add_command(ListCommand(package_manager_url, package_install_dir))
+        # self.add_command(FreezeCommand(package_manager_url, package_install_dir))
+
+    def callback(self, args):
+        show_version(args)
+
+
+def show_version(args):
+    if args.version:
+        print('{0} {1}\nPython {2}'.format(__program__, __version__, sys.version))
+        raise SystemExit(0)
+
+
+if __name__ == '__main__':
+    try:
+        command = KookiCommand()
+        command.run()
+
+    except (KeyboardInterrupt, SystemExit):
+        pass
