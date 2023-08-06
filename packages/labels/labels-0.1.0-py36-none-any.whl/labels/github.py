@@ -1,0 +1,163 @@
+import typing
+import logging
+
+import attr
+import requests
+
+from labels.exceptions import GitHubException
+
+
+def not_read_only(attr: attr.Attribute, value: typing.Any) -> bool:
+    """Filter for attr that checks for a leading underscore."""
+    return not attr.name.startswith("_")
+
+
+@attr.s(auto_attribs=True, frozen=True)
+class Label:
+    """Represents a GitHub issue label."""
+
+    color: str
+    description: str
+    name: str
+
+    # Read-only attributes
+    _default: bool = False
+    _id: int = 0
+    _node_id: str = ""
+    _url: str = ""
+
+    @property
+    def params_dict(self) -> typing.Dict[str, typing.Any]:
+        """Return label parameters as a dict."""
+        return attr.asdict(self, recurse=True, filter=not_read_only)
+
+    @property
+    def params_tuple(self) -> typing.Tuple[typing.Any, ...]:
+        """Return label parameters as a tuple."""
+        return attr.astuple(self, recurse=True, filter=not_read_only)
+
+
+class Client:
+    base_url: str
+    session: requests.Session
+
+    def __init__(
+        self, auth: requests.auth.AuthBase, base_url: str = "https://api.github.com"
+    ) -> None:
+        self.base_url = base_url
+        self.session = requests.Session()
+        self.session.auth = auth
+
+    def list_labels(self, owner: str, repo: str) -> typing.List[Label]:
+        """Return the list of Labels from the repository.
+
+        GitHub API docs:
+        https://developer.github.com/v3/issues/labels/#list-all-labels-for-this-repository
+        """
+        logger = logging.getLogger("labels")
+        logger.debug(f"Requesting labels for {owner}/{repo}")
+
+        response = self.session.get(
+            f"{self.base_url}/repos/{owner}/{repo}/labels",
+            headers={"Accept": "application/vnd.github.symmetra-preview+json"},
+        )
+
+        if response.status_code != 200:
+            raise GitHubException(
+                f"Error retrieving labels: "
+                f"{response.status_code} - "
+                f"{response.reason}"
+            )
+
+        return [Label(**data) for data in response.json()]
+
+    def get_label(self, owner: str, repo: str, *, name: str) -> Label:
+        """Return a single Label from the repository.
+
+        GitHub API docs:
+        https://developer.github.com/v3/issues/labels/#get-a-single-label
+        """
+        logger = logging.getLogger("labels")
+        logger.debug(f"Requesting label '{name}' for {owner}/{repo}")
+
+        response = self.session.get(
+            f"{self.base_url}/repos/{owner}/{repo}/labels/{name}",
+            headers={"Accept": "application/vnd.github.symmetra-preview+json"},
+        )
+
+        if response.status_code != 200:
+            raise GitHubException(
+                f"Error retrieving label {name}: "
+                f"{response.status_code} - "
+                f"{response.reason}"
+            )
+
+        return Label(**response.json())
+
+    def create_label(self, owner: str, repo: str, *, label: Label) -> Label:
+        """Create a new Label for the repository.
+
+        GitHub API docs:
+        https://developer.github.com/v3/issues/labels/#create-a-label
+        """
+        logger = logging.getLogger("labels")
+        logger.debug(f"Creating label '{label.name}' for {owner}/{repo}")
+
+        response = self.session.post(
+            f"{self.base_url}/repos/{owner}/{repo}/labels",
+            headers={"Accept": "application/vnd.github.symmetra-preview+json"},
+            json=label.params_dict,
+        )
+
+        if response.status_code != 201:
+            raise GitHubException(
+                f"Error creating label {label.name}: "
+                f"{response.status_code} - "
+                f"{response.reason}"
+            )
+
+        return Label(**response.json())
+
+    def edit_label(self, owner: str, repo: str, *, name: str, label: Label) -> Label:
+        """Update a GitHub issue label.
+
+        GitHub API docs:
+        https://developer.github.com/v3/issues/labels/#update-a-label
+        """
+        logger = logging.getLogger("labels")
+        logger.debug(f"Editing label '{name}' for {owner}/{repo}")
+
+        response = self.session.patch(
+            f"{self.base_url}/repos/{owner}/{repo}/labels/{name}",
+            headers={"Accept": "application/vnd.github.symmetra-preview+json"},
+            json=label.params_dict,
+        )
+
+        if response.status_code != 200:
+            raise GitHubException(
+                f"Error editing label {name}: "
+                f"{response.status_code} - "
+                f"{response.reason}"
+            )
+
+        return Label(**response.json())
+
+    def delete_label(self, owner: str, repo: str, *, name: str) -> None:
+        """Delete a GitHub issue label.
+
+        GitHub API docs:
+        https://developer.github.com/v3/issues/labels/#delete-a-label
+        """
+        logger = logging.getLogger("labels")
+        logger.debug(f"Deleting label '{name}' for {owner}/{repo}")
+
+        response = self.session.delete(
+            f"{self.base_url}/repos/{owner}/{repo}/labels/{name}"
+        )
+
+        if response.status_code != 204:
+            raise GitHubException(
+                f"Error deleting label {name}: "
+                f"{response.status_code} - "
+                f"{response.reason}"
+            )
