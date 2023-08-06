@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package is.common;
+
+option java_package = "com.is.common";
+option java_multiple_files = true;
+
+import "google/protobuf/wrappers.proto";
+
+message SamplingSettings {
+  // Sampling frequency in hertz
+  google.protobuf.FloatValue frequency = 1;
+  // Delay to be applied in the in the sampling proccess, normally used to synchronize different sources 
+  google.protobuf.FloatValue delay = 2;
+}
+
+message SyncRequest {
+  repeated string entities = 1;
+  SamplingSettings sampling = 2;  
+}
+
+// Used to select the desired fields of a message on a "Get" RPC
+message FieldSelector {
+  repeated uint32 fields = 1;
+}
+
+message Shape {
+  message Dimension {
+    int32 size = 1;
+    string name = 2;
+  }  
+  repeated Dimension dims = 1;
+}
+
+enum DataType {
+  UNKNOWN_TYPE = 0;
+  FLOAT_TYPE = 1;
+  DOUBLE_TYPE = 2;
+  INT32_TYPE = 3;
+  INT64_TYPE = 4;
+}
+
+message Tensor {
+  Shape shape = 1; 
+  DataType type = 2;
+
+  repeated float floats = 3 [packed=true];
+  repeated double doubles = 4 [packed=true];
+  repeated int32 ints32 = 5 [packed=true];
+  repeated int64 ints64 = 6 [packed=true];
+}
+
+message Position {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+message Orientation {
+  float yaw = 1;   // rotation around x
+  float pitch = 2; // rotation around y
+  float roll = 3;  // rotation around z
+}
+
+message Pose {
+  Position position = 1;
+  Orientation orientation = 2;
+}
+
+message Speed {
+  float linear = 1;
+  float angular = 2;
+}
+
+message ConsumerInfo {
+  repeated string consumers = 2;
+}
+
+message ConsumerList {
+  // Consumer Information for each topic
+  map<string, ConsumerInfo> info = 1;
+}
