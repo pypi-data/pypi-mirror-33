@@ -1,0 +1,70 @@
+sudo: false
+cache: pip
+
+services:
+  - mysql
+  - postgres
+  - sqlite
+
+language: python
+
+python:
+    - 3.6
+    - 2.7
+
+env:
+  - TOXENV=py DB=mysql
+    PYBEL_TEST_CONNECTOR=mysqlclient
+    PYBEL_TEST_CONNECTION=mysql+mysqldb://travis@localhost/test?charset=utf8
+
+  - TOXENV=py DB=postgres
+    PYBEL_TEST_CONNECTOR=psycopg2
+    PYBEL_TEST_CONNECTION=postgresql+psycopg2://travis@localhost/tests
+
+  - TOXENV=py DB=sqlite
+
+matrix:
+    include:
+        - env: TOXENV=docs
+        - env: TOXENV=manifest
+        - env: TOXENV=rst-lint
+
+before_script:
+  - sh -c "if [ '$DB' = 'postgres' ]; then psql -c 'DROP DATABASE IF EXISTS tests;' -U postgres; fi"
+  - sh -c "if [ '$DB' = 'postgres' ]; then psql -c 'DROP DATABASE IF EXISTS tests_tmp;' -U postgres; fi"
+  - sh -c "if [ '$DB' = 'postgres' ]; then psql -c 'CREATE DATABASE tests;' -U postgres; fi"
+  - sh -c "if [ '$DB' = 'postgres' ]; then psql -c 'CREATE DATABASE tests_tmp;' -U postgres; fi"
+  - sh -c "if [ '$DB' = 'mysql' ]; then mysql -e 'DROP DATABASE IF EXISTS test;'; fi"
+  - sh -c "if [ '$DB' = 'mysql' ]; then mysql -e 'CREATE DATABASE test CHARACTER SET utf8 COLLATE utf8_general_ci;'; fi"
+  - sh -c "if [ '$DB' = 'mysql' ]; then mysql -e \"GRANT ALL PRIVILEGES ON test.* to 'travis'@'%' WITH GRANT OPTION;\"; fi"
+
+before_install:
+    - pip install codecov
+
+install:
+    - pip install tox
+
+script:
+    - tox
+
+after_success:
+    - tox -e coverage-report
+    - codecov
+
+notifications:
+  slack: pybel:n2KbWKBum3musnBg3L76gGwq
+
+addons:
+    code_climate:
+        repo_token: e8d763f60ca5495b8bce79682b7c1e2e462a776f8de5c4540ceb01f52458f891
+
+deploy:
+    - provider: pypi
+      user: cthoyt
+      password:
+          secure: WK8SA0Vtdn9a4RMdpn8L0CFbHs/3a+mOJrwYLaL4kzzZNWjL3yt0ygnhY5138pQoy5ygQ/bLT/COJIE9cN0qP0uUyBMgerUPWozkXryoz79zsQxe2HXHkG/XMhxuNjvPwRKjw9+tmz/wWoCeMFQ0JczNvOg2DYFcT4ruqLY5muHBuMErVB5pwjGSpYmDAEpI30x6KEJTXz5VIDxRpLhI6uehpItBW195Yj5GRAWllnGTqn9zRTeZR7SME1/p2Af1RVOlam4Ur/3hSXYDMUqErNj/vrxvxgpO9lDakfpSUV0U7pETgwQ+g8mp0fgm8I643jfu4Zoj8lITf9ewl9CteiaC80gV4Nj9JA9mdGiiaZwmpkEPUiMq6YLaqef6QDJEL2kx1q40+cOOsnTWe3PjnmRx9oAovQR9koqz1kztr3F++D3H65s6Y+LF46mmAlQs5mQ2sjGGGzd8agBcmoBzAG/Y/oTpkLbZ1Xq1qMSTQML7b0AHgbkWsy0QYUm56pX35uMrcl+r5BezJ5dAG+p3FDfEurD9iR9I0pUoWcE3zZldA1EFNsX6tnrLUwXGrAX7YGT7ul9DgHnD/h8hsS2qcrktTgzWIBIEZSpXiWUoM7Wy0TMbBq+iU+83lhCfQqnOb8fiMaH09v2neMmmsaazIIdF9JIMS9Caq5x7Q/iujeI=
+      distributions: sdist
+      on:
+        tags: true
+        repo: pybel/pybel
+        branch: master
