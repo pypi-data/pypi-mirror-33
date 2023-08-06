@@ -1,0 +1,272 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>The Collins Economics Result Object (CERO) &#8212; ConCERO 0.1 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Converting TO the Collins Economics Result Object (CERO) format" href="to_cero.html" />
+    <link rel="prev" title="Running Tests" href="tests.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-cero">
+<span id="the-collins-economics-result-object-cero"></span><span id="cero"></span><h1>The Collins Economics Result Object (CERO)<a class="headerlink" href="#module-cero" title="Permalink to this headline">¶</a></h1>
+<p>A core concept in the operation of ConCERO is that of a ‘Collins Economic Results Object’ - a CERO - which serves as a standard format for data-interchange between economic modelling programs. Conceptually, the CERO is a set of instances of a ‘fundamental data type’, a discussion of which can be found in the <a class="reference internal" href="design_philosophy.html#design-philosophy"><span class="std std-ref">ConCERO’s Design Philosophy</span></a> documentation.</p>
+<p>Software-wise, the CERO is a <code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> with some additional constraints. Those constraints are:</p>
+<blockquote>
+<div><ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">cero.index</span></code> must be an instance of the <code class="docutils literal notranslate"><span class="pre">pandas.Index</span></code> class, and</li>
+<li><code class="docutils literal notranslate"><span class="pre">cero.columns</span></code> must be an instance of the <code class="docutils literal notranslate"><span class="pre">pandas.DatetimeIndex</span></code> class, and</li>
+<li>both <code class="docutils literal notranslate"><span class="pre">cero.index</span></code> and <code class="docutils literal notranslate"><span class="pre">cero.columns</span></code> values must be unique and</li>
+<li>all index values must be valid <em>identifiers</em> (see below) and</li>
+<li><code class="docutils literal notranslate"><span class="pre">cero</span></code> data/array values must all be of 32-bit floating-point type (specifically, be instances of a     subclass of the <code class="docutils literal notranslate"><span class="pre">numpy.float32</span></code> class),</li>
+</ul>
+</div></blockquote>
+<p>where <code class="docutils literal notranslate"><span class="pre">cero</span></code> is a CERO. The values of <code class="docutils literal notranslate"><span class="pre">cero.index</span></code> are referred as <em>identifiers</em>.</p>
+<div class="section" id="cero-identifiers">
+<span id="cero-ids"></span><h2>CERO Identifiers<a class="headerlink" href="#cero-identifiers" title="Permalink to this headline">¶</a></h2>
+<p>As mentioned previously, values of the index of a CERO are referred to as <em>identifiers</em>. Identifiers are subject to a couple of restrictions. They are:</p>
+<blockquote>
+<div><ul>
+<li><p class="first">The identifier must be unique - that is, no other value of <code class="docutils literal notranslate"><span class="pre">cero.index</span></code> can be exactly the same.</p>
+</li>
+<li><dl class="first docutils">
+<dt>The identifier must be either:</dt>
+<dd><ul class="first last simple">
+<li>a string (<code class="docutils literal notranslate"><span class="pre">str</span></code>) <em>with no commas</em>, or</li>
+<li>a tuple of strings, where each string does not have any commas.</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+<p>The comma constraint is a result of how ConCERO interprets commas when reading YAML files - ConCERO interprets commas as a string-splitting character. Thus, if a configuration file contains the string:</p>
+<blockquote>
+<div><code class="docutils literal notranslate"><span class="pre">&quot;hello,world&quot;</span></code></div></blockquote>
+<p>in the context of CERO <em>identifiers</em>, then this will be interpreted as the python tuple:</p>
+<blockquote>
+<div><code class="docutils literal notranslate"><span class="pre">('hello','world')</span></code></div></blockquote>
+<p>Note also that any white spaced is stripped when the string is split, so the string:</p>
+<blockquote>
+<div><code class="docutils literal notranslate"><span class="pre">&quot;hello,</span> <span class="pre">world&quot;</span></code></div></blockquote>
+<p>also becomes:</p>
+<blockquote>
+<div><code class="docutils literal notranslate"><span class="pre">('hello','world')</span></code></div></blockquote>
+<p>and this:</p>
+<blockquote>
+<div><code class="docutils literal notranslate"><span class="pre">&quot;</span> <span class="pre">L_OUTPUT,</span> <span class="pre">Electricity,</span> <span class="pre">AUS&quot;</span></code></div></blockquote>
+<p>becomes:</p>
+<blockquote>
+<div><code class="docutils literal notranslate"><span class="pre">(&quot;L_OUTPUT&quot;,&quot;Electricity&quot;,&quot;AUS&quot;)</span></code></div></blockquote>
+<p>The advantage of the tuple form of identifier is that it preserves ordered relationships, even though that ordered relationship has no meaning within the CERO itself. This is necessary to store data that is more than 2-dimensional in nature in 2-dimensions. It also allows for the implementation of <code class="docutils literal notranslate"><span class="pre">sets</span></code> (see <a class="reference internal" href="from_cero.html#sets"><span class="std std-ref">Sets</span></a>),which provide the user with significant flexibility and power with respect to selecting identifiers of interest. In summary, <code class="docutils literal notranslate"><span class="pre">sets</span></code> allow the user to select large amounts of identifiers by just listing sets, as opposed to all the identifiers.</p>
+</div>
+<div class="section" id="technical-reference">
+<h2>Technical Reference<a class="headerlink" href="#technical-reference" title="Permalink to this headline">¶</a></h2>
+<p>The functions listed below may be of interest if users wish to directly interact with a CERO (a <code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> with additional constraints).</p>
+<dl class="class">
+<dt id="cero.CERO">
+<em class="property">class </em><code class="descclassname">cero.</code><code class="descname">CERO</code><a class="reference internal" href="_modules/cero.html#CERO"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cero.CERO" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="exception">
+<dt id="cero.CERO.CEROIndexConflict">
+<em class="property">exception </em><code class="descname">CEROIndexConflict</code><a class="reference internal" href="_modules/cero.html#CERO.CEROIndexConflict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cero.CERO.CEROIndexConflict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="exception">
+<dt id="cero.CERO.EmptyCERO">
+<em class="property">exception </em><code class="descname">EmptyCERO</code><a class="reference internal" href="_modules/cero.html#CERO.EmptyCERO"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cero.CERO.EmptyCERO" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="exception">
+<dt id="cero.CERO.InvalidCERO">
+<em class="property">exception </em><code class="descname">InvalidCERO</code><a class="reference internal" href="_modules/cero.html#CERO.InvalidCERO"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cero.CERO.InvalidCERO" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="cero.CERO.combine_ceros">
+<em class="property">static </em><code class="descname">combine_ceros</code><span class="sig-paren">(</span><em>ceros: list</em>, <em>overwrite: bool = True</em>, <em>verify_cero: bool = True</em><span class="sig-paren">)</span> &#x2192; pandas.core.frame.DataFrame<a class="reference internal" href="_modules/cero.html#CERO.combine_ceros"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cero.CERO.combine_ceros" title="Permalink to this definition">¶</a></dt>
+<dd><p>Combine multiple CEROs (provided as a <code class="docutils literal notranslate"><span class="pre">list</span></code>) into a common CERO. If <code class="docutils literal notranslate"><span class="pre">overwrite</span></code> is True, a CERO         that is later in <code class="docutils literal notranslate"><span class="pre">ceros</span></code> (i.e. has a higher index) will overwrite the merger of all preceding CEROs. If         <code class="docutils literal notranslate"><span class="pre">overwrite</span></code> is False and duplicate indices are detected, an <code class="docutils literal notranslate"><span class="pre">CERO.CEROIndexConflict</span></code> exception         will be raised.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">verify_cero</span></code> is <code class="docutils literal notranslate"><span class="pre">True</span></code>, then a check is performed before and after combination to ensure that         only CEROs are combined with other CEROs, to form a CERO. By disabling this, <code class="docutils literal notranslate"><span class="pre">combine_ceros</span></code> can be         applied to <code class="docutils literal notranslate"><span class="pre">pandas.DataFrames</span></code> as well.</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="cero.CERO.create_cero_index">
+<em class="property">static </em><code class="descname">create_cero_index</code><span class="sig-paren">(</span><em>values: List[Union[str, tuple]]</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cero.html#CERO.create_cero_index"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cero.CERO.create_cero_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates pandas.Index object that adheres to CERO constraints.</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="cero.CERO.create_empty">
+<em class="property">static </em><code class="descname">create_empty</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/cero.html#CERO.create_empty"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cero.CERO.create_empty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns empty CERO.</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="cero.CERO.is_cero">
+<em class="property">static </em><code class="descname">is_cero</code><span class="sig-paren">(</span><em>obj</em>, <em>raise_exception=True</em>, <em>empty_ok=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cero.html#CERO.is_cero"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cero.CERO.is_cero" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tests <code class="docutils literal notranslate"><span class="pre">obj</span></code> to identify if it has all the properties of a CERO.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>obj</strong> – The object that may or may not be a CERO.</li>
+<li><strong>raise_exception</strong> – If <cite>True</cite> will raise an exception on the event that obj is not a CERO (the default behaviour). Otherwise, <cite>False</cite> is returned in the event <code class="docutils literal notranslate"><span class="pre">obj</span></code> is not a CERO.</li>
+<li><strong>empty_ok</strong> – If <cite>False</cite>, <code class="docutils literal notranslate"><span class="pre">obj</span></code> must have at least one value that is not an NaN to qualify as a CERO. <cite>True</cite> by default.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="cero.CERO.read_csv">
+<em class="property">static </em><code class="descname">read_csv</code><span class="sig-paren">(</span><em>csv_file</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cero.html#CERO.read_csv"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cero.CERO.read_csv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads CEROs that have been exported to csv file. It is assumed that ‘;’ are used to seperate the fields (if more than one) of the identifier.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>csv_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – Path to the file containing the CERO.</td>
+</tr>
+<tr class="field-even field"><th class="field-name" colspan="2">Return pandas.DataFrame:</th></tr>
+<tr class="field-even field"><td>&#160;</td><td class="field-body">The imported CERO.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="cero.CERO.read_xlsx">
+<em class="property">static </em><code class="descname">read_xlsx</code><span class="sig-paren">(</span><em>xlsx_file</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cero.html#CERO.read_xlsx"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cero.CERO.read_xlsx" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads CEROs that have been exported to xlsx files.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>file</strong> (<em>(</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a><em>)</em>) – Name of xlsx file that CERO resides in.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="cero.CERO.rename_index_values">
+<em class="property">static </em><code class="descname">rename_index_values</code><span class="sig-paren">(</span><em>cero: pandas.core.frame.DataFrame</em>, <em>map_dict: dict</em>, <em>inplace: bool = True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cero.html#CERO.rename_index_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cero.CERO.rename_index_values" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>cero</strong> – The CERO object to rename the index values of. The order of the CERO.index imposes order on the mapping operation - that is, the CERO retains its original order.</li>
+<li><strong>map_dict</strong> – A <cite>dict</cite> of (old name, new name) are (key, value) pairs.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<p>Created on Wed Dec 20 10:20:32 2017</p>
+<p>&#64;author: Lyle Collins
+&#64;email: <a class="reference external" href="mailto:Lyle&#46;Collins&#37;&#52;&#48;csiro&#46;au">Lyle<span>&#46;</span>Collins<span>&#64;</span>csiro<span>&#46;</span>au</a></p>
+</div>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">The Collins Economics Result Object (CERO)</a><ul>
+<li><a class="reference internal" href="#cero-identifiers">CERO Identifiers</a></li>
+<li><a class="reference internal" href="#technical-reference">Technical Reference</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="tests.html" title="previous chapter">Running Tests</a></li>
+      <li>Next: <a href="to_cero.html" title="next chapter">Converting TO the Collins Economics Result Object (CERO) format</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/cero.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, CSIRO.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+      |
+      <a href="_sources/cero.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
