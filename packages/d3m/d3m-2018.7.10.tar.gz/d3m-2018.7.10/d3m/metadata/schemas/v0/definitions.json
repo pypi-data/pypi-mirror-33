@@ -1,0 +1,3005 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "id": "https://metadata.datadrivendiscovery.org/schemas/v0/definitions.json",
+  "definitions": {
+    "id": {
+      "type": "string",
+      "description": "A static id. It should never change for a given value, even if the value itself is changing. For example, all versions of the same primitive should have the same id. If possible, it should be a UUID generated in any way, but if there is an existing id available, it can be reused."
+    },
+    "version": {
+      "type": "string",
+      "description": "A string representing a version. Versions can be PEP 440 version strings or a SHA256 hexadecimal digest of value's content. In the former case they are compared according to PEP 440 rules."
+    },
+    "digest": {
+      "type": "string",
+      "description": "A SHA256 hexadecimal digest of value's content. For datasets is digest over all files, for primitives it is a digest of its \"installation\" metadata.",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "schema": {
+      "type": "string",
+      "description": "A URI representing a metadata.datadrivendiscovery.org schema and version to which metadata conforms.",
+      "format": "uri"
+    },
+    "description": {
+      "type": "string",
+      "description": "A natural language description in an unspecified language."
+    },
+    "name": {
+      "type": "string",
+      "description": "A human readable name in an unspecified language or format."
+    },
+    "other_names": {
+      "type": "array",
+      "description": "Any other names associated with the value.",
+      "items": {
+        "$ref": "#/definitions/name"
+      },
+      "minItems": 1
+    },
+    "python_path": {
+      "type": "string",
+      "description": "A fully-qualified Python path to primitive's class under the \"d3m.primitives\" namespace.",
+      "pattern": "^d3m\\.primitives\\."
+    },
+    "original_python_path": {
+      "type": "string",
+      "description": "A fully-qualified Python path to primitive's class inside installable package and not one under the \"d3m.primitives\" namespace."
+    },
+    "dimension": {
+      "type": "object",
+      "description": "Metadata for the dimension (e.g., rows and columns).",
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/name"
+        },
+        "description": {
+          "$ref": "#/definitions/description"
+        },
+        "semantic_types": {
+          "$ref": "#/definitions/semantic_types"
+        },
+        "length": {
+          "type": "integer",
+          "description": "Number of elements in a given dimension (number of samples, number of columns, etc.)."
+        }
+      },
+      "required": [
+        "length"
+      ],
+      "additionalProperties": true
+    },
+    "data_metafeatures": {
+      "type": "object",
+      "description": "Some data metafeatures can apply both at the container (dataset) or internal data levels (resource, table, column). In any case they apply and hold for the whole underlying structure. For example, if \"number_of_classes\" is set at a dataset level, it means that all target columns in the dataset have this number of classes. If it is set only for a column, then only that column has this number of classes.",
+      "properties": {
+        "number_of_attributes": {
+          "type": "integer",
+          "description": "The number of attributes in the data."
+        },
+        "number_of_instances": {
+          "type": "integer",
+          "description": "The number of instances in the data."
+        },
+        "number_of_classes": {
+          "type": "integer",
+          "description": "The number of unique classes."
+        },
+        "class_entropy": {
+          "type": "number",
+          "description": "Entropy of the target values."
+        },
+        "majority_class_ratio": {
+          "type": "number",
+          "description": "Ratio of number of instances belonging to the most frequent class to number of all instances."
+        },
+        "minority_class_ratio": {
+          "type": "number",
+          "description": "Ratio of number of instances belonging to the least frequent class to number of all instances."
+        },
+        "majority_class_size": {
+          "type": "integer",
+          "description": "Number of instances belonging to the most frequent class."
+        },
+        "minority_class_size": {
+          "type": "integer",
+          "description": "Number of instances belonging to the least frequent class."
+        },
+        "class_probabilities": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the individual probabilities of each target class.  One target class's probability is defined as \"number of instaces belonging to that class\" / \"total numer of instances\"."
+        },
+        "dimensionality": {
+          "type": "number",
+          "description": "Number of attributes divided by the number of instances."
+        },
+        "number_of_numeric_attributes": {
+          "type": "integer",
+          "description": "Number of numeric attributes."
+        },
+        "ratio_of_numeric_attributes": {
+          "type": "number",
+          "description": "Ratio of number of numeric attributes to total number of attributes."
+        },
+        "number_of_categorical_attributes": {
+          "type": "integer",
+          "description": "Number of categorical attributes."
+        },
+        "ratio_of_categorical_attributes": {
+          "type": "number",
+          "description": "Ratio of number of categorical attributes to total number of attributes."
+        },
+        "number_of_discrete_attributes": {
+          "type": "integer",
+          "description": "Number of discrete attributes."
+        },
+        "ratio_of_discrete_attributes": {
+          "type": "number",
+          "description": "Ratio of number of discrete attributes to total number of attributes."
+        },
+        "number_of_binary_attributes": {
+          "type": "integer",
+          "description": "Number of binary attributes."
+        },
+        "ratio_of_binary_attributes": {
+          "type": "number",
+          "description": "Ratio of number of binary attributes to total number of attributes."
+        },
+        "equivalent_number_of_categorical_attributes": {
+          "type": "number",
+          "description": "Number of categorical attributes needed to optimally describe the class (under the assumption of independence among attributes). Equals \"class_entropy\" divided by \"mutual_information_of_categorical_attributes.mean\"."
+        },
+        "equivalent_number_of_numeric_attributes": {
+          "type": "number",
+          "description": "Number of numeric attributes needed to optimally describe the class (under the assumption of independence among attributes). Equals \"class_entropy\" divided by \"mutual_information_of_numeric_attributes.mean\"."
+        },
+        "equivalent_number_of_attributes": {
+          "type": "number",
+          "description": "Number of attributes needed to optimally describe the class (under the assumption of independence among attributes). Equals \"class_entropy\" divided by \"mutual_information_of_attributes.mean\"."
+        },
+        "categorical_noise_to_signal_ratio": {
+          "type": "number",
+          "description": "An estimate of the amount of irrelevant information in the categorical attributes regarding the class. Equals (\"entropy_of_categorical_attributes.mean\" - \"mutual_information_of_categorical_attributes.mean\") divided by \"mutual_information_of_categorical_attributes.mean\"."
+        },
+        "numeric_noise_to_signal_ratio": {
+          "type": "number",
+          "description": "An estimate of the amount of irrelevant information in the numeric attributes regarding the class. Equals (\"entropy_of_numeric_attributes.mean\" - \"mutual_information_of_numeric_attributes.mean\") divided by \"mutual_information_of_numeric_attributes.mean\"."
+        },
+        "noise_to_signal_ratio": {
+          "type": "number",
+          "description": "An estimate of the amount of irrelevant information in all attributes regarding the class. Equals (\"entropy_of_attributes.mean\" - \"mutual_information_of_attributes.mean\") divided by \"mutual_information_of_attributes.mean\"."
+        },
+        "target_values": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics of target values."
+        },
+        "means_of_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the means of numeric attributes."
+        },
+        "standard_deviations_of_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the standard deviations of numeric attributes."
+        },
+        "kurtosis_of_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the kurtosis of numeric attributes."
+        },
+        "skew_of_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the skew of numeric attributes."
+        },
+        "entropy_of_categorical_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the entropy of categorical attributes."
+        },
+        "entropy_of_numeric_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the entropy of numeric attributes."
+        },
+        "entropy_of_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the entropy of all attributes."
+        },
+        "categorical_joint_entropy": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "The joint entropy of the categorical attributes."
+        },
+        "numeric_joint_entropy": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "The joint entropy of the numeric attributes."
+        },
+        "mutual_information_of_categorical_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the mutual information of categorical attributes."
+        },
+        "mutual_information_of_numeric_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the mutual information of numeric attributes."
+        },
+        "mutual_information_of_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the mutual information of all attributes."
+        },
+        "pearson_correlation_of_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the pearson correlation of numeric attributes."
+        },
+        "spearman_correlation_of_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the spearman correlation of numeric attributes."
+        },
+        "canonical_correlation": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the canonical correlation of the data."
+        },
+        "number_distinct_values_of_categorical_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the number of distinct values in each categorical attributes."
+        },
+        "number_distinct_values_of_numeric_attributes": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the number of distinct values in each numeric attributes."
+        },
+        "natural_language_of_attribute": {
+          "type": "array",
+          "description": "Natural language detection that contains pairs of language code and count.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "ISO 639-1 language code, e.g., \"en\", \"es\", \"zh\"."
+              },
+              "count": {
+                "type": "integer",
+                "description": "Number of values in a attribute with the given language code."
+              }
+            },
+            "required": [
+              "code",
+              "count"
+            ],
+            "additionalProperties": true
+          },
+          "minItems": 1
+        },
+        "number_of_instances_with_missing_values": {
+          "type": "integer",
+          "description": "Number of instances with missing values in one or more attributes."
+        },
+        "ratio_of_instances_with_missing_values": {
+          "type": "number",
+          "description": "Ratio of number of instances with missing values in one or more attributes to number of all instances."
+        },
+        "number_of_instances_with_present_values": {
+          "type": "integer",
+          "description": "Number of instances with present values in one or more attributes."
+        },
+        "ratio_of_instances_with_present_values": {
+          "type": "number",
+          "description": "Ratio of number of instances with present values in one or more attributes to number of all instances."
+        },
+        "number_of_missing_values": {
+          "type": "integer",
+          "description": "Number of missing values."
+        },
+        "ratio_of_missing_values": {
+          "type": "number",
+          "description": "Ratio of number of missing values to number of all values."
+        },
+        "number_of_present_values": {
+          "type": "integer",
+          "description": "Number of present values."
+        },
+        "ratio_of_present_values": {
+          "type": "number",
+          "description": "Ratio of number of present values to number of all values."
+        },
+        "number_of_numeric_values": {
+          "type": "integer",
+          "description": "Number of values that are strictly integers or floats. The value NaN is not counted."
+        },
+        "ratio_of_numeric_values": {
+          "type": "number",
+          "description": "Ratio of number of values that are strictly integers or floats to number of all values. The value NaN is not counted."
+        },
+        "number_of_positive_numeric_values": {
+          "type": "integer",
+          "description": "Number of positive values."
+        },
+        "ratio_of_positive_numeric_values": {
+          "type": "number",
+          "description": "Ratio of number of positive values to number of all values."
+        },
+        "number_of_negative_numeric_values": {
+          "type": "integer",
+          "description": "Number of negative values."
+        },
+        "ratio_of_negative_numeric_values": {
+          "type": "number",
+          "description": "Ratio of number of negative values to number of all values."
+        },
+        "number_of_outlier_numeric_values": {
+          "allOf": [{"$ref": "#/definitions/outliers"}],
+          "description": "Outliers of numeric values."
+        },
+        "number_of_numeric_values_equal_0": {
+          "type": "integer",
+          "description": "Number of 0 or 0.0 values."
+        },
+        "ratio_of_numeric_values_equal_0": {
+          "type": "number",
+          "description": "Ratio of number of 0 or 0.0 values to number of all values."
+        },
+        "number_of_numeric_values_equal_1": {
+          "type": "integer",
+          "description": "Number of 1 or 1.0 values."
+        },
+        "ratio_of_numeric_values_equal_1": {
+          "type": "number",
+          "description": "Ratio of number of 1 or 1.0 values to number of all values."
+        },
+        "number_of_numeric_values_equal_-1": {
+          "type": "integer",
+          "description": "Number of -1 and -1.0."
+        },
+        "ratio_of_numeric_values_equal_-1": {
+          "type": "number",
+          "description": "Ratio of number of -1 and -1.0 to number of all values."
+        },
+        "length_of_string_values": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the length of string values."
+        },
+        "token_count_in_string_values": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about the number of tokens per string value. Tokens are split by the space character."
+        },
+        "numeric_char_density": {
+          "allOf": [{"$ref": "#/definitions/aggregate"}],
+          "description": "Aggregate statistics about numeric character density of string values. Density is defined to be the number of character that satisfies \"isdigit\" divided by the number characters in the string."
+        },
+        "number_of_values_containing_numeric_char": {
+          "type": "integer",
+          "description": "Number of string values that contain at least one numeric character."
+        },
+        "ratio_of_values_containing_numeric_char": {
+          "type": "number",
+          "description": "Ratio of number of string values that contain at least one numeric character to number of all string values."
+        },
+        "number_of_tokens": {
+          "type": "integer",
+          "description": "Number of tokens in all string values. Tokens are split by the space character."
+        },
+        "number_of_tokens_containing_numeric_char": {
+          "type": "integer",
+          "description": "Number of tokens in all string values that contain at least one numeric character."
+        },
+        "ratio_of_tokens_containing_numeric_char": {
+          "type": "number",
+          "description": "Ratio of number of tokens in all string values that contain at least one numeric character to number of tokens in all string values."
+        },
+        "number_of_tokens_split_by_punctuation": {
+          "type": "integer",
+          "description": "Number of tokens in all string values. Tokens are split by \"string.punctions\"."
+        },
+        "number_of_tokens_split_by_punctuation_containing_numeric_char": {
+          "type": "integer",
+          "description": "Number of tokens in all string values that contain at least one numeric character."
+        },
+        "ratio_of_tokens_split_by_punctuation_containing_numeric_char": {
+          "type": "number",
+          "description": "Ratio of number of tokens in all string values that contain at least one numeric character to number of tokens in all string values split by punctuation."
+        },
+        "number_of_values_with_leading_spaces": {
+          "type": "integer",
+          "description": "Number of string values with leading whitespaces."
+        },
+        "ratio_of_values_with_leading_spaces": {
+          "type": "number",
+          "description": "Ratio of number of string values with leading whitespaces to number of all string values."
+        },
+        "number_of_values_with_trailing_spaces": {
+          "type": "integer",
+          "description": "Number of string values with trailing whitespaces."
+        },
+        "ratio_of_values_with_trailing_spaces": {
+          "type": "number",
+          "description": "Ratio of number of string values with trailing whitespaces to number of all string values."
+        },
+        "number_of_distinct_values": {
+          "type": "integer",
+          "description": "Number of distinct values. Missing values are ignored."
+        },
+        "ratio_of_distinct_values": {
+          "type": "number",
+          "description": "Ratio of number of distinct values to number of all values. Missing values are ignored."
+        },
+        "number_of_distinct_tokens": {
+          "type": "integer",
+          "description": "Number of distinct tokens in all string values. Tokens are split by the space character. Missing values are ignored."
+        },
+        "ratio_of_distinct_tokens": {
+          "type": "number",
+          "description": "Ratio of number of distinct tokens in all string values to number of tokens in all string values. Tokens are split by the space character. Missing values are ignored."
+        },
+        "number_of_distinct_tokens_split_by_punctuation": {
+          "type": "integer",
+          "description": "Number of distinct tokens in all string values. Tokens are split by \"string.punctions\". Missing values are ignored."
+        },
+        "ratio_of_distinct_tokens_split_by_punctuation": {
+          "type": "number",
+          "description": "Ratio of number of distinct tokens in all string values to number of tokens in all string values. Tokens are split by \"string.punctions\". Missing values are ignored."
+        },
+        "most_common_tokens": {
+          "type": "array",
+          "description": "Most common tokens and their counts and ratio. Tokens are split by the space character.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "string",
+                "description": "Token string value."
+              },
+              "count": {
+                "type": "integer",
+                "description": "Number of occurrences of this token in all string values."
+              },
+              "ratio": {
+                "type": "number",
+                "description": "Ratio of number of occurrences of this token in all string values to number of tokens in all string tokens."
+              }
+            },
+            "required": [
+              "token",
+              "count"
+            ],
+            "additionalProperties": true
+          },
+          "minItems": 1
+        },
+        "most_common_alphanumeric_tokens": {
+          "type": "array",
+          "description": "Most common alphanumeric tokens and their counts and ratio. A token is alphanumeric if \"isalnum\" returns \"True\". Tokens are split by the space character.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "string",
+                "description": "Token string value."
+              },
+              "count": {
+                "type": "integer",
+                "description": "Number of occurrences of this token in all string values."
+              },
+              "ratio": {
+                "type": "number",
+                "description": "Ratio of number of occurrences of this token in all string values to number of tokens in all string tokens."
+              }
+            },
+            "required": [
+              "token",
+              "count"
+            ],
+            "additionalProperties": true
+          },
+          "minItems": 1
+        },
+        "most_common_numeric_tokens": {
+          "type": "array",
+          "description": "Most common numeric tokens and their counts and ratio. Tokens are split by the space character.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "string",
+                "description": "Token string value."
+              },
+              "count": {
+                "type": "integer",
+                "description": "Number of occurrences of this token in all string values."
+              },
+              "ratio": {
+                "type": "number",
+                "description": "Ratio of number of occurrences of this token in all string values to number of tokens in all string tokens."
+              }
+            },
+            "required": [
+              "token",
+              "count"
+            ],
+            "additionalProperties": true
+          },
+          "minItems": 1
+        },
+        "most_common_tokens_split_by_punctuation": {
+          "type": "array",
+          "description": "Most common tokens and their counts and ratio. Tokens are split by \"string.punctions\".",
+          "items": {
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "string",
+                "description": "Token string value."
+              },
+              "count": {
+                "type": "integer",
+                "description": "Number of occurrences of this token in all string values."
+              },
+              "ratio": {
+                "type": "number",
+                "description": "Ratio of number of occurrences of this token in all string values to number of tokens in all string tokens."
+              }
+            },
+            "required": [
+              "token",
+              "count"
+            ],
+            "additionalProperties": true
+          },
+          "minItems": 1
+        },
+        "most_common_punctuations": {
+          "type": "array",
+          "description": "The most common punctuations and their counts. Punctuations are defined by \"string.punctions\".",
+          "items": {
+            "type": "object",
+            "properties": {
+              "punctuation": {
+                "type": "string",
+                "description": "Punctuation string value."
+              },
+              "count": {
+                "type": "integer",
+                "description": "Number of occurrence of this punctuation in all string values."
+              },
+              "ratio": {
+                "type": "number",
+                "description": "Ratio of number of occurrences of this punctuation in all string values to number of characters in all string values."
+              },
+              "punctuation_density_aggregate": {
+                "allOf": [{"$ref": "#/definitions/aggregate"}],
+                "description": "Aggregate statistics about punctuation density of string values for this punctuation. Punctuation density is the ratio of number of occurrences of this punctuation in the value to the number of characters in the value."
+              },
+              "punctuation_density_outliers": {
+                "allOf": [{"$ref": "#/definitions/outliers"}],
+                "description": "Outliers of punctuation density of string values for this punctuation. Punctuation density is the ratio of number of occurrences of this punctuation in the value to the number of characters in the value."
+              }
+            },
+            "required": [
+              "punctuation",
+              "count"
+            ],
+            "additionalProperties": true
+          },
+          "minItems": 1
+        },
+        "most_common_raw_values": {
+          "type": "array",
+          "description": "Most common values and their counts and ratio.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string",
+                "description": "Value in its raw string format."
+              },
+              "count": {
+                "type": "integer",
+                "description": "Number of occurrences of this value in all values."
+              },
+              "ratio": {
+                "type": "number",
+                "description": "Ratio of number of occurrences of this value in all values to number of all values."
+              }
+            },
+            "required": [
+              "value",
+              "count"
+            ],
+            "additionalProperties": true
+          },
+          "minItems": 1
+        },
+        "pca": {
+          "type": "object",
+          "description": "The results of principal component analysis on the data using default hyper-parameters.",
+          "properties": {
+            "explained_variance_ratio_component_1": {
+              "type": "number",
+              "description": "The explained variance ratio of component 1."
+            },
+            "explained_variance_ratio_component_2": {
+              "type": "number",
+              "description": "The explained variance ratio of component 2."
+            },
+            "explained_variance_ratio_component_3": {
+              "type": "number",
+              "description": "The explained variance ratio of component 3."
+            },
+            "eigenvalue_component_1": {
+              "type": "number",
+              "description": "The eigenvalue for component 1."
+            },
+            "eigenvalue_component_2": {
+              "type": "number",
+              "description": "The eigenvalue for component 2."
+            },
+            "eigenvalue_component_3": {
+              "type": "number",
+              "description": "The eigenvalue for component 3."
+            },
+            "determinant_of_covariance": {
+              "type": "number",
+              "description": "The determinant of the covariance matrix."
+            },
+            "primitive": {
+              "allOf": [{"$ref": "#/definitions/primitive_reference"}],
+              "description": "A primitive used to compute these metafeatures."
+            },
+            "random_seed": {
+              "type": "integer",
+              "description": "Random seed used, if a primitive accepts a random seed."
+            }
+          },
+          "required": [
+            "primitive"
+          ],
+          "additionalProperties": true
+        },
+        "random_tree": {
+          "type": "object",
+          "description": "The results of training decision trees of various depths with random splits and other hyper-parameters set to defaults.",
+          "properties": {
+            "depth_1_error_rate": {
+              "type": "number",
+              "description": "The error rate resulting from training a depth 1 decision tree with a random split."
+            },
+            "depth_1_kappa": {
+              "type": "number",
+              "description": "The kappa resulting from training a depth 1 decision tree with a random split."
+            },
+            "depth_1_auc": {
+              "type": "number",
+              "description": "The auc resulting from training a depth 1 decision tree with a random split."
+            },
+            "depth_2_error_rate": {
+              "type": "number",
+              "description": "The error rate resulting from training a depth 2 decision tree with a random split."
+            },
+            "depth_2_kappa": {
+              "type": "number",
+              "description": "The kappa resulting from training a depth 2 decision tree with a random split."
+            },
+            "depth_2_auc": {
+              "type": "number",
+              "description": "The auc resulting from training a depth 1 decision tree with a random split."
+            },
+            "depth_3_error_rate": {
+              "type": "number",
+              "description": "The error rate resulting from training a depth 3 decision tree with a random split."
+            },
+            "depth_3_kappa": {
+              "type": "number",
+              "description": "The kappa resulting from training a depth 3 decision tree with a random split."
+            },
+            "depth_3_auc": {
+              "type": "number",
+              "description": "The auc resulting from training a depth 1 decision tree with a random split."
+            },
+            "primitive": {
+              "allOf": [{"$ref": "#/definitions/primitive_reference"}],
+              "description": "A primitive used to compute these metafeatures."
+            },
+            "random_seed": {
+              "type": "integer",
+              "description": "Random seed used, if a primitive accepts a random seed."
+            }
+          },
+          "required": [
+            "primitive"
+          ],
+          "additionalProperties": true
+        },
+        "decision_stump": {
+          "type": "object",
+          "description": "The results of training a depth 1 decision tree on the data with the best split based on entropy and other hyper-parameters set to defaults.",
+          "properties": {
+            "error_rate": {
+              "type": "number",
+              "description": "The error rate resulting from training a depth 1 decision tree with the best split based on entropy."
+            },
+            "kappa": {
+              "type": "number",
+              "description": "The kappa resulting from training a depth 1 decision tree with the best split based on entropy."
+            },
+            "auc": {
+              "type": "number",
+              "description": "The auc resulting from training a depth 1 decision tree with the best split based on entropy."
+            },
+            "primitive": {
+              "allOf": [{"$ref": "#/definitions/primitive_reference"}],
+              "description": "A primitive used to compute these metafeatures."
+            },
+            "random_seed": {
+              "type": "integer",
+              "description": "Random seed used, if a primitive accepts a random seed."
+            }
+          },
+          "required": [
+            "primitive"
+          ],
+          "additionalProperties": true
+        },
+        "naive_bayes": {
+          "type": "object",
+          "description": "The results of training a naive bayes classifier on the data using default hyper-parameters.",
+          "properties": {
+            "error_rate": {
+              "type": "number",
+              "description": "The error rate resulting from training a naive bayes classifier on the data."
+            },
+            "kappa": {
+              "type": "number",
+              "description": "The kappa resulting from training a naive bayes classifier on the data."
+            },
+            "auc": {
+              "type": "number",
+              "description": "The auc resulting from training a naive bayes classifier on the data."
+            },
+            "primitive": {
+              "allOf": [{"$ref": "#/definitions/primitive_reference"}],
+              "description": "A primitive used to compute these metafeatures."
+            },
+            "random_seed": {
+              "type": "integer",
+              "description": "Random seed used, if a primitive accepts a random seed."
+            }
+          },
+          "required": [
+            "primitive"
+          ],
+          "additionalProperties": true
+        },
+        "linear_discriminant_analysis": {
+          "type": "object",
+          "description": "The results of doing linear discriminant analysis classification on the data using default hyper-parameters.",
+          "properties": {
+            "error_rate": {
+              "type": "number",
+              "description": "The error rate resulting from doing linear discriminant analysis classification on the data."
+            },
+            "kappa": {
+              "type": "number",
+              "description": "The kappa resulting from doing linear discriminant analysis classification on the data."
+            },
+            "auc": {
+              "type": "number",
+              "description": "The auc resulting from doing linear discriminant analysis classification on the data."
+            },
+            "primitive": {
+              "allOf": [{"$ref": "#/definitions/primitive_reference"}],
+              "description": "A primitive used to compute these metafeatures."
+            },
+            "random_seed": {
+              "type": "integer",
+              "description": "Random seed used, if a primitive accepts a random seed."
+            }
+          },
+          "required": [
+            "primitive"
+          ],
+          "additionalProperties": true
+        },
+        "knn_1_neighbor": {
+          "type": "object",
+          "description": "The results of training a knn classifier on the data with k=1 and other hyper-parameters set to defaults.",
+          "properties": {
+            "error_rate": {
+              "type": "number",
+              "description": "The error rate resulting from training a knn classifier on the data with k=1."
+            },
+            "kappa": {
+              "type": "number",
+              "description": "The kappa resulting from training a knn classifier on the data with k=1."
+            },
+            "auc": {
+              "type": "number",
+              "description": "The auc resulting from training a knn classifier on the data with k=1."
+            },
+            "primitive": {
+              "allOf": [{"$ref": "#/definitions/primitive_reference"}],
+              "description": "A primitive used to compute these metafeatures."
+            },
+            "random_seed": {
+              "type": "integer",
+              "description": "Random seed used, if a primitive accepts a random seed."
+            }
+          },
+          "required": [
+            "primitive"
+          ],
+          "additionalProperties": true
+        },
+        "c45_decision_tree": {
+          "type": "object",
+          "description": "The results of training a C4.5 decision tree (or equivalent implementation) on the data using default hyper-parameters.",
+          "properties": {
+            "error_rate": {
+              "type": "number",
+              "description": "The error rate resulting from training a C4.5 decision tree on the data."
+            },
+            "kappa": {
+              "type": "number",
+              "description": "The kappa resulting from training a C4.5 decision tree on the data."
+            },
+            "auc": {
+              "type": "number",
+              "description": "The auc resulting from training a C4.5 decision tree on the data."
+            },
+            "primitive": {
+              "allOf": [{"$ref": "#/definitions/primitive_reference"}],
+              "description": "A primitive used to compute these metafeatures."
+            },
+            "random_seed": {
+              "type": "integer",
+              "description": "Random seed used, if a primitive accepts a random seed."
+            }
+          },
+          "required": [
+            "primitive"
+          ],
+          "additionalProperties": true
+        },
+        "rep_tree": {
+          "type": "object",
+          "description": "The results of training a decision tree using reduced-error pruning (implementation equivalent to Weka's REPTree) on the data using default hyper-parameters.",
+          "properties": {
+            "depth_1_error_rate": {
+              "type": "number",
+              "description": "The error rate resulting from training a decision tree using reduced-error pruning on the data with tree depth 1."
+            },
+            "depth_1_kappa": {
+              "type": "number",
+              "description": "The kappa resulting from training a decision tree using reduced-error pruning on the data with tree depth 1."
+            },
+            "depth_1_auc": {
+              "type": "number",
+              "description": "The auc resulting from training a decision tree using reduced-error pruning on the data with tree depth 1."
+            },
+            "depth_2_error_rate": {
+              "type": "number",
+              "description": "The error rate resulting from training a decision tree using reduced-error pruning on the data with tree depth 2."
+            },
+            "depth_2_kappa": {
+              "type": "number",
+              "description": "The kappa resulting from training a decision tree using reduced-error pruning on the data with tree depth 2."
+            },
+            "depth_2_auc": {
+              "type": "number",
+              "description": "The auc resulting from training a decision tree using reduced-error pruning on the data with tree depth 2."
+            },
+            "depth_3_error_rate": {
+              "type": "number",
+              "description": "The error rate resulting from training a decision tree using reduced-error pruning on the data with tree depth 3."
+            },
+            "depth_3_kappa": {
+              "type": "number",
+              "description": "The kappa resulting from training a decision tree using reduced-error pruning on the data with tree depth 3."
+            },
+            "depth_3_auc": {
+              "type": "number",
+              "description": "The auc resulting from training a decision tree using reduced-error pruning on the data with tree depth 3."
+            },
+            "primitive": {
+              "allOf": [{"$ref": "#/definitions/primitive_reference"}],
+              "description": "A primitive used to compute these metafeatures."
+            },
+            "random_seed": {
+              "type": "integer",
+              "description": "Random seed used, if a primitive accepts a random seed."
+            }
+          },
+          "required": [
+            "primitive"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "installation": {
+      "type": "array",
+      "description": "Installation instructions for a primitive. Everything listed has to be installed, in order listed, for a primitive to work.",
+      "items": {
+        "type": "object",
+        "oneOf": [
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["PIP"],
+                "description": "A Python package. It should be installed with pip's \"--process-dependency-link\" argument enabled."
+              },
+              "package": {
+                "type": "string",
+                "description": "Python package name."
+              },
+              "version": {
+                "type": "string",
+                "description": "Exact version string."
+              },
+              "registry": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "package",
+              "type",
+              "version"
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["PIP"],
+                "description": "A Python package. It should be installed with pip's \"--process-dependency-link\" and \"--editable\" arguments enabled."
+              },
+              "package_uri": {
+                "type": "string",
+                "description": "Python package's canonical URI for installation with an exact version of the package, ideally git commit hash. If it is a git URI, \"#egg=package_name\" URI suffix is required.",
+                "format": "uri"
+              }
+            },
+            "required": [
+              "package_uri",
+              "type"
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["DOCKER"],
+                "description": "A Docker image."
+              },
+              "key": {
+                "type": "string",
+                "description": "When this Docker image runs, its address should be exposed to the primitive under this key."
+              },
+              "image_name": {
+                "type": "string",
+                "description": "Docker image name including a label, and optionally prefixed with a registry."
+              },
+              "image_digest": {
+                "type": "string",
+                "description": "Docker image digest.",
+                "pattern": "^sha256:[a-fA-F0-9]{64}$"
+              }
+            },
+            "required": [
+              "image_digest",
+              "image_name",
+              "type",
+              "key"
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["UBUNTU"],
+                "description": "A system package."
+              },
+              "package": {
+                "type": "string",
+                "description": "Ubuntu package name."
+              },
+              "version": {
+                "type": "string",
+                "description": "Exact version string. While the version is required it is not required to install exactly this version of the package with a primitive because generally it is hard to get a hold of an old version to install (old packages get removed or moved to an archive). Knowing a version author of a primitive used can help with debugging to maybe understand why a primitive is misbehaving."
+              }
+            },
+            "required": [
+              "package",
+              "type",
+              "version"
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["FILE"],
+                "description": "A file to be downloaded and then provided as a volume to the primitive during its run. Download should be equivalent to the example: \"curl https://example.com/file > /path/to/volume_file\"."
+              },
+              "key": {
+                "type": "string",
+                "description": "A downloaded file path should be exposed to the primitive under this key."
+              },
+              "file_uri": {
+                "type": "string",
+                "description": "Where to download the file from.",
+                "format": "uri"
+              },
+              "file_digest": {
+                "type": "string",
+                "description": "A SHA256 hexadecimal digest of the file.",
+                "pattern": "^[a-fA-F0-9]{64}$"
+              }
+            },
+            "required": [
+              "key",
+              "type",
+              "file_uri",
+              "file_digest"
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["TGZ"],
+                "description": "A gzipped tar file to be downloaded, extracted to a directory, which is then provided as a volume to the primitive during its run. Extraction should be equivalent to the example: \"curl https://example.com/file.tgz | tar -xz -C /path/to/volume_dir\"."
+              },
+              "key": {
+                "type": "string",
+                "description": "An extracted directory path should be exposed to the primitive under this key."
+              },
+              "file_uri": {
+                "type": "string",
+                "description": "Where to download the file from.",
+                "format": "uri"
+              },
+              "file_digest": {
+                "type": "string",
+                "description": "A SHA256 hexadecimal digest of the file.",
+                "pattern": "^[a-fA-F0-9]{64}$"
+              }
+            },
+            "required": [
+              "key",
+              "type",
+              "file_uri",
+              "file_digest"
+            ]
+          }
+        ],
+        "additionalProperties": true
+      },
+      "minItems": 1
+    },
+    "primitive_code": {
+      "type": "object",
+      "description": "Metadata describing the primitive's code.",
+      "properties": {
+        "class_type_arguments": {
+          "type": "object",
+          "description": "A map between type variables in primitive interfaces and their specified types for this primitive.",
+          "additionalProperties": {
+            "$ref": "#/definitions/structural_type"
+          }
+        },
+        "interfaces_version": {
+          "description": "Version of d3m package in use by the primitive.",
+          "allOf": [{
+            "$ref": "#/definitions/version"
+          }]
+        },
+        "interfaces": {
+          "type": "array",
+          "description": "A list of Python primitive interface classes used by the primitive in method resolution order.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "params": {
+          "type": "object",
+          "description": "A map between primitive's parameter names and their types.",
+          "additionalProperties": {
+            "$ref": "#/definitions/structural_type"
+          }
+        },
+        "hyperparams": {
+          "type": "object",
+          "description": "A map describing the hyper-parameter space of the primitive, mapping the name of the hyper-parameter to its description.",
+          "additionalProperties": {
+            "$ref": "#/definitions/hyperparameter"
+          }
+        },
+        "arguments": {
+          "type": "object",
+          "description": "A map describing all arguments which the primitive as a whole accepts, mapping the name of the argument to its description.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "$ref": "#/definitions/structural_type"
+              },
+              "kind": {
+                "type": "string",
+                "oneOf": [
+                  {"enum": ["RUNTIME"], "description": "Arguments which are meaningful only for a runtime executing a pipeline."},
+                  {"enum": ["PIPELINE"], "description": "Arguments which can be fulfilled by other primitives in a pipeline."},
+                  {"enum": ["HYPERPARAMETER"], "description": "Arguments which are overriding a hyper-parameter value for a method call."}
+                ]
+              },
+              "default": {
+                "allOf": [{"$ref": "#/definitions/python_value"}],
+                "description": "A default value. Omitted if an argument has no default value."
+              }
+            },
+            "required": [
+              "type",
+              "kind"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "class_methods": {
+          "type": "object",
+          "description": "A map between primitive's class method names and their descriptions.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "$ref": "#/definitions/description"
+              },
+              "arguments": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "$ref": "#/definitions/structural_type"
+                    },
+                    "default": {
+                      "allOf": [{"$ref": "#/definitions/python_value"}],
+                      "description": "A default value. Omitted if an argument has no default value."
+                    }
+                  },
+                  "additionalProperties": true,
+                  "required": [
+                    "type"
+                  ]
+                }
+              },
+              "returns": {
+                "$ref": "#/definitions/structural_type"
+              }
+            },
+            "required": [
+              "returns"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "instance_methods": {
+          "type": "object",
+          "description": "A map between primitive's instance method names and their descriptions.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "oneOf": [
+                  {"enum": ["PRODUCE"], "description": "Methods which outputs can be inputs to another primitive."},
+                  {"enum": ["OTHER"], "description": "Methods used by the runtime."}
+                ]
+              },
+              "description": {
+                "$ref": "#/definitions/description"
+              },
+              "arguments": {
+                "type": "array",
+                "description": "A list of argument names this method accepts. Their description can be found in primitive's \"arguments\" map.",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "returns": {
+                "$ref": "#/definitions/structural_type"
+              },
+              "singleton": {
+                "type": "boolean",
+                "description": "Is a produce method a singleton produce method?"
+              },
+              "inputs_across_samples": {
+                "type": "array",
+                "description": "List of inputs a produce method uses across samples and not sample by sample.",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "arguments",
+              "returns"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "class_attributes": {
+          "type": "object",
+          "description": "A map between primitive's class attribute names and their types.",
+          "additionalProperties": {
+            "$ref": "#/definitions/structural_type"
+          }
+        },
+        "instance_attributes": {
+          "type": "object",
+          "description": "A map between primitive's instance attribute names and their types.",
+          "additionalProperties": {
+            "$ref": "#/definitions/structural_type"
+          }
+        }
+      },
+      "required": [
+        "class_type_arguments",
+        "interfaces_version",
+        "interfaces"
+      ],
+      "additionalProperties": true
+    },
+    "hyperparameter": {
+      "type": "object",
+      "description": "Description of a hyper-parameter.",
+      "properties": {
+        "type": {
+          "type": "type",
+          "description": "A Python type of the hyper-parameter description itself."
+        },
+        "default": {
+          "allOf": [{"$ref": "#/definitions/python_value"}],
+          "description": "A default value."
+        },
+        "structural_type": {
+          "$ref": "#/definitions/structural_type"
+        },
+        "semantic_types": {
+          "$ref": "#/definitions/semantic_types"
+        },
+        "description": {
+          "$ref": "#/definitions/description"
+        },
+        "lower": {
+          "$ref": "#/definitions/python_value"
+        },
+        "upper": {
+          "$ref": "#/definitions/python_value"
+        },
+        "upper_inclusive": {
+          "type": "boolean"
+        },
+        "q": {
+          "type": "number"
+        },
+        "mu": {
+          "type": "number"
+        },
+        "sigma": {
+          "type": "number"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/python_value"
+          }
+        },
+        "configuration": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/hyperparameter"
+          }
+        },
+        "primitive_families": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "algorithm_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "choices": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/hyperparameter"
+          }
+        },
+        "elements": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/hyperparameter"
+            },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/hyperparameter"
+              }
+            }
+          ]
+        },
+        "is_configuration": {
+          "type": "boolean"
+        },
+        "min_size": {
+          "type": "integer"
+        },
+        "max_size": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "default",
+        "structural_type",
+        "semantic_types"
+      ],
+      "additionalProperties": true
+    },
+    "structural_type": {
+      "type": "type",
+      "description": "A Python type."
+    },
+    "media_types": {
+      "type": "array",
+      "description": "Media type of the value in its extended form defining encoding, e.g., \"text/plain; charset=utf-8\".",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "sampling_rate": {
+      "type": "number",
+      "description": "Sampling rate (frequency) is the number of samples per second."
+    },
+    "stored_size": {
+      "type": "integer",
+      "description": "Size in bytes when or if stored to disk."
+    },
+    "approximate_stored_size": {
+      "type": "integer",
+      "description": "Approximate size in bytes when or if stored to disk."
+    },
+    "semantic_types": {
+      "type": "array",
+      "description": "A list of canonical URIs defining semantic types. Some commonly used URIs are listed as possible values here, but you can use any URI representing a semantic type.",
+      "items": {
+        "anyOf": [
+          {"enum": ["http://schema.org/ImageObject"], "description": "Value is an image."},
+          {"enum": ["http://schema.org/VideoObject"], "description": "Value is a video."},
+          {"enum": ["http://schema.org/AudioObject"], "description": "Value is an audio clip."},
+          {"enum": ["http://schema.org/Text"], "description": "Value is text/string."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/Speech"], "description": "Value is an audio clip of human speech."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/Graph"], "description": "Value is a graph structure, e.g., a social network."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/EdgeList"], "description": "Value is an edge list of a graph structure."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/Table"], "description": "Value is tabular data."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/Timeseries"], "description": "Value is time-series data."},
+          {"enum": ["http://schema.org/Boolean"], "description": "Value represents a boolean."},
+          {"enum": ["http://schema.org/Integer"], "description": "Value represents an integer."},
+          {"enum": ["http://schema.org/Float"], "description": "Value represents a float."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/FloatVector"], "description": "Value represents a vector of floats."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/JSON"], "description": "Value represents a JSON object."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/GeoJSON"], "description": "Value represents a GeoJSON object (a subtype of \"JSON\")."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/CategoricalData"], "description": "Value represents categorical data."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/OrdinalData"], "description": "Value represents ordinal data."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/PrimaryKey"], "description": "Value serves as a primary key."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/UniqueKey"], "description": "Value serves as an unique key, i.e., it satisfies the uniqueness constraint among other values."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/Attribute"], "description": "Value serves as an attribute (input feature) to fit on or be used for analysis."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/SuggestedTarget"], "description": "Value serves as a potential target variable for a problem. This is a property of input data."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/RedactedTarget"], "description": "Value is redacted, but would otherwise be a target variable for a problem. This is a property of input data."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/Target"], "description": "Value serves as a target variable for a problem."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/PredictedTarget"], "description": "Value serves as a predict target variable for a problem (a subtype of \"Target\"). This is set by primitives when predicting targets."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/TrueTarget"], "description": "Value serves as a true target variable for a problem (a subtype of \"Target\"). This is set by a runtime based on problem description."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/Score"], "description": "Value is a prediction score computed by comparing predicted and true target."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/Confidence"], "description": "Value serves as a confidence of a predicted target variable. \"confidence_for\" metadata can be used to reference for which target column this column is confidence for."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/SuggestedPrivilegedData"], "description": "Value serves as a potential privileged (available during fitting but not producing) attribute."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/RedactedPrivilegedData"], "description": "Value is redacted, but would otherwise be a privileged attribute."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/PrivilegedData"], "description": "Value serves as a privileged (available during fitting but not producing) attribute."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/Time"], "description": "Value represents time."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/Location"], "description": "Value represents a location."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/Boundary"], "description": "Value represents a boundary."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/Interval"], "description": "Value represents an interval (a subtype of \"Boundary\")."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/IntervalStart"], "description": "Value represents a start of an interval (a subtype of \"Boundary\")."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/IntervalEnd"], "description": "Value represents an end of an interval (a subtype of \"Boundary\")."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/BoundingBox"], "description": "Value represents a bounding box in X min (left), Y min (top), X max (right), and Y max (bottom) order (a subtype of \"Boundary\")."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/BoundingBoxXMin"], "description": "Value represents a X min (left) coordinate of a bounding box (a subtype of \"Boundary\")."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/BoundingBoxYMin"], "description": "Value represents a Y min (top) coordinate of a bounding box (a subtype of \"Boundary\")."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/BoundingBoxXMax"], "description": "Value represents a X max (right) coordinate of a bounding box (a subtype of \"Boundary\")."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/BoundingBoxYMax"], "description": "Value represents a Y max (bottom) coordinate of a bounding box (a subtype of \"Boundary\")."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/InstanceWeight"], "description": "Value serves as a weight for an instance."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/FileName"], "description": "Value is a filename."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/DatasetResource"], "description": "Value is a dataset resource."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/TabularRow"], "description": "Value is a row in tabular data."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/TabularColumn"], "description": "Value is a column in tabular data."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/MissingData"], "description": "Value is missing."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/InvalidData"], "description": "Value is present, but is invalid."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/TuningParameter"], "description": "Hyper-parameter is a tuning parameter of the primitive."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/ControlParameter"], "description": "Hyper-parameter is a control parameter of the primitive."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/ResourcesUseParameter"], "description": "Hyper-parameter is a parameter which controls the use of resources by the primitive."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/MetafeatureParameter"], "description": "Hyper-parameter controls which meta-feature is computed by the primitive."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/ChoiceParameter"], "description": "Hyper-parameter is selecting one choice among multiple hyper-parameters space choices."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/DatasetEntryPoint"], "description": "Resource is a dataset entry point."},
+          {"enum": ["https://metadata.datadrivendiscovery.org/types/FilesCollection"], "description": "Resource is a files collection."},
+          {
+            "type": "string",
+            "description": "A URI not listed among commonly used URIs. Please feel encouraged to open a merge request adding semantic types you are using so that also others can learn about them.",
+            "format": "uri"
+          }
+        ]
+      }
+    },
+    "location_uris": {
+      "type": "array",
+      "description": "A list of URIs where the value is stored.",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "location_base_uris": {
+      "type": "array",
+      "description": "A list of URIs which can be used as a base to determine where the value is stored.",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "source": {
+      "type": "object",
+      "description": "Information about the source. Author and other information how the value came to be.",
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/name"
+        },
+        "contact": {
+          "type": "string",
+          "description": "An URI to contact the source.",
+          "format": "uri"
+        },
+        "uris": {
+          "type": "array",
+          "description": "A list of URIs where the value is coming from, e.g., website with a dataset, or source code for a primitive.",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "published": {
+          "allOf": [{"$ref": "#/definitions/timestamp"}],
+          "description": "A timestamp when was the value made available."
+        },
+        "license": {
+          "type": "string",
+          "description": "License under which the value is available."
+        },
+        "citation": {
+          "type": "string",
+          "description": "Citation of the source."
+        },
+        "human_subjects_research": {
+          "type": "boolean",
+          "description": "Does value contain human subjects data or not."
+        },
+        "redacted": {
+          "type": "boolean",
+          "description": "Has the value been redacted."
+        },
+        "from": {
+          "type": "object",
+          "oneOf": [
+            {
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["REDACTED"],
+                  "description": "The value has been redacted from the referenced value."
+                },
+                "id": {
+                  "$ref": "#/definitions/id"
+                },
+                "version": {
+                  "$ref": "#/definitions/version"
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "version"
+              ]
+            },
+            {
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["PIPELINE"],
+                  "description": "The pipeline has been derived from another pipeline or pipelines."
+                },
+                "pipelines": {
+                  "type": "array",
+                  "description": "A list of pipelines used to derive the pipeline.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/definitions/id"
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ]
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "id",
+                "type"
+              ]
+            }
+          ],
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "keywords": {
+      "type": "array",
+      "description": "A list of keywords. Strings in an unspecified language and vocabulary.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "foreign_key": {
+      "type": "object",
+      "description": "Columns in a table in a database resource can reference other resources.",
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["COLUMN"],
+              "description": "The foreign key is referencing a column in a table in a database resource."
+            },
+            "resource_id": {
+              "$ref": "#/definitions/resource_id"
+            },
+            "column_index": {
+              "$ref": "#/definitions/column_index"
+            }
+          },
+          "required": [
+            "type",
+            "resource_id",
+            "column_index"
+          ]
+        },
+        {
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["COLUMN"],
+              "description": "The foreign key is referencing a column in a table in a database resource."
+            },
+            "resource_id": {
+              "$ref": "#/definitions/resource_id"
+            },
+            "column_name": {
+              "$ref": "#/definitions/column_name"
+            }
+          },
+          "required": [
+            "type",
+            "resource_id",
+            "column_name"
+          ]
+        },
+        {
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["NODE"],
+              "description": "The foreign key is referencing a node in a database resource, a graph."
+            },
+            "resource_id": {
+              "$ref": "#/definitions/resource_id"
+            }
+          },
+          "required": [
+            "type",
+            "resource_id"
+          ]
+        },
+        {
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["EDGE"],
+              "description": "The foreign key is referencing an edge in a database resource, a graph."
+            },
+            "resource_id": {
+              "$ref": "#/definitions/resource_id"
+            }
+          },
+          "required": [
+            "type",
+            "resource_id"
+          ]
+        },
+        {
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["NODE_ATTRIBUTE"],
+              "description": "The foreign key is referencing a node attribute in a database resource, a graph."
+            },
+            "resource_id": {
+              "$ref": "#/definitions/resource_id"
+            }
+          },
+          "required": [
+            "type",
+            "resource_id"
+          ]
+        },
+        {
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["EDGE_ATTRIBUTE"],
+              "description": "The foreign key is referencing an edge attribute in a database resource, a graph."
+            },
+            "resource_id": {
+              "$ref": "#/definitions/resource_id"
+            }
+          },
+          "required": [
+            "type",
+            "resource_id"
+          ]
+        }
+      ]
+    },
+    "boundary_for": {
+      "type": "object",
+      "description": "A column in a table can be a boundary for another column in the same table or another table resource.",
+      "oneOf": [
+        {
+          "properties": {
+            "resource_id": {
+              "$ref": "#/definitions/resource_id"
+            },
+            "column_index": {
+              "$ref": "#/definitions/column_index"
+            }
+          },
+          "required": [
+            "column_index"
+          ]
+        },
+        {
+          "properties": {
+            "resource_id": {
+              "$ref": "#/definitions/resource_id"
+            },
+            "column_name": {
+              "$ref": "#/definitions/column_name"
+            }
+          },
+          "required": [
+            "column_name"
+          ]
+        }
+      ]
+    },
+    "confidence_for": {
+      "type": "object",
+      "description": "A column in a table can be a confidence for another column in the same table or another table resource.",
+      "oneOf": [
+        {
+          "properties": {
+            "resource_id": {
+              "$ref": "#/definitions/resource_id"
+            },
+            "column_index": {
+              "$ref": "#/definitions/column_index"
+            }
+          },
+          "required": [
+            "column_index"
+          ]
+        },
+        {
+          "properties": {
+            "resource_id": {
+              "$ref": "#/definitions/resource_id"
+            },
+            "column_name": {
+              "$ref": "#/definitions/column_name"
+            }
+          },
+          "required": [
+            "column_name"
+          ]
+        }
+      ]
+    },
+    "algorithm_types": {
+      "type": "array",
+      "description": "Algorithm type describes the underlying implementation of the primitive. It uses controlled, standardized, but open vocabulary which means that if types which would best describe your primitive are missing, please feel encouraged to open a merge request adding them.",
+      "items": {
+        "oneOf": [
+          {"enum": ["ACCURACY_SCORE"], "description": "https://en.wikipedia.org/wiki/Accuracy_and_precision"},
+          {"enum": ["ADABOOST"], "description": "https://en.wikipedia.org/wiki/AdaBoost"},
+          {"enum": ["ADAPTIVE_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Adaptive_algorithm"},
+          {"enum": ["AGGREGATE_FUNCTION"], "description": "https://en.wikipedia.org/wiki/Aggregate_function"},
+          {"enum": ["ALMEIDA_PINEDA_RECURRENT_BACKPROPAGATION"], "description": "https://en.wikipedia.org/wiki/Almeida%E2%80%93Pineda_recurrent_backpropagation"},
+          {"enum": ["ALOPEX"], "description": "https://en.wikipedia.org/wiki/ALOPEX"},
+          {"enum": ["ALTERNATING_DECISION_TREE"], "description": "https://en.wikipedia.org/wiki/Alternating_decision_tree"},
+          {"enum": ["ANT_COLONY_OPTIMIZATION"], "description": "https://en.wikipedia.org/wiki/Ant_colony_optimization_algorithms"},
+          {"enum": ["ARRAY_CONCATENATION"]},
+          {"enum": ["ARRAY_SLICING"], "description": "https://en.wikipedia.org/wiki/Array_slicing"},
+          {"enum": ["ASSOCIATION_RULE_LEARNING"], "description": "https://en.wikipedia.org/wiki/Association_rule_learning"},
+          {"enum": ["ASSOCIATIVE_NEURAL_NETWORK"]},
+          {"enum": ["ATTRACTOR_NETWORK"], "description": "https://en.wikipedia.org/wiki/Attractor_network"},
+          {"enum": ["AUDIO_MIXING"], "description": "https://en.wikipedia.org/wiki/Audio_mixing_(recorded_music)"},
+          {"enum": ["AUDIO_STREAM_MANIPULATION"], "description": "https://en.wikipedia.org/wiki/Audio_signal_processing"},
+          {"enum": ["AUGMENTED_LAGRANGIAN_METHOD"], "description": "https://en.wikipedia.org/wiki/Augmented_Lagrangian_method"},
+          {"enum": ["AUTOENCODER"], "description": "https://en.wikipedia.org/wiki/Autoencoder"},
+          {"enum": ["AUTOREGRESSIVE_INTEGRATED_MOVING_AVERAGE"], "description": "https://en.wikipedia.org/wiki/Autoregressive_integrated_moving_average"},
+          {"enum": ["BACKWARD_DIFFERENCE_CODING"], "description": "https://stats.idre.ucla.edu/r/library/r-library-contrast-coding-systems-for-categorical-variables/#backward"},
+          {"enum": ["BAG_OF_WORDS_MODEL"], "description": "https://en.wikipedia.org/wiki/Bag-of-words_model"},
+          {"enum": ["BAYESIAN_LINEAR_REGRESSION"], "description": "https://en.wikipedia.org/wiki/Bayesian_linear_regression"},
+          {"enum": ["BAYESIAN_MODEL_AVERAGING"], "description": "https://en.wikipedia.org/wiki/Bootstrap_aggregating"},
+          {"enum": ["BAYESIAN_NETWORK"], "description": "https://en.wikipedia.org/wiki/Bayesian_network"},
+          {"enum": ["BAYESIAN_OPTIMIZATION"]},
+          {"enum": ["BELIEF_PROPAGATION"], "description": "https://en.wikipedia.org/wiki/Belief_propagation"},
+          {"enum": ["BINARY_CLASSIFICATION"], "description": "https://en.wikipedia.org/wiki/Binary_classification"},
+          {"enum": ["BIRCH"], "description": "https://en.wikipedia.org/wiki/Bayesian_optimization"},
+          {"enum": ["BOLTZMANN_MACHINE"], "description": "https://en.wikipedia.org/wiki/BIRCH"},
+          {"enum": ["BOOSTING"], "description": "https://en.wikipedia.org/wiki/Boltzmann_machine"},
+          {"enum": ["BOOTSTRAP_AGGREGATING"], "description": "https://en.wikipedia.org/wiki/Boosting_(machine_learning)"},
+          {"enum": ["BOOTSTRAPPING"], "description": "https://en.wikipedia.org/wiki/Bootstrapping_(statistics)"},
+          {"enum": ["BRANCH_AND_BOUND"], "description": "https://en.wikipedia.org/wiki/Branch_and_bound"},
+          {"enum": ["BRIER_SCORE"], "description": "https://en.wikipedia.org/wiki/Brier_score"},
+          {"enum": ["BROOKS_IYENGAR"], "description": "https://en.wikipedia.org/wiki/Brooks%E2%80%93Iyengar_algorithm"},
+          {"enum": ["BROWNBOOST"], "description": "https://en.wikipedia.org/wiki/BrownBoost"},
+          {"enum": ["C45"], "description": "https://en.wikipedia.org/wiki/C4.5_algorithm"},
+          {"enum": ["C50"]},
+          {"enum": ["CANONICAL_CORRELATION_ANALYSIS"], "description": "https://en.wikipedia.org/wiki/Canonical_correlation"},
+          {"enum": ["CASCADE_CORRELATION_NETWORK"]},
+          {"enum": ["CASE_BASED_REASONING"], "description": "https://en.wikipedia.org/wiki/Case-based_reasoning"},
+          {"enum": ["CATEGORY_ENCODER"]},
+          {"enum": ["CLASSIFIER_CHAINS"], "description": "https://en.wikipedia.org/wiki/Classifier_chains"},
+          {"enum": ["CN2"], "description": "https://en.wikipedia.org/wiki/CN2_algorithm"},
+          {"enum": ["COBWEB"], "description": "https://en.wikipedia.org/wiki/Cobweb_(clustering)"},
+          {"enum": ["COEFFICIENT_OF_DETERMINATION"], "description": "https://en.wikipedia.org/wiki/Coefficient_of_determination"},
+          {"enum": ["COLOR_SPACE_CONVERSION"], "description": "https://en.wikipedia.org/wiki/Color_space"},
+          {"enum": ["COMMITTEE_MACHINE"], "description": "https://en.wikipedia.org/wiki/Committee_machine"},
+          {"enum": ["COMPOSITIONAL_PATTERN_PRODUCING_NETWORK"], "description": "https://en.wikipedia.org/wiki/Compositional_pattern-producing_network"},
+          {"enum": ["COMPUTER_ALGEBRA"], "description": "https://en.wikipedia.org/wiki/Computer_algebra"},
+          {"enum": ["CONDITIONAL_RANDOM_FIELD"], "description": "https://en.wikipedia.org/wiki/Conditional_random_field"},
+          {"enum": ["CONTEXTUAL_BANDIT"]},
+          {"enum": ["CONVOLUTIONAL_NEURAL_NETWORK"], "description": "https://en.wikipedia.org/wiki/Convolutional_neural_network"},
+          {"enum": ["COORDINATE_DESCENT"], "description": "https://en.wikipedia.org/wiki/Coordinate_descent"},
+          {"enum": ["CORRELATION_CLUSTERING"], "description": "https://en.wikipedia.org/wiki/Correlation_clustering"},
+          {"enum": ["CORTICAL_LEARNING"]},
+          {"enum": ["COTRAINING"], "description": "https://en.wikipedia.org/wiki/Co-training"},
+          {"enum": ["CROSS_ENTROPY"], "description": "https://en.wikipedia.org/wiki/Cross_entropy"},
+          {"enum": ["CROSS_ENTROPY_METHOD"], "description": "https://en.wikipedia.org/wiki/Cross-entropy_method"},
+          {"enum": ["CROSS_VALIDATION"], "description": "https://en.wikipedia.org/wiki/Cross-validation_(statistics)"},
+          {"enum": ["CULTURAL_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Cultural_algorithm"},
+          {"enum": ["DATA_CONVERSION"], "description": "https://en.wikipedia.org/wiki/Data_conversion"},
+          {"enum": ["DATA_DENORMALIZATION"], "description": "https://en.wikipedia.org/wiki/Denormalization"},
+          {"enum": ["DATA_NORMALIZATION"], "description": "https://en.wikipedia.org/wiki/Database_normalization"},
+          {"enum": ["DATA_PROFILING"], "description": "https://en.wikipedia.org/wiki/Data_profiling"},
+          {"enum": ["DATA_STREAM_CLUSTERING"], "description": "https://en.wikipedia.org/wiki/Data_stream_clustering"},
+          {"enum": ["DATA_STREAM_MINING"], "description": "https://en.wikipedia.org/wiki/Data_stream_mining"},
+          {"enum": ["DATA_STRUCTURE_ALIGNMENT"], "description": "https://en.wikipedia.org/wiki/Data_structure_alignment"},
+          {"enum": ["DBSCAN"], "description": "https://en.wikipedia.org/wiki/DBSCAN"},
+          {"enum": ["DECISION_STUMP"], "description": "https://en.wikipedia.org/wiki/Decision_stump"},
+          {"enum": ["DECISION_TREE"], "description": "https://en.wikipedia.org/wiki/Decision_tree"},
+          {"enum": ["DEEP_BELIEF_NETWORK"], "description": "https://en.wikipedia.org/wiki/Deep_belief_network"},
+          {"enum": ["DEEP_FEATURE_SYNTHESIS"], "description": "https://groups.csail.mit.edu/EVO-DesignOpt/groupWebSite/uploads/Site/DSAA_DSM_2015.pdf"},
+          {"enum": ["DEEP_NEURAL_NETWORK"], "description": "https://en.wikipedia.org/wiki/Deep_learning#Deep_neural_networks"},
+          {"enum": ["DEINTERLACING"], "description": "https://en.wikipedia.org/wiki/Deinterlacing"},
+          {"enum": ["DISCRETIZATION"], "description": "https://en.wikipedia.org/wiki/Discretization"},
+          {"enum": ["DPLL"], "description": "https://en.wikipedia.org/wiki/DPLL_algorithm"},
+          {"enum": ["DROPOUT"], "description": "https://en.wikipedia.org/wiki/Dropout_(neural_networks)"},
+          {"enum": ["DYNAMIC_NEURAL_NETWORK"]},
+          {"enum": ["DYNAMIC_TIME_WARPING"], "description": "https://en.wikipedia.org/wiki/Dynamic_time_warping"},
+          {"enum": ["EAGER_LEARNING"], "description": "https://en.wikipedia.org/wiki/Eager_learning"},
+          {"enum": ["ECHO_STATE_NETWORK"], "description": "https://en.wikipedia.org/wiki/Echo_state_network"},
+          {"enum": ["ECLAT"]},
+          {"enum": ["EDGERANK"], "description": "https://en.wikipedia.org/wiki/EdgeRank"},
+          {"enum": ["ELASTIC_NET_REGULARIZATION"], "description": "https://en.wikipedia.org/wiki/Elastic_net_regularization"},
+          {"enum": ["ENCODE_BINARY"], "description": "https://en.wikipedia.org/wiki/Binary_code"},
+          {"enum": ["ENCODE_ONE_HOT"], "description": "https://en.wikipedia.org/wiki/One-hot"},
+          {"enum": ["ENCODE_ORDINAL"]},
+          {"enum": ["ENCODE_UNARY"], "description": "https://en.wikipedia.org/wiki/Unary_numeral_system"},
+          {"enum": ["ENSEMBLE_LEARNING"], "description": "https://en.wikipedia.org/wiki/Ensemble_learning"},
+          {"enum": ["EVOLUTIONARY_ACQUISITION_OF_NEURAL_TOPOLOGIES"], "description": "https://en.wikipedia.org/wiki/Evolutionary_acquisition_of_neural_topologies"},
+          {"enum": ["EVOLUTIONARY_MULTIMODAL_OPTIMIZATION"], "description": "https://en.wikipedia.org/wiki/Evolutionary_multimodal_optimization"},
+          {"enum": ["EXPECTATION_MAXIMIZATION_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Expectation%E2%80%93maximization_algorithm"},
+          {"enum": ["EXTENSION_NEURAL_NETWORK"], "description": "https://en.wikipedia.org/wiki/Extension_neural_network"},
+          {"enum": ["EXTREME_LEARNING_MACHINE"], "description": "https://en.wikipedia.org/wiki/Extreme_learning_machine"},
+          {"enum": ["F1_SCORE"], "description": "https://en.wikipedia.org/wiki/F1_score"},
+          {"enum": ["FALSE_NEAREST_NEIGHBOR"], "description": "https://en.wikipedia.org/wiki/False_nearest_neighbor_algorithm"},
+          {"enum": ["FASTICA"], "description": "https://en.wikipedia.org/wiki/FastICA"},
+          {"enum": ["FEATURE_SCALING"], "description": "https://en.wikipedia.org/wiki/Feature_scaling"},
+          {"enum": ["FEEDFORWARD_NEURAL_NETWORK"], "description": "https://en.wikipedia.org/wiki/Feedforward_neural_network"},
+          {"enum": ["FELLEGI_SUNTER_ALGORITHM"]},
+          {"enum": ["FILE_MANIPULATION"], "description": "https://en.wikipedia.org/wiki/Computer_file"},
+          {"enum": ["FISHER_KERNEL"], "description": "https://en.wikipedia.org/wiki/Fisher_kernel"},
+          {"enum": ["FORWARD_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Forward_algorithm"},
+          {"enum": ["FORWARD_BACKWARD_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Forward%E2%80%93backward_algorithm"},
+          {"enum": ["FORWARD_DIFFERENCE_CODING"], "description": "https://stats.idre.ucla.edu/r/library/r-library-contrast-coding-systems-for-categorical-variables/#forward"},
+          {"enum": ["FRANK_WOLFE_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Frank%E2%80%93Wolfe_algorithm"},
+          {"enum": ["FREQUENCY_TRANSFORM"], "description": "https://en.wikipedia.org/wiki/Frequency_domain"},
+          {"enum": ["FUZZY_CLUSTERING"], "description": "https://en.wikipedia.org/wiki/Fuzzy_clustering"},
+          {"enum": ["GAUSSIAN_BLUR"], "description": "https://en.wikipedia.org/wiki/Gaussian_blur"},
+          {"enum": ["GAUSSIAN_PROCESS"], "description": "https://en.wikipedia.org/wiki/Gaussian_process"},
+          {"enum": ["GENERALIZED_HEBBIAN_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Generalized_Hebbian_Algorithm"},
+          {"enum": ["GENERATIVE_TOPOGRAPHIC_MAP"], "description": "https://en.wikipedia.org/wiki/Generative_topographic_map"},
+          {"enum": ["GENETIC_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Genetic_algorithm"},
+          {"enum": ["GENETIC_ALGORITHM_FOR_RULE_SET_PRODUCTION"], "description": "https://en.wikipedia.org/wiki/Genetic_Algorithm_for_Rule_Set_Production"},
+          {"enum": ["GENETIC_PROGRAMMING"], "description": "https://en.wikipedia.org/wiki/Genetic_programming"},
+          {"enum": ["GENETIC_SCALE_RECURRENT_NEURAL_NETWORK"]},
+          {"enum": ["GLOVE"], "description": "https://en.wikipedia.org/wiki/GloVe_(machine_learning)"},
+          {"enum": ["GRADIENT_BOOSTING"], "description": "https://en.wikipedia.org/wiki/Gradient_boosting"},
+          {"enum": ["GRADIENT_DESCENT"], "description": "https://en.wikipedia.org/wiki/Gradient_descent"},
+          {"enum": ["GRAPHICAL_LASSO"], "description": "https://en.wikipedia.org/wiki/Graphical_lasso"},
+          {"enum": ["GROWING_SELF_ORGANIZING_MAP"], "description": "https://en.wikipedia.org/wiki/Growing_self-organizing_map"},
+          {"enum": ["HARD_CLUSTERING"]},
+          {"enum": ["HASHING"], "description": "https://en.wikipedia.org/wiki/Hash_function"},
+          {"enum": ["HELMERT_CODING"], "description": "https://stats.idre.ucla.edu/r/library/r-library-contrast-coding-systems-for-categorical-variables/#HELMERT"},
+          {"enum": ["HEURISTIC"], "description": "https://en.wikipedia.org/wiki/Heuristic"},
+          {"enum": ["HIDDEN_MARKOV_MODEL"], "description": "https://en.wikipedia.org/wiki/Hidden_Markov_model"},
+          {"enum": ["HIDDEN_SEMI_MARKOV_MODEL"], "description": "https://en.wikipedia.org/wiki/Hidden_semi-Markov_model"},
+          {"enum": ["HIERARCHICAL_CLUSTERING"], "description": "https://en.wikipedia.org/wiki/Hierarchical_clustering"},
+          {"enum": ["HIERARCHICAL_TEMPORAL_MEMORY"], "description": "https://en.wikipedia.org/wiki/Hierarchical_temporal_memory"},
+          {"enum": ["HIGHER_ORDER_SINGULAR_VALUE_DECOMPOSITION"], "description": "https://en.wikipedia.org/wiki/Higher-order_singular_value_decomposition"},
+          {"enum": ["HOLDOUT"], "description": "https://en.wikipedia.org/wiki/Cross-validation_(statistics)#Holdout_method"},
+          {"enum": ["HOLOGRAPHIC_ASSOCIATIVE_MEMORY"], "description": "https://en.wikipedia.org/wiki/Holographic_associative_memory"},
+          {"enum": ["HOPFIELD_NETWORK"], "description": "https://en.wikipedia.org/wiki/Hopfield_network"},
+          {"enum": ["HOSHEN_KOPELMAN_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Hoshen%E2%80%93Kopelman_algorithm"},
+          {"enum": ["HYPER_BASIS_FUNCTION_NETWORK"], "description": "https://en.wikipedia.org/wiki/Hyper_basis_function_network"},
+          {"enum": ["HYPERNEAT"], "description": "https://en.wikipedia.org/wiki/HyperNEAT"},
+          {"enum": ["ID3"], "description": "https://en.wikipedia.org/wiki/ID3"},
+          {"enum": ["IMAGE_CROPPING"], "description": "https://en.wikipedia.org/wiki/Cropping_(image)"},
+          {"enum": ["IMAGE_PADDING"]},
+          {"enum": ["IMAGE_ROTATION"]},
+          {"enum": ["IMAGE_SCALING"], "description": "https://en.wikipedia.org/wiki/Image_scaling"},
+          {"enum": ["IMAGE_TRANSFORM"]},
+          {"enum": ["IMPUTATION"], "description": "https://en.wikipedia.org/wiki/Imputation_(statistics)"},
+          {"enum": ["INDEPENDENT_COMPONENT_ANALYSIS"], "description": "https://en.wikipedia.org/wiki/Independent_component_analysis"},
+          {"enum": ["INFORMATION_ENTROPY"], "description": "https://en.wikipedia.org/wiki/Entropy_(information_theory)"},
+          {"enum": ["INFORMATION_FUZZY_NETWORKS"], "description": "https://en.wikipedia.org/wiki/Information_fuzzy_networks"},
+          {"enum": ["INSTANCE_BASED_LEARNING"], "description": "https://en.wikipedia.org/wiki/Instance-based_learning"},
+          {"enum": ["INSTANTANEOUSLY_TRAINED_NEURAL_NETWORKS"], "description": "https://en.wikipedia.org/wiki/Instantaneously_trained_neural_networks"},
+          {"enum": ["ISOMAP"], "description": "https://en.wikipedia.org/wiki/Isomap"},
+          {"enum": ["IVECTOR_EXTRACTION"], "description": "I-vector extration. Dehak, Najim & Kenny, Patrick & Dehak, R & Dumouchel, Pierre & Ouellet, Pierre. (2011). Front-End Factor Analysis for Speaker Verification. Audio, Speech, and Language Processing, IEEE Transactions on. 19. 788 - 798. 10.1109/TASL.2010.2064307."},
+          {"enum": ["JACCARD_INDEX"], "description": "https://en.wikipedia.org/wiki/Jaccard_index"},
+          {"enum": ["JUNCTION_TREE_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Junction_tree_algorithm"},
+          {"enum": ["K_FOLD"], "description": "https://en.wikipedia.org/wiki/Cross-validation_(statistics)#k-fold_cross-validation"},
+          {"enum": ["K_MEANS_CLUSTERING"], "description": "https://en.wikipedia.org/wiki/K-means_clustering"},
+          {"enum": ["K_MEANS_PLUS_PLUS"], "description": "https://en.wikipedia.org/wiki/K-means%2B%2B"},
+          {"enum": ["K_NEAREST_NEIGHBORS"], "description": "https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm"},
+          {"enum": ["K_Q_FLATS"], "description": "https://en.wikipedia.org/wiki/K_q-flats"},
+          {"enum": ["K_SVD"], "description": "https://en.wikipedia.org/wiki/K-SVD"},
+          {"enum": ["KERNEL_ADAPTIVE_FILTER"], "description": "https://en.wikipedia.org/wiki/Kernel_adaptive_filter"},
+          {"enum": ["KERNEL_INDEPENDENT_COMPONENT_ANALYSIS"], "description": "https://en.wikipedia.org/wiki/Kernel-independent_component_analysis"},
+          {"enum": ["KERNEL_METHOD"], "description": "https://en.wikipedia.org/wiki/Kernel_method"},
+          {"enum": ["KERNEL_PERCEPTRON"], "description": "https://en.wikipedia.org/wiki/Kernel_perceptron"},
+          {"enum": ["KERNEL_PRINCIPAL_COMPONENT_ANALYSIS"], "description": "https://en.wikipedia.org/wiki/Kernel_principal_component_analysis"},
+          {"enum": ["KERNEL_RANDOM_FOREST"], "description": "https://en.wikipedia.org/wiki/Random_forest#Kernel_random_forest"},
+          {"enum": ["LARGE_MARGIN_NEAREST_NEIGHBOR"], "description": "https://en.wikipedia.org/wiki/Large_margin_nearest_neighbor"},
+          {"enum": ["LASSO"], "description": "https://en.wikipedia.org/wiki/Lasso_(statistics)"},
+          {"enum": ["LATENT_DIRICHLET_ALLOCATION"], "description": "https://en.wikipedia.org/wiki/Latent_Dirichlet_allocation"},
+          {"enum": ["LATENT_SEMANTIC_ANALYSIS"], "description": "https://en.wikipedia.org/wiki/Latent_semantic_analysis"},
+          {"enum": ["LEARNING_USING_PRIVILEGED_INFORMATION"], "description": "Algorithm can leverage privileged information available in training data but absent in test data."},
+          {"enum": ["LEARNING_VECTOR_QUANTIZATION"], "description": "https://en.wikipedia.org/wiki/Learning_vector_quantization"},
+          {"enum": ["LEAST_SQUARES_SUPPORT_VECTOR_MACHINE"], "description": "https://en.wikipedia.org/wiki/Least_squares_support_vector_machine"},
+          {"enum": ["LEAVE_ONE_OUT"], "description": "https://en.wikipedia.org/wiki/Cross-validation_(statistics)#Leave-one-out_cross-validation"},
+          {"enum": ["LIGHTGBM"]},
+          {"enum": ["LIMITED_MEMORY_BFGS"], "description": "https://en.wikipedia.org/wiki/Limited-memory_BFGS"},
+          {"enum": ["LINDE_BUZO_GRAY_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Linde%E2%80%93Buzo%E2%80%93Gray_algorithm"},
+          {"enum": ["LINEAR_DISCRIMINANT_ANALYSIS"], "description": "https://en.wikipedia.org/wiki/Linear_discriminant_analysis"},
+          {"enum": ["LINEAR_FILTER"], "description": "https://en.wikipedia.org/wiki/Linear_filter"},
+          {"enum": ["LINEAR_REGRESSION"], "description": "https://en.wikipedia.org/wiki/Linear_regression"},
+          {"enum": ["LOBPCG"], "description": "https://en.wikipedia.org/wiki/LOBPCG"},
+          {"enum": ["LOCAL_OUTLIER_FACTOR"], "description": "https://en.wikipedia.org/wiki/Local_outlier_factor"},
+          {"enum": ["LOCAL_SEARCH"], "description": "https://en.wikipedia.org/wiki/Local_search_(optimization)"},
+          {"enum": ["LOGISTIC_MODEL_TREE"], "description": "https://en.wikipedia.org/wiki/Logistic_model_tree"},
+          {"enum": ["LOGISTIC_REGRESSION"], "description": "https://en.wikipedia.org/wiki/Logistic_regression"},
+          {"enum": ["LOGITBOOST"], "description": "https://en.wikipedia.org/wiki/LogitBoost"},
+          {"enum": ["LONG_SHORT_TERM_MEMORY"], "description": "https://en.wikipedia.org/wiki/Long_short-term_memory"},
+          {"enum": ["LOW_RANK_MATRIX_APPROXIMATIONS"], "description": "https://en.wikipedia.org/wiki/Low-rank_matrix_approximations"},
+          {"enum": ["LPBOOST"], "description": "https://en.wikipedia.org/wiki/LPBoost"},
+          {"enum": ["MARGIN_CLASSIFIER"], "description": "https://en.wikipedia.org/wiki/Margin_classifier"},
+          {"enum": ["MARGIN_INFUSED_RELAXED_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Margin-infused_relaxed_algorithm"},
+          {"enum": ["MARKOV_CHAIN"], "description": "https://en.wikipedia.org/wiki/Markov_chain"},
+          {"enum": ["MARKOV_CHAIN_MONTE_CARLO"], "description": "https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo"},
+          {"enum": ["MARKOV_DECISION_PROCESS"], "description": "https://en.wikipedia.org/wiki/Markov_decision_process"},
+          {"enum": ["MARKOV_LOGIC_NETWORK"], "description": "https://en.wikipedia.org/wiki/Markov_logic_network"},
+          {"enum": ["MARKOV_MODEL"], "description": "https://en.wikipedia.org/wiki/Markov_model"},
+          {"enum": ["MARKOV_RANDOM_FIELD"], "description": "https://en.wikipedia.org/wiki/Markov_random_field"},
+          {"enum": ["MEAN_ABSOLUTE_ERROR"], "description": "https://en.wikipedia.org/wiki/Mean_absolute_error"},
+          {"enum": ["MEAN_SHIFT"], "description": "https://en.wikipedia.org/wiki/Mean_shift"},
+          {"enum": ["MEAN_SQUARED_ERROR"], "description": " https://en.wikipedia.org/wiki/Mean_squared_error"},
+          {"enum": ["MEMETIC_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Memetic_algorithm"},
+          {"enum": ["MEMORY_PREDICTION_FRAMEWORK"], "description": "https://en.wikipedia.org/wiki/Memory-prediction_framework"},
+          {"enum": ["MERSENNE_TWISTER"], "description": "https://en.wikipedia.org/wiki/Mersenne_Twister"},
+          {"enum": ["MFCC_FEATURE_EXTRACTION"], "description": "The HTK Book, http://www.dsic.upv.es/docs/posgrado/20/RES/materialesDocentes/alejandroViewgraphs/htkbook.pdf"},
+          {"enum": ["MIN_CONFLICTS_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Min-conflicts_algorithm"},
+          {"enum": ["MINIMUM_REDUNDANCY_FEATURE_SELECTION"], "description": "https://en.wikipedia.org/wiki/Minimum_redundancy_feature_selection"},
+          {"enum": ["MINMAX_SCALER"]},
+          {"enum": ["MM_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/MM_algorithm"},
+          {"enum": ["MODULAR_NEURAL_NETWORK"], "description": "https://en.wikipedia.org/wiki/Modular_neural_network"},
+          {"enum": ["MONTE_CARLO_TREE_SEARCH"], "description": "https://en.wikipedia.org/wiki/Monte_Carlo_tree_search"},
+          {"enum": ["MORAVEC_CORNER_DETECTION_ALGORITHM"]},
+          {"enum": ["MOTION_COMPENSATION"], "description": "https://en.wikipedia.org/wiki/Motion_compensation"},
+          {"enum": ["MULTI_ARMED_BANDIT"], "description": "https://en.wikipedia.org/wiki/Multi-armed_bandit"},
+          {"enum": ["MULTICLASS_CLASSIFICATION"], "description": "https://en.wikipedia.org/wiki/Multiclass_classification"},
+          {"enum": ["MULTILABEL_CLASSIFICATION"], "description": "https://en.wikipedia.org/wiki/Multi-label_classification"},
+          {"enum": ["MULTILAYER_PERCEPTRON"], "description": "https://en.wikipedia.org/wiki/Multilayer_perceptron"},
+          {"enum": ["MULTINOMIAL_LOGISTIC_REGRESSION"], "description": "https://en.wikipedia.org/wiki/Multinomial_logistic_regression"},
+          {"enum": ["MULTINOMIAL_NAIVE_BAYES"], "description": "http://scikit-learn.org/stable/modules/naive_bayes.html#multinomial-naive-bayes, https://nlp.stanford.edu/IR-book/html/htmledition/naive-bayes-text-classification-1.html"},
+          {"enum": ["MULTIPLICATIVE_WEIGHT_UPDATE_METHOD"], "description": "https://en.wikipedia.org/wiki/Multiplicative_weight_update_method"},
+          {"enum": ["MULTIVARIATE_REGRESSION"], "description": "https://en.wikipedia.org/wiki/Multi-label_classification"},
+          {"enum": ["MUTUAL_INFORMATION"], "description": "https://en.wikipedia.org/wiki/Mutual_information"},
+          {"enum": ["N_GRAM"], "description": "https://en.wikipedia.org/wiki/N-gram"},
+          {"enum": ["NAIVE_BAYES_CLASSIFIER"], "description": "https://en.wikipedia.org/wiki/Naive_Bayes_classifier"},
+          {"enum": ["NEAREST_CENTROID_CLASSIFIER"], "description": "https://en.wikipedia.org/wiki/Nearest_centroid_classifier"},
+          {"enum": ["NEIGHBOURHOOD_COMPONENTS_ANALYSIS"], "description": "https://en.wikipedia.org/wiki/Neighbourhood_components_analysis"},
+          {"enum": ["NEURAL_NETWORK_BACKPROPAGATION"], "description": "https://en.wikipedia.org/wiki/Backpropagation"},
+          {"enum": ["NEURO_FUZZY_NETWORK"], "description": "https://en.wikipedia.org/wiki/Neuro-fuzzy"},
+          {"enum": ["NEUROEVOLUTION_OF_AUGMENTED_TOPOLOGIES"], "description": "https://en.wikipedia.org/wiki/Neuroevolution_of_augmenting_topologies"},
+          {"enum": ["NOISE_REDUCTION"], "description": "https://en.wikipedia.org/wiki/Noise_reduction"},
+          {"enum": ["NONOVERLAPPING_COMMUNITY_DETECTION"]},
+          {"enum": ["NORMAL_DISTRIBUTION"], "description": "https://en.wikipedia.org/wiki/Normal_distribution"},
+          {"enum": ["NUMERICAL_METHOD"], "description": "https://en.wikipedia.org/wiki/Numerical_method"},
+          {"enum": ["ONE_RULE"]},
+          {"enum": ["ONE_SHOT_ASSOCIATIVE_MEMORY"]},
+          {"enum": ["ONE_SHOT_LEARNING"], "description": "https://en.wikipedia.org/wiki/One-shot_learning"},
+          {"enum": ["OPTICS_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/OPTICS_algorithm"},
+          {"enum": ["OPTIMISTIC_KNOWLEDGE_GRADIENT"], "description": "https://en.wikipedia.org/wiki/Optimistic_knowledge_gradient"},
+          {"enum": ["ORTHOGONAL_POLYNOMIAL_CODING"], "description": "https://stats.idre.ucla.edu/r/library/r-library-contrast-coding-systems-for-categorical-variables/#ORTHOGONAL"},
+          {"enum": ["OVERLAPPING_CLUSTERING"]},
+          {"enum": ["OVERLAPPING_COMMUNITY_DETECTION"]},
+          {"enum": ["PACHINKO_ALLOCATION"], "description": "https://en.wikipedia.org/wiki/Pachinko_allocation"},
+          {"enum": ["PAGERANK"], "description": "https://en.wikipedia.org/wiki/PageRank"},
+          {"enum": ["PARAMETRIC_TRAJECTORY_MODELING"], "description": "Gish, H. and Ng, K., 1996, October. Parametric trajectory models for speech recognition. In Spoken Language, 1996. ICSLP 96. Proceedings., Fourth International Conference on (Vol. 1, pp. 466-469). IEEE."},
+          {"enum": ["PARTIAL_LEAST_SQUARES_REGRESSION"], "description": "https://en.wikipedia.org/wiki/Partial_least_squares_regression"},
+          {"enum": ["PARTICLE_SWARM_OPTIMIZATION"], "description": "https://en.wikipedia.org/wiki/Particle_swarm_optimization"},
+          {"enum": ["PASSIVE_AGGRESSIVE"], "description": "http://jmlr.csail.mit.edu/papers/volume7/crammer06a/crammer06a.pdf"},
+          {"enum": ["PERCEPTRON"], "description": "https://en.wikipedia.org/wiki/Perceptron"},
+          {"enum": ["PHYSICAL_NEURAL_NETWORK"], "description": "https://en.wikipedia.org/wiki/Physical_neural_network"},
+          {"enum": ["PIXELATION"], "description": "https://en.wikipedia.org/wiki/Pixelation"},
+          {"enum": ["POLYNOMIAL_NEURAL_NETWORK"]},
+          {"enum": ["POPULATION_BASED_INCREMENTAL_LEARNING"], "description": "https://en.wikipedia.org/wiki/Population-based_incremental_learning"},
+          {"enum": ["PREFRONTAL_CORTEX_BASAL_GANGLIA_WORKING_MEMORY"], "description": "https://en.wikipedia.org/wiki/Prefrontal_cortex_basal_ganglia_working_memory"},
+          {"enum": ["PRINCIPAL_COMPONENT_ANALYSIS"], "description": "https://en.wikipedia.org/wiki/Principal_component_analysis"},
+          {"enum": ["PROBABILISTIC_DATA_CLEANING"]},
+          {"enum": ["PROBABILISTIC_LATENT_SEMANTIC_ANALYSIS"], "description": "https://en.wikipedia.org/wiki/Probabilistic_latent_semantic_analysis"},
+          {"enum": ["PROBABILISTIC_NEURAL_NETWORK"], "description": "https://en.wikipedia.org/wiki/Probabilistic_neural_network"},
+          {"enum": ["PRUNING"], "description": "https://en.wikipedia.org/wiki/Pruning_(decision_trees)"},
+          {"enum": ["PSIPRED"], "description": "https://en.wikipedia.org/wiki/PSIPRED"},
+          {"enum": ["Q_LEARNING"], "description": "https://en.wikipedia.org/wiki/Q-learning"},
+          {"enum": ["QUADRATIC_DISCRIMINANT_ANALYSIS"], "description": "https://en.wikipedia.org/wiki/Quadratic_classifier#Quadratic_discriminant_analysis"},
+          {"enum": ["QUANTUM_NEURAL_NETWORK"], "description": "https://en.wikipedia.org/wiki/Quantum_neural_network"},
+          {"enum": ["QUICKPROP"], "description": "https://en.wikipedia.org/wiki/Quickprop"},
+          {"enum": ["RADIAL_BASIS_FUNCTION_NETWORK"], "description": "https://en.wikipedia.org/wiki/Radial_basis_function_network"},
+          {"enum": ["RANDOM_FOREST"], "description": "https://en.wikipedia.org/wiki/Random_forest"},
+          {"enum": ["RANDOM_GRAPH"], "description": "https://en.wikipedia.org/wiki/Random_graph"},
+          {"enum": ["RANDOM_PROJECTION"], "description": "https://en.wikipedia.org/wiki/Random_projection"},
+          {"enum": ["RANDOM_SUBSPACE_METHOD"], "description": "https://en.wikipedia.org/wiki/Random_subspace_method"},
+          {"enum": ["RANDOM_WALK"], "description": "https://en.wikipedia.org/wiki/Random_walk"},
+          {"enum": ["RANDOMIZED_WEIGHTED_MAJORITY_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Randomized_weighted_majority_algorithm"},
+          {"enum": ["RANKBRAIN"], "description": "https://en.wikipedia.org/wiki/RankBrain"},
+          {"enum": ["RANKING_SVM"], "description": "https://en.wikipedia.org/wiki/Ranking_SVM"},
+          {"enum": ["RAPIDLY_EXPLORING_RANDOM_TREE"], "description": "https://en.wikipedia.org/wiki/Rapidly-exploring_random_tree"},
+          {"enum": ["RECEIVER_OPERATING_CHARACTERISTIC"], "description": "https://en.wikipedia.org/wiki/Receiver_operating_characteristic"},
+          {"enum": ["RECURRENT_NEURAL_NETWORK"], "description": "https://en.wikipedia.org/wiki/Recurrent_neural_network"},
+          {"enum": ["RECURSIVE_LEAST_SQUARES"], "description": "https://en.wikipedia.org/wiki/Recursive_least_squares_filter"},
+          {"enum": ["RECURSIVE_PARTITIONING"], "description": "https://en.wikipedia.org/wiki/Recursive_partitioning"},
+          {"enum": ["REGULARIZATION_BY_SPECTRAL_FILTERING"], "description": "https://en.wikipedia.org/wiki/Regularization_by_spectral_filtering"},
+          {"enum": ["REGULARIZED_LEAST_SQUARES"], "description": "https://en.wikipedia.org/wiki/Regularized_least_squares"},
+          {"enum": ["REGULATORY_FEEDBACK_NETWORK"], "description": "https://en.wikipedia.org/wiki/Regulatory_feedback_network"},
+          {"enum": ["REINFORCE_ALGORITHM"]},
+          {"enum": ["REJECTION_SAMPLING"], "description": "https://en.wikipedia.org/wiki/Rejection_sampling"},
+          {"enum": ["RELATIONAL_ALGEBRA"], "description": "https://en.wikipedia.org/wiki/Relational_algebra"},
+          {"enum": ["RELATIONAL_DATA_MINING"], "description": "https://en.wikipedia.org/wiki/Relational_data_mining"},
+          {"enum": ["RELIEF"], "description": "https://en.wikipedia.org/wiki/Relief_(feature_selection)"},
+          {"enum": ["RESTRICTED_BOLTZMANN_MACHINE"], "description": "https://en.wikipedia.org/wiki/Restricted_Boltzmann_machine"},
+          {"enum": ["REVERSE_HELMERT_CODING"], "description": "https://stats.idre.ucla.edu/r/library/r-library-contrast-coding-systems-for-categorical-variables/#reverse"},
+          {"enum": ["REVERSE_MONTE_CARLO"], "description": "https://en.wikipedia.org/wiki/Reverse_Monte_Carlo"},
+          {"enum": ["RIPPER"], "description": "https://en.wikipedia.org/wiki/Repeated_incremental_pruning_to_produce_error_reduction_(RIPPER)"},
+          {"enum": ["ROBUST_PRINCIPAL_COMPONENT_ANALYSIS"], "description": "https://en.wikipedia.org/wiki/Robust_principal_component_analysis"},
+          {"enum": ["RPROP"], "description": "https://en.wikipedia.org/wiki/Rprop"},
+          {"enum": ["RULE_BASED_MACHINE_LEARNING"], "description": "https://en.wikipedia.org/wiki/Rule-based_machine_learning"},
+          {"enum": ["SELF_ORGANIZING_MAP"], "description": "https://en.wikipedia.org/wiki/Self-organizing_map"},
+          {"enum": ["SEMIDEFINITE_EMBEDDING"], "description": "https://en.wikipedia.org/wiki/Semidefinite_embedding"},
+          {"enum": ["SIGNAL_DITHERING"], "description": "https://en.wikipedia.org/wiki/Dither"},
+          {"enum": ["SIGNAL_ENERGY"], "description": "https://en.wikipedia.org/wiki/Energy_(signal_processing)"},
+          {"enum": ["SIGNAL_TO_NOISE_RATIO"], "description": "https://en.wikipedia.org/wiki/Signal-to-noise_ratio"},
+          {"enum": ["SIMULATED_ANNEALING"], "description": "https://en.wikipedia.org/wiki/Simulated_annealing"},
+          {"enum": ["SINGULAR_VALUE_DECOMPOSITION"], "description": "https://en.wikipedia.org/wiki/Singular-value_decomposition"},
+          {"enum": ["SMOOTHED_ANALYSIS"], "description": "https://en.wikipedia.org/wiki/Smoothed_analysis"},
+          {"enum": ["SOFT_CLUSTERING"], "description": "https://en.wikipedia.org/wiki/Fuzzy_clustering"},
+          {"enum": ["SOFTMAX_FUNCTION"], "description": "https://en.wikipedia.org/wiki/Softmax_function"},
+          {"enum": ["SPARSE_DICTIONARY_LEARNING"], "description": "https://en.wikipedia.org/wiki/Sparse_dictionary_learning"},
+          {"enum": ["SPARSE_PCA"], "description": "https://en.wikipedia.org/wiki/Sparse_PCA"},
+          {"enum": ["SPECTRAL_CLUSTERING"], "description": "https://en.wikipedia.org/wiki/Spectral_clustering"},
+          {"enum": ["SPIKE_AND_SLAB_VARIABLE_SELECTION"], "description": "https://en.wikipedia.org/wiki/Spike-and-slab_variable_selection"},
+          {"enum": ["SPIKING_NEURAL_NETWORKS"], "description": "https://en.wikipedia.org/wiki/Spiking_neural_network"},
+          {"enum": ["SPRUCE"], "description": "https://gitlab.com/zinkov/spruce/blob/master/README.md"},
+          {"enum": ["STATISTICAL_MOMENT_ANALYSIS"], "description": "https://en.wikipedia.org/wiki/Moment_(mathematics)"},
+          {"enum": ["STOCHASTIC_CHAINS_WITH_MEMORY_OF_VARIABLE_LENGTH"], "description": "https://en.wikipedia.org/wiki/Stochastic_chains_with_memory_of_variable_length"},
+          {"enum": ["STOCHASTIC_GRADIENT_DESCENT"], "description": "https://en.wikipedia.org/wiki/Stochastic_gradient_descent"},
+          {"enum": ["STOCHASTIC_NEURAL_NETWORK"], "description": "https://en.wikipedia.org/wiki/Stochastic_neural_network"},
+          {"enum": ["STRICT_PARTITIONING_CLUSTERING"]},
+          {"enum": ["STRICT_PARTITIONING_CLUSTERING_WITH_OUTLIERS"]},
+          {"enum": ["STRUCTURED_KNN"], "description": "https://en.wikipedia.org/wiki/Structured_kNN"},
+          {"enum": ["STRUCTURED_SPARSITY_REGULARIZATION"], "description": "https://en.wikipedia.org/wiki/Structured_sparsity_regularization"},
+          {"enum": ["STRUCTURED_SUPPORT_VECTOR_MACHINE"], "description": "https://en.wikipedia.org/wiki/Structured_support_vector_machine"},
+          {"enum": ["SUBSPACE_CLUSTERING"], "description": "https://en.wikipedia.org/wiki/Clustering_high-dimensional_data#Subspace_clustering"},
+          {"enum": ["SUM_CODING"]},
+          {"enum": ["SUPER_RECURSIVE_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Super-recursive_algorithm"},
+          {"enum": ["SUPPORT_VECTOR_MACHINE"], "description": "https://en.wikipedia.org/wiki/Support_vector_machine"},
+          {"enum": ["SYMBOLIC_REGRESSION"], "description": "https://en.wikipedia.org/wiki/Symbolic_regression"},
+          {"enum": ["T_DISTRIBUTED_STOCHASTIC_NEIGHBOR_EMBEDDING"], "description": "https://en.wikipedia.org/wiki/T-distributed_stochastic_neighbor_embedding"},
+          {"enum": ["TFIDF"], "description": "https://en.wikipedia.org/wiki/Tf-idf"},
+          {"enum": ["TIKHONOV_REGULARIZATION"], "description": "https://en.wikipedia.org/wiki/Tikhonov_regularization"},
+          {"enum": ["TIME_DELAY_NEURAL_NETWORK"], "description": "https://en.wikipedia.org/wiki/Time_delay_neural_network"},
+          {"enum": ["TRUNCATED_NEWTON_METHOD"], "description": "https://en.wikipedia.org/wiki/Truncated_Newton_method"},
+          {"enum": ["TRUNCATED_NORMAL_DISTRIBUTION"], "description": "https://en.wikipedia.org/wiki/Truncated_normal_distribution"},
+          {"enum": ["UNIFORM_DISTRIBUTION"], "description": "https://en.wikipedia.org/wiki/Uniform_distribution_(continuous)"},
+          {"enum": ["UNIFORM_TIME_SERIES_SEGMENTATION"], "description": "Time-series segmentation into fixed-sized segments (windows, frames)"},
+          {"enum": ["UNIT_WEIGHTED_REGRESSION"], "description": "https://en.wikipedia.org/wiki/Unit-weighted_regression"},
+          {"enum": ["UNIVARIATE_REGRESSION"], "description": "https://en.wikipedia.org/wiki/Multi-label_classification"},
+          {"enum": ["UNIVERSAL_PORTFOLIO_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Universal_portfolio_algorithm"},
+          {"enum": ["VARIABLE_ORDER_MARKOV_MODEL"], "description": "https://en.wikipedia.org/wiki/Variable-order_Markov_model"},
+          {"enum": ["VARIATIONAL_BAYESIAN_METHODS"], "description": "https://en.wikipedia.org/wiki/Variational_Bayesian_methods"},
+          {"enum": ["VARIATIONAL_MESSAGE_PASSING"], "description": "https://en.wikipedia.org/wiki/Variational_message_passing"},
+          {"enum": ["VECTOR_QUANTIZATION"], "description": "https://en.wikipedia.org/wiki/Vector_quantization"},
+          {"enum": ["VERSION_SPACE_LEARNING"], "description": "https://en.wikipedia.org/wiki/Version_space_learning"},
+          {"enum": ["WAKE_SLEEP_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Wake-sleep_algorithm"},
+          {"enum": ["WEIGHTED_MAJORITY_ALGORITHM"], "description": "https://en.wikipedia.org/wiki/Weighted_majority_algorithm_(machine_learning)"},
+          {"enum": ["WINNOW"], "description": "https://en.wikipedia.org/wiki/Winnow_(algorithm)"},
+          {"enum": ["WORD2VEC"], "description": "https://en.wikipedia.org/wiki/Word2vec"}
+        ]
+      },
+      "minItems": 1
+    },
+    "primitive_family": {
+      "description": "Primitive family describes the high-level purpose/nature of the primitive. Only one value per primitive is possible. Consider splitting a primitive into multiple primitives if this represents a problem for you.",
+      "oneOf": [
+        {"enum": ["CLASSIFICATION"], "description": "https://en.wikipedia.org/wiki/Statistical_classification"},
+        {"enum": ["CLUSTERING"], "description": "https://en.wikipedia.org/wiki/Cluster_analysis"},
+        {"enum": ["COLLABORATIVE_FILTERING"], "description": "https://en.wikipedia.org/wiki/Collaborative_filtering"},
+        {"enum": ["COMMUNITY_DETECTION"], "description": "https://en.wikipedia.org/wiki/Community_search"},
+        {"enum": ["DATA_CLEANING"], "description": "https://en.wikipedia.org/wiki/Data_cleansing"},
+        {"enum": ["DATA_COMPRESSION"], "description": "https://en.wikipedia.org/wiki/Data_compression"},
+        {"enum": ["DATA_GENERATION"], "description": "https://en.wikipedia.org/wiki/Data_generating_process"},
+        {"enum": ["DATA_PREPROCESSING"], "description": "https://en.wikipedia.org/wiki/Data_pre-processing"},
+        {"enum": ["DATA_TRANSFORMATION"], "description": "https://en.wikipedia.org/wiki/Data_transformation"},
+        {"enum": ["DATA_VALIDATION"], "description": "https://en.wikipedia.org/wiki/Data_validation"},
+        {"enum": ["DATA_WRANGLING"], "description": "https://en.wikipedia.org/wiki/Data_wrangling"},
+        {"enum": ["DIGITAL_IMAGE_PROCESSING"], "description": "https://en.wikipedia.org/wiki/Digital_image_processing"},
+        {"enum": ["DIGITAL_SIGNAL_PROCESSING"], "description": "https://en.wikipedia.org/wiki/Digital_signal_processing"},
+        {"enum": ["EVALUATION"], "description": "Primitives providing validation/evaluation, like cross-validation."},
+        {"enum": ["FEATURE_CONSTRUCTION"], "description": "A primitive which creates new features."},
+        {"enum": ["FEATURE_EXTRACTION"], "description": "https://en.wikipedia.org/wiki/Feature_extraction"},
+        {"enum": ["FEATURE_SELECTION"], "description": "https://en.wikipedia.org/wiki/Feature_selection"},
+        {"enum": ["GRAPH_CLUSTERING"]},
+        {"enum": ["GRAPH_MATCHING"], "description": "https://en.wikipedia.org/wiki/Graph_matching"},
+        {"enum": ["LEARNER"], "description": "A primitive which is a learner/model."},
+        {"enum": ["LINK_PREDICTION"]},
+        {"enum": ["LOSS_FUNCTION"], "description": "Primitives can take a loss function as an argument. This family of primitives provide such loss functions and they can be passed as an argument to other primitives."},
+        {"enum": ["METAFEATURE_EXTRACTION"], "description": "Computes metadata and metafeatures to assist in pipeline construction."},
+        {"enum": ["NORMALIZATION"]},
+        {"enum": ["OBJECT_DETECTION"], "description": "https://en.wikipedia.org/wiki/Object_detection"},
+        {"enum": ["OPERATOR"], "description": "A simple mathematical operator."},
+        {"enum": ["REGRESSION"], "description": "A primitive which can be used to address regression problems."},
+        {"enum": ["SIMILARITY_MODELING"], "description": "A primitive which attempts to learn or infer a measure of similarity or dissimilarity between pairs of instances."},
+        {"enum": ["TIME_SERIES_CLASSIFICATION"], "description": "A primitive which can be used to address classification problems of time-series."},
+        {"enum": ["TIME_SERIES_EMBEDDING"], "description": "A fixed-length representation of variable-length time series." },
+        {"enum": ["TIME_SERIES_FORECASTING"]},
+        {"enum": ["TIME_SERIES_SEGMENTATION"], "description": "A primitive which segments an input time-series into a sequence of discrete segments in order to reveal the underlying properties of its source. https://en.wikipedia.org/wiki/Time-series_segmentation."},
+        {"enum": ["VERTEX_NOMINATION"]},
+        {"enum": ["VIDEO_PROCESSING"], "description": "https://en.wikipedia.org/wiki/Video_processing"},
+        {"enum": ["SCHEMA_DISCOVERY"]}
+      ]
+    },
+    "preconditions": {
+      "type": "array",
+      "description": "A set of requirements for the data given as an input to this primitive. For example, a primitive may not be able to handle data with missing values.",
+      "items": {
+        "oneOf": [
+          {"enum": ["NO_MISSING_VALUES"], "description": "The primitive cannot handle missing values."},
+          {"enum": ["NO_CATEGORICAL_VALUES"], "description": "The primitive cannot handle categorical values."},
+          {"enum": ["NO_NEGATIVE_VALUES"], "description": "The primitive cannot handle negative values."},
+          {"enum": ["NO_CONTINUOUS_VALUES"], "description": "The primitive cannot handle continuous values."},
+          {"enum": ["NO_JAGGED_VALUES"], "description": "The primitive cannot handle values where different elements of data have different dimensions. Both numpy arrays and pandas support only fixed dimension sizes, but a list of lists could have some sub-lists of a different length to others, or a numpy array of objects where objects are numpy arrays of different sizes."},
+          {"enum": ["NO_NESTED_VALUES"], "description": "The primitive cannot handle values where a container value contains nested other values with dimensions. E.g., a Pandas DataFrame having numpy arrays as values. Not just container types have dimensions."}
+        ]
+      },
+      "minItems": 1
+    },
+    "effects": {
+      "type": "array",
+      "description": "A set of postconditions obtained by the data processed by this primitive. For example, a primitive may remove missing values.",
+      "items": {
+        "oneOf":[
+          {"enum": ["NO_MISSING_VALUES"], "description": "The primitive removes missing values (e.g., imputation)."},
+          {"enum": ["NO_CATEGORICAL_VALUES"], "description": "The primitive removes categorical columns (e.g., label encoder)."},
+          {"enum": ["NO_NEGATIVE_VALUES"], "description": "The primitive produces only non-negative values."},
+          {"enum": ["NO_CONTINUOUS_VALUES"], "description": "The data produced by this primitive is discretized."},
+          {"enum": ["NO_JAGGED_VALUES"], "description": "The primitive produces values with fixed dimension sizes across all elements."},
+          {"enum": ["NO_NESTED_VALUES"], "description": "The primitive produces values where a container value does not contain nested any other values with dimensions."}
+        ]
+      },
+      "minItems": 1
+    },
+    "hyperparams_to_tune": {
+      "type": "array",
+      "description": "A list containing the significant hyper-parameter names of a primitive that should be tuned (for prioritizing hyper-parameter tuning). For instance, if a primitive has 10 hyper-parameters, this metadata may be used to specify the two or three that affect the results the most.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "outliers": {
+      "type": "array",
+      "description": "Number of outliers n sigma away from mean for some list of numbers.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "n": {
+            "type": "integer"
+          },
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "n",
+          "count"
+        ],
+        "additionalProperties": true
+      },
+      "minItems": 1
+    },
+    "aggregate": {
+      "type": "object",
+      "description": "Aggregate metadata about some list of numbers.",
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/name"
+        },
+        "description": {
+          "$ref": "#/definitions/description"
+        },
+        "min": {
+          "type": "number",
+          "description": "Minimum value of the list."
+        },
+        "max": {
+          "type": "number",
+          "description": "Maximum value of the list."
+        },
+        "mean": {
+          "type": "number",
+          "description": "Mean value of the list."
+        },
+        "median": {
+          "type": "number",
+          "description": "Median value of the list."
+        },
+        "std": {
+          "type": "number",
+          "description": "Standard deviation value of the list."
+        },
+        "quartile_1": {
+          "type": "number",
+          "description": "The 25th percentile value of the list."
+        },
+        "quartile_3": {
+          "type": "number",
+          "description": "The 75th percentile value of the list."
+        },
+        "kurtosis": {
+          "type": "number",
+          "description": "The kurtosis of the distribution."
+        },
+        "skewness": {
+          "type": "number",
+          "description": "The skew of the distribution."
+        }
+      },
+      "additionalProperties": true
+    },
+    "python_value": {
+      "description": "A Python value. Schema allows a value of any type, even not JSON-compatible."
+    },
+    "supported_media_types": {
+      "allOf": [{"$ref": "#/definitions/media_types"}],
+      "description": "Which media types a primitive knows how to manipulate."
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "A timestamp.",
+      "anyOf": [
+        {"format": "date-time"},
+        {"format": "date"}
+      ]
+    },
+    "problem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "version": {
+          "$ref": "#/definitions/version"
+        },
+        "name": {
+          "$ref": "#/definitions/name"
+        },
+        "other_names": {
+          "$ref": "#/definitions/other_names"
+        },
+        "description": {
+          "$ref": "#/definitions/description"
+        },
+        "task_type": {
+          "description": "Type of the task.",
+          "oneOf": [
+            {"enum": ["CLASSIFICATION"], "description": "https://en.wikipedia.org/wiki/Statistical_classification"},
+            {"enum": ["REGRESSION"], "description": "https://en.wikipedia.org/wiki/Regression_analysis"},
+            {"enum": ["CLUSTERING"], "description": "https://en.wikipedia.org/wiki/Cluster_analysis"},
+            {"enum": ["LINK_PREDICTION"]},
+            {"enum": ["VERTEX_NOMINATION"]},
+            {"enum": ["COMMUNITY_DETECTION"], "description": "https://en.wikipedia.org/wiki/Community_search"},
+            {"enum": ["GRAPH_CLUSTERING"]},
+            {"enum": ["GRAPH_MATCHING"], "description": "https://en.wikipedia.org/wiki/Graph_matching"},
+            {"enum": ["TIME_SERIES_FORECASTING"]},
+            {"enum": ["COLLABORATIVE_FILTERING"], "description": "https://en.wikipedia.org/wiki/Collaborative_filtering"},
+            {"enum": ["OBJECT_DETECTION"], "description": "https://en.wikipedia.org/wiki/Object_detection"}
+          ]
+        },
+        "task_subtype": {
+          "description": "Subtype of the task.",
+          "oneOf": [
+            {"enum": ["NONE"]},
+            {"enum": ["BINARY"]},
+            {"enum": ["MULTICLASS"]},
+            {"enum": ["MULTILABEL"]},
+            {"enum": ["UNIVARIATE"]},
+            {"enum": ["MULTIVARIATE"]},
+            {"enum": ["OVERLAPPING"]},
+            {"enum": ["NONOVERLAPPING"]}
+          ]
+        },
+        "performance_metrics": {
+          "type": "array",
+          "description": "For which performance metrics to optimize for?",
+          "items": {
+            "type": "object",
+            "properties": {
+              "metric": {
+                "type": "string"
+              },
+              "params": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "metric"
+            ],
+            "oneOf": [
+              {
+                "properties": {
+                  "metric": {"enum": ["ACCURACY"]}
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["PRECISION"]},
+                  "params": {
+                    "type": "object",
+                    "properties": {
+                      "pos_label": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["RECALL"]},
+                  "params": {
+                    "type": "object",
+                    "properties": {
+                      "pos_label": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["F1"]},
+                  "params": {
+                    "type": "object",
+                    "properties": {
+                      "pos_label": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "pos_label"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "params"
+                ]
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["F1_MICRO"]}
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["F1_MACRO"]}
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["ROC_AUC"]},
+                  "params": {
+                    "type": "object",
+                    "properties": {
+                      "pos_label": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["ROC_AUC_MICRO"]}
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["ROC_AUC_MACRO"]}
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["MEAN_SQUARED_ERROR"]}
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["ROOT_MEAN_SQUARED_ERROR"]}
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["ROOT_MEAN_SQUARED_ERROR_AVG"]}
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["MEAN_ABSOLUTE_ERROR"]}
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["R_SQUARED"]}
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["NORMALIZED_MUTUAL_INFORMATION"]}
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["JACCARD_SIMILARITY_SCORE"]}
+                }
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["PRECISION_AT_TOP_K"]},
+                  "params": {
+                    "type": "object",
+                    "properties": {
+                      "k": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "k"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "params"
+                ]
+              },
+              {
+                "properties": {
+                  "metric": {"enum": ["OBJECT_DETECTION_AVERAGE_PRECISION"]}
+                }
+              }
+            ],
+            "additionalProperties": true
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "task_type",
+        "task_subtype"
+      ],
+      "additionalProperties": true
+    },
+    "problem_inputs": {
+      "type": "array",
+      "description": "A list describing input datasets for the problem and associated targets. This list should match the list of inputs to a solution pipeline, in order.",
+      "items": {
+        "type": "object",
+        "description": "A description of an input dataset.",
+        "properties": {
+          "dataset_id": {
+            "allOf": [{"$ref": "#/definitions/id"}],
+            "description": "An ID of a dataset associated with this input, among known or available datasets. Information which datasets precisely (version, digest, etc.) are inputs should be available elsewhere, e.g., in a pipeline run description, while this ID serves to map problem inputs to those datasets."
+          },
+          "targets": {
+            "type": "array",
+            "description": "A list of targets used for this problem from this dataset.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "target_index": {
+                  "type": "integer",
+                  "description": "An index of the target in this list of targets, 0-based."
+                },
+                "resource_id": {
+                  "$ref": "#/definitions/resource_id"
+                },
+                "column_index": {
+                  "$ref": "#/definitions/column_index"
+                },
+                "column_name": {
+                  "$ref": "#/definitions/column_name"
+                },
+                "clusters_number": {
+                  "type": "integer",
+                  "description": "The number of clusters to be generated by the solution algorithm (if this information is known apriori)."
+                }
+              },
+              "required": [
+                "target_index",
+                "resource_id",
+                "column_index",
+                "column_name"
+              ],
+              "additionalProperties": true
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "dataset_id"
+        ],
+        "additionalProperties": true
+      },
+      "minItems": 1
+    },
+    "problem_outputs": {
+      "type": "object",
+      "description": "Description of the output of the problem.",
+      "properties": {
+        "predictions_file": {
+          "type": "string",
+          "description": "A filename of an output file with predictions."
+        },
+        "scores_file": {
+          "type": "string",
+          "description": "A filename of an output file with scores."
+        }
+      },
+      "required": [
+        "predictions_file"
+      ],
+      "additionalProperties": true
+    },
+    "resource_id": {
+      "type": "string"
+    },
+    "column_index": {
+      "type": "integer",
+      "description": "An index of the column, 0-based."
+    },
+    "column_name": {
+      "allOf": [{"$ref": "#/definitions/name"}],
+      "description": "A name of the column. There are no restrictions on the content, length, it can contain whitespace, and names do not even have to be unique."
+    },
+    "data_reference": {
+      "type": "string",
+      "description": "Data reference is a string which identifies an output of a step or a pipeline input and forms a data-flow connection between data available and an input to a step.",
+      "examples": [
+        "steps.0.produce",
+        "inputs.1"
+      ]
+    },
+    "pipeline_context": {
+      "description": "In which context a pipeline was created.",
+      "oneOf": [
+        {"enum": ["PRETRAINING"], "description": "Pipeline was created during building/training of the system itself, e.g., during metalearning."},
+        {"enum": ["TESTING"], "description": "Pipeline was created during development or testing of the system itself, e.g., during debugging."},
+        {"enum": ["EVALUATION"], "description": "Pipeline was created during evaluation of the system itself, e.g., NIST blind evaluation."},
+        {"enum": ["PRODUCTION"], "description": "Pipeline was created during regular (production) operation of the system."}
+      ]
+    },
+    "users": {
+      "type": "array",
+      "description": "A list of users associated with the value.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "allOf": [{"$ref": "#/definitions/id"}],
+            "description": "Globally unique ID for this user. It can be opaque, but it should identify the same user across sessions. Consider using UUID variant 5 with namespace set to the name of your system and name to an ID in your system's database."
+          },
+          "reason": {
+            "allOf": [{"$ref": "#/definitions/description"}],
+            "description": "A natural language description of what the user did to be on the list, e.g., \"Picked a pipeline from a list of pipelines.\"."
+          },
+          "rationale": {
+            "allOf": [{"$ref": "#/definitions/description"}],
+            "description": "A natural language description by the user of what the user did, e.g., \"I picked a pipeline because it looks short in comparison with others.\"."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": true
+      },
+      "minItems": 1
+    },
+    "container_argument": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "A regular container type output from another step or pipeline's input.",
+          "oneOf": [{"enum": ["CONTAINER"]}]
+        },
+        "data": {
+          "$ref": "#/definitions/data_reference"
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "additionalProperties": true
+    },
+    "data_argument": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "A singleton output from another step in a pipeline. This means that container's sole element is passed as an argument to the primitive instead of the whole container value.",
+          "oneOf": [{"enum": ["DATA"]}]
+        },
+        "data": {
+          "$ref": "#/definitions/data_reference"
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "additionalProperties": true
+    },
+    "data_arguments": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "A set of singleton outputs from other steps in a pipeline. While sets do not have order, we want to assure reproducibility when iterating over sets so values should be passed in the same order they are listed here.",
+          "oneOf": [{"enum": ["DATA"]}]
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/data_reference"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "additionalProperties": true
+    },
+    "primitive_argument": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "A primitive instance to be passed as a hyper-parameter. A primitive should be part of a pipeline and is identified by its step.",
+          "oneOf": [{"enum": ["PRIMITIVE"]}]
+        },
+        "data": {
+          "type": "integer",
+          "description": "0-based index identifying a step of which primitive is used as a value."
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "additionalProperties": true
+    },
+    "primitive_arguments": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "A set of primitive instances to be passed as a hyper-parameter. Primitives should be part of a pipeline and are identified by their step. While sets do not have order, we want to assure reproducibility when iterating over sets so values should be passed in the same order they are listed here.",
+          "oneOf": [{"enum": ["PRIMITIVE"]}]
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "description": "0-based index identifying a step of which primitive is used as a value."
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "additionalProperties": true
+    },
+    "value_argument": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "A constant value of a hyper-parameter. Each hyper-parameter class knows how to convert its value to a JSON-compatible structure and back.",
+          "oneOf": [{"enum": ["VALUE"]}]
+        },
+        "data": {
+          "description": "Hyper-parameter value as converted to a JSON-compatible structure by a hyper-parameter class."
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "additionalProperties": true
+    },
+    "arguments": {
+      "type": "object",
+      "description": "A mapping between primitive's arguments and their values. Primitive's arguments are passed in turn to primitive's methods which need them. Only those which are specified as kind \"PIPELINE\" in primitive's metadata can be specified here.",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z_0-9]*$": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/container_argument"
+            },
+            {
+              "$ref": "#/definitions/data_argument"
+            }
+          ]
+        }
+      }
+    },
+    "hyperparams": {
+      "type": "object",
+      "description": "A mapping between primitive's hyper-parameters and their values.",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[A-Za-z][A-Za-z_0-9]*([.][A-Za-z][A-Za-z_0-9]*)*$": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/container_argument"
+            },
+            {
+              "$ref": "#/definitions/data_argument"
+            },
+            {
+              "$ref": "#/definitions/primitive_argument"
+            },
+            {
+              "$ref": "#/definitions/value_argument"
+            },
+            {
+              "$ref": "#/definitions/data_arguments"
+            },
+            {
+              "$ref": "#/definitions/primitive_arguments"
+            }
+          ]
+        }
+      }
+    },
+    "pipeline_inputs": {
+      "type": "array",
+      "description": "Inputs to a pipeline. The order of inputs matter. Inputs are references by steps using a data reference.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "$ref": "#/definitions/name"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "pipeline_outputs": {
+      "type": "array",
+      "description": "Outputs from a pipeline. The order of outputs matter. Each output references an output of a step and in this way makes that step output a pipeline output as well.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "$ref": "#/definitions/name"
+          },
+          "data": {
+            "$ref": "#/definitions/data_reference"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "pipeline_steps": {
+      "type": "array",
+      "description": "Steps defining pipeline's logic.",
+      "items": {
+        "type": "object",
+        "oneOf": [
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "A step which runs a primitive.",
+                "oneOf": [{"enum": ["PRIMITIVE"]}]
+              },
+              "primitive": {
+                "$ref": "#/definitions/primitive_reference"
+              },
+              "arguments": {
+                "allOf": [{"$ref": "#/definitions/arguments"}],
+                "description": "Arguments to a primitive as a whole. Not all arguments defined by a primitive have to be specified here. Furthermore, only those which are specifeid as kind \"PIPELINE\" in primitive's metadata can be specified. Constructor arguments should not be specified here, because they can be automatically created from other information."
+              },
+              "outputs": {
+                "type": "array",
+                "description": "A list of produce method names of this primitive which are outputs of this step.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The name of the primitive's produce method which returns output data available by this primitive step."
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ],
+                  "additionalProperties": true
+                },
+                "minItems": 1
+              },
+              "hyperparams": {
+                "allOf": [{"$ref": "#/definitions/hyperparams"}],
+                "description": "Only those hyper-parameters which should be fixed as part of the pipeline should be specified here, e.g., control hyper-parameters. Any hyper-parameter specified here should not be further modified (e.g., tuned). Author of a pipeline decides which hyper-parameters are which, probably based on their semantic type."
+              },
+              "users": {
+                "$ref": "#/definitions/users"
+              }
+            },
+            "required": [
+              "type",
+              "primitive",
+              "arguments",
+              "outputs"
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "A step which runs another pipeline.",
+                "oneOf": [{"enum": ["SUBPIPELINE"]}]
+              },
+              "pipeline": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "allOf": [{"$ref": "#/definitions/id"}],
+                    "description": "ID of a pipeline to run at this step, of pipelines known to the system."
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": true
+              },
+              "inputs": {
+                "type": "array",
+                "description": "Mapping between data references available in the context of the outer pipeline to inputs of sub-pipeline, in order.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "allOf": [{"$ref": "#/definitions/data_reference"}],
+                      "description": "Data reference, probably of an output of a step or outer pipeline input, mapped to sub-pipeline's inputs in order."
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                },
+                "minItems": 1
+              },
+              "outputs": {
+                "type": "array",
+                "description": "Mapping between outputs of a sub-pipeline to names under which they should be exposed as outputs of this step, in order. For example: [{\"id\": \"predictions\"}] would map the first output of a sub-pipeline to a data reference \"steps.X.predictions\" where \"X\" is the step number of a given sub-pipeline step.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The name used in constructing the step's output data reference. If not provided, this output is skipped."
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ],
+                  "additionalProperties": true
+                },
+                "minItems": 1
+              }
+            },
+            "required": [
+              "type",
+              "pipeline",
+              "inputs",
+              "outputs"
+            ]
+          },
+          {
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "This step is used to represent a pipeline template which can be used to generate full pipelines. Not to be used in the metalearning context. Additional properties to further specify the placeholder constraints are allowed.",
+                "oneOf": [{"enum": ["PLACEHOLDER"]}]
+              },
+              "inputs": {
+                "type": "array",
+                "description": "Mapping between data references available in the context of the outer pipeline which can be used as inputs to resulting sub-pipeline, in order. Resulting sub-pipeline does not have to use all the inputs, but it cannot use any other inputs.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "allOf": [{"$ref": "#/definitions/data_reference"}],
+                      "description": "Data reference, probably of an output of a step or outer pipeline input, mapped to resulting sub-pipeline's inputs in order."
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": true
+                },
+                "minItems": 1
+              },
+              "outputs": {
+                "type": "array",
+                "description": "Mapping between outputs of a resulting sub-pipeline to names under which they should be exposed as outputs of this step, in order. For example: [{\"id\": \"predictions\"}] would map the first output of a resulting sub-pipeline to a data reference \"steps.X.predictions\" where \"X\" is the step number of a given placeholder step.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The name used in constructing the step's output data reference."
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ],
+                  "additionalProperties": true
+                },
+                "minItems": 1
+              }
+            },
+            "required": [
+              "type",
+              "inputs",
+              "outputs"
+            ]
+          }
+        ],
+        "additionalProperties": true
+      },
+      "minItems": 1
+    },
+    "model_features": {
+      "type": "array",
+      "description": "A set of features supported by an underlying model of a primitive.",
+      "items": {
+        "oneOf":[
+          {"enum": ["BINARY"]},
+          {"enum": ["MULTICLASS"]},
+          {"enum": ["MULTILABEL"]},
+          {"enum": ["UNIVARIATE"]},
+          {"enum": ["MULTIVARIATE"]},
+          {"enum": ["OVERLAPPING"]},
+          {"enum": ["NONOVERLAPPING"]}
+        ]
+      },
+      "minItems": 1
+    },
+    "primitive_reference": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "version": {
+          "$ref": "#/definitions/version"
+        },
+        "python_path": {
+          "$ref": "#/definitions/python_path"
+        },
+        "name": {
+          "$ref": "#/definitions/name"
+        },
+        "digest": {
+          "$ref": "#/definitions/digest"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "python_path",
+        "name"
+      ],
+      "additionalProperties": true
+    }
+  }
+}
