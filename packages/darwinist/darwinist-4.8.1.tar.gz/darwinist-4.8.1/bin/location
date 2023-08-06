@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+
+USAGE = """
+Example how to get current address with google maps api and
+OS/X CoreLocation.
+
+Please note your OS/X will ask with a dialog if you want to allow
+location access first time, and since we don't wait for location
+resolving, this most likely this will not show correct address
+first time you run it.
+"""
+
+from darwinist.location import CoreLocationManager, CoreLocationError
+from systematic.shell import Script
+
+script = Script(USAGE)
+script.add_argument('--wait-seconds', type=int, default=5, help='Wait time for location')
+script.add_argument('--count', type=int, default=1, help='Number of addresses to show')
+args = script.parse_args()
+
+manager = CoreLocationManager()
+
+try:
+    coordinates = manager.get_coordinates(args.wait_seconds)
+except CoreLocationError as e:
+    manager.stopUpdatingLocation()
+    script.exit(1, emsg)
+
+manager.stopUpdatingLocation()
+
+try:
+    script.message('\n'.join(manager.get_addresses(coordinates, count=args.count)))
+except CoreLocationError as e:
+    script.exit(1, emsg)
