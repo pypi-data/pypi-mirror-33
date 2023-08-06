@@ -1,0 +1,35 @@
+- name: Lookup deployment UUID
+  set_fact:
+    deployment_uuid: "{{ lookup('file', role_name ~ '/' ~ ansible_hostname ~ '/' ~ item) | from_yaml | json_query(item ~ '.id')}}"
+
+- name: "Render deployment file for {{ item }}"
+  copy:
+    content: "[ {{ lookup('file', role_name ~ '/' ~ ansible_hostname ~ '/' ~ item) | from_yaml | json_query(item) }} ]"
+    dest: "/var/lib/heat-config/tripleo-config-download/{{ item }}"
+  become: true
+
+- name: "Force remove deployed file for {{ item }}"
+  file:
+    path: /var/lib/heat-config/deployed/{{ deployment_uuid }}.json
+    state: absent
+  become: true
+  when: force | bool
+
+- name: "Run deployment {{ item }}"
+  shell: |
+    /usr/libexec/os-refresh-config/configure.d/55-heat-config
+    exit $(jq .deploy_status_code /var/lib/heat-config/deployed/{{ deployment_uuid }}.notify.json)
+  become: true
+  environment:
+    HEAT_SHELL_CONFIG: /var/lib/heat-config/tripleo-config-download/{{ item }}
+  register: deployment_result
+  ignore_errors: yes
+
+- name: "Output for {{ item }}"
+  debug:
+    msg:
+      - stderr: "{{ deployment_result.stderr.split('\n') }}"
+      - status_code: "{{ deployment_result.rc }}"
+  tags:
+    - output
+  failed_when: deployment_result.rc not in (0, 2)
