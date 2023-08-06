@@ -1,0 +1,58 @@
+# Wattle
+
+Library for converting yaml structures to Python objects, based on a predefined object hierarchy schema.
+
+Given a schema of class hierarchy
+
+```python
+from wattle import load_schema
+from wattle.nodes import Nested, Value
+
+
+class MessagePrinter:
+    indent = Value(int)
+    capitalize = Value(bool)
+
+    def print(self, message):
+        if self.indent:
+            message = (" " * self.indent) + message
+        if self.capitalize:
+            message = message.upper()
+        print(message)
+
+
+class HelloWorld:
+    message = Value(str)
+    how_many_times = Value(int, default=25)
+    printer = Nested(MessagePrinter)
+
+    def print(self):
+        for _ in range(self.how_many_times):
+            self.printer.print(self.message)
+
+
+if __name__ == '__main__':
+    schema = load_schema(HelloWorld)
+    root = schema.read('examples/hello_world/input.yml')
+    root.print()
+
+```
+
+and the input yaml file
+
+```yaml
+message: Hello world
+how_many_times: 5
+printer:
+  indent: 4
+  capitalize: yes
+```
+
+Will result in an already populated object
+
+```
+assert root.message == 'Hello world'
+assert isinstance(root.printer, MessagePrinter)
+root.print()
+```
+
