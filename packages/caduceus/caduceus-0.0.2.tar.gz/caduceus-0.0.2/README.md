@@ -1,0 +1,118 @@
+Caduceus
+========
+
+What is Caduceus?
+-----------------
+
+Caduceus is [that long stick with the intertwined snakes](https://en.wikipedia.org/wiki/Caduceus) that Hermes used to carry around.
+It is also a service that will notify you if your scheduled tasks/cronjobs fail to run.
+
+
+Motivation
+----------
+
+You know how you set all these cronjobs to run, and added fancy error reporting and things, only to realize too late that this doesn't help you at all when the server has been down for a month and nobody noticed?
+Caduceus won't let this happen again.
+
+Rather than trigger on failure, Caduceus triggers on absence of success.
+Services have to actively check in (by visiting a URL), and, if they don't, Caduceus notifies you by email that the task has failed.
+If the service starts working again, Caduceus will notify you of that as well.
+
+
+Installation
+------------
+
+To install Caduceus, you can just get it from PyPI:
+
+```bash
+pip install caduceus
+```
+
+Alternatively, you can use the built-in `Dockerfile` to run it:
+
+```bash
+docker build -t caduceus .
+```
+
+
+Usage
+-----
+
+To run Caduceus, you need to configure it.
+This is done by placing a file called `caduceus.toml` in the directory you want to run Caduceus in.
+That directory is where the Caduceus SQLite database will be created.
+
+If you installed Caduceus from the repo or with `pip`, just run it:
+
+```bash
+caduceus
+```
+
+It will load the configuration from the file, create its database and start running on `http://localhost:5000/`.
+
+To run it via Docker:
+
+```bash
+docker run --rm -v $(pwd):/caduceus -i -t caduceus
+```
+
+Configuration
+-------------
+
+Here's a sample configuration file (which is also available as `caduceus.toml.example` in the repository):
+
+```toml
+[alerting]
+# Where you want the notification emails sent if services don't check in.
+recipient_emails = [ "notifyme@example.com", "otherdev@example.com" ]
+# An optional secret key to use for checking in.
+secret_key = "somelongkey"
+
+[alerting.smtp]
+# SMTP server configuration, for sending email.
+from_addr = "caduceus@example.com"
+hostname = "example.com"
+port = 25
+username = "myuser"
+password = "mypassword"
+
+# Your alerts go here.
+
+[alerts]
+# This is the top-level alerts section, you can add as many alerts as you want here.
+
+# An alert needs a short name (here, `cron`), and an interval it needs to check in by.
+[alerts.cron]
+every = "1h"
+
+[alerts.backups]
+every = "1d"
+
+[alerts.alwaysfail]
+every = "1s"
+```
+
+The above config defines three services, `cron`, `backups` and `alwaysfail`.
+`cron` needs to check in every hour, `backups` needs to check in every day, and `alwaysfail` needs to check in every second.
+That's why it was called that.
+
+
+Checking in
+-----------
+
+Checking in is done by retrieving a URL on the server.
+The URL for checking in and resetting the alert timer is `/reset/<alert name>/`.
+For example, to check in to `cron` if you haven't specified a `secret_key` (and if Caduceus is running on example.com), you'd simply do:
+
+```bash
+curl http://example.com/reset/cron/
+```
+
+If you *did* specify a secret key, just include it:
+
+```bash
+curl http://example.com/reset/cron/?key=<your secret_key>
+```
+
+If your alert is set up for, say, one hour, and your task does not check in, you will get an email one hour after its last checkin, saying "your task has not checked in".
+If it still doesn't check in, you'll get another email an hour after that, then an hour after that, etc, until it does, at which point you'll get an email saying that the job is now fine.
