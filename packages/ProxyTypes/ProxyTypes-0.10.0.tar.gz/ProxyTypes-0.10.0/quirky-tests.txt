@@ -1,0 +1,135 @@
+This file tests proxies for some odd aspects of the Python object model.
+
+    >>> class Dummy(object):
+    ...     def __getitem__(self, key):
+    ...         if is_oldslice(key):
+    ...             # Emulate Python 2.x getslice behavior if we're on 3.x
+    ...             return self.__getslice__(key.start, key.stop)
+    ...         print("get %s" % key)
+    ...     def __getslice__(self, s, e):
+    ... 	    print("get %s %s" % (s,e))
+    ...     def __contains__(self, key):
+    ...         print("contains %s" % (key,))
+    ...     def __setitem__(self, key, val):
+    ...         if is_oldslice(key):
+    ...             # Emulate Python 2.x setslice behavior if we're on 3.x
+    ...             return self.__setslice__(key.start, key.stop, val)
+    ...         print("set %s %s" % (key, val))
+    ...     def __setslice__(self, s, e, val):
+    ... 	    print("set %s %s %s" % (s,e,val))
+    ...     def __delitem__(self, key):
+    ...         if is_oldslice(key):
+    ...             # Emulate Python 2.x delslice behavior if we're on 3.x
+    ...             return self.__delslice__(key.start, key.stop)
+    ...         print("del %s" %(key,))
+    ...     def __delslice__(self, s, e):
+    ... 	    print("del %s %s" % (s,e))
+    ...     def __cmp__(self, x):
+    ...         print("comparing %s" % (x,))
+    ...         return 0
+    ...     def __pow__(self,*args):
+    ...         print("pow %r" % (args,))
+    ...     def __rpow__(self,*args):
+    ...         print("rpow %r" % (args,))
+
+>>> def is_oldslice(key):
+...     return isinstance(key, slice) and isinstance(key.start, int) and \
+...            isinstance(key.stop, int) and key.step is None
+
+>>> d = Dummy()
+>>> from peak.util.proxies import ObjectProxy
+>>> p = ObjectProxy(d)
+
+>>> d[1:2]
+get 1 2
+>>> p[1:2]
+get 1 2
+
+
+>>> d[1:2:3]
+get slice(1, 2, 3)
+>>> p[1:2:3]
+get slice(1, 2, 3)
+
+>>> d["x":"y"]
+get slice('x', 'y', None)
+>>> p["x":"y"]
+get slice('x', 'y', None)
+
+>>> "x" in d
+contains x
+False
+>>> "x" in p
+contains x
+False
+
+>>> d[1] = 1
+set 1 1
+>>> p[1] = 1
+set 1 1
+
+>>> d[1:2] = 3
+set 1 2 3
+>>> p[1:2] = 3
+set 1 2 3
+
+>>> d[1:2:3] = 4
+set slice(1, 2, 3) 4
+>>> p[1:2:3] = 4
+set slice(1, 2, 3) 4
+
+>>> del d[1]
+del 1
+>>> del p[1]
+del 1
+
+>>> del d[1:2]
+del 1 2
+>>> del p[1:2]
+del 1 2
+
+>>> del d[1:2:3]
+del slice(1, 2, 3)
+>>> del p[1:2:3]
+del slice(1, 2, 3)
+
+>>> del d["x":"y"]
+del slice('x', 'y', None)
+>>> del p["x":"y"]
+del slice('x', 'y', None)
+
+>>> try: cmp and None
+... except NameError:
+...    cmp = lambda a, b: int(a==b)
+...    Dummy.__eq__ = Dummy.__cmp__
+
+>>> cmp(d,27)
+comparing 27
+0
+>>> cmp(p,27)
+comparing 27
+0
+
+>>> cmp(27,d)
+comparing 27
+0
+>>> cmp(27,p)
+comparing 27
+0
+
+>>> pow(d,27)
+pow (27,)
+>>> pow(p,27)
+pow (27,)
+
+>>> pow(d,51,27)
+pow (51, 27)
+>>> pow(p,51,27)
+pow (51, 27)
+
+>>> pow(19,d)
+rpow (19,)
+>>> pow(19,p)
+rpow (19,)
+
+.. ex: set ft=rst :
