@@ -1,0 +1,54 @@
+## Name Generator
+
+[![Made with Open Source][open_source]][repo] 
+[![Ask me anything][ama_badge]][ama_url] 
+[![Build Status][build_status]][build_status_url]
+[![Yogi Approved][yogi_badge]][website]
+[![Version][version_image]][version_url] 
+
+> The Yoginth CLI
+
+## Install
+
+```
+$ pip install namegenerator
+```
+
+## Usage
+
+```
+$ namegenerator
+```
+
+## Get Help
+
+There are few ways to get help:
+
+ 1. Please [post questions on Stack Overflow](https://stackoverflow.com/questions/ask). You can open issues with questions, as long you add a link to your Stack Overflow question.
+
+ 2. For bug reports and feature requests, open issues.
+
+ 3. For direct and quick help, you can [email me](mailto://yoginth@zoho.com).
+
+## How to contribute
+Have an idea? Found a bug? See [how to contribute][contributing].
+
+Thanks!
+
+## License
+
+[MIT][license]
+
+[open_source]: https://badges.frapsoft.com/os/v1/open-source.svg?v=103
+[build_status]: https://gitlab.com/yoginth/namegenerator/badges/master/pipeline.svg
+[build_status_url]: https://gitlab.com/yoginth/namegenerator/commits/master
+[ama_badge]: https://img.shields.io/badge/Ask%20me-Anything-1abc9c.svg
+[ama_url]: https://gitlab.com/yoginth/ama
+[version_image]: https://img.shields.io/pypi/v/namegenerator.svg
+[version_url]: https://pypi.org/project/namegenerator
+[repo]: https://gitlab.com/yoginth/namegenerator
+[yogi_badge]: https://img.shields.io/badge/yogi-approved-800080.svg
+
+[LICENSE]: https://yoginth.mit-license.org/
+[website]: https://yoginth.ml
+[contributing]: /CONTRIBUTING.md
