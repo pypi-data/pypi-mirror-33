@@ -1,0 +1,72 @@
+#     Copyright 2018, Kay Hayen, mailto:kay.hayen@gmail.com
+#
+#     Part of "Nuitka", an optimizing Python compiler that is compatible and
+#     integrates with CPython, but also works on its own.
+#
+#     Licensed under the Apache License, Version 2.0 (the "License");
+#     you may not use this file except in compliance with the License.
+#     You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#     Unless required by applicable law or agreed to in writing, software
+#     distributed under the License is distributed on an "AS IS" BASIS,
+#     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#     See the License for the specific language governing permissions and
+#     limitations under the License.
+#
+""" This module maintains the locals dict handles. """
+
+from nuitka import Variables
+from nuitka.utils.InstanceCounters import counted_del, counted_init
+
+from .shapes.BuiltinTypeShapes import ShapeTypeDict
+from .shapes.StandardShapes import ShapeUnknown
+
+
+class LocalsDictHandle(object):
+    __slots__ = ("locals_name", "variables")
+
+    @counted_init
+    def __init__(self, locals_name):
+        self.locals_name = locals_name
+
+        # For locals dict variables in this scope.
+        self.variables = {}
+
+    __del__ = counted_del()
+
+    def __repr__(self):
+        return "<%s of %s>" % (
+            self.__class__.__name__,
+            self.locals_name
+        )
+
+    def getName(self):
+        return self.locals_name
+
+    @staticmethod
+    def getTypeShape():
+        return ShapeTypeDict
+
+    def getCodeName(self):
+        return self.locals_name
+
+    def getLocalsDictVariable(self, variable_name):
+        if variable_name not in self.variables:
+            result = Variables.LocalsDictVariable(
+                owner         = self,
+                variable_name = variable_name
+            )
+
+            self.variables[variable_name] = result
+
+        return self.variables[variable_name]
+
+
+
+class LocalsMappingHandle(LocalsDictHandle):
+    @staticmethod
+    def getTypeShape():
+        # TODO: Make mapping available for this.
+        return ShapeUnknown
