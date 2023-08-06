@@ -1,0 +1,80 @@
+M.A.T.A (Medieval Attack-Trade-Alliance)
+========================================
+
+For my HSC major project, I am creating a simple 2D game engine that
+allows developers to easily create multiplayer games which utilise
+either a local network or an Internet connection. The engine can be used
+to create singleplayer games, but is created with the multiplayer
+experience in mind.
+
+Automatic Setup:
+~~~~~~~~~~~~~~~~
+
+To test the engine, you should only need python installed (Python 3.4 is
+the best). Then, in a Terminal, Powershell or Command Prompt window,
+run: > py launcher.py
+
+Use the command line arguments detailed at the bottom of this readme to
+control the game's behaviour.
+
+Manual Setup:
+~~~~~~~~~~~~~
+
+If for some reason, the launcher does not work, the sample game can be
+launched manually by following a few steps. Firstly, ensure that your
+computer has the following dependencies installed:
+
+Windows
+'''''''
+
+Required:
+         
+
+-  Python 3 (3.4 is preferred)
+-  `Visual Studio C++ Build
+   Tools <https://wiki.python.org/moin/WindowsCompilers>`__ (Not needed
+   for Python 3.4)
+
+Linux:
+''''''
+
+Required:
+         
+
+-  python3
+
+Optional:
+         
+
+-  python3-dev
+-  cython3
+
+Required Python3 Packages (installed using pip3):
+                                                 
+
+-  pygame
+-  noise
+
+The next step is to compile or pythonify the api (instructions in the
+api folder README).
+
+Then, just run the main.py file in the Python interpreter.
+
+Using the Engine:
+~~~~~~~~~~~~~~~~~
+
+To use the engine as a game development framework, the simplest method
+is to install the mata package from PyPI. This can be done using: > py
+-m pip install mata
+
+on Windows, or using: > pip3 install mata
+
+on Linux and Mac OS.
+
+Creating a New Project:
+'''''''''''''''''''''''
+
+Creating a new project is simply a case of using the
+mata\_create\_project command (added after installation of the mata
+package from PyPI).
+
