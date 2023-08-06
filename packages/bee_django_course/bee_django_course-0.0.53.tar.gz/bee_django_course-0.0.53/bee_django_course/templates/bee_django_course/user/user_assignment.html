@@ -1,0 +1,147 @@
+{% extends "bee_django_course/user_base.html" %}
+{% load bootstrap3 %}
+{% block content %}
+    <h4>{{ ucs.section.name }}</h4>
+
+    {% if ucs.section.has_imagework %}
+        <div class="well">
+            <h5>图片作业：需要上传{{ ucs.section.image_count_req }}张图片</h5>
+            {% if assignment_images.exists %}
+                <h5>
+                    已上传图片：
+                    {% for e in assignment_images %}
+                        <a href="{{ e.image.url }}" target="_blank">{{ forloop.counter }}</a>
+                    {% endfor %}
+                </h5>
+            {% endif %}
+
+            {% if ucs.user_course.user == request.user %}
+                {% if not ucs.is_passed %}
+                    <form method="post" enctype="multipart/form-data"
+                          action="{% url 'bee_django_course:user_assignment_image_upload' ucs_id=ucs.id %}">
+                        {% csrf_token %}
+                        {% bootstrap_form image_form %}
+                        {% bootstrap_button '上传' %}
+                    </form>
+                {% endif %}
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if ucs.section.has_videowork %}
+        <div class="well">
+            <h5>需要录制{{ ucs.section.video_length_req }}分钟的作业，已录制 {{ ucs.work_time }} 分钟</h5>
+            {% if ucs.user_course.user == request.user %}
+                <a href="#" class="btn btn-default">去录制</a>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if ucs.section.has_textwork %}
+        <div class="well">
+            <h5>文字作业：{{ ucs.section.textwork_info }}</h5>
+            {% if ucs.is_learning or ucs.is_rejected %}
+                {% if ucs.user_course.user == request.user %}
+                    <form method="post" id="assignment_form">
+                        {% csrf_token %}
+                        {% bootstrap_form text_form %}
+                        <input type="submit" name="assignment_draft" value="保存" class="btn btn-info" id="save_button"/>
+                        <input type="submit" name="assignment_submit" value="提交" class="btn btn-success"
+                               id="submit_button"/>
+                    </form>
+                {% endif %}
+            {% else %}
+                <h5>状态：已提交</h5>
+                {% for e in assignments %}
+                    <div>
+                        {{ e.content | safe }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {#    {% if ucs.is_learning or ucs.is_rejected %}#}
+    {#        <div class="well">#}
+    {#            <input type="submit" name="assignment_submit" value="提交作业" class="btn btn-success"#}
+    {#                   id="submit_button"/>#}
+    {#            将作业提交给助教/老师评分，提交后不可修改#}
+    {#        </div>#}
+    {#    {% endif %}#}
+
+
+    {% if ucs.is_passed %}
+        <span class="btn btn-success">已通过，得分 {{ ucs.score }}</span>
+    {% endif %}
+
+{% endblock content %}
+
+{% block scripts %}
+    {% if ucs.section.has_textwork and not ucs.is_submit %}
+        {% load static %}
+        <script type="text/javascript">
+            $(document).ready(function () {
+                var E = window.wangEditor;
+
+                var editor = new E('id_content');
+                editor.config.menus = [
+                    'img'
+                ];
+
+                editor.config.uploadImgFileName = '{{ image_name }}';
+                editor.config.uploadImgUrl = '{% url "bee_django_course:upload_image" %}';
+                editor.create();
+
+                // 保存作业
+                var save_button = $('#save_button');
+                save_button.click(function (e) {
+                    e.preventDefault();
+                    var content = editor.$txt.text();
+                    if (!content) {
+                        alert("作业内容不能为空");
+                        return;
+                    }
+
+                    save_button.prop('disabled', true);
+                    save_button.val('保存中...');
+
+                    data = $('#assignment_form').serialize();
+                    $.ajax({
+                        url: "{% url 'bee_django_course:save_user_assignment' ucs_id=ucs.id %}",
+                        data: data,
+                        type: 'POST',
+                        success: function (result) {
+                            alert(result['message']);
+                            save_button.prop('disabled', false);
+                            save_button.val('保存');
+                        },
+                        error: function (data) {
+                            alert('保存错误');
+                        }
+                    });
+                });
+
+                // 提交作业
+                var submit_button = $('#submit_button');
+                submit_button.click(function (e) {
+                    e.preventDefault();
+
+                    if (!confirm('每篇作业的质量对于学习的成果都至关重要，提交后将无法修改，您确认提交么？')) {
+                        return;
+                    }
+
+                    submit_button.prop('disabled', true);
+                    submit_button.val('提交中...');
+                    var url = "{% url 'bee_django_course:submit_user_assignment' ucs_id=ucs.id %}";
+                    $.post(url).done(function (data) {
+                        alert(data['message']);
+                        window.location.href = data['next_url'];
+                    });
+
+                });
+            });
+        </script>
+    {% endif %}
+
+
+{% endblock scripts %}
