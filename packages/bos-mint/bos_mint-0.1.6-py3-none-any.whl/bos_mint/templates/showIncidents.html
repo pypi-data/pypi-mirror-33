@@ -1,0 +1,200 @@
+{% from "_forms.html" import quickform, parsefield %}
+{% extends "layout.html" %}
+
+{%- macro accordion(title, container_list) -%}
+<div class="accordion" style="width: 100%;">
+	{% for container in container_list %}
+ 		<div class="title active">
+			<i class="dropdown icon"></i>{{ title }}: {{container_list|length}}
+		</div>
+		<div class="content active">
+			<p class="transition visible" style="display: block !important;">
+			<ul class="ui list">
+				{% for item in container %}
+					<li>{{ item['provider_info']['pushed'] }}: {{ incident['arguments'] }}</li>
+				{% endfor %}
+			</ul>	
+			</p>
+		</div>
+	{% endfor %}
+</div>
+
+
+{%- endmacro -%}
+
+{%- macro call_indicator(call_dict) -%}
+	{% if call_dict and call_dict['incidents'] %}
+		{{ call_dict['incidents']|length }}
+		{%- if call_dict['status'] and call_dict['status']['name'] == 'unknown' %}
+		{% elif call_dict['status'] and call_dict['status']['name'] == 'done' %}*
+		{% elif call_dict['status'] and call_dict['status']['name'] == 'postponed' %}+
+		{% elif call_dict['status'] and call_dict['status']['name'] == 'insufficient incidents' %}
+		{% else %}?
+		{% endif %}
+	{% else %}
+		0
+    {% endif %}
+{%- endmacro -%}
+
+{% block content %}
+{% if menuInfo['incidents'] %}
+	<h2>Linked dataproxies</h2>
+	<ol>
+	{% for provider_hash, provider in menuInfo['incidents']['dataproxy_link'].items() %}
+		<li>
+		<a href="{{provider['isalive']}}">{{provider["name"]}}</a>
+		<br />
+		{% if not provider["status"] == "ok" %}
+			{% for group, subscriber_list in provider["details"]["subscribers"].items() %}
+				{% for subscriber in subscriber_list %}	
+				 	{% if subscriber["status"] == "nok" %}
+						<i class="small red circle icon"></i> Anonymous subscriber <br />
+					{% elif subscriber["status"] == "unknown" %}
+						<i class="small yellow circle icon"></i> Anonymous subscriber, nothing sent yet <br />
+					{% endif %}
+				{% endfor %}
+			{% endfor %}		
+			{% for incoming in provider["details"]["providers"] %}
+				{% if incoming["status"] == "ok" %}
+					<i class="small green circle icon"></i>
+				{% else %}
+					<i class="small red circle icon"></i>			
+				{% endif %} {{incoming["name"]}}: {{incoming["last_incident"]}}				<br />
+			{% endfor %}
+		{% endif %}
+		</li>
+	{% endfor %}
+	</ol>
+{% endif %}
+
+<h2>Received incidents ({{ use }})</h2>
+Showing all received incidents for events that are scheduled between {{ from_date }} (change with from_date url argument) and {{ to_date }} (change with to_date url argument)
+{% if matching %}
+ that match {{ matching }} in their identifier
+{% endif %}
+<br /><br />
+<p>
+All events are listed as with their id and incidents count
+<table class="ui very basic collapsing celled table">
+<tr>
+<td>Id</td>
+<td>"Scheduled Time-Sport-Event Group-Home Team-Away Team"</td>
+</tr>
+<tr>
+<td style="vertical-align: top;">Incident count</td>
+<td>"Create - In progress - Finish - Result"<br/><br />
+Markings according to the status:
+<ul>
+  <li>No special mark - Nothing done yet</li>
+  <li>* - Incident successfully triggered an action on the blockchain</li>
+  <li>+ - Action is deliberately postponed</li>
+  <li>? - An error occured, manual checking necessary</li>
+</ul></td>
+</tr>
+</table>
+
+</p>
+
+{% if events|length > 0 %}
+
+<div class="ui equal width grid">
+<div class="column">
+<div class="ui grid">
+<div class="six wide column">
+</div></div>
+<br />
+<div class="ui styled accordion" style="width: 100%;">
+	{% for event in events %}
+  		
+  		<div class="title">
+<i class="dropdown icon"></i>{{ event['id_string'] }}:
+	{{ call_indicator(event['create']) }}
+    -
+   	{{ call_indicator(event['in_progress']) }}
+    -
+   	{{ call_indicator(event['finish']) }}
+    -
+   	{{ call_indicator(event['result']) }}
+</div>
+<div class="content">
+	<p class="transition visible" style="display: block !important;">
+	<table class="ui very basic collapsing celled table">
+		<tbody>
+			<thead>
+				<td>
+					<a href="{{ url_for('show_incidents_per_id', incident_id=event['id_string'], call='create', use=use) }}">
+						Create<br />
+						DT#1
+					</a>
+					{% if event['create'] and event['create']['status'] and not event['create']['status']['name'] == 'unknown' %}
+						<br/>{{ event['create']['status']['name'] }}
+					{% endif %}
+				</td>
+				<td>
+					<a href="{{ url_for('show_incidents_per_id', incident_id=event['id_string'], call='in_progress', use=use) }}">
+						In progress<br />
+						DT#3
+					</a>
+					{% if event['in_progress'] and event['in_progress']['status'] and not event['in_progress']['status']['name'] == 'unknown' %}
+						<br/>{{ event['in_progress']['status']['name'] }}
+					{% endif %}
+				</td>
+				<td>
+					<a href="{{ url_for('show_incidents_per_id', incident_id=event['id_string'], call='finish', use=use) }}">
+						Finish<br />
+						DT#4
+					</a>
+					{% if event['finish'] and event['finish']['status'] and not event['finish']['status']['name'] == 'unknown' %}
+						<br/>{{ event['finish']['status']['name'] }}
+					{% endif %}
+				</td>
+				<td>
+					<a href="{{ url_for('show_incidents_per_id', incident_id=event['id_string'], call='result', use=use) }}">
+						Result<br />
+						DT#5
+					</a>
+					{% if event['result'] and event['result']['status'] and not event['result']['status']['name'] == 'unknown' %}
+						<br/>{{ event['result']['status']['name'] }}
+					{% endif %}
+				</td>
+			</thead>
+			<tr>
+				{% for call in ['create', 'in_progress', 'finish', 'result'] %}
+					<td>
+						{% if event[call] and event[call]['incidents'] %}
+							{% for provider,incidents_dict in event[call]['incidents_per_provider'].items() %}
+								{{ provider }}
+								<br />
+								<ul class="ui list">
+									{% for incident in incidents_dict["incidents"] %}
+									<li>
+										{{ incident['provider_info']['pushed'] }}: {{ incident['arguments'] }}
+										{% if incidents_dict["replay_links"] and incidents_dict["replay_links"][incident['unique_string']] %}
+											<a style="float: right" target="_blank" href="{{ incidents_dict['replay_links'][incident['unique_string']] }}">replay</a>
+										{% endif %}
+									</li>
+									{% endfor %}
+								</ul>	
+							{% endfor %}
+						{% endif %}
+					</td>
+				{% endfor %}
+			</tr>
+		</tbody>
+	</table>
+	</p>
+</div>
+  	{% endfor %}
+</div>
+</div>
+</div>
+
+{% else %}
+
+No incidents came in yet.
+
+{% endif %}
+
+{% endblock %}
+
+
