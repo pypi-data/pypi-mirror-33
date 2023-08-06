@@ -1,0 +1,58 @@
+Changelog
+=========
+
+2.2 (2018-07-12)
+----------------
+
+- Added WKT field to adapt MapWidgetField
+  [giorgio]
+
+
+2.1 (2015-05-02)
+----------------
+
+- Add german translations
+  [msom]
+
+
+2.0 (2013-10-29)
+----------------
+
+- Changed package layout and add buildout conf
+  [gborelli]
+
+2.0b1 (2013-06-02)
+------------------
+
+- Refactored widget, renamed IMapWidget to IFormMapWidget and added
+  MapDisplayWidget for IFormMapWidget display mode
+  [gborelli]
+
+- Moved shapedisplay layer to c.geo.mapwidgegt
+  [gborelli]
+- Moved ShapeMapWidget and ShapeEditLayer to c.geo.mapwidget [gborelli]
+- Decode context titles from utf-8 to avoid errors on displaying a map
+  with content containing such characters.
+  [davidjb]
+
+
+0.1 (2012-02-17)
+----------------
+
+- Added ability to hit enter key within geocoder input and search.
+  Previously, hitting enter submitted the parent form.
+  [davidjb]
+- Restructure geocoder JavaScript so it happens on window.load (and wrap
+  the usage of ``$``).
+  [davidjb]
+- Execute map construction on window.load rather than when the JavaScript
+  gets loaded.
+  [davidjb]
+- Pass map id through to edit shape map JavaScript.
+  [davidjb]
+- Remove dependency on jq object for edit shape map.
+  [davidjb]
+- Added ability to display a collective.geo map when outputting this widget
+  in display mode.  Presents a layer with the field's value as its features.
+  [davidjb]
+- Initial release
