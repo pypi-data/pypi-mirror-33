@@ -1,0 +1,515 @@
+cls: &cls_schema
+    required: true
+
+entity_schema: &entity_schema
+    cls:
+        type: importpath
+        <<: *cls_schema
+
+    init_params:
+        type: dict
+
+seed_norm: &seed_normal
+    dependencies:
+        profile: normal
+
+    schema:
+        loc:
+            type: physical_unit
+            like_unit: mm
+    #        required: true
+
+        scale:
+            type: physical_unit
+            like_unit: mm
+    #        min: 0
+
+        coeff:
+            type: [integer, float, physical_unit]
+
+seed_norm: &seed_lognormal
+    dependencies:
+        profile: lognormal
+
+    schema:
+        loc:
+            type: physical_unit
+            like_unit: mm
+    #        required: true
+
+        scale:
+            type: physical_unit
+            like_unit: mm
+    #        min: 0
+
+        coeff:
+            type: [integer, float, physical_unit]
+
+seed_linear: &seed_linear
+    dependencies:
+        profile: linear
+
+    schema:
+
+        start:
+            type: [integer, float, physical_unit]
+            nullable: true
+
+        stop:
+            type: [integer, float, physical_unit]
+            nullable: true
+
+variables: &var_schema
+    cls:
+        <<: *cls_schema
+        allowed: [microbenthos.ModelVariable, ModelVariable]
+        default: ModelVariable
+
+    init_params:
+        type: dict
+        schema:
+
+            name:
+                type: symbolable
+                minlength: 2
+                required: true
+
+            clip_min:
+                type: [float, integer, physical_unit]
+                nullable: true
+                default: null
+
+            clip_min:
+                type: [float, integer, physical_unit]
+                nullable: true
+                default: null
+
+            create:
+                type: dict
+                required: true
+                schema:
+                    store:
+                        type: boolean
+                        default: true
+
+                    value:
+                        type: [float, integer, physical_unit]
+                        default: 0.0
+
+                    unit:
+                        type: unit_name
+
+                    hasOld:
+                        type: boolean
+                        default: false
+
+            seed:
+                type: dict
+                schema:
+                    profile:
+                        type: string
+                        allowed: [linear, normal, lognormal]
+                    params:
+                        type: dict
+                        oneof:
+                            - *seed_normal
+                            - *seed_linear
+                            - *seed_lognormal
+
+#                            - dependencies:
+#                                profile: linear
+#
+#                              schema:
+#                                start:
+#                                    type: [integer, float, physical_unit]
+#                                stop:
+#                                    type: [integer, float, physical_unit]
+#
+#                            - dependencies:
+#                                profile: normal
+#
+#                              schema:
+#                                loc:
+#                                    type: physical_unit
+#                                    like_unit: mm
+#                                    required: true
+#
+#                                scale:
+#                                    type: physical_unit
+#                                    like_unit: mm
+#                                    min: 0
+#
+#                                coeff:
+#                                    type: [integer, float, physical_unit]
+
+#                        schema:
+#                            anyof:
+#                              - *seed_norm
+#                              - *seed_linear
+
+            constraints:
+                type: dict
+                keyschema:
+                    type: string
+                    allowed: [top, bottom, dbl, sediment]
+                valueschema:
+                    type: [float, integer, physical_unit]
+
+
+irradiance: &irradiance_schema
+    cls:
+        <<: *cls_schema
+        allowed: [microbenthos.irradiance.Irradiance, Irradiance]
+        default: Irradiance
+
+    init_params:
+        schema:
+            hours_total:
+                type: [integer, float, physical_unit]
+                min: 1
+                max: 48
+
+            day_fraction:
+                type: float
+                min: 0.1
+                max: 0.9
+
+            channels:
+                type: list
+                schema:
+                    type: dict
+                    schema:
+                        name:
+                            type: symbolable
+                            minlength: 2
+                            required: true
+
+                        k0:
+                            type: physical_unit
+                            like_unit: 1/m
+
+                        k_mods:
+                            type: list
+                            schema:
+                                items:
+                                    - type: string
+                                    - type: [physical_unit]
+                                      like_unit: cm**2/g
+
+
+expression_schema: &Expr_schema
+    type: dict
+    schema:
+        cls:
+            <<: *cls_schema
+            allowed: [Expression, microbenthos.Expression]
+            default: Expression
+
+        init_params: &Expr_initschema
+            formula:
+                required: true
+                oneof:
+                    - type: sympifyable
+                    - type: dict
+                      schema:
+                        base:
+                            type: sympifyable
+                        pieces:
+                            type: list
+                            schema:
+                                type: dict
+                                schema:
+                                    expr:
+                                        type: sympifyable
+                                    where:
+                                        type: sympifyable
+
+            derived:
+                type: dict
+                keyschema:
+                    type: symbolable
+                valueschema:
+                    type: sympifyable
+
+            namespace:
+                type: dict
+                keyschema:
+                    type: sympifyable
+                valueschema:
+                    type: dict
+                    schema:
+                        vars:
+                            type: list
+                            schema:
+                                type: symbolable
+                        expr:
+                            type: sympifyable
+
+
+procSchema:
+    type: dict
+    schema: &Proc_schema
+        cls:
+            <<: *cls_schema
+            allowed: [Process, microbenthos.Process]
+            default: Process
+
+        init_params:
+            type: dict
+            schema:
+                expr:
+                    required: true
+                    schema:
+                        <<: *Expr_initschema
+
+                params:
+                    type: dict
+                    keyschema:
+                        type: symbolable
+                    valueschema:
+                        type: [integer, float, physical_unit]
+
+                implicit:
+                    type: boolean
+
+                events:
+                    type: dict
+
+                    keyschema:
+                        type: symbolable
+
+                    valueschema:
+                        schema:
+                            expr:
+                                schema: *Expr_initschema
+
+
+microbes: &microbes_schema
+    schema:
+        cls:
+            <<: *cls_schema
+            allowed: [microbenthos.microbes.MicrobialGroup, MicrobialGroup]
+            default: MicrobialGroup
+
+        init_params:
+            type: dict
+            schema:
+                name:
+                    type: symbolable
+                    minlength: 2
+                    required: true
+
+                features:
+                    type: dict
+                    required: true
+                    dependencies: [features.biomass]
+                    keyschema:
+                        type: symbolable
+                        minlength: 2
+
+
+                    valueschema:
+                         schema: *var_schema
+
+                processes:
+                    anyof:
+                        - type: dict
+                          valueschema:
+                            type: dict
+                            schema: *Proc_schema
+
+eqn_term: &eqn_term_schema
+    type: dict
+    schema:
+        store:
+            type: string
+            model_store: store
+            required: true
+        coeff:
+            type: [integer, float]
+            default: 1
+
+
+
+
+### MAIN MODEL SCHEMA HERE ###
+
+model:
+
+    domain:
+        type: dict
+        required: true
+        schema:
+            cls:
+                <<: *cls_schema
+                allowed: [microbenthos.SedimentDBLDomain, SedimentDBLDomain]
+                default: SedimentDBLDomain
+
+            init_params:
+                type: dict
+                schema:
+                    cell_size:
+                        type: physical_unit
+                        like_unit: cm
+                        required: true
+                        default: !unit 100mum
+                        min: !unit 1mum
+                        max: !unit 500 mum
+
+                    sediment_length:
+                        type: physical_unit
+                        like_unit: cm
+                        required: true
+                        default: !unit 10mm
+                        min: !unit 1 mm
+
+                    dbl_length:
+                        type: physical_unit
+                        like_unit: cm
+                        required: true
+                        default: !unit 1mm
+                        min: !unit 0mm
+
+                    porosity:
+                        type: float
+                        min: 0.1
+                        max: 0.9
+                        default: 0.6
+
+
+    formulae:
+        type: dict
+        keyschema:
+            type: sympifyable
+        valueschema:
+            schema:
+                vars:
+                    type: list
+                    required: true
+                    schema:
+                        type: symbolable
+
+                expr:
+                    required: true
+                    type: sympifyable
+
+
+    environment:
+        type: dict
+        dependencies: [^domain]
+        keyschema:
+            type: symbolable
+            minlength: 2
+
+        valueschema:
+            anyof:
+                - schema: *var_schema
+                - schema: *irradiance_schema
+                - schema: *Proc_schema
+
+
+    microbes:
+        type: dict
+        dependencies: [^domain]
+        keyschema:
+            type: symbolable
+            minlength: 2
+
+        valueschema: *microbes_schema
+
+    equations:
+        type: dict
+
+        keyschema:
+            type: string
+            minlength: 3
+
+        valueschema:
+            type: dict
+            schema:
+                track_budget:
+                    type: boolean
+                    default: false
+
+                transient:
+                    required: true
+                    type: list
+                    items:
+                        - type: string
+                          model_store: store
+                        - type: [integer, float]
+                          default: 1
+                          forbidden: [0, 0.0]
+
+                diffusion:
+                    type: list
+                    items:
+                        - type: string
+                          model_store: store
+                        - type: [integer, float]
+                          default: 1
+                          forbidden: [0, 0.0]
+
+                sources:
+                    type: list
+                    schema:
+                        type: list
+                        items:
+                            - type: string
+                              model_store: store
+                            - type: [integer, float]
+                              default: 1
+                              forbidden: [0, 0.0]
+
+
+### MAIN SIMULATE SCHEMA HERE ###
+
+simulation:
+
+    simtime_total:
+        type: physical_unit
+        like_unit: 'h'
+        min: 0
+#        default: !unit 6 h
+
+    simtime_days:
+        type: float
+        min: 0
+        nullable: true
+
+    max_residual:
+        type: float
+        min: 1.0e-50
+        max: 1.0e-3
+#        default: 1.0e-12
+        coerce: float
+
+
+    simtime_lims:
+        type: list
+        items:
+            - type: float
+              min: 0
+            - type: float
+
+    snapshot_interval:
+        type: [integer, float, physical_unit]
+        default: 60
+
+    max_sweeps:
+        type: integer
+        min: 10
+        max: 1000
+        default: 50
+
+    fipy_solver:
+        type: string
+        allowed: [scipy, trilinos, pysparse]
+        default: scipy
+
+
+
+
+
+
+
