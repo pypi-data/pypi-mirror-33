@@ -1,0 +1,46 @@
+---
+
+- name: Create pipeline directory
+  file: state=directory path={{ item }} mode=0770
+  with_items:
+  - "{{ pipeline_dir }}"
+
+- name: Copy pipeline from cache
+  copy:
+    src: "{{ pipeline_cache_path }}/"
+    dest: "{{ pipeline_dir }}"
+    force: yes
+
+- name: Create Conda virtual environment
+# conda env create --yes -q --force -n name --file
+  shell: "conda env create --force -q -n {{ project_name }} \
+         --file core_environment.yml"
+  args:
+    chdir: "{{ pipeline_dir }}"
+  when: create_venv
+
+- name: Install pipeline dependencies
+  shell: "conda env update -q -n {{ project_name }} \
+         --file {{ project_environment_file }} "
+  args:
+    chdir: "{{ pipeline_dir }}"
+
+- name: Copy run script
+  template:
+    src: "run.project.j2"
+    dest: "{{ pipeline_dir }}/run.project.sh"
+    mode: 0750
+
+- name: Copy notify rule
+  template:
+    src: "notify.smk.j2"
+    dest: "{{ pipeline_dir }}/notify.smk"
+  when: include_notify
+
+- name: Include notify rule into the Snakefile
+  lineinfile:
+    path: "{{ pipeline_dir }}/Snakefile"
+    line: 'include: "notify.smk"'
+  when: include_notify
+
+
