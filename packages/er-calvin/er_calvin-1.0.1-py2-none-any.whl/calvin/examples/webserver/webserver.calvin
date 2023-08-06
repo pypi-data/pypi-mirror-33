@@ -1,0 +1,357 @@
+define HOST="127.0.0.1"
+define PORT=8089
+define OK=200
+define BAD_REQ=400
+define NOT_FOUND=404
+define ERR_MSG="No such resource, sorry."
+define RESPONSE_TEMPLATE=
+"HTTP/1.0 {{{status}}} {{{reason}}}\r\n"
+"Content-Type: text/html\r\n"
+"Content-Length: {{{length}}}\r\n"
+"\r\n"
+"{{{body}}}{{#length}}\r\n\r\n{{/length}}"
+
+
+component DaisyAdapter(status_OK) in, status, work_result, work_status -> work_data, out, status {
+  """
+  Allow daisy-chaining of data/status along a processing flow.
+
+  Conceptually, the flow looks like the following picture:
+
+                +-----------+          +-----------+          +-----------+
+                |   actor   |          |   actor   |          |   actor   |
+                |           |          |           |          |           |
+                |     r  s  |          |     r  s  |          |     r  s  |
+                |     e  t  |          |     e  t  |          |     e  t  |
+                |  d  s  a  |          |  d  s  a  |          |  d  s  a  |
+                |  a  u  t  |          |  a  u  t  |          |  a  u  t  |
+                |  t  l  u  |          |  t  l  u  |          |  t  l  u  |
+                |  a  t  s  |          |  a  t  s  |          |  a  t  s  |
+                +-----------+          +-----------+          +-----------+
+                   ^  |  |                ^  |  |                ^  |  |
+                   |  v  v                |  v  v                |  v  v
+         data   +--+--+--+--+   data   +--+--+--+--+   data   +--+--+--+--+   data
+  ... --------->|           |--------->|           |--------->|           |---------> ...
+        status  |   daisy   |  status  |   daisy   |  status  |   daisy   |  status
+  ... --------->|           |--------->|           |--------->|           |---------> ...
+                +-----------+          +-----------+          +-----------+
+
+  Data propagates down the chain and is processed by the actors, in order, as long as each actor
+  reports its status as OK (according to the argument provided to DaisyAdapter). If an actor reports
+  its status as not OK, the error status and the corresponding data is simply propagated down the
+  flow, without further processing.
+  """
+
+  status_check : std.Compare(rel="=")
+  route_input : flow.Select()
+  join_status : flow.Collect()
+  join_output : flow.Collect()
+
+  # Is incoming status OK?
+  status_OK > status_check.a
+  .status > status_check.b
+  # Route input and status based on the outcome of checking input status
+  status_check.result > route_input.select
+
+  .in > route_input.data
+
+  .work_status > join_status.token
+   route_input.case_false > /NOT_FOUND/ join_status.token
+  join_status.token > .status
+
+  route_input.case_true > .work_data
+  route_input.case_false > join_output.token
+  .work_result > join_output.token
+  join_output.token > .out
+}
+
+component HTTPGETRequestCheck() request -> path, status {
+  """
+  Check if request is valid HTTP GET request.
+
+  Input:
+	  request: an HTTP request, possibly malformed
+  Outputs:
+    path: the requested resource path, or the full request on error
+    status: the request status, either OK (200) or Bad Request (400)
+  """
+
+  match_request_method : text.RegexMatch(regex="(GET) \S+ HTTP/\d\.\d")
+  match_request_path : text.RegexMatch(regex="[A-Z]+ (\S+) HTTP/\d\.\d")
+  join_output : flow.Collect()
+  join_status : flow.Collect()
+
+  .request > match_request_method.text
+  .request > match_request_path.text
+
+  match_request_path.match > join_output.token
+  match_request_path.no_match > join_output.token
+  join_output.token > .path
+  // Successful path
+  match_request_method.match > /OK/ join_status.token
+  // Error path
+  match_request_method.no_match > /BAD_REQ/ join_status.token
+  // Status
+  join_status.token > .status
+}
+
+component HTTPResourceLocator(base_path) rel_path -> abs_path, status {
+  """
+  Locate a resource by appending rel_path to base_path.
+  If the resulting path is outside of base_path,
+  or if the resource doesn't exist an error is generated.
+
+  Input:
+    rel_path : Path for resource relative to base_path
+  Outputs:
+    abs_path : Absolute path to resource.
+    status : An integer status code (200) 'OK' or (404) 'Not found'
+  """
+
+  filter_path : text.RegexMatch(regex=!"^.*?/?([^\.]+\.html)$")
+  collect_status : flow.Collect()
+  collect_path : flow.Collect()
+  prepend : text.PrefixString(prefix=base_path)
+  prepend_slash : text.PrefixString(prefix="/")
+
+  .rel_path > filter_path.text
+
+  filter_path.match > prepend_slash.in
+  prepend_slash.out > prepend.in
+  prepend.out > collect_path.token
+  filter_path.no_match > /base_path/ collect_path.token
+
+  filter_path.match > /OK/ collect_status.token
+  filter_path.no_match > /NOT_FOUND/ collect_status.token
+
+  collect_path.token > .abs_path
+  collect_status.token > .status
+}
+
+
+component HTTPFileReader() filename -> resource, status {
+  """
+  Concatenate lines into a chunk of text (the requested resource)
+
+  Input:
+    filename : the resource to read
+  Outputs:
+    resource : contents of resource file
+    status : OK (200) or File not found (404)
+  """
+
+  read_html : io.FileReader()
+  concat : text.LineJoin()
+  exception_handler : exception.ExceptionHandler()
+  is_eos : std.Compare(rel="=")
+  status_mapper : flow.Deselect()
+
+  .filename > read_html.filename
+  read_html.out > exception_handler.token
+  exception_handler.token > concat.line
+  concat.text > .resource
+  exception_handler.status > is_eos.a
+  "End of stream" > is_eos.b
+  is_eos.result > status_mapper.select
+  OK > status_mapper.case_true
+  NOT_FOUND > status_mapper.case_false
+  status_mapper.data > .status
+
+}
+
+
+component StatusMap() status -> reason {
+  """
+  Map an integer stutus to a human readable string.
+  """
+
+  choice : json.GetValue()
+  except : exception.ExceptionHandler(replacement="Unknown Status", replace=true)
+  stringify : std.Stringify()
+
+  .status > stringify.in
+  stringify.out > choice.key
+  {"200":"OK", "400":"Bad Request", "404":"Not Found", "501":"Not Implemented"} > choice.container
+
+  choice.value > except.token
+  except.status > voidport
+  except.token > .reason
+}
+
+
+component HTTPResponseTemplate(template) status, body -> response {
+  """
+  Generate an HTTP response from a HTML body and status code using the provided template.
+  """
+
+  # --- begin workaround ---
+  # FIXME: Workaround for port references not working directly on component ports
+  body : std.Identity()
+  status : std.Identity()
+  reason : std.Identity()
+  .status > status.token
+  .body > body.token
+  statusmap.reason > reason.token
+  # --- end workaround ---
+
+  statusmap : StatusMap()
+  len : text.Length()
+  cdict : flow.CollectCompleteDict(mapping={"status":&status.token, "reason":&reason.token, "body":&body.token, "length":&len.length})
+  fmt : text.Mustache(fmt=template)
+  .status > statusmap.status
+  .body > len.string
+  reason.token > cdict.token
+  status.token > cdict.token
+  body.token > cdict.token
+  len.length > cdict.token
+  cdict.dict > fmt.dict
+  fmt.text > .response
+}
+
+
+component HTTPResponseGenerator(response_template) body, status -> out {
+  """
+  Generate an HTTP response based on body and status.
+  """
+
+  check_status : std.Compare(rel="=")
+  route_body: flow.Switch()
+  response : HTTPResponseTemplate(template=response_template)
+
+  .status > check_status.a, response.status
+  OK > check_status.b
+  check_status.result > route_body.switch
+
+  .body > route_body.b
+  ERR_MSG > route_body.a
+  route_body.a > response.body
+  route_body.b > voidport
+
+  response.response > .out
+}
+
+
+component Server(host, port) response -> request {
+  """
+  TCPServer
+  """
+  tcp_server : net.TCPServer(delimiter="\r\n\r\n")
+
+  host > tcp_server.host
+  port > tcp_server.port
+  # This line is a surprising consequence of the dataflow paradigm
+  # as long as we make sure the responses always arrives in order.
+  tcp_server.handle > tcp_server.handle
+
+  # Request
+  tcp_server.token > .request
+
+  .response > tcp_server.token
+}
+
+
+component ProcessRequest() request -> path, status {
+  """
+  Process request and produce a path and status.
+  """
+  daisy_GET : DaisyAdapter(status_OK=OK)
+  check_GET : HTTPGETRequestCheck()
+
+  .request > daisy_GET.in
+  OK > daisy_GET.status
+
+  daisy_GET.work_data > check_GET.request
+  check_GET.path > daisy_GET.work_result
+  check_GET.status > daisy_GET.work_status
+
+  daisy_GET.out > .path
+  daisy_GET.status > .status
+}
+
+
+component LocateResource(base_path) relative_path, status -> absolute_path, status {
+  """
+  Locate resource by combining base_path with relative_path if input status is OK.
+  Produce absolute_path and status that is OK if resource exist at absolute_path.
+  """
+  daisy_path : DaisyAdapter(status_OK=OK)
+  resource_path : HTTPResourceLocator(base_path=base_path)
+
+  .relative_path > daisy_path.in
+  .status > daisy_path.status
+
+  daisy_path.work_data > resource_path.rel_path
+  resource_path.abs_path > daisy_path.work_result
+  resource_path.status > daisy_path.work_status
+
+  daisy_path.out > .absolute_path
+  daisy_path.status > .status
+}
+
+
+component GetResource() absolute_path, status -> body, status {
+  """
+  Get resource (file content) if input status is OK.
+  Produce a string (body) from file content, and status.
+  """
+  daisy_resource : DaisyAdapter(status_OK=OK)
+  resource_reader : HTTPFileReader()
+
+  .absolute_path > daisy_resource.in
+  .status > daisy_resource.status
+
+  daisy_resource.work_data > resource_reader.filename
+  resource_reader.resource > daisy_resource.work_result
+  resource_reader.status > daisy_resource.work_status
+
+  daisy_resource.out > .body
+  daisy_resource.status > .status
+}
+
+
+# component Probe(label) in -> {
+#     """
+#     Debugging helper
+#     """
+#     to_str : std.Stringify()
+#     add_label : text.PrefixString(prefix=label)
+#     log : io.Print()
+#
+#     .in > to_str.in
+#     to_str.out > add_label.in
+#     add_label.out > log.token
+# }
+
+server : Server(host=HOST, port=PORT)
+process_req : ProcessRequest()
+locate_resource : LocateResource(base_path="html")
+get_resource : GetResource()
+generate_response: HTTPResponseGenerator(response_template=RESPONSE_TEMPLATE)
+
+server.request > process_req.request
+
+process_req.path > locate_resource.relative_path
+process_req.status > locate_resource.status
+
+locate_resource.absolute_path > get_resource.absolute_path
+locate_resource.status > get_resource.status
+
+get_resource.status > generate_response.status
+get_resource.body > generate_response.body
+
+generate_response.out > server.response
+
+# Logging
+# Tip: To help with debugging, attach a Probe actor
+#      to any output port to log the data flow, e.g.
+# p1 : Probe(label="request: ")
+# p2 : Probe(label="path: ")
+# p3 : Probe(label="abs_path: ")
+# p4 : Probe(label="body: ")
+# p5 : Probe(label="response: ")
+#
+# server.request > p1.in
+# process_req.path > p2.in
+# locate_resource.absolute_path > p3.in
+# get_resource.body > p4.in
+# generate_response.out > p5.in
