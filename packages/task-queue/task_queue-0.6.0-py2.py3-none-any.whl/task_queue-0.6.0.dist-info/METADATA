@@ -1,0 +1,95 @@
+Metadata-Version: 2.1
+Name: task-queue
+Version: 0.6.0
+Summary: Multithreaded Google Task Queue client.
+Home-page: https://github.com/seung-lab/python-task-queue/
+Author: Ignacio Tartavull, William Silversmith, and others
+Author-email: ws9@princeton.edu
+License: BSD
+Platform: UNKNOWN
+Classifier: Intended Audience :: Developers
+Classifier: Development Status :: 3 - Alpha
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.6
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Topic :: Utilities
+Requires-Dist: cloud-volume (>=0.20.2)
+Requires-Dist: google-api-python-client
+Requires-Dist: google-cloud (>=0.32)
+Requires-Dist: google-auth-httplib2 (==0.0.2)
+Requires-Dist: numpy (>=1.13.1)
+Requires-Dist: pytest (>=3.3.1)
+Requires-Dist: pbr
+Requires-Dist: tqdm
+Requires-Dist: requests (<3,>2)
+
+# python-task-queue
+Python TaskQueue object that can rapidly populate and download from queues that conform to Google's Task Queue API
+
+# Installation
+
+`pip install taskqueue`
+
+# Usage 
+
+Define a class that inherits from taskqueue.RegisteredTask and implments the `execute` method.
+
+Tasks can be loaded into queues locally or as based64 encoded data in the cloud and executed later.
+Here's an example implementation of a `PrintTask`. Generally, you should specify a very lightweight
+container and let the actual execution download and manipulate data.
+
+```
+class PrintTask(RegisteredTask):
+  def __init__(self, txt=''):
+    super(PrintTask, self).__init__()
+    self.txt = txt
+  def execute(self):
+    if self.txt:
+      print(str(self) + ": " + str(self.txt))
+    else:
+      print(self)
+```
+
+## Local Usage
+
+For small jobs, you might want to use one or more processes to execute the tasks:
+```
+with LocalTaskQueue(parallel=5) as tq: # use 5 processes
+  for _ in range(1000):
+    tq.insert(
+      PrintTask(i)
+    )
+```
+This will load the queue with 1000 print tasks then execute them across five processes.
+
+## Cloud Usage
+
+Set up an SQS queue and acquire an aws-secret.json that is compatible with CloudVolume.
+
+```
+qurl = 'https://sqs.us-east-1.amazonaws.com/$DIGITS/$QUEUE_NAME'
+with TaskQueue(queue_server='sqs', qurl=qurl) as tq:
+  for _ in range(1000):
+    tq.insert(PrintTask(i))
+```
+
+This inserts 1000 PrintTask descriptions into your SQS queue.
+
+Somewhere else, you'll do the following (probably across multiple workers):
+
+```
+qurl = 'https://sqs.us-east-1.amazonaws.com/$DIGITS/$QUEUE_NAME'
+with TaskQueue(queue_server='sqs', qurl=qurl) as tq:
+  task = tq.lease(seconds=int($LEASE_SECONDS))
+  task.execute()
+  tq.delete(task)
+```
+
+
+
