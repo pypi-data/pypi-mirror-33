@@ -1,0 +1,139 @@
+Metadata-Version: 2.1
+Name: caduceus
+Version: 0.0.7
+Summary: Caduceus notifies you if your scheduled tasks/cron jobs did not run.
+Home-page: https://gitlab.com/stavros/caduceus
+Author: Stavros Korokithakis
+Author-email: hi@stavros.io
+License: MIT
+Description: Caduceus
+        ========
+        
+        [![pipeline status](https://gitlab.com/stavros/caduceus/badges/master/pipeline.svg)](https://gitlab.com/stavros/caduceus/commits/master)
+        
+        What is Caduceus?
+        -----------------
+        
+        Caduceus is [that long stick with the intertwined snakes](https://en.wikipedia.org/wiki/Caduceus) that Hermes used to carry around.
+        It is also a service that will notify you if your scheduled tasks/cronjobs fail to run.
+        
+        
+        Motivation
+        ----------
+        
+        You know how you set all these cronjobs to run, and added fancy error reporting and things, only to realize too late that this doesn't help you at all when the server has been down for a month and nobody noticed?
+        Caduceus won't let this happen again.
+        
+        Rather than trigger on failure, Caduceus triggers on absence of success.
+        Services have to actively check in (by visiting a URL), and, if they don't, Caduceus notifies you by email that the task has failed.
+        If the service starts working again, Caduceus will notify you of that as well.
+        
+        
+        Installation
+        ------------
+        
+        To install Caduceus, you can just get it from PyPI:
+        
+        ```bash
+        pip install caduceus
+        ```
+        
+        Alternatively, you can pull the Docker image:
+        
+        ```bash
+        docker pull registry.gitlab.com/stavros/caduceus:latest
+        ```
+        
+        
+        Usage
+        -----
+        
+        To run Caduceus, you need to configure it.
+        This is done by placing a file called `caduceus.toml` in the directory you want to run Caduceus in.
+        That directory is where the Caduceus SQLite database will be created.
+        
+        If you installed Caduceus from the repo or with `pip`, just run it:
+        
+        ```bash
+        caduceus
+        ```
+        
+        It will load the configuration from the file, create its database and start running on `http://localhost:5000/`.
+        
+        To run it via Docker:
+        
+        ```bash
+        docker run -v (pwd):/caduceus registry.gitlab.com/stavros/caduceus:latest
+        ```
+        
+        Configuration
+        -------------
+        
+        Here's a sample configuration file (which is also available as `caduceus.toml.example` in the repository):
+        
+        ```toml
+        [alerting]
+        # Where you want the notification emails sent if services don't check in.
+        recipient_emails = [ "notifyme@example.com", "otherdev@example.com" ]
+        # An optional secret key to use for checking in.
+        secret_key = "somelongkey"
+        
+        [alerting.smtp]
+        # SMTP server configuration, for sending email.
+        from_addr = "caduceus@example.com"
+        hostname = "example.com"
+        port = 25
+        username = "myuser"
+        password = "mypassword"
+        
+        [alerts]
+        # Your alerts go here.
+        # This is the top-level alerts section, you can add as many alerts as you want here.
+        
+        # An alert needs a short name (here, `raidscrub`), and an interval it needs to check in by.
+        [alerts.raidscrub]
+        every = "1h"
+        
+        [alerts.backups]
+        every = "1d"
+        
+        [alerts.alwaysfail]
+        every = "1s"
+        ```
+        
+        The above config defines three services, `raidscrub`, `backups` and `alwaysfail`.
+        `raidscrub` needs to check in every hour, `backups` needs to check in every day, and `alwaysfail` needs to check in every second.
+        That's why it was called that.
+        
+        
+        Checking in
+        -----------
+        
+        Checking in is done by retrieving a URL on the server.
+        The URL for checking in and resetting the alert timer is `/reset/<alert name>/`.
+        For example, to check in to `backups` if you haven't specified a `secret_key` (and if Caduceus is running on example.com), you'd simply do:
+        
+        ```bash
+        curl http://example.com/reset/backups/
+        ```
+        
+        If you *did* specify a secret key, just include it:
+        
+        ```bash
+        curl http://example.com/reset/backups/?key=<your secret_key>
+        ```
+        
+        If your alert is set up for, say, one hour, and your task does not check in, you will get an email one hour after its last checkin, saying "your task has not checked in".
+        If it still doesn't check in, you'll get another email an hour after that, then an hour after that, etc, until it does, at which point you'll get an email saying that the job is now fine.
+        
+Keywords: caduceus tasks dead man switch notify
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Requires-Python: >3.0.0
+Description-Content-Type: text/markdown
