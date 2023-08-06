@@ -1,0 +1,649 @@
+cumulusci:
+    keychain: cumulusci.core.keychain.EncryptedFileProjectKeychain
+
+tasks:
+    apextestsdb_upload:
+        description: Upload results from Apex tests to database
+        class_path: cumulusci.tasks.apextestsdb.ApextestsdbUpload
+    batch_apex_wait:
+        description: Waits on a batch apex job to finish.
+        class_path: cumulusci.tasks.apex.batch.BatchApexWait
+    command:
+        description: Run an arbitrary command
+        class_path: cumulusci.tasks.command.Command
+    commit_apex_docs:
+        description: commit local ApexDocs to GitHub branch
+        class_path: cumulusci.tasks.github.CommitApexDocs
+    create_package:
+        description: Creates a package in the target org with the default package name for the project
+        class_path: cumulusci.tasks.salesforce.CreatePackage
+    create_managed_src:
+        description: Modifies the src directory for managed deployment.  Strips //cumulusci-managed from all Apex code
+        class_path: cumulusci.tasks.metadata.managed_src.CreateManagedSrc
+        options:
+            path: src
+            revert_path: src.orig
+    create_unmanaged_ee_src:
+        description: Modifies the src directory for unmanaged deployment to an EE org
+        class_path: cumulusci.tasks.metadata.ee_src.CreateUnmanagedEESrc
+        options:
+            path: src
+            revert_path: src.orig
+    deploy:
+        description: Deploys the src directory of the repository to the org
+        class_path: cumulusci.tasks.salesforce.Deploy
+        options:
+            path: src
+    deploy_pre:
+        description: Deploys all metadata bundles under unpackaged/pre/
+        class_path: cumulusci.tasks.salesforce.DeployBundles
+        options:
+            path: unpackaged/pre
+    deploy_post:
+        description: Deploys all metadata bundles under unpackaged/post/
+        class_path: cumulusci.tasks.salesforce.DeployBundles
+        options:
+            path: unpackaged/post
+            unmanaged: True
+            namespace_inject: $project_config.project__package__namespace
+            namespace_token: '%%%NAMESPACE%%%'
+            filename_token: '___NAMESPACE___'
+    dx_convert_to:
+        description: Converts src directory metadata format into sfdx format under force-app
+        class_path: cumulusci.tasks.sfdx.SFDXBaseTask
+        options:
+            command: 'force:mdapi:convert -r src'
+    dx_convert_from:
+        description: Converts force-app directory in sfdx format into metadata format under src
+        class_path: cumulusci.tasks.sfdx.SFDXBaseTask
+        options:
+            command: 'force:mdapi:convert -r force-app -d src'
+    dx_pull:
+        description: Uses sfdx to pull from a scratch org into the force-app directory
+        class_path: cumulusci.tasks.sfdx.SFDXOrgTask
+        options:
+            command: 'force:source:pull'
+    dx_push:
+        description: Uses sfdx to push the force-app directory metadata into a scratch org
+        class_path: cumulusci.tasks.sfdx.SFDXOrgTask
+        options:
+            command: 'force:source:push'
+    execute_anon:
+        description: Execute a string of anonymous apex via the tooling api.
+        class_path: cumulusci.tasks.apex.anon.AnonymousApexTask
+    generate_apex_docs:
+        description: Generate documentation for local code. Configure settings in cumulusci.yml/project/apexdoc - homepage, banner, branch, repo_dir
+        class_path: cumulusci.tasks.apexdoc.GenerateApexDocs
+    get_installed_packages:
+        description: Retrieves a list of the currently installed managed package namespaces and their versions
+        class_path: cumulusci.tasks.salesforce.GetInstalledPackages
+    github_clone_tag:
+        description: Lists open pull requests in project Github repository
+        class_path: cumulusci.tasks.github.CloneTag
+    github_master_to_feature:
+        description: Merges the latest commit on the master branch into all open feature branches
+        class_path: cumulusci.tasks.github.MergeBranch
+    github_parent_to_children:
+        description: Merges the latest commit on a parent feature branch into all child feature branches
+        class_path: cumulusci.tasks.github.MergeBranch
+        options:
+            children_only: True
+            source_branch: $project_config.repo_branch
+    github_pull_requests:
+        description: Lists open pull requests in project Github repository
+        class_path: cumulusci.tasks.github.PullRequests
+    github_release:
+        description: Creates a Github release for a given managed package version number
+        class_path: cumulusci.tasks.github.CreateRelease
+    github_release_notes:
+        description: Generates release notes by parsing pull request bodies of merged pull requests between two tags
+        class_path: cumulusci.tasks.release_notes.task.GithubReleaseNotes
+    github_release_report:
+        description: Parses GitHub release notes to report various info
+        class_path: cumulusci.tasks.github.ReleaseReport
+    install_managed:
+        description: Install the latest managed production release
+        class_path: cumulusci.tasks.salesforce.InstallPackageVersion
+        options:
+            version: latest
+    install_managed_beta:
+        description: Installs the latest managed beta release
+        class_path: cumulusci.tasks.salesforce.InstallPackageVersion
+        options:
+            version: latest_beta
+    list_metadata_types:
+        description: Prints the metadata types in a project
+        class_path: cumulusci.tasks.util.ListMetadataTypes
+    meta_xml_apiversion:
+        description: Set the API version in *meta.xml files
+        class_path: cumulusci.tasks.metaxml.UpdateApi
+    meta_xml_dependencies:
+        description: Set the version for dependent packages
+        class_path: cumulusci.tasks.metaxml.UpdateDependencies
+    mrbelvedere_publish:
+        description: Publishes a release to the mrbelvedere web installer
+        class_path: cumulusci.tasks.mrbelvedere.MrbelvederePublish
+    push_all:
+        description: Schedules a push upgrade of a package version to all subscribers
+        class_path: cumulusci.tasks.push.tasks.SchedulePushOrgQuery
+    push_list:
+        description: Schedules a push upgrade of a package version to all orgs listed in the specified file
+        class_path: cumulusci.tasks.push.tasks.SchedulePushOrgList
+    push_qa:
+        description: Schedules a push upgrade of a package version to all orgs listed in push/orgs_qa.txt
+        class_path: cumulusci.tasks.push.tasks.SchedulePushOrgList
+        options:
+            orgs: push/orgs_qa.txt
+    push_sandbox:
+        description: Schedules a push upgrade of a package version to all subscribers
+        class_path: cumulusci.tasks.push.tasks.SchedulePushOrgQuery
+        options:
+            subscriber_where: "OrgType = 'Sandbox'"
+    push_trial:
+        description: Schedules a push upgrade of a package version to Trialforce Template orgs listed in push/orgs_trial.txt
+        class_path: cumulusci.tasks.push.tasks.SchedulePushOrgList
+        options:
+            orgs: push/orgs_trial.txt
+    query:
+        description: Queries the connected org
+        class_path: cumulusci.tasks.salesforce.SOQLQuery
+    retrieve_packaged:
+        description: Retrieves the packaged metadata from the org
+        class_path: cumulusci.tasks.salesforce.RetrievePackaged
+        options:
+            path: packaged
+    retrieve_src:
+        description: Retrieves the packaged metadata into the src directory
+        class_path: cumulusci.tasks.salesforce.RetrievePackaged
+        options:
+            path: src
+    retrieve_unpackaged:
+        description: Retrieve the contents of a package.xml file.
+        class_path: cumulusci.tasks.salesforce.RetrieveUnpackaged
+    revert_managed_src:
+        description: Reverts the changes from create_managed_src
+        class_path: cumulusci.tasks.metadata.managed_src.RevertManagedSrc
+        options:
+            path: src
+            revert_path: src.orig
+    revert_unmanaged_ee_src:
+        description: Reverts the changes from create_unmanaged_ee_src
+        class_path: cumulusci.tasks.metadata.ee_src.RevertUnmanagedEESrc
+        options:
+            path: src
+            revert_path: src.orig
+    robot:
+        description: Runs a Robot Framework test from a .robot file
+        class_path: cumulusci.tasks.robotframework.Robot
+        options:
+            suites: tests
+    robot_testdoc:
+        description: 
+        class_path: cumulusci.tasks.robotframework.RobotTestDoc
+        options:
+            path: tests
+            output: tests/test_suites.html
+    run_tests:
+        description: Runs all apex tests
+        class_path: cumulusci.tasks.apex.testrunner.RunApexTests
+    uninstall_managed:
+        description: Uninstalls the managed version of the package
+        class_path: cumulusci.tasks.salesforce.UninstallPackage
+    uninstall_packaged:
+        description: Uninstalls all deleteable metadata in the package in the target org
+        class_path: cumulusci.tasks.salesforce.UninstallPackaged
+    uninstall_packaged_incremental:
+        description: Deletes any metadata from the package in the target org not in the local workspace
+        class_path: cumulusci.tasks.salesforce.UninstallPackagedIncremental
+    uninstall_src:
+        description: Uninstalls all metadata in the local src directory
+        class_path: cumulusci.tasks.salesforce.UninstallLocal
+        options:
+            path: src
+    uninstall_pre:
+        description: Uninstalls the unpackaged/pre bundles
+        class_path: cumulusci.tasks.salesforce.UninstallLocalBundles
+        options:
+            path: unpackaged/pre
+    uninstall_post:
+        description: Uninstalls the unpackaged/post bundles
+        class_path: cumulusci.tasks.salesforce.UninstallLocalNamespacedBundles
+        options:
+            path: unpackaged/post
+            filename_token: ___NAMESPACE___
+    unschedule_apex:
+        description: Unschedule all scheduled apex jobs (CronTriggers).
+        class_path: cumulusci.tasks.apex.anon.AnonymousApexTask
+        options:
+            apex: 'for (CronTrigger t : [SELECT Id FROM CronTrigger]) { System.abortJob(t.Id); }'
+    update_admin_profile:
+        description: Retrieves, edits, and redeploys the Admin.profile with full FLS perms for all objects/fields
+        class_path: cumulusci.tasks.salesforce.UpdateAdminProfile
+    update_dependencies:
+        description: Installs all dependencies in project__dependencies into the target org
+        class_path: cumulusci.tasks.salesforce.UpdateDependencies
+    update_package_xml:
+        description: Updates src/package.xml with metadata in src/
+        class_path: cumulusci.tasks.metadata.package.UpdatePackageXml
+        options:
+            path: src
+    upload_beta:
+        description: Uploads a beta release of the metadata currently in the packaging org
+        class_path: cumulusci.tasks.salesforce.PackageUpload
+    upload_production:
+        description: Uploads a production release of the metadata currently in the packaging org
+        class_path: cumulusci.tasks.salesforce.PackageUpload
+        options:
+            production: True
+    util_sleep:
+        description: Sleeps for N seconds
+        class_path: cumulusci.tasks.util.Sleep
+        options:
+            seconds: 5
+
+    log:
+        description: Log a line at the info level.
+        class_path: cumulusci.tasks.util.LogLine
+        options:
+            level: info
+
+flows:
+    apex_docs:
+        description: Generate and commit documentation using ApexDoc
+        steps:
+            1:
+                task: generate_apex_docs
+            2:
+                task: commit_apex_docs
+
+    ci_beta:
+        description: Install the latest beta version and runs apex tests from the managed package
+        steps:
+            1:
+                flow: install_beta
+            2:
+                task: run_tests
+                options:
+                    managed: True
+
+    ci_feature:
+        description: Prepare an unmanaged metadata test org and run apex tests.  Intended for use against feature branch commits.
+        steps:
+            1:
+                flow: dependencies
+            2:
+                flow: deploy_unmanaged
+            3:
+                flow: config_apextest
+            4:
+                task: run_tests
+            5:
+                task: github_parent_to_children
+                    
+    ci_master:
+        description: Deploy the package metadata to the packaging org and prepare for managed package version upload.  Inteded for use against master branch commits.
+        steps:
+            1:
+                flow: dependencies
+            2:
+                flow: deploy_packaging
+            3:
+                flow: config_packaging
+
+    ci_release:
+        description: Install a production release version and runs tests from the managed package
+        steps:
+            1:
+                flow: install_prod
+            2:
+                task: run_tests
+                options:
+                    managed: True
+
+    config_apextest:
+        description: Configure an org to run apex tests after package metadata is deployed
+        steps:
+            1:
+                task: deploy_post
+            2:
+                task: update_admin_profile
+
+    config_dev:
+        description: Configure an org for use as a dev org after package metadata is deployed
+        steps:
+            1:
+                task: deploy_post
+            2:
+                task: update_admin_profile
+
+    config_managed:
+        description: Configure an org for use as a dev org after package metadata is deployed
+        steps:
+            1:
+                task: deploy_post
+                options:
+                    unmanaged: False
+            2:
+                task: update_admin_profile
+
+    config_packaging:
+        description: Configure packaging org for upload after package metadata is deployed
+        steps:
+            1:
+                task: update_admin_profile
+                options:
+                    managed: True
+
+    config_qa:
+        description: Configure an org for use as a QA org after package metadata is deployed
+        steps:
+            1:
+                task: deploy_post
+            2:
+                task: update_admin_profile
+
+    dependencies:
+        description: Deploy dependencies to prepare the org environment for the package metadata
+        steps:
+            1:
+                task: update_dependencies
+            2:
+                task: deploy_pre
+                            
+    deploy_unmanaged:
+        description: Deploy the unmanaged metadata from the package
+        steps:
+            1:
+                task: unschedule_apex
+            2:
+                task: update_package_xml
+            3:
+                task: deploy
+            4:
+                task: uninstall_packaged_incremental
+
+    deploy_unmanaged_ee:
+        description: Deploy the unmanaged metadata from the package to an Enterprise Edition org
+        steps:
+            1:
+                task: unschedule_apex
+            2:
+                task: update_package_xml
+            3:
+                task: create_unmanaged_ee_src
+            4:
+                task: deploy
+            5:
+                task: revert_unmanaged_ee_src
+            6:
+                task: uninstall_packaged_incremental
+                options:
+                    purge_on_delete: False
+
+    deploy_packaging:
+        description: Process and deploy the package metadata to the packaging org
+        steps:
+            1:
+                task: unschedule_apex
+            2:
+                task: create_managed_src
+            3:
+                task: update_package_xml
+                options:
+                    managed: True
+            4:
+                task: deploy
+            5:
+                task: revert_managed_src
+            6:
+                task: uninstall_packaged_incremental
+
+    dev_org:
+        description: Set up an org as a development environment for unmanaged metadata
+        steps:
+            1:
+                flow: dependencies
+            2:
+                flow: deploy_unmanaged
+            3:
+                flow: config_dev
+
+    dev_org_namespaced:
+        description: Set up a namespaced scratch org as a development environment for unmanaged metadata
+        steps:
+            1:
+                flow: dependencies
+                options:
+                    update_dependencies:
+                        namespaced_org: True
+            2:
+                flow: deploy_unmanaged
+            3:
+                flow: config_dev
+                options:
+                    deploy_post:
+                        unmanaged: False
+                        namespaced_org: True
+                    
+    qa_org:
+        description: Set up an org as a QA environment for unmanaged metadata
+        steps:
+            1:
+                flow: dependencies
+            2:
+                flow: deploy_unmanaged
+            3:
+                flow: config_qa
+
+    uninstall_managed:
+        description: Uninstall the installed managed version of the package.  Run this before install_beta or install_prod if a version is already installed in the target org.
+        steps:
+            1:
+                task: uninstall_post
+            2:
+                task: uninstall_managed
+
+    install_beta:
+        description: Install and configure the latest beta version
+        steps:
+            1:
+                flow: dependencies
+            2:
+                task: install_managed_beta
+            3:
+                flow: config_managed
+
+    install_prod:
+        description: Install and configure the latest production version
+        steps:
+            1:
+                flow: dependencies
+            2:
+                task: install_managed
+            3:
+                flow: config_managed
+
+    release_beta:
+        description: Upload and release a beta version of the metadata currently in packaging
+        steps:
+            1:
+                task: upload_beta
+                options:
+                    name: Automated beta release
+            2:
+                task: github_release
+                options:
+                    version: ^^upload_beta.version_number
+            3:
+                task: github_release_notes
+                ignore_failure: True  # Attempt to generate release notes but don't fail build
+                options:
+                    link_pr: True
+                    publish: True
+                    tag: ^^github_release.tag_name
+            4:
+                task: github_master_to_feature
+
+    release_production:
+        description: Upload and release a production version of the metadata currently in packaging
+        steps:
+            1:
+                task: upload_production
+                options:
+                    name: $project_config.project__package__name
+            2:
+                task: github_release
+                options:
+                    version: ^^upload_production.version_number
+            3:
+                task: github_release_notes
+                ignore_failure: True  # Attempt to generate release notes but don't fail build
+                options:
+                    publish: True
+                    tag: ^^github_release.tag_name
+
+    unmanaged_ee:
+        description: Deploy the unmanaged package metadata and all dependencies to the target EE org
+        steps:
+            1:
+                flow: dependencies
+                options:
+                    update_dependencies:
+                        purge_on_delete: False
+            2:
+                flow: deploy_unmanaged_ee
+
+services:
+  connected_app:
+    description: A Connected App is required to connect to and run commands against persistent orgs. See http://cumulusci.readthedocs.io/en/latest/tutorial.html#creating-a-connected-app for more info.
+    attributes:
+      callback_url:
+        description: Callback URL configured on the Connected App
+        required: True
+      client_id:
+        description: Client ID/Consumer Key from the Connected App
+        required: True
+      client_secret:
+        description: Client Secret/Consumer Secret from the Connected App
+        required: True
+  github:
+    description: Configure connection for github tasks, e.g. Create Release
+    attributes:
+      username:
+        description: The Github username to use for tasks.
+        required: True
+      password:
+        description:  Github password to use for tasks.  It is recommended to use a Github Application Token instead of password to allow bypassing 2fa.
+        required: True
+      email:
+        description: The email address to used by Github tasks when an operation requires an email address.
+        required: True
+  metaci:
+    description: Connect with a MetaCI site to run builds of projects from this repository
+    attributes:
+      app_name:
+        description: The Heroku app name
+        required: False
+      url:
+        description: The main url to the MetaCI site
+        required: True
+      token:
+        description: Your API token to the MetaCI site (get from SITE_URL/api/token)
+        required: True
+  mrbelvedere:
+    description: Configure connection for mrbelvedere tasks, e.g. MrbelvederePublish
+    attributes:
+      base_url:
+        description: The base url for your mrbelvedere instance.
+        required: True
+      api_key:
+        description: The package api_key for the package in your mrbelvedere instance.  
+        required: True
+  apextestsdb:
+    description: Configure connection for ApexTestsDB tasks, e.g. ApextestsdbUpload
+    attributes:
+      base_url:
+        description: The base url for your ApexTestsDB instance.
+        required: True
+      user_id:
+        description: The user id to use when connecting to ApexTestsDB.  
+        required: True
+      token:
+        description: The api token to use when connecting to ApexTestsDB.
+        required: True
+  saucelabs:
+    description: Configure connection for saucelabs tasks.
+    attributes:
+      username:
+        description: The Saucelabs username to use for tasks.
+        required: True
+      api_key:
+        description: The Saucelabs api key to use for tasks  
+        required: True
+  sentry:
+    description: Configure connection to sentry.io for error tracking
+    attributes:
+      dsn:
+        description: "The sentry DSN for connecting to the API, see https://docs.sentry.io/quickstart/#configure-the-dsn"
+        required: True
+      api_key:
+        description: "The sentry web api auth key for your account, see https://docs.sentry.io/api/auth/"
+        required: True
+      org_slug:
+        description: "The abbreviated organization name used in the your sentry urls"
+        required: True
+      project_slug:
+        description: "The abbreviated project slug used in sentry urls to the project"
+        required: True
+
+project:
+    name:
+    package:
+        name:
+        name_managed:
+        namespace:
+        install_class:
+        uninstall_class:
+        api_version: '42.0'
+    git:
+        default_branch: master
+        prefix_feature: feature/
+        prefix_beta: beta/
+        prefix_release: release/
+        push_prefix_sandbox: 'Sandbox orgs: '
+        push_prefix_production: 'Production orgs: '
+        release_notes:
+            parsers:
+                1:
+                    class_path: cumulusci.tasks.release_notes.parser.GithubLinesParser
+                    title: Critical Changes
+                2:
+                    class_path: cumulusci.tasks.release_notes.parser.GithubLinesParser
+                    title: Changes
+                3:
+                    class_path: cumulusci.tasks.release_notes.parser.GithubIssuesParser
+                    title: Issues Closed
+                4:
+                    class_path: cumulusci.tasks.release_notes.parser.GithubLinesParser
+                    title: New Metadata
+                5:
+                    class_path: cumulusci.tasks.release_notes.parser.GithubLinesParser
+                    title: Deleted Metadata
+    test:
+        name_match: '%_TEST%'
+    apexdoc:
+        version: 1.1.7
+        scope: global;public;private;testmethod;webService
+    dependencies:
+
+orgs:
+    scratch:
+        dev:
+            config_file: orgs/dev.json
+            days: 7
+        feature:
+            config_file: orgs/feature.json
+        beta:
+            config_file: orgs/beta.json
+        release:
+            config_file: orgs/release.json
