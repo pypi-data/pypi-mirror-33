@@ -1,0 +1,155 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>      
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>create</title>     
+    <link href="/static/bootstrap/dist/css/bootstrap.css" rel="stylesheet"></link>
+    {% block head_css %}
+         <link href="/static/css/create.css" rel="stylesheet"></link>
+    {% end %}
+    
+    {% block extends_css %}
+    {% end %}
+</head>     
+<body style="width: 100%; height: 100%; background: #dcdcdc">      
+    <div class="main" class='main' style=" height: 100%;width: 100%;">
+        <div class="body">
+            <div id="global-earth">
+                {% module LEarth("global-earth", height=760) %}
+            </div>
+        </div>
+        <div class="tail">
+        {% block tail %}
+        {% end %}
+        </div>
+    </div>
+    <!-- <div class="modal fade bs-example-modal-sm" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content">
+                <div class="input-group">
+                    <span class="input-group-btn">
+                        <button class="btn btn-default" onclick="settoken();" type="button">Go!</button>
+                    </span>
+                    <input type="text" id='token' class="form-control" placeholder="token" value="">
+                </div>
+            </div>
+        </div>
+    </div> -->
+    <script src="/static/jquery/dist/jquery.min.js"></script>
+    <!-- <script type="text/javascript" src="/static/js/jquery.transit.js"></script> -->
+    <script src="/static/bootstrap/dist/js/bootstrap.js"></script>
+    {% block body_js %}
+        <script src="/static/js/create.js"></script>
+        <script src="/static/js/sao.js"></script>
+        
+        <script type="text/javascript">
+            var create_info = null;
+            // var API_TOKEN = null;
+            function JsonGet(url, callback){
+                $.getJSON(url, callback);
+            }
+
+            // $(".bs-example-modal-sm").modal("show")
+            // function settoken(){
+                // t = $("#token").val()
+                // earth.setToken(t);
+                // console.log(earth.getToken(),t)
+                // wait(".bs-example-modal-sm")
+                JsonPost("/asyncremoteapi", {
+                    'req':{
+                        'op':'regionlist',
+                        // 'api':earth.getToken(),
+                    }
+                }, function(data){
+                    // $(".bs-example-modal-sm").modal("hide")
+                    for (i=0;i< data.length; i++){
+                        ci = data[i];
+                        earth.mark(earth.gps_search(ci.name), ci.name + " DCID:" +ci.DCID)
+                    }
+                    wait_ok()
+
+
+                    earth.callmouseup = function(p){
+                        msg = p.properties.msg
+                        place = msg.split(" ")[0]
+                        JsonPost("/asyncremoteapi",{
+                            "req":{
+                                "op":"scriptlist",
+                                // "token":earth.getToken()
+                            }
+                        },function(data){
+                            scriptid = data[0]
+                            $(".create-server").modal("show")
+                            $('#create_server_btn').attr({
+                                "onclick":"create_server('" + msg + "')",
+                                'scriptid':scriptid
+                            })    
+                        })
+                        
+                        // DCID = p.properties.msg.split("DCID:")[1]
+                        // Info.create_msg(place.toLowerCase(),"create a server?",'<div class="input-group"><span class="input-group-addon"><input type="checkbox"  value="centos"><input type="checkbox"  value="ubuntu"></span><input type="text" class="form-control" placeholder="' + msg +'"><span class="input-group-btn"><button class="btn btn-default" type="button" onclick="create_server()">Create</button></span></div>','popover', 60, earth)
+                    }
+
+                })
+            //}
+
+            function create_server(msg){
+                os = 'ubuntu';
+                if ($("#centos").prop("checked")){
+                    os = 'centos';
+                }
+
+                label = $("#label").val()
+                if (label.length>2){
+                    scriptid = $("#create_server_btn").attr("scriptid")
+                    JsonPost("/asyncremoteapi", {
+                        'req':{
+                            'op':'create_server',
+                            'msg':msg,
+                            'label':label,
+                            'os':os,
+                            'scriptid':scriptid,
+                            // 'token':earth.getToken()
+                        }
+                    },function(data){
+                        wait_ok()
+
+                        $(".create-server").modal("hide")
+                    })
+                    wait()    
+                }else{
+                    alert("Must set label!!!")
+                }
+                
+
+            }
+
+
+        </script> 
+<div class="modal fade create-server" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="input-group">
+                <span class="input-group-addon">
+                    <input type="text" name='label'  id='label' placeholder="label must set">
+                    <input type="checkbox" name='os'  id='ubuntu' value="ubuntu">Ubuntu
+                </span>
+                <span class="input-group-btn">
+                    <button class="btn btn-default" id='create_server_btn' type="button" onclick="">Create</button>
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+        
+    {% end %}
+
+    {% block extends_js %}
+
+    {% end %}
+</body>     
+</html>
+    

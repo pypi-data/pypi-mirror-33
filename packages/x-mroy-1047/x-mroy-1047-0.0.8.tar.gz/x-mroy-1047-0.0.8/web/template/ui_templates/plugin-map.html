@@ -1,0 +1,188 @@
+<link rel="stylesheet" href="static/plugins/leaflet/leaflet.css" />
+ <!-- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.2/dist/leaflet.css" /> -->
+<script src="static/plugins/leaflet/leaflet.js"></script>
+<script src="static/js/pouchdb.js"></script>
+<!-- <script src="static/plugins/leaflet/L.TileLayer.PouchDBCached.js"></script> -->
+ <!-- <script src="https://unpkg.com/leaflet@1.0.2/dist/leaflet.js"></script> -->
+<script src="/static/js/websocket.js"></script>
+<style type="text/css">
+#{{id}} {
+    height: {{height}}px;
+}
+</style>
+
+<script type="text/javascript">
+
+// var lmap = L.map('{{id}}',).setView([30.174, 120.15], 10);
+
+// var redIcon = L.icon({
+//     iconUrl: 'static/plugins/leaflet/images/circle.png',
+//     })
+
+// Map area...
+var openbase = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
+    // useCache: true,
+    // crossOrigin: true
+});
+
+var Stamen_Terrain = L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}.{ext}', {
+    attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    subdomains: 'abcd',
+    minZoom: 0,
+    maxZoom: 18,
+    ext: 'png'
+});
+
+var Stamen_Watercolor = L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/watercolor/{z}/{x}/{y}.{ext}', {
+    attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    subdomains: 'abcd',
+    minZoom: 1,
+    maxZoom: 16,
+    ext: 'png'
+});
+
+var Esri_WorldImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+});
+
+var baseMaps = {
+    "base": openbase,
+    "real":Esri_WorldImagery,
+    "water": Stamen_Watercolor,
+    "sample": Stamen_Terrain
+};
+
+var cities_layer = L.layerGroup([]);
+var shodan_layer = L.layerGroup([]);
+var line_layer = L.layerGroup([]);
+var overlayMaps = {
+    "Shodan": shodan_layer,
+    "Cities": cities_layer,
+    "Net Line": line_layer
+};
+
+
+var lmap = L.map('{{id}}', {
+    layers:[ Esri_WorldImagery, cities_layer, line_layer]
+//    layers: [openbase, shodan_layer]
+}).setView([30.269411052143145,120.1423],3);
+
+
+L.control.layers(baseMaps, overlayMaps).addTo(lmap);
+// Map area...
+
+
+
+
+var marks = []
+
+// lmap.addLayer(cities_layer);
+
+var include = function(type,data, color){
+    var scolor = "red";
+    if (color != null){
+        scolor = color;
+    }
+
+    if (type == "circle"){
+        for (var i = data.length - 1; i >= 0; i--) {
+            single = data[i]
+            tmp = L.circle(single.slice(0,2), {
+                color: scolor,
+                fillColor: '#f03',
+                fillOpacity: 0.5,
+                radius: 500
+            })
+            tmp.addTo(lmap);
+
+            marks.push(tmp)
+        }
+
+    }else if (type == "mark"){
+        for (var i = data.length - 1; i >= 0; i--) {
+            single = data[i]
+            tmp = null
+            if (single.length == 3){
+                w = single.slice(0,2)
+                tmp = L.marker([w[1], w[0]])
+                tmp.addTo(lmap)
+                    .bindPopup(single[2])
+                    .openPopup();
+            }else{
+                tmp = L.marker(single.slice(0,2))
+                tmp.addTo(lmap)
+            }
+
+            marks.push(tmp)
+        }
+
+    }else{
+        var polygon = L.polygon(data).addTo(lmap);
+    }
+}
+
+
+var clear = function(){
+    for (var i = marks.length - 1; i >= 0; i--) {
+        marks[i].remove()
+    }
+}
+
+var lastcenter = null;
+var pix_change = null;
+var ondraged = null;
+var ondraging = null;
+var onmousedown = null;
+var __down_stat = false;
+lmap.on("mousedown", function(){
+    lastcenter = lmap.project(lmap.getCenter(), lmap.getZoom())
+    __down_stat = true
+})
+
+lmap.on("mousemove", function(e){
+    if (__down_stat == true){
+        now = lmap.project(lmap.getCenter(), lmap.getZoom())
+        data ={x:null, y:null}
+        data.x = lastcenter.x - now.x
+        data.y = lastcenter.y - now.y
+        // console.log(data)
+        if (ondraging != null){
+            // console.log("draging")
+            ondraging(data)
+        }
+        lastcenter = now
+    }
+
+    if (onmousedown != null){
+        onmousedown(e)
+    }
+    
+})
+
+lmap.on("mouseup", function(){
+    
+    pix_change = null
+    if (ondraged != null){
+        // console.log("draged")
+        ondraged()
+    }
+    __down_stat = false
+})
+
+
+websocket = new web_client("{{host}}");
+websocket.on_msg(function(json){
+    console.log(json);
+    if (json.action == "include"){
+        include(json.content.type, json.content.data,json.content.color);
+    }else if(json.action == "clear"){
+        clear();
+    }else if(json.action == "fly"){
+        lmap.flyTo(json.content.data, json.content.zoom)
+    }
+})
+
+
+
+</script>
