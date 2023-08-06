@@ -1,0 +1,29 @@
+1.0.0
+-----
+
+* Feature: Added support for Black/Yellow and Black
+
+0.1.1
+-----
+
+* Removed GPIO.cleanup call for Inky pHAT v2, so subsequent display updates will work
+
+0.1.0
+-----
+
+* Added support for new display on Inky pHAT v2
+
+0.0.2
+-----
+
+* Tweaked LCD init to run every update
+* Added LCD deinit to switch off driver IC
+* Added clear method
+
+0.0.1
+-----
+
+* Initial release
+
+
+
