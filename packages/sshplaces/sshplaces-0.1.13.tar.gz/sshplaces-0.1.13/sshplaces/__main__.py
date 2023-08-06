@@ -1,0 +1,3 @@
+import sshplaces
+
+sshplaces.main()
