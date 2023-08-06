@@ -1,0 +1,33 @@
+import setuptools
+
+setuptools.setup(
+	name="StateModelRnD",
+	version="0.4.1",
+	author="Cameron Devine",
+	author_email="camdev@uw.edu",
+	description="A library for finding State Space models of dynamical systems.",
+	long_description="StateModelRnD is a package for finding the State Space models of dynamical systems. The package take input of the necessary equations in the form outlined by Rowell and Wormely in *System Dynamics: An Introduction*. The package then returns the state equation, state equation matricies, and transfer function.",
+	long_description_content_type='text/markdown',
+	url="https://github.com/CameronDevine/StateModelRnD",
+	packages=setuptools.find_packages(),
+	python_requires=">=2.7",
+	install_requires=("sympy>=7.3",),
+	classifiers=(
+		"Development Status :: 4 - Beta",
+		"Framework :: Jupyter",
+		"Intended Audience :: Education",
+		"Intended Audience :: Science/Research",
+		"License :: OSI Approved :: BSD License",
+		"Programming Language :: Python :: 2",
+		"Programming Language :: Python :: 2.7",
+		"Programming Language :: Python :: 3",
+		"Programming Language :: Python :: 3.0",
+		"Programming Language :: Python :: 3.1",
+		"Programming Language :: Python :: 3.2",
+		"Programming Language :: Python :: 3.3",
+		"Programming Language :: Python :: 3.4",
+		"Programming Language :: Python :: 3.5",
+		"Programming Language :: Python :: 3.6",
+		"Operating System :: OS Independent",
+	),
+)
