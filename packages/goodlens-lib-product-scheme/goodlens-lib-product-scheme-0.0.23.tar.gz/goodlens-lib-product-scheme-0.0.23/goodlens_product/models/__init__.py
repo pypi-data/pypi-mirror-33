@@ -1,0 +1,22 @@
+# coding: utf-8
+
+# flake8: noqa
+from __future__ import absolute_import
+# import models into model package
+from goodlens_product.models.create_product_common_response import CreateProductCommonResponse
+from goodlens_product.models.create_product_food_response import CreateProductFoodResponse
+from goodlens_product.models.food_origin_material import FoodOriginMaterial
+from goodlens_product.models.food_origin_material_item import FoodOriginMaterialItem
+from goodlens_product.models.food_origin_material_sub1 import FoodOriginMaterialSub1
+from goodlens_product.models.food_origin_material_sub2 import FoodOriginMaterialSub2
+from goodlens_product.models.food_origin_material_sub3 import FoodOriginMaterialSub3
+from goodlens_product.models.food_origin_material_sub4 import FoodOriginMaterialSub4
+from goodlens_product.models.food_origin_material_sub5 import FoodOriginMaterialSub5
+from goodlens_product.models.nutrient import Nutrient
+from goodlens_product.models.nutrient_item import NutrientItem
+from goodlens_product.models.nutrient_sub1 import NutrientSub1
+from goodlens_product.models.nutrient_sub2 import NutrientSub2
+from goodlens_product.models.product_common import ProductCommon
+from goodlens_product.models.product_food import ProductFood
+from goodlens_product.models.update_product_common_response import UpdateProductCommonResponse
+from goodlens_product.models.update_product_food_response import UpdateProductFoodResponse
