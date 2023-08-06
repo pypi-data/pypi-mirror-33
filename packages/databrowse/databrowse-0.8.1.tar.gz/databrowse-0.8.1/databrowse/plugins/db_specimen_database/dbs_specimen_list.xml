@@ -1,0 +1,161 @@
+<xsl:template xmlns="http://www.w3.org/1999/xhtml" xmlns:html="http://www.w3.org/1999/xhtml" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:specimendb="http://thermal.cnde.iastate.edu/databrowse/specimendb" xmlns:specimen="http://thermal.cnde.iastate.edu/specimen" match="specimendb:dir" mode="title">
+    <xsl:element name="script">
+        <xsl:attribute name="type">text/javascript</xsl:attribute>
+        <xsl:attribute name="src"><xsl:value-of select="$resdir"/>/DataTables/media/js/jquery.dataTables.min.js</xsl:attribute>
+    </xsl:element>
+    <xsl:element name="script">
+        <xsl:attribute name="type">text/javascript</xsl:attribute>
+        <xsl:attribute name="src"><xsl:value-of select="$resdir"/>/DataTables/extras/ColReorder/media/js/ColReorder.min.js</xsl:attribute>
+    </xsl:element>
+    <xsl:element name="script">
+        <xsl:attribute name="type">text/javascript</xsl:attribute>
+        <xsl:attribute name="src"><xsl:value-of select="$resdir"/>/DataTables/extras/ColVis/media/js/ColVis.min.js</xsl:attribute>
+    </xsl:element>
+    <xsl:element name="script">
+        <xsl:attribute name="type">text/javascript</xsl:attribute>
+        <xsl:attribute name="src"><xsl:value-of select="$resdir"/>/DataTables/extras/ColReorderWithResize/ColReorderWithResize.js</xsl:attribute>
+    </xsl:element>
+    <script type="text/javascript" defer="true">
+        <![CDATA[
+            var table;
+            $(document).ready(function() {
+                $('#specimentable tr').click( function() {
+                        $(this).toggleClass('row_selected');
+                        count = $('#specimentable tr.row_selected').length;
+                        $('#printbtn').text('Print Barcodes for ' + String(count) + ' Specimens')
+                    } );
+                table = $('#specimentable').dataTable({
+                    "sDom": 'RlCfrtip',
+                    "sScrollX": "764px",
+                    "bScrollCollapse": true,
+                    "sPaginationType": "full_numbers",
+                    "bStateSave": true
+                });
+
+                $(window).bind('resize', function () {
+                table.fnAdjustColumnSizing();
+                });
+                $("#toggleexpand a").bind('click', function() {
+                    table.fnAdjustColumnSizing();
+                    });
+
+                togglefullwidth();
+                table.fnAdjustColumnSizing();
+            });    
+            function printlabels() {
+                    table.$('tr.row_selected').each(function(index,value) {
+                    url = value.cells[0].children[0].href + '?content_mode=raw&printbarcode=printbarcode';
+                    tag = value.cells[0].children[0].innerHTML;
+                    $.ajax({
+                        type: "POST",
+                        url: url
+                    }).done(function(msg) {
+                        $("#loading").text(tag + ": "  + msg);
+                        $("#loading").fadeIn(500).delay(500).fadeOut(500);
+                    });
+                    })
+                }     
+        ]]>
+    </script>
+    <xsl:element name="link">
+        <xsl:attribute name="type">text/css</xsl:attribute>
+        <xsl:attribute name="rel">stylesheet</xsl:attribute>
+        <xsl:attribute name="href"><xsl:value-of select="$resdir"/>/DataTables/media/css/jquery.dataTables.css</xsl:attribute>
+    </xsl:element>
+    <xsl:element name="link">
+        <xsl:attribute name="type">text/css</xsl:attribute>
+        <xsl:attribute name="rel">stylesheet</xsl:attribute>
+        <xsl:attribute name="href"><xsl:value-of select="$resdir"/>/DataTables/extras/ColVis/media/css/ColVis.css</xsl:attribute>
+    </xsl:element>
+    <style>
+        #specimentable {
+            white-space: nowrap;
+            font-size: medium;
+        }
+        .center {
+            text-align: center;
+        }
+        #specimentable tr.even.row_selected td {
+            background-color: rgb(245, 237, 192);
+        }
+
+        #specimentable tr.odd.row_selected td {
+            background-color: rgb(235, 221, 177);
+        }
+        table.cream thead th {
+            font-size: medium;
+            padding: 1px 15px 1px 1px;
+            border: 1px solid #c1b78f;
+        }
+        table.cream td {
+            border: 1px solid #c1b78f;
+        }
+        .sorting_asc, .sorting, .sorting_desc{
+            background-position-y: 0%;
+        }
+        table.dataTable td {
+            padding: 1px;
+        }
+    </style>
+    <xsl:if test="/specimendb:dir/@uncommitted">
+        <p class="notify-msg warning"><strong>Warning:</strong> Mercurial repository contains uncommitted changes to <xsl:value-of select="/specimendb:dir/@uncommitted"/> files.</p>
+    </xsl:if>
+    <h1>Specimen Database</h1>
+    <table class="cream full-width" id="specimentable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Group(s)</th>
+                <th>Material</th>
+                <th>Shape</th>
+                <th>Dimension 1</th>
+                <th>Dimension 2</th>
+                <th>Dimension 3</th>
+                <th>Crack Size</th>
+                <th>Crack Location</th>
+            </tr>
+        </thead>
+        <tbody>
+            <xsl:for-each select="//specimen:specimen">
+                <tr>
+                    <td><a><xsl:attribute name="href"><xsl:value-of select="../@link"/></xsl:attribute><xsl:value-of select="specimen:specimenid/."/></a></td>
+                    <td>
+                        <xsl:for-each select="specimen:groups/*">
+                            <xsl:choose>
+                                <xsl:when test="@link">
+                                    <a>
+                                        <xsl:attribute name="href"><xsl:value-of select="@link"/></xsl:attribute>
+                                        <xsl:value-of select="."/>
+                                    </a>
+                                </xsl:when>
+                                <xsl:otherwise>
+                                    <xsl:value-of select="."/>
+                                </xsl:otherwise>
+                            </xsl:choose>
+                            <xsl:choose>
+                                <xsl:when test="position() != last()">, </xsl:when>
+                            </xsl:choose>
+                        </xsl:for-each>
+                    </td>
+                    <td><xsl:value-of select="specimen:physicalproperties/specimen:material/."/></td>
+                    <td><xsl:value-of select="specimen:geometry/specimen:shape/."/></td>
+                    <td><xsl:value-of select="specimen:geometry/specimen:dimension[1]" />&#160;<xsl:value-of select="specimen:geometry/specimen:dimension[1]/@units"/></td>
+                    <td><xsl:value-of select="specimen:geometry/specimen:dimension[2]" />&#160;<xsl:value-of select="specimen:geometry/specimen:dimension[2]/@units"/></td>
+                    <td><xsl:value-of select="specimen:geometry/specimen:dimension[3]" />&#160;<xsl:value-of select="specimen:geometry/specimen:dimension[3]/@units"/></td>
+                    <td><xsl:value-of select="specimen:flawparameters/specimen:flawsize/."/>&#160;<xsl:value-of select="specimen:flawparameters/specimen:flawsize/@units"/></td>
+                    <td><xsl:for-each select="specimen:flawparameters/specimen:location/*">
+                        <xsl:value-of select="."/>&#160;<xsl:value-of select="@units" /><xsl:choose><xsl:when test="position() != last()"> x </xsl:when></xsl:choose>
+                    </xsl:for-each></td>
+                </tr>
+            </xsl:for-each>
+        </tbody>
+    </table>
+    <br/>
+    <div class="btn-group clearfix"><a id='printbtn' class="btn error" onclick="printlabels()" style="cursor:pointer">Print Barcodes for Selected Specimens</a></div>
+</xsl:template>
+<xsl:template xmlns="http://www.w3.org/1999/xhtml" xmlns:html="http://www.w3.org/1999/xhtml" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:specimendb="http://thermal.cnde.iastate.edu/databrowse/specimendb" xmlns:specimen="http://thermal.cnde.iastate.edu/specimen" match="specimendb:dir" mode="summary">
+    <xsl:apply-templates select="specimendb:dir" mode="title"/>
+</xsl:template>
+<xsl:template xmlns="http://www.w3.org/1999/xhtml" xmlns:html="http://www.w3.org/1999/xhtml" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:specimendb="http://thermal.cnde.iastate.edu/databrowse/specimendb" xmlns:specimen="http://thermal.cnde.iastate.edu/specimen" match="specimendb:dir" mode="detailed">
+    <xsl:apply-templates select="specimendb:dir" mode="title"/>
+</xsl:template>
