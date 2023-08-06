@@ -1,0 +1,53 @@
+
+{% extends 'admin/change_form.html' %}
+
+
+{% block footer %}
+    {{ block.super }}
+
+    {% if trans_options %}
+        <script>
+            (function ($) {
+                var translateUrl = '{% url 'trans:translate' %}',
+                    options = {{ trans_options|safe }},
+                    $transBtn = $('<button type="button" class="btn btn-primary pull-right"><i class="fa fa-language"></i></button>');
+
+                $.each(options, function (originField, transFields) {
+
+                    var $originField = $('[name=' + originField + ']');
+
+                    $.each(transFields, function (lang, fName) {
+
+                        var $btn = $transBtn.clone(),
+                            $field = $('[name=' + fName + ']').css('width', '90%');
+
+                        $field.parent().append($btn);
+
+                        $btn.click(function () {
+
+                            if ($originField.val()) {
+
+                                $btn.prop('disabled', true);
+                                $field.prop('disabled', true);
+
+                                var url = translateUrl + '?' + $.param({
+                                        text: $originField.val(),
+                                        src: '{{ request.LANGUAGE_CODE }}',
+                                        dst: lang
+                                    });
+                                $.get(url, function (result) {
+                                    $field.val(result);
+                                    $field.prop('disabled', false);
+                                    $btn.prop('disabled', false);
+                                });
+
+                            }
+
+                        });
+                    });
+                });
+
+            })(django.jQuery);
+        </script>
+    {% endif %}
+{% endblock %}
