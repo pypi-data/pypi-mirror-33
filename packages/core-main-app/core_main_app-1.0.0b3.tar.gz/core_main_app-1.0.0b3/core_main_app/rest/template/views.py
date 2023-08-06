@@ -1,0 +1,98 @@
+"""REST views for the template API
+"""
+
+from django.http import Http404
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from core_main_app.commons import exceptions as exceptions
+from core_main_app.components.template import api as template_api
+from core_main_app.rest.template.serializers import TemplateSerializer
+from core_main_app.utils.file import get_file_http_response
+
+
+class TemplateDetail(APIView):
+    """
+    Retrieve a template.
+    """
+    def get_object(self, pk):
+        """ Get template from db
+
+        Args:
+            pk:
+
+        Returns:
+
+        """
+        try:
+            return template_api.get(pk)
+        except exceptions.DoesNotExist:
+            raise Http404
+
+    def get(self, request, pk):
+        """ Retrieve template
+
+        Args:
+            request:
+            pk:
+
+        Returns:
+
+        """
+        try:
+            # Get object
+            template_object = self.get_object(pk)
+
+            # Serialize object
+            serializer = TemplateSerializer(template_object)
+
+            # Return response
+            return Response(serializer.data)
+        except Http404:
+            content = {'message': 'Template not found.'}
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+        except Exception as api_exception:
+            content = {'message': api_exception.message}
+            return Response(content, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TemplateDownload(APIView):
+    """
+    Download a template.
+    """
+    def get_object(self, pk):
+        """ Get template from db
+
+        Args:
+            pk:
+
+        Returns:
+
+        """
+        try:
+            return template_api.get(pk)
+        except exceptions.DoesNotExist:
+            raise Http404
+
+    def get(self, request, pk):
+        """ Retrieve template
+
+        Args:
+            request:
+            pk:
+
+        Returns:
+
+        """
+        try:
+            # Get object
+            template_object = self.get_object(pk)
+
+            return get_file_http_response(template_object.content, template_object.filename, 'text/xsd', 'xsd')
+        except Http404:
+            content = {'message': 'Template not found.'}
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+        except Exception as api_exception:
+            content = {'message': api_exception.message}
+            return Response(content, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
