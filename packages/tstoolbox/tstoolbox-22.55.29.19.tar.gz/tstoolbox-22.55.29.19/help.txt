@@ -1,0 +1,3965 @@
+usage: tstoolbox plot [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--clean] [--ofilename
+  OFILENAME] [--type TYPE] [--xtitle XTITLE] [--ytitle YTITLE] [--title TITLE]
+  [--figsize FIGSIZE] [--legend LEGEND] [--legend_names LEGEND_NAMES]
+  [--subplots] [--sharex] [--sharey] [--colors COLORS] [--linestyles
+  LINESTYLES] [--markerstyles MARKERSTYLES] [--style STYLE] [--logx] [--logy]
+  [--xaxis XAXIS] [--yaxis YAXIS] [--xlim XLIM] [--ylim YLIM] [--secondary_y]
+  [--mark_right] [--scatter_matrix_diagonal SCATTER_MATRIX_DIAGONAL]
+  [--bootstrap_size BOOTSTRAP_SIZE] [--bootstrap_samples BOOTSTRAP_SAMPLES]
+  [--norm_xaxis] [--norm_yaxis] [--lognorm_xaxis] [--lognorm_yaxis]
+  [--xy_match_line XY_MATCH_LINE] [--grid] [--label_rotation LABEL_ROTATION]
+  [--label_skip LABEL_SKIP] [--force_freq FORCE_FREQ] [--drawstyle DRAWSTYLE]
+  [--por] [--invert_xaxis] [--invert_yaxis] [--round_index ROUND_INDEX]
+  [--plotting_position PLOTTING_POSITION] [--lag_plot_lag LAG_PLOT_LAG]
+
+Plot data.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --ofilename OFILENAME
+      [optional, defaults to 'plot.png']
+      Output filename for the plot. Extension defines the type, ('.png').
+  --type TYPE
+      [optional, defaults to 'time']
+      The plot type.
+      Can be one of the following:
+      time
+        Standard time series plot. Time is the index, and plots each column of
+        data.
+
+      xy
+        An (x,y) plot, also know as a scatter plot. Data must be organized as
+        x1,y1,x2,y2,x3,y3,....
+
+      double_mass
+        An (x,y) plot of the cumulative sum of x and y. Data must be organized
+        as x1,y1,x2,y2,x3,y3,....
+
+      boxplot
+        Box extends from lower to upper quartile, with line at the median.
+        Depending on the statistics, the wiskers represent the range of
+        the data or 1.5 times the inter-quartile range (Q3 - Q1)
+
+      scatter_matrix
+        Plots all columns against each other in a matrix, with the diagonal
+        plots either histogram or KDE probability distribution.
+
+      lag_plot
+        Indicates structure in the data. Only available for a single
+        time-series.
+
+      autocorrelation
+        Plot autocorrelation. Only available for a single time-series.
+
+      bootstrap
+        Visually assess aspects of a data set by plotting random selections of
+        values. Only available for single time-series.
+
+      histogram
+        Calculate and create a histogram plot. See 'kde' for a smooth
+        representation of a histogram.
+
+      kde
+        This plot is an estimation of the probability density function based on
+        the data called kernel density estimation (KDE).
+
+      kde_time
+        This plot is an estimation of the probability density function based on
+        the data called kernel density estimation (KDE) combined with a
+        time-series plot.
+
+      bar
+        Column plot.
+
+      barh
+        A horizontal bar plot.
+
+      bar_stacked
+        A stacked column plot.
+
+      barh_stacked
+        A horizontal stacked bar plot
+
+      heatmap
+        Create a 2D heatmap of daily data, day of year x-axis, and year for
+        y-axis. Only available for a single, daily time-series.
+
+      norm_xaxis
+        Sort, calculate probabilities, and plot data against an x axis normal
+        distribution
+
+      norm_yaxis
+        Sort, calculate probabilities, and plot data against an y axis normal
+        distribution
+
+      lognorm_xaxis
+        Sort, calculate probabilities, and plot data against an x axis lognormal
+        distribution
+
+      lognorm_yaxis
+        Sort, calculate probabilities, and plot data against an y axis lognormal
+        distribution
+
+      weibull_xaxis
+        Sort, calculate and plot data against an x axis weibull distribution
+
+      weibull_yaxis
+        Sort, calculate and plot data against an y axis weibull distribution
+
+      taylor
+        Creates a taylor diagram that compares three goodness of fit statistics
+        on one plot. The three goodness of fit statistics calculated and
+        displayed are standard deviation, correlation coefficient, and
+        centered root mean square deviation. The data columns have to be
+        organized as 'observed,simulated1,simulated2,simulated3,...etc.'
+
+      target
+        Creates a target diagram that compares three goodness of fit statistics
+        on one plot. The three goodness of fit statistics calculated and
+        displayed are bias, root mean square deviation, and centered
+        root mean square deviation. The data columns have to be
+        organized as 'observed,simulated1,simulated2,simulated3,...etc.'
+
+  --xtitle XTITLE
+      [optional, default depends on type]
+      Title of x-axis.
+  --ytitle YTITLE
+      [optional, default depends on type]
+      Title of y-axis.
+  --title TITLE
+      [optional, defaults to '']
+      Title of chart.
+  --figsize FIGSIZE
+      [optional, defaults to '10,6.5']
+      The 'width,height' of plot as inches.
+  --legend LEGEND
+      [optional, defaults to True]
+      Whether to display the legend
+  --legend_names LEGEND_NAMES
+      [optional, defaults to None]
+      Legend would normally use the time-series names associated with the input
+      data. The 'legend_names' option allows you to override the names in
+      the data set. You must supply a comma separated list of strings for
+      each time-series in the data set.
+  --subplots
+      [optional, defaults to False]
+      Make separate subplots for each time series.
+  --sharex
+      [optional, default to True]
+      In case subplots=True, share x axis
+  --sharey
+      [optional, default to False]
+      In case subplots=True, share y axis
+  --colors COLORS
+      [optional, default is 'auto']
+      The default 'auto' will cycle through matplotlib colors. Otherwise at
+      command line supply a comma separated matplotlib color codes, or for
+      the Python API a list of color code strings.
+      Separated 'colors', 'linestyles', and 'markerstyles' instead of using the
+      'style' keyword.
+      ┌──────┬─────────┐
+      │ Code │ Color   │
+      ╞══════╪═════════╡
+      │ b    │ blue    │
+      ├──────┼─────────┤
+      │ g    │ green   │
+      ├──────┼─────────┤
+      │ r    │ red     │
+      ├──────┼─────────┤
+      │ c    │ cyan    │
+      ├──────┼─────────┤
+      │ m    │ magenta │
+      ├──────┼─────────┤
+      │ y    │ yellow  │
+      ├──────┼─────────┤
+      │ k    │ black   │
+      ╘══════╧═════════╛
+
+  --linestyles LINESTYLES
+      [optional, default to 'auto']
+      If 'auto' will iterate through the available matplotlib line types.
+      Otherwise on the command line a comma separated list, or a list of
+      strings if using the Python API.
+      To not display lines use a space (' ') as the linestyle code.
+      Separated 'colors', 'linestyles', and 'markerstyles' instead of using the
+      'style' keyword.
+      ┌──────┬──────────────┐
+      │ Code │ Lines        │
+      ╞══════╪══════════════╡
+      │ •    │ solid        │
+      ├──────┼──────────────┤
+      │ --   │ dashed       │
+      ├──────┼──────────────┤
+      │ -.   │ dash_dot     │
+      ├──────┼──────────────┤
+      │ :    │ dotted       │
+      ╘══════╧══════════════╛
+
+      Line reference: <[4;36mhttp://matplotlib.org/api/artist_api.html[0m>
+  --markerstyles MARKERSTYLES
+      [optional, default to ' ']
+      The default ' ' will not plot a marker. If 'auto' will iterate through the
+      available matplotlib marker types. Otherwise on the command line a
+      comma separated list, or a list of strings if using the Python API.
+      Separated 'colors', 'linestyles', and 'markerstyles' instead of using the
+      'style' keyword.
+      ┌──────┬────────────────┐
+      │ Code │ Markers        │
+      ╞══════╪════════════════╡
+      │ .    │ point          │
+      ├──────┼────────────────┤
+      │ o    │ circle         │
+      ├──────┼────────────────┤
+      │ v    │ triangle down  │
+      ├──────┼────────────────┤
+      │ ^    │ triangle up    │
+      ├──────┼────────────────┤
+      │ <    │ triangle left  │
+      ├──────┼────────────────┤
+      │ >    │ triangle right │
+      ├──────┼────────────────┤
+      │ 1    │ tri_down       │
+      ├──────┼────────────────┤
+      │ 2    │ tri_up         │
+      ├──────┼────────────────┤
+      │ 3    │ tri_left       │
+      ├──────┼────────────────┤
+      │ 4    │ tri_right      │
+      ├──────┼────────────────┤
+      │ 8    │ octagon        │
+      ├──────┼────────────────┤
+      │ s    │ square         │
+      ├──────┼────────────────┤
+      │ p    │ pentagon       │
+      ├──────┼────────────────┤
+      │ •    │ star           │
+      ├──────┼────────────────┤
+      │ h    │ hexagon1       │
+      ├──────┼────────────────┤
+      │ H    │ hexagon2       │
+      ├──────┼────────────────┤
+      │ •    │ plus           │
+      ├──────┼────────────────┤
+      │ x    │ x              │
+      ├──────┼────────────────┤
+      │ D    │ diamond        │
+      ├──────┼────────────────┤
+      │ d    │ thin diamond   │
+      ├──────┼────────────────┤
+      │ _    │ hline          │
+      ╘══════╧════════════════╛
+
+      Marker reference: <[4;36mhttp://matplotlib.org/api/markers_api.html[0m>
+  --style STYLE
+      [optional, default is None]
+      DEPRECATED.
+      Still available, but if None is replaced by 'colors', 'linestyles', and
+      'markerstyles' options. Currently the 'style' option will override
+      the others.
+      Comma separated matplotlib style strings matplotlib line style per
+      time-series. Just combine codes in 'ColorMarkerLine' order, for
+      example r*-- is a red dashed line with star marker.
+      ┌──────┬─────────┐
+      │ Code │ Color   │
+      ╞══════╪═════════╡
+      │ b    │ blue    │
+      ├──────┼─────────┤
+      │ g    │ green   │
+      ├──────┼─────────┤
+      │ r    │ red     │
+      ├──────┼─────────┤
+      │ c    │ cyan    │
+      ├──────┼─────────┤
+      │ m    │ magenta │
+      ├──────┼─────────┤
+      │ y    │ yellow  │
+      ├──────┼─────────┤
+      │ k    │ black   │
+      ├──────┼─────────┤
+      │ w    │ white   │
+      ╘══════╧═════════╛
+
+      ┌─────────┬───────────┐
+      │ Number  │ Color     │
+      ╞═════════╪═══════════╡
+      │ 0.75    │ 0.75 gray │
+      ├─────────┼───────────┤
+      │ ...etc. │           │
+      ╘═════════╧═══════════╛
+
+      ┌──────────────────┐
+      │ HTML Color Names │
+      ╞══════════════════╡
+      │ red              │
+      ├──────────────────┤
+      │ burlywood        │
+      ├──────────────────┤
+      │ chartreuse       │
+      ├──────────────────┤
+      │ ...etc.          │
+      ╘══════════════════╛
+
+      Color reference: <[4;36mhttp://matplotlib.org/api/colors_api.html[0m>
+      ┌──────┬──────────────┐
+      │ Code │ Lines        │
+      ╞══════╪══════════════╡
+      │ •    │ solid        │
+      ├──────┼──────────────┤
+      │ --   │ dashed       │
+      ├──────┼──────────────┤
+      │ -.   │ dash_dot     │
+      ├──────┼──────────────┤
+      │ :    │ dotted       │
+      ├──────┼──────────────┤
+      │ None │ draw nothing │
+      ├──────┼──────────────┤
+      │ ' '  │ draw nothing │
+      ├──────┼──────────────┤
+      │ ''   │ draw nothing │
+      ╘══════╧══════════════╛
+
+      Line reference: <[4;36mhttp://matplotlib.org/api/artist_api.html[0m>
+      ┌──────┬────────────────┐
+      │ Code │ Markers        │
+      ╞══════╪════════════════╡
+      │ .    │ point          │
+      ├──────┼────────────────┤
+      │ o    │ circle         │
+      ├──────┼────────────────┤
+      │ v    │ triangle down  │
+      ├──────┼────────────────┤
+      │ ^    │ triangle up    │
+      ├──────┼────────────────┤
+      │ <    │ triangle left  │
+      ├──────┼────────────────┤
+      │ >    │ triangle right │
+      ├──────┼────────────────┤
+      │ 1    │ tri_down       │
+      ├──────┼────────────────┤
+      │ 2    │ tri_up         │
+      ├──────┼────────────────┤
+      │ 3    │ tri_left       │
+      ├──────┼────────────────┤
+      │ 4    │ tri_right      │
+      ├──────┼────────────────┤
+      │ 8    │ octagon        │
+      ├──────┼────────────────┤
+      │ s    │ square         │
+      ├──────┼────────────────┤
+      │ p    │ pentagon       │
+      ├──────┼────────────────┤
+      │ •    │ star           │
+      ├──────┼────────────────┤
+      │ h    │ hexagon1       │
+      ├──────┼────────────────┤
+      │ H    │ hexagon2       │
+      ├──────┼────────────────┤
+      │ •    │ plus           │
+      ├──────┼────────────────┤
+      │ x    │ x              │
+      ├──────┼────────────────┤
+      │ D    │ diamond        │
+      ├──────┼────────────────┤
+      │ d    │ thin diamond   │
+      ├──────┼────────────────┤
+      │ _    │ hline          │
+      ├──────┼────────────────┤
+      │ None │ nothing        │
+      ├──────┼────────────────┤
+      │ ' '  │ nothing        │
+      ├──────┼────────────────┤
+      │ ''   │ nothing        │
+      ╘══════╧════════════════╛
+
+      Marker reference: <[4;36mhttp://matplotlib.org/api/markers_api.html[0m>
+  --logx
+      DEPRECATED: use '--xaxis="log"' instead.
+  --logy
+      DEPRECATED: use '--yaxis="log"' instead.
+  --xaxis XAXIS
+      [optional, default is 'arithmetic']
+      Defines the type of the xaxis. One of 'arithmetic', 'log'.
+  --yaxis YAXIS
+      [optional, default is 'arithmetic']
+      Defines the type of the yaxis. One of 'arithmetic', 'log'.
+  --xlim XLIM
+      [optional, default is based on range of x values]
+      Comma separated lower and upper limits (--xlim 1,1000) Limits for the
+      x-axis.
+  --ylim YLIM
+      [optional, default is based on range of y values]
+      Comma separated lower and upper limits (--ylim 1,1000) Limits for the
+      y-axis.
+  --secondary_y
+      [optional, default is False]
+      Whether to plot on the secondary y-axis. If a list/tuple, which
+      time-series to plot on secondary y-axis.
+  --mark_right
+      [optional, default is True]
+      When using a secondary_y axis, should the legend label the axis of the
+      various time-series automatically.
+  --scatter_matrix_diagonal SCATTER_MATRIX_DIAGONAL
+      [optional, defaults to 'kde']
+      If plot type is 'scatter_matrix', this specifies the plot along the
+      diagonal.
+  --bootstrap_size BOOTSTRAP_SIZE
+      [optional, defaults to 50]
+      The size of the random subset for 'bootstrap' plot.
+  --bootstrap_samples BOOTSTRAP_SAMPLES
+      [optional, defaults to 500]
+      The number of random subsets of 'bootstrap_size'.
+  --norm_xaxis
+      DEPRECATED: use '--type="norm_xaxis"' instead.
+  --norm_yaxis
+      DEPRECATED: use '--type="norm_yaxis"' instead.
+  --lognorm_xaxis
+      DEPRECATED: use '--type="lognorm_xaxis"' instead.
+  --lognorm_yaxis
+      DEPRECATED: use '--type="lognorm_yaxis"' instead.
+  --xy_match_line XY_MATCH_LINE
+      [optional, defaults is '']
+      Will add a match line where x == y. Set to a line style code.
+  --grid
+      [optional, default is False]
+      Whether to plot grid lines on the major ticks.
+  --label_rotation LABEL_ROTATION
+      [optional]
+      Rotation for major labels for bar plots.
+  --label_skip LABEL_SKIP
+      [optional]
+      Skip for major labels for bar plots.
+  --force_freq FORCE_FREQ
+      [optional]
+      Force this frequency for the plot. WARNING: you may lose data if not
+      careful with this option. In general, letting the algorithm
+      determine the frequency should always work, but this option will
+      override. Use PANDAS offset codes,
+  --drawstyle DRAWSTYLE
+      [optional, default is 'default']
+      'default' connects the points with lines. The steps variants produce
+      step-plots. 'steps' is equivalent to 'steps-pre' and is maintained
+      for backward-compatibility.
+      ACCEPTS:
+      ['default' | 'steps' | 'steps-pre' | 'steps-mid' | 'steps-post']
+
+  --por
+      [optional]
+      Plot from first good value to last good value. Strips NANs from beginning
+      and end.
+  --invert_xaxis
+      [optional, default is False]
+      Invert the x-axis.
+  --invert_yaxis
+      [optional, default is False]
+      Invert the y-axis.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --plotting_position PLOTTING_POSITION
+      [optional, default is 'weibull']
+      ┌────────────┬─────┬─────────────────┬───────────────────────┐
+      │ Name       │ a   │ Equation        │ Description           │
+      │            │     │ (1-a)/(n+1-2*a) │                       │
+      ╞════════════╪═════╪═════════════════╪═══════════════════════╡
+      │ weibull    │ 0   │ i/(n+1)         │ mean of sampling      │
+      │            │     │                 │ distribution          │
+      ├────────────┼─────┼─────────────────┼─(default)─────────────┤
+      │ benard and │ 0.3 │ (i-0.3)/(n+0.4) │ approx. median of     │
+      │ bos- leve- │     │                 │ sampling distribution │
+      │ nbach      │     │                 │                       │
+      ├────────────┼─────┼─────────────────┼───────────────────────┤
+      │ tukey      │ 1/3 │ (i-1/3)/(n+1/3) │ approx. median of     │
+      │            │     │                 │ sampling distribution │
+      ├────────────┼─────┼─────────────────┼───────────────────────┤
+      │ gumbel     │ 1   │ (i-1)/(n-1)     │ mode of sampling      │
+      │            │     │                 │ distribution          │
+      ├────────────┼─────┼─────────────────┼───────────────────────┤
+      │ hazen      │ 1/2 │ (i-1/2)/n       │ midpoints of n equal  │
+      │            │     │                 │ intervals             │
+      ├────────────┼─────┼─────────────────┼───────────────────────┤
+      │ cunnane    │ 2/5 │ (i-2/5)/(n+1/5) │ subjective            │
+      ├────────────┼─────┼─────────────────┼───────────────────────┤
+      │ california │ NA  │ i/n             │                       │
+      ╘════════════╧═════╧═════════════════╧═══════════════════════╛
+
+      Where 'i' is the sorted rank of the y value, and 'n' is the total number
+      of values to be plotted.
+      Only used for norm_xaxis, norm_yaxis, lognorm_xaxis, lognorm_yaxis,
+      weibull_xaxis, and weibull_yaxis.
+  --lag_plot_lag LAG_PLOT_LAG
+      [optional, default to 1]
+      The lag used if type lag_plot is chosen.usage: tstoolbox createts [-h] [--freq FREQ] [--fillvalue FILLVALUE]
+  [--input_ts INPUT_TS] [--start_date START_DATE] [--end_date END_DATE]
+
+Create empty time series, optionally fill with a value.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --freq FREQ
+      [optional, default is None]
+      To use this form --start_date and --end_date must be supplied also. The
+      freq option is the pandas date offset code used to create the index.
+  --fillvalue FILLVALUE
+      [optional, default is None]
+      The fill value for the time-series. The default is None, which generates
+      the date/time stamps only.
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.usage: tstoolbox filter [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--print_input] [--cutoff_period CUTOFF_PERIOD] [--window_len WINDOW_LEN]
+  [--float_format FLOAT_FORMAT] [--round_index ROUND_INDEX] filter_type
+
+Apply different filters to the time-series.
+
+positional arguments:
+  filter_type           'flat', 'hanning', 'hamming', 'bartlett', 'blackman',
+    'fft_highpass' and 'fft_lowpass' for Fast Fourier Transform filter in the
+    frequency domain.
+
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.
+  --cutoff_period CUTOFF_PERIOD
+      [optional, default is None]
+      For 'fft_highpass' and 'fft_lowpass'. Must be supplied if using
+      'fft_highpass' or 'fft_lowpass'. The period in input time units that
+      will form the cutoff between low frequencies (longer periods) and
+      high frequencies (shorter periods). Filter will be smoothed by
+      window_len running average.
+  --window_len WINDOW_LEN
+      [optional, default is 5]
+      For the windowed types, 'flat', 'hanning', 'hamming', 'bartlett', and
+      'blackman' specifies the length of the window.
+  --float_format FLOAT_FORMAT
+      [optional]
+      Format for float numbers.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.usage: tstoolbox read [-h] [--force_freq FORCE_FREQ] [--append APPEND]
+  [--columns COLUMNS] [--start_date START_DATE] [--end_date END_DATE] [--dropna
+  DROPNA] [--clean] [--float_format FLOAT_FORMAT] [--round_index ROUND_INDEX]
+  [--how HOW] filenames
+
+Prints the read in time-series in the tstoolbox standard format.
+
+positional arguments:
+  filenames             List of comma delimited filenames to read time series
+    from.
+
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --force_freq FORCE_FREQ
+      [optional]
+      Force this frequency for the files. Typically you will only want to
+      enforce a smaller interval where tstoolbox will insert missing
+      values as needed. WARNING: you may lose data if not careful with
+      this option. In general, letting the algorithm determine the
+      frequency should always work, but this option will override. Use
+      PANDAS offset codes.
+      ┌───────┬─────────────────────────────┐
+      │ Alias │ Description                 │
+      ╞═══════╪═════════════════════════════╡
+      │ B     │ business day                │
+      ├───────┼─────────────────────────────┤
+      │ C     │ custom business day         │
+      │       │ (experimental)              │
+      ├───────┼─────────────────────────────┤
+      │ D     │ calendar day                │
+      ├───────┼─────────────────────────────┤
+      │ W     │ weekly                      │
+      ├───────┼─────────────────────────────┤
+      │ M     │ month end                   │
+      ├───────┼─────────────────────────────┤
+      │ BM    │ business month end          │
+      ├───────┼─────────────────────────────┤
+      │ CBM   │ custom business month end   │
+      ├───────┼─────────────────────────────┤
+      │ MS    │ month start                 │
+      ├───────┼─────────────────────────────┤
+      │ BMS   │ business month start        │
+      ├───────┼─────────────────────────────┤
+      │ CBMS  │ custom business month start │
+      ├───────┼─────────────────────────────┤
+      │ Q     │ quarter end                 │
+      ├───────┼─────────────────────────────┤
+      │ BQ    │ business quarter end        │
+      ├───────┼─────────────────────────────┤
+      │ QS    │ quarter start               │
+      ├───────┼─────────────────────────────┤
+      │ BQS   │ business quarter start      │
+      ├───────┼─────────────────────────────┤
+      │ A     │ year end                    │
+      ├───────┼─────────────────────────────┤
+      │ BA    │ business year end           │
+      ├───────┼─────────────────────────────┤
+      │ AS    │ year start                  │
+      ├───────┼─────────────────────────────┤
+      │ BAS   │ business year start         │
+      ├───────┼─────────────────────────────┤
+      │ H     │ hourly                      │
+      ├───────┼─────────────────────────────┤
+      │ T     │ minutely                    │
+      ├───────┼─────────────────────────────┤
+      │ S     │ secondly                    │
+      ├───────┼─────────────────────────────┤
+      │ L     │ milliseconds                │
+      ├───────┼─────────────────────────────┤
+      │ U     │ microseconds                │
+      ├───────┼─────────────────────────────┤
+      │ N     │ nanoseconds                 │
+      ╘═══════╧═════════════════════════════╛
+
+      Weekly has the following anchored frequencies:
+      ┌───────┬───────────────────────────────┐
+      │ Alias │ Description                   │
+      ╞═══════╪═══════════════════════════════╡
+      │ W-SUN │ weekly frequency (sundays).   │
+      │       │ Same as 'W'.                  │
+      ├───────┼───────────────────────────────┤
+      │ W-MON │ weekly frequency (mondays)    │
+      ├───────┼───────────────────────────────┤
+      │ W-TUE │ weekly frequency (tuesdays)   │
+      ├───────┼───────────────────────────────┤
+      │ W-WED │ weekly frequency (wednesdays) │
+      ├───────┼───────────────────────────────┤
+      │ W-THU │ weekly frequency (thursdays)  │
+      ├───────┼───────────────────────────────┤
+      │ W-FRI │ weekly frequency (fridays)    │
+      ├───────┼───────────────────────────────┤
+      │ W-SAT │ weekly frequency (saturdays)  │
+      ╘═══════╧═══════════════════════════════╛
+
+      Quarterly frequencies (Q, BQ, QS, BQS) and annual frequencies (A, BA, AS,
+      BAS) have the following anchoring suffixes:
+      ┌───────┬───────────────────────────────┐
+      │ Alias │ Description                   │
+      ╞═══════╪═══════════════════════════════╡
+      │ -DEC  │ year ends in December (same   │
+      │       │ as 'Q' and 'A')               │
+      ├───────┼───────────────────────────────┤
+      │ -JAN  │ year ends in January          │
+      ├───────┼───────────────────────────────┤
+      │ -FEB  │ year ends in February         │
+      ├───────┼───────────────────────────────┤
+      │ -MAR  │ year ends in March            │
+      ├───────┼───────────────────────────────┤
+      │ -APR  │ year ends in April            │
+      ├───────┼───────────────────────────────┤
+      │ -MAY  │ year ends in May              │
+      ├───────┼───────────────────────────────┤
+      │ -JUN  │ year ends in June             │
+      ├───────┼───────────────────────────────┤
+      │ -JUL  │ year ends in July             │
+      ├───────┼───────────────────────────────┤
+      │ -AUG  │ year ends in August           │
+      ├───────┼───────────────────────────────┤
+      │ -SEP  │ year ends in September        │
+      ├───────┼───────────────────────────────┤
+      │ -OCT  │ year ends in October          │
+      ├───────┼───────────────────────────────┤
+      │ -NOV  │ year ends in November         │
+      ╘═══════╧═══════════════════════════════╛
+
+  --append APPEND
+      [optional, default is 'columns']
+      The type of appending to do. For "combine" option matching column indices
+      will append rows, matching row indices will append columns, and
+      matching column/row indices use the value from the first dataset.
+      You can use "row" to force an append along either axis.
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --float_format FLOAT_FORMAT
+      [optional]
+      Format for float numbers.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --how HOW
+      [optional, default is 'outer']
+      Use PANDAS concept on how to join the separate DataFrames read from each
+      file. If how='outer' represents the union of the time-series,
+      'inner' is the intersection.usage: tstoolbox date_slice [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--round_index ROUND_INDEX] [--float_format FLOAT_FORMAT]
+
+Print out data to the screen between start_date and end_date.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --float_format FLOAT_FORMAT
+      [optional]
+      Format for float numbers.usage: tstoolbox describe [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--transpose]
+
+Print out statistics for the time-series.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --transpose
+      [optional, default is False]
+      If 'transpose' option is used, will transpose describe output.usage: tstoolbox peak_detection [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--method METHOD] [--extrema EXTREMA] [--window WINDOW] [--pad_len PAD_LEN]
+  [--points POINTS] [--lock_frequency] [--float_format FLOAT_FORMAT]
+  [--round_index ROUND_INDEX] [--print_input PRINT_INPUT]
+
+Peak and valley detection.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --method METHOD
+      [optional, default is 'rel'] 'rel', 'minmax', 'zero_crossing', 'parabola',
+      'sine' methods are available. The different algorithms have
+      different strengths and weaknesses.
+  --extrema EXTREMA
+      [optional, default is 'peak']
+      'peak', 'valley', or 'both' to determine what should be returned.
+  --window WINDOW
+      [optional, default is 24]
+      There will not usually be multiple peaks within the window number of
+      values. The different methods use this variable in different ways.
+      For 'rel' the window keyword specifies how many points on each side
+      to require a comparator(n,n+x) = True. For 'minmax' the window
+      keyword is the distance to look ahead from a peak candidate to
+      determine if it is the actual peak.
+      '(sample / period) / f'
+      where f might be a good choice between 1.25 and 4.
+      For 'zero_crossing' the window keyword is the dimension of the smoothing
+      window and should be an odd integer.
+  --pad_len PAD_LEN
+      [optional, default is 5]
+      Used with FFT to pad edges of time-series.
+  --points POINTS
+      [optional, default is 9]
+      For 'parabola' and 'sine' methods. How many points around the peak should
+      be used during curve fitting, must be odd. The
+  --lock_frequency
+      [optional, default is False]
+      For 'sine' method only. Specifies if the frequency argument of the model
+      function should be locked to the value calculated from the raw peaks
+      or if optimization process may tinker with it.
+  --float_format FLOAT_FORMAT
+      [optional]
+      Format for float numbers.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --print_input PRINT_INPUT
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.usage: tstoolbox convert [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--factor FACTOR] [--offset OFFSET] [--print_input] [--round_index
+  ROUND_INDEX] [--float_format FLOAT_FORMAT]
+
+See the 'equation' subcommand for a generalized form of this command.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --factor FACTOR
+      [optional, default is 1.0]
+      Factor to multiply the time series values.
+  --offset OFFSET
+      [optional, default is 0.0]
+      Offset to add to the time series values.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --float_format FLOAT_FORMAT
+      [optional]
+      Format for float numbers.usage: tstoolbox equation [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--print_input PRINT_INPUT] [--round_index ROUND_INDEX] [--float_format
+  FLOAT_FORMAT] equation_str
+
+The <equation_str> argument is a string contained in single quotes with 'x' used
+as the variable representing the input. For example, '(1 - x)*sin(x)'.
+
+positional arguments:
+  equation_str String contained in single quotes that defines the equation.
+    There are four different types of equations that can be used.
+    ┌───────────────────────┬───────────┬─────────────────────────┐
+    │ Description           │ Variables │ Examples                │
+    ╞═══════════════════════╪═══════════╪═════════════════════════╡
+    │ Equation applied to   │ x         │ x*0.3+4-x**2            │
+    │ all values in the     │           │ sin(x)+pi*x             │
+    │ dataset. Returns same │           │                         │
+    │ number of columns as  │           │                         │
+    ├─input.────────────────┼───────────┼─────────────────────────┤
+    │ Equation used time    │ x and t   │ 0.6*max(x[t-1],x[t+1])  │
+    │ relative to current   │           │                         │
+    │ record. Applies       │           │                         │
+    │ equation to each      │           │                         │
+    │ column. Returns same  │           │                         │
+    │ number of columns as  │           │                         │
+    │ input.                │           │                         │
+    ├───────────────────────┼───────────┼─────────────────────────┤
+    │ Equation uses values  │ x1, x2,   │ x1+x2                   │
+    │ from different        │ x3, ...   │                         │
+    │ columns. Returns a    │ xN        │                         │
+    │ single column.        │           │                         │
+    ├───────────────────────┼───────────┼─────────────────────────┤
+    │ Equation uses values  │ x1, x2,   │ x1[t-1]+x2+x3[t+1]      │
+    │ from different        │ x3, ...x- │                         │
+    │ columns and values    │ N, t      │                         │
+    │ from different rows.  │           │                         │
+    │ Returns a single      │           │                         │
+    ╘═column.═══════════════╧═══════════╧═════════════════════════╛
+
+    Mathematical functions in the 'np' (numpy) name space can be used.
+    Additional examples:
+    'x*4 + 2',
+    'x**2 + cos(x)', and
+    'tan(x*pi/180)'
+
+    are all valid <equation> strings. The variable 't' is special representing
+    the time at which 'x' occurs. This means you can do things like:
+    'x[t] + max(x[t-1], x[t+1])*0.6'
+
+    to add to the current value 0.6 times the maximum adjacent value.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --print_input PRINT_INPUT
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --float_format FLOAT_FORMAT
+      [optional]
+      Format for float numbers.usage: tstoolbox pick [-h] [--input_ts INPUT_TS] [--start_date START_DATE]
+  [--end_date END_DATE] [--round_index ROUND_INDEX] [--dropna DROPNA] [--clean]
+  columns
+
+Can use column names or column numbers. If using numbers, column number 1 is the
+first data column.
+
+positional arguments:
+  columns [optional]
+    Columns to select out of input. Can use column names from the first line
+    header or column numbers. If using numbers, column number 1 is the first
+    data column. To pick multiple columns; separate by commas with no
+    spaces. As used in tstoolbox pick command.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.usage: tstoolbox stdtozrxp [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--round_index ROUND_INDEX] [--rexchange REXCHANGE]
+
+Print out data to the screen in a WISKI ZRXP format.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --rexchange REXCHANGE
+      [optional, default is None]
+      The REXCHANGE ID to be written into the zrxp header.usage: tstoolbox tstopickle [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--round_index ROUND_INDEX]
+  [--dropna DROPNA] [--clean] filename
+
+Can be brought back into Python with 'pickle.load' or 'numpy.load'. See also
+'tstoolbox read'.
+
+positional arguments:
+  filename The filename to store the pickled data.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.usage: tstoolbox accumulate [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--statistic STATISTIC] [--round_index ROUND_INDEX] [--print_input]
+
+Calculate accumulating statistics.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --statistic STATISTIC
+      [optional, default is 'sum'] 'sum', 'max', 'min', 'prod'
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.usage: tstoolbox ewm_window [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--statistic STATISTIC] [--alpha_com ALPHA_COM] [--alpha_span ALPHA_SPAN]
+  [--alpha_halflife ALPHA_HALFLIFE] [--alpha ALPHA] [--min_periods
+  MIN_PERIODS] [--adjust] [--ignore_na] [--print_input]
+
+Exactly one of center of mass, span, half-life, and alpha must be provided.
+Allowed values and relationship between the parameters are specified in the
+parameter descriptions above; see the link at the end of this section for a
+detailed explanation.
+
+When adjust is True (default), weighted averages are calculated using weights
+(1-alpha)**(n-1), (1-alpha)**(n-2), . . . , 1-alpha, 1.
+
+When adjust is False, weighted averages are calculated recursively as:
+  weighted_average[0] = arg[0]; weighted_average[i] =
+  (1-alpha)*weighted_average[i-1] + alpha*arg[i].
+
+When ignore_na is False (default), weights are based on absolute positions. For
+example, the weights of x and y used in calculating the final weighted average
+of [x, None, y] are (1-alpha)**2 and 1 (if adjust is True), and (1-alpha)**2 and
+alpha (if adjust is False).
+
+When ignore_na is True (reproducing pre-0.15.0 behavior), weights are based on
+relative positions. For example, the weights of x and y used in calculating the
+final weighted average of [x, None, y] are 1-alpha and 1 (if adjust is True),
+and 1-alpha and alpha (if adjust is False).
+
+More details can be found at <[4;36mhttp://pandas.pydata.org/pandas-docs/stabl-
+e/computation.html#exponentially-weighted-windows[0m>
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --statistic STATISTIC
+      Statistic applied to each window.
+      ┌──────┬────────────────────┐
+      │ corr │ correlation        │
+      ├──────┼────────────────────┤
+      │ cov  │ covariance         │
+      ├──────┼────────────────────┤
+      │ mean │ mean               │
+      ├──────┼────────────────────┤
+      │ std  │ standard deviation │
+      ├──────┼────────────────────┤
+      │ var  │ variance           │
+      ╘══════╧════════════════════╛
+
+  --alpha_com ALPHA_COM
+      Specify decay in terms of center of mass, alpha=1/(1+com), for com>=0
+  --alpha_span ALPHA_SPAN
+      Specify decay in terms of span, alpha=2/(span+1), for span1
+  --alpha_halflife ALPHA_HALFLIFE
+      Specify decay in terms of half-life, alpha=1-exp(log(0.5)/halflife), for
+      halflife>0
+  --alpha ALPHA
+      Specify smoothing factor alpha directly, 0<alpha<=1
+  --min_periods MIN_PERIODS
+      Minimum number of observations in window required to have a value
+      (otherwise result is NA).
+  --adjust
+      Divide by decaying adjustment factor in beginning periods to account for
+      imbalance in relative weightings (viewing EWMA as a moving average)
+  --ignore_na
+      Ignore missing values when calculating weights.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.usage: tstoolbox expanding_window [-h] [--input_ts INPUT_TS]
+  [--columns COLUMNS] [--start_date START_DATE] [--end_date END_DATE] [--dropna
+  DROPNA] [--clean] [--statistic STATISTIC] [--min_periods MIN_PERIODS]
+  [--center] [--print_input]
+
+Calculate an expanding window statistic.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --statistic STATISTIC
+      ┌───────────┬──────────────────────┐
+      │ statistic │ Meaning              │
+      ╞═══════════╪══════════════════════╡
+      │ corr      │ correlation          │
+      ├───────────┼──────────────────────┤
+      │ count     │ count of real values │
+      ├───────────┼──────────────────────┤
+      │ cov       │ covariance           │
+      ├───────────┼──────────────────────┤
+      │ kurt      │ kurtosis             │
+      ├───────────┼──────────────────────┤
+      │ max       │ maximum              │
+      ├───────────┼──────────────────────┤
+      │ mean      │ mean                 │
+      ├───────────┼──────────────────────┤
+      │ median    │ median               │
+      ├───────────┼──────────────────────┤
+      │ min       │ minimum              │
+      ├───────────┼──────────────────────┤
+      │ skew      │ skew                 │
+      ├───────────┼──────────────────────┤
+      │ std       │ standard deviation   │
+      ├───────────┼──────────────────────┤
+      │ sum       │ sum                  │
+      ├───────────┼──────────────────────┤
+      │ var       │ variance             │
+      ╘═══════════╧══════════════════════╛
+
+  --min_periods MIN_PERIODS
+      Minimum number of observations in window required to have a value
+  --center
+      Set the labels at the center of the window.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.usage: tstoolbox rolling_window [-h] [--window WINDOW] [--input_ts INPUT_TS]
+  [--columns COLUMNS] [--start_date START_DATE] [--end_date END_DATE] [--dropna
+  DROPNA] [--clean] [--span SPAN] [--statistic STATISTIC] [--min_periods
+  MIN_PERIODS] [--center] [--win_type WIN_TYPE] [--on ON] [--closed CLOSED]
+  [--print_input]
+
+Calculate a rolling window statistic.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --window WINDOW
+      [optional, default = 2]
+      Size of the moving window. This is the number of observations used for
+      calculating the statistic. Each window will be a fixed size.
+      If its an offset then this will be the time period of each window. Each
+      window will be a variable sized based on the observations included
+      in the time-period. This is only valid for datetimelike indexes.
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --span SPAN
+      [optional, default = 2]
+      DEPRECATED: Changed to 'window' to be consistent with pandas.
+  --statistic STATISTIC
+      [optional, default is '']
+      ┌──────────┬────────────────────┐
+      │ corr     │ correlation        │
+      ├──────────┼────────────────────┤
+      │ count    │ count of numbers   │
+      ├──────────┼────────────────────┤
+      │ cov      │ covariance         │
+      ├──────────┼────────────────────┤
+      │ kurt     │ kurtosis           │
+      ├──────────┼────────────────────┤
+      │ max      │ maximum            │
+      ├──────────┼────────────────────┤
+      │ mean     │ mean               │
+      ├──────────┼────────────────────┤
+      │ median   │ median             │
+      ├──────────┼────────────────────┤
+      │ min      │ minimum            │
+      ├──────────┼────────────────────┤
+      │ quantile │ quantile           │
+      ├──────────┼────────────────────┤
+      │ skew     │ skew               │
+      ├──────────┼────────────────────┤
+      │ std      │ standard deviation │
+      ├──────────┼────────────────────┤
+      │ sum      │ sum                │
+      ├──────────┼────────────────────┤
+      │ var      │ variance           │
+      ╘══════════╧════════════════════╛
+
+  --min_periods MIN_PERIODS
+      Minimum number of observations in window required to have a value
+      (otherwise result is NA). For a window that is specified by an
+      offset, this will default to 1.
+  --center
+      Set the labels at the center of the window.
+  --win_type WIN_TYPE
+      Provide a window type. If None, all points are evenly weighted. See the
+      notes below for further information.
+  --on ON
+      For a DataFrame, column on which to calculate the rolling window, rather
+      than the index
+  --closed CLOSED
+      Make the interval closed on the 'right', 'left', 'both' or 'neither'
+      endpoints. For offset-based windows, it defaults to 'right'. For
+      fixed windows, defaults to 'both'. Remaining cases not implemented
+      for fixed windows.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.usage: tstoolbox aggregate [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--statistic STATISTIC] [--agg_interval AGG_INTERVAL] [--ninterval
+  NINTERVAL] [--round_index ROUND_INDEX] [--print_input]
+
+Take a time series and aggregate to specified frequency.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --statistic STATISTIC
+      [optional, defaults to 'mean']
+      'mean', 'sum', 'std', 'max', 'min', 'median', 'first', or 'last' to
+      calculate the aggregation. Can also be a comma separated list of
+      statistic methods.
+  --agg_interval AGG_INTERVAL
+      [optional, defaults to 'D'] The interval to aggregate the time series. Any
+      of the PANDAS offset codes.
+      ┌───────┬─────────────────────────────┐
+      │ Alias │ Description                 │
+      ╞═══════╪═════════════════════════════╡
+      │ B     │ business day                │
+      ├───────┼─────────────────────────────┤
+      │ C     │ custom business day         │
+      │       │ (experimental)              │
+      ├───────┼─────────────────────────────┤
+      │ D     │ calendar day                │
+      ├───────┼─────────────────────────────┤
+      │ W     │ weekly                      │
+      ├───────┼─────────────────────────────┤
+      │ M     │ month end                   │
+      ├───────┼─────────────────────────────┤
+      │ BM    │ business month end          │
+      ├───────┼─────────────────────────────┤
+      │ CBM   │ custom business month end   │
+      ├───────┼─────────────────────────────┤
+      │ MS    │ month start                 │
+      ├───────┼─────────────────────────────┤
+      │ BMS   │ business month start        │
+      ├───────┼─────────────────────────────┤
+      │ CBMS  │ custom business month start │
+      ├───────┼─────────────────────────────┤
+      │ Q     │ quarter end                 │
+      ├───────┼─────────────────────────────┤
+      │ BQ    │ business quarter end        │
+      ├───────┼─────────────────────────────┤
+      │ QS    │ quarter start               │
+      ├───────┼─────────────────────────────┤
+      │ BQS   │ business quarter start      │
+      ├───────┼─────────────────────────────┤
+      │ A     │ year end                    │
+      ├───────┼─────────────────────────────┤
+      │ BA    │ business year end           │
+      ├───────┼─────────────────────────────┤
+      │ AS    │ year start                  │
+      ├───────┼─────────────────────────────┤
+      │ BAS   │ business year start         │
+      ├───────┼─────────────────────────────┤
+      │ H     │ hourly                      │
+      ├───────┼─────────────────────────────┤
+      │ T     │ minutely                    │
+      ├───────┼─────────────────────────────┤
+      │ S     │ secondly                    │
+      ├───────┼─────────────────────────────┤
+      │ L     │ milliseconds                │
+      ├───────┼─────────────────────────────┤
+      │ U     │ microseconds                │
+      ├───────┼─────────────────────────────┤
+      │ N     │ nanoseconds                 │
+      ╘═══════╧═════════════════════════════╛
+
+      Weekly has the following anchored frequencies:
+      ┌───────┬───────────────────────────────┐
+      │ Alias │ Description                   │
+      ╞═══════╪═══════════════════════════════╡
+      │ W-SUN │ weekly frequency (sundays).   │
+      │       │ Same as 'W'.                  │
+      ├───────┼───────────────────────────────┤
+      │ W-MON │ weekly frequency (mondays)    │
+      ├───────┼───────────────────────────────┤
+      │ W-TUE │ weekly frequency (tuesdays)   │
+      ├───────┼───────────────────────────────┤
+      │ W-WED │ weekly frequency (wednesdays) │
+      ├───────┼───────────────────────────────┤
+      │ W-THU │ weekly frequency (thursdays)  │
+      ├───────┼───────────────────────────────┤
+      │ W-FRI │ weekly frequency (fridays)    │
+      ├───────┼───────────────────────────────┤
+      │ W-SAT │ weekly frequency (saturdays)  │
+      ╘═══════╧═══════════════════════════════╛
+
+      Quarterly frequencies (Q, BQ, QS, BQS) and annual frequencies (A, BA, AS,
+      BAS) have the following anchoring suffixes:
+      ┌───────┬───────────────────────────────┐
+      │ Alias │ Description                   │
+      ╞═══════╪═══════════════════════════════╡
+      │ -DEC  │ year ends in December (same   │
+      │       │ as 'Q' and 'A')               │
+      ├───────┼───────────────────────────────┤
+      │ -JAN  │ year ends in January          │
+      ├───────┼───────────────────────────────┤
+      │ -FEB  │ year ends in February         │
+      ├───────┼───────────────────────────────┤
+      │ -MAR  │ year ends in March            │
+      ├───────┼───────────────────────────────┤
+      │ -APR  │ year ends in April            │
+      ├───────┼───────────────────────────────┤
+      │ -MAY  │ year ends in May              │
+      ├───────┼───────────────────────────────┤
+      │ -JUN  │ year ends in June             │
+      ├───────┼───────────────────────────────┤
+      │ -JUL  │ year ends in July             │
+      ├───────┼───────────────────────────────┤
+      │ -AUG  │ year ends in August           │
+      ├───────┼───────────────────────────────┤
+      │ -SEP  │ year ends in September        │
+      ├───────┼───────────────────────────────┤
+      │ -OCT  │ year ends in October          │
+      ├───────┼───────────────────────────────┤
+      │ -NOV  │ year ends in November         │
+      ╘═══════╧═══════════════════════════════╛
+
+      There are some deprecated aggregation interval names in tstoolbox, DON'T
+      USE!
+      ┌───────────────┬─────┐
+      │ Instead of... │ Use │
+      ╞═══════════════╪═════╡
+      │ hourly        │ H   │
+      ├───────────────┼─────┤
+      │ daily         │ D   │
+      ├───────────────┼─────┤
+      │ monthly       │ M   │
+      ├───────────────┼─────┤
+      │ yearly        │ A   │
+      ╘═══════════════╧═════╛
+
+  --ninterval NINTERVAL
+      [optional, defaults to 1]
+      The number of agg_interval to use for the aggregation.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.usage: tstoolbox replace [-h] [--round_index ROUND_INDEX]
+  [--input_ts INPUT_TS] [--columns COLUMNS] [--start_date START_DATE]
+  [--end_date END_DATE] [--dropna DROPNA] [--clean] [--print_input]
+  from_values to_values
+
+Return a time-series replacing values with others.
+
+positional arguments:
+  from_values           All values in this comma separated list are replaced
+    with the corresponding value in to_values. Use the string 'None' to
+    represent a missing value. If using 'None' as a from_value it might be
+    easier to use the "fill" subcommand instead.
+
+  to_values             All values in this comma separater list are the
+    replacement values corresponding one-to-one to the items in from_values. Use
+    the string 'None' to represent a missing value.
+
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.usage: tstoolbox clip [-h] [--input_ts INPUT_TS] [--start_date START_DATE]
+  [--end_date END_DATE] [--columns COLUMNS] [--dropna DROPNA] [--clean] [--a_min
+  A_MIN] [--a_max A_MAX] [--round_index ROUND_INDEX] [--print_input]
+
+Return a time-series with values limited to [a_min, a_max].
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --a_min A_MIN
+      [optional, defaults to None]
+      All values lower than this will be set to this value. Default is None.
+  --a_max A_MAX
+      [optional, defaults to None]
+      All values higher than this will be set to this value. Default is None.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.usage: tstoolbox add_trend [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--clean] [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA]
+  [--round_index ROUND_INDEX] [--print_input] start_offset end_offset
+
+Add a trend.
+
+positional arguments:
+  start_offset The starting value for the applied trend. end_offset The ending
+  value for the applied trend.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.usage: tstoolbox remove_trend [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--round_index ROUND_INDEX] [--print_input]
+
+Remove a 'trend'.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.usage: tstoolbox calculate_fdc [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--clean]
+  [--percent_point_function PERCENT_POINT_FUNCTION] [--plotting_position
+  PLOTTING_POSITION] [--ascending]
+
+DOES NOT return a time-series.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --percent_point_function PERCENT_POINT_FUNCTION
+      [optional, default is None]
+      The distribution used to shift the plotting position values. Choose from
+      'norm', 'lognorm', 'weibull', and None.
+  --plotting_position PLOTTING_POSITION
+      [optional, default is 'weibull']
+      ┌────────────┬─────┬─────────────────┬───────────────────────┐
+      │ Name       │ a   │ Equation        │ Description           │
+      │            │     │ (1-a)/(n+1-2*a) │                       │
+      ╞════════════╪═════╪═════════════════╪═══════════════════════╡
+      │ weibull    │ 0   │ i/(n+1)         │ mean of sampling      │
+      │            │     │                 │ distribution          │
+      ├────────────┼─────┼─────────────────┼─(default)─────────────┤
+      │ benard and │ 0.3 │ (i-0.3)/(n+0.4) │ approx. median of     │
+      │ bos- leve- │     │                 │ sampling distribution │
+      │ nbach      │     │                 │                       │
+      ├────────────┼─────┼─────────────────┼───────────────────────┤
+      │ tukey      │ 1/3 │ (i-1/3)/(n+1/3) │ approx. median of     │
+      │            │     │                 │ sampling distribution │
+      ├────────────┼─────┼─────────────────┼───────────────────────┤
+      │ gumbel     │ 1   │ (i-1)/(n-1)     │ mode of sampling      │
+      │            │     │                 │ distribution          │
+      ├────────────┼─────┼─────────────────┼───────────────────────┤
+      │ hazen      │ 1/2 │ (i-1/2)/n       │ midpoints of n equal  │
+      │            │     │                 │ intervals             │
+      ├────────────┼─────┼─────────────────┼───────────────────────┤
+      │ cunnane    │ 2/5 │ (i-2/5)/(n+1/5) │ subjective            │
+      ├────────────┼─────┼─────────────────┼───────────────────────┤
+      │ california │ NA  │ i/n             │                       │
+      ╘════════════╧═════╧═════════════════╧═══════════════════════╛
+
+      Where 'i' is the sorted rank of the y value, and 'n' is the total number
+      of values to be plotted.
+  --ascending
+      Sort order defaults to True.usage: tstoolbox stack [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--round_index ROUND_INDEX]
+  [--dropna DROPNA] [--clean]
+
+The stack command takes the standard table and converts to a three column table.
+
+From:
+
+Datetime,TS1,TS2,TS3
+2000-01-01 00:00:00,1.2,1018.2,0.0032
+2000-01-02 00:00:00,1.8,1453.1,0.0002
+2000-01-03 00:00:00,1.9,1683.1,-0.0004
+
+To:
+
+Datetime,Columns,Values
+2000-01-01,TS1,1.2
+2000-01-02,TS1,1.8
+2000-01-03,TS1,1.9
+2000-01-01,TS2,1018.2
+2000-01-02,TS2,1453.1
+2000-01-03,TS2,1683.1
+2000-01-01,TS3,0.0032
+2000-01-02,TS3,0.0002
+2000-01-03,TS3,-0.0004
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.usage: tstoolbox unstack [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--round_index ROUND_INDEX]
+  [--dropna DROPNA] [--clean] column_names
+
+The unstack command takes the stacked table and converts to a standard tstoolbox
+table.
+
+From:
+
+Datetime,Columns,Values
+2000-01-01,TS1,1.2
+2000-01-02,TS1,1.8
+2000-01-03,TS1,1.9
+2000-01-01,TS2,1018.2
+2000-01-02,TS2,1453.1
+2000-01-03,TS2,1683.1
+2000-01-01,TS3,0.0032
+2000-01-02,TS3,0.0002
+2000-01-03,TS3,-0.0004
+
+To:
+
+Datetime,TS1,TS2,TS3
+2000-01-01,1.2,1018.2,0.0032
+2000-01-02,1.8,1453.1,0.0002
+2000-01-03,1.9,1683.1,-0.0004
+
+positional arguments:
+  column_names          The column in the table that holds the column names
+    of the unstacked data.
+
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.usage: tstoolbox fill [-h] [--input_ts INPUT_TS] [--method METHOD]
+  [--interval INTERVAL] [--print_input] [--start_date START_DATE] [--end_date
+  END_DATE] [--columns COLUMNS] [--clean]
+
+Missing values can occur because of NaN, or because the time series is sparse.
+The 'interval' option can insert NaNs to create a dense time series.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --method METHOD
+      String contained in single quotes or a number that defines the method to
+      use for filling.
+      ┌───────────┬───────────────────────────┐
+      │ ffill     │ assigns NaN values to the │
+      │           │ last good value           │
+      ├───────────┼───────────────────────────┤
+      │ bfill     │ assigns NaN values to the │
+      │           │ next good value           │
+      ├───────────┼───────────────────────────┤
+      │ 2.3       │ any number: fills all NaN │
+      │           │ with this number          │
+      ├───────────┼───────────────────────────┤
+      │ linear    │ will linearly interpolate │
+      │           │ missing values            │
+      ├───────────┼───────────────────────────┤
+      │ spline    │ spline interpolation      │
+      ├───────────┼───────────────────────────┤
+      │ nearest   │ nearest good value        │
+      ├───────────┼───────────────────────────┤
+      │ zero      │                           │
+      ├───────────┼───────────────────────────┤
+      │ slinear   │                           │
+      ├───────────┼───────────────────────────┤
+      │ quadratic │                           │
+      ├───────────┼───────────────────────────┤
+      │ cubic     │                           │
+      ├───────────┼───────────────────────────┤
+      │ mean      │ fill with mean            │
+      ├───────────┼───────────────────────────┤
+      │ median    │ fill with median          │
+      ├───────────┼───────────────────────────┤
+      │ max       │ fill with maximum         │
+      ├───────────┼───────────────────────────┤
+      │ min       │ fill with minimum         │
+      ╘═══════════╧═══════════════════════════╛
+
+      If a number will fill with that number.
+  --interval INTERVAL
+      Will try to insert missing intervals. Can give any of the pandas offset
+      aliases, 'guess' (to try and figure the interval), or None to not
+      insert missing intervals.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.usage: tstoolbox gof [-h] [--input_ts INPUT_TS] [--stats STATS]
+  [--columns COLUMNS] [--start_date START_DATE] [--end_date END_DATE]
+  [--round_index ROUND_INDEX] [--clean]
+
+The first time series must be the observed, the second the predicted series. You
+can only give two time-series.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --stats STATS
+      [optional]
+      The statistics that will be presented.
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.usage: tstoolbox dtw [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--round_index ROUND_INDEX]
+  [--dropna DROPNA] [--clean] [--window WINDOW]
+
+Dynamic Time Warping.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --window WINDOW
+      [optional, default is 10000]
+      Window length.usage: tstoolbox pca [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--clean] [--n_components
+  N_COMPONENTS] [--round_index ROUND_INDEX]
+
+Does not return a time-series.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --n_components N_COMPONENTS
+      [optional, default is None]
+      The number of groups to separate the time series into.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.usage: tstoolbox normalization [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--mode MODE] [--min_limit MIN_LIMIT] [--max_limit MAX_LIMIT]
+  [--pct_rank_method PCT_RANK_METHOD] [--print_input] [--round_index
+  ROUND_INDEX] [--float_format FLOAT_FORMAT]
+
+Return the normalization of the time series.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --mode MODE
+      [optional, default is 'minmax']
+      minmax
+        min_limit + (X-Xmin)/(Xmax-Xmin)*(max_limit-min_limit)
+
+      zscore
+        X-mean(X)/stddev(X)
+
+      pct_rank
+        rank(X)*100/N
+
+  --min_limit MIN_LIMIT
+      [optional, defaults to 0]
+      Defines the minimum limit of the minmax normalization.
+  --max_limit MAX_LIMIT
+      [optional, defaults to 1]
+      Defines the maximum limit of the minmax normalization.
+  --pct_rank_method PCT_RANK_METHOD
+      [optional, defaults to 'average']
+      Defines how tied ranks are broken. Can be 'average', 'min', 'max',
+      'first', 'dense'.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --float_format FLOAT_FORMAT
+      [optional]
+      Format for float numbers.usage: tstoolbox converttz [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--round_index ROUND_INDEX]
+  [--dropna DROPNA] [--clean] fromtz totz
+
+Convert the time zone of the index.
+
+positional arguments:
+  fromtz The time zone of the original time-series. totz The time zone of the
+  converted time-series.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.usage: tstoolbox convert_index_to_julian [-h] [--epoch EPOCH]
+  [--input_ts INPUT_TS] [--columns COLUMNS] [--start_date START_DATE]
+  [--end_date END_DATE] [--round_index ROUND_INDEX] [--dropna DROPNA]
+  [--clean]
+
+Convert date/time index to Julian dates from different epochs.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --epoch EPOCH
+      [optional, defaults to 'julian']
+      Can be one of, 'julian', 'reduced', 'modified', 'truncated', 'dublin',
+      'cnes', 'ccsds', 'lop', 'lilian', 'rata_die', 'mars_sol_date', or a
+      date and time.
+      If supplying a date and time, most formats are recognized, however the
+      closer the format is to ISO 8601 the better. Also should check and
+      make sure date was parsed as expected. If supplying only a date, the
+      epoch starts at midnight the morning of that date.
+      ┌───────────┬───────────────────┬────────────────┬───────────────┐
+      │ epoch     │ Epoch             │ Calculation    │ Notes         │
+      ╞═══════════╪═══════════════════╪════════════════╪═══════════════╡
+      │ julian    │ 4713-01-01:12 BCE │ JD             │               │
+      ├───────────┼───────────────────┼────────────────┼───────────────┤
+      │ reduced   │ 1858-11-16:12     │ JD - 2400000   │ [ 1 ] [ 2 ]   │
+      ├───────────┼───────────────────┼────────────────┼───────────────┤
+      │ modified  │ 1858-11-17:00     │ JD - 2400000.5 │ SAO 1957      │
+      ├───────────┼───────────────────┼────────────────┼───────────────┤
+      │ truncated │ 1968-05-24:00     │ floor (JD -    │ NASA 1979     │
+      │           │                   │ 2440000.5)     │               │
+      ├───────────┼───────────────────┼────────────────┼───────────────┤
+      │ dublin    │ 1899-12-31:12     │ JD - 2415020   │ IAU 1955      │
+      ├───────────┼───────────────────┼────────────────┼───────────────┤
+      │ cnes      │ 1950-01-01:00     │ JD - 2433282.5 │ CNES [ 3 ]    │
+      ├───────────┼───────────────────┼────────────────┼───────────────┤
+      │ ccsds     │ 1958-01-01:00     │ JD - 2436204.5 │ CCSDS [ 3 ]   │
+      ├───────────┼───────────────────┼────────────────┼───────────────┤
+      │ lop       │ 1992-01-01:00     │ JD - 2448622.5 │ LOP [ 3 ]     │
+      ├───────────┼───────────────────┼────────────────┼───────────────┤
+      │ lilian    │ 1582-10-15[13]    │ floor (JD -    │ Count of days │
+      │           │                   │ 2299159.5)     │ of the        │
+      │           │                   │                │ Gregorian     │
+      │           │                   │                │ calendar      │
+      ├───────────┼───────────────────┼────────────────┼───────────────┤
+      │ rata_die  │ 0001-01-01[13]    │ floor (JD -    │ Count of days │
+      │           │ proleptic         │ 1721424.5)     │ of the Common │
+      │           │ Gregorian         │                │ Era           │
+      ├───────────┼─calendar──────────┼────────────────┼───────────────┤
+      │ mars_sol  │ 1873-12-29:12     │ (JD - 2405522) │ Count of      │
+      │           │                   │ /1.02749       │ Martian days  │
+      ╘═══════════╧═══════════════════╧════════════════╧═══════════════╛
+
+      1. Hopkins, Jeffrey L. (2013). Using Commercial Amateur Astronomical
+      Spectrographs, p. 257, Springer Science & Business Media, ISBN
+      9783319014425
+      2. Palle, Pere L., Esteban, Cesar. (2014). Asteroseismology, p. 185,
+      Cambridge University Press, ISBN 9781107470620
+      3. Theveny, Pierre-Michel. (10 September 2001). "Date Format" The TPtime
+      Handbook. Media Lab.
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.usage: tstoolbox pct_change [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--periods PERIODS] [--fill_method FILL_METHOD] [--limit LIMIT] [--freq
+  FREQ] [--print_input] [--round_index ROUND_INDEX] [--float_format
+  FLOAT_FORMAT]
+
+Return the percent change between times.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --periods PERIODS
+      [optional, default is 1]
+      The number of intervals to calculate percent change across.
+  --fill_method FILL_METHOD
+      [optional, defaults to 'pad']
+      Fill method for NA. Defaults to 'pad'.
+  --limit LIMIT
+      [optional, defaults to None]
+      Is the minimum number of consecutive NA values where no more filling will
+      be made.
+  --freq FREQ
+      [optional, defaults to None]
+      A pandas time offset string to represent the interval.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.
+  --float_format FLOAT_FORMAT
+      [optional]
+      Format for float numbers.usage: tstoolbox rank [-h] [--input_ts INPUT_TS] [--columns COLUMNS]
+  [--start_date START_DATE] [--end_date END_DATE] [--dropna DROPNA] [--clean]
+  [--axis AXIS] [--method METHOD] [--numeric_only NUMERIC_ONLY] [--na_option
+  NA_OPTION] [--ascending] [--pct] [--print_input] [--float_format
+  FLOAT_FORMAT] [--round_index ROUND_INDEX]
+
+Equal values are assigned a rank that is the average of the ranks of those
+values
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --axis AXIS
+      [optional, default is 0]
+      0 or 'index' for rows. 1 or 'columns' for columns. Index to direct
+      ranking.
+  --method METHOD
+      [optional, default is 'average']
+      ┌─────────────────┬────────────────────────────────┐
+      │ method argument │ Description                    │
+      ╞═════════════════╪════════════════════════════════╡
+      │ average         │ average rank of group          │
+      ├─────────────────┼────────────────────────────────┤
+      │ min             │ lowest rank in group           │
+      ├─────────────────┼────────────────────────────────┤
+      │ max             │ highest rank in group          │
+      ├─────────────────┼────────────────────────────────┤
+      │ first           │ ranks assigned in order they   │
+      │                 │ appear in the array            │
+      ├─────────────────┼────────────────────────────────┤
+      │ dense           │ like 'min', but rank always    │
+      │                 │ increases by 1 between groups  │
+      ╘═════════════════╧════════════════════════════════╛
+
+  --numeric_only NUMERIC_ONLY
+      [optional, default is None]
+      Include only float, int, boolean data. Valid only for DataFrame or Panel
+      objects.
+  --na_option NA_OPTION
+      [optional, default is 'keep']
+      ┌────────────────────┬────────────────────────────────┐
+      │ na_option argument │ Description                    │
+      ╞════════════════════╪════════════════════════════════╡
+      │ keep               │ leave NA values where they are │
+      ├────────────────────┼────────────────────────────────┤
+      │ top                │ smallest rank if ascending     │
+      ├────────────────────┼────────────────────────────────┤
+      │ bottom             │ smallest rank if descending    │
+      ╘════════════════════╧════════════════════════════════╛
+
+  --ascending
+      [optional, default is True]
+      False ranks by high (1) to low (N)
+  --pct
+      [optional, default is False]
+      Computes percentage rank of data.
+  --print_input
+      [optional, default is False]
+      If set to 'True' will include the input columns in the output table.
+  --float_format FLOAT_FORMAT
+      [optional]
+      Format for float numbers.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.usage: tstoolbox date_offset [-h] [--years YEARS] [--months MONTHS]
+  [--weeks WEEKS] [--days DAYS] [--hours HOURS] [--minutes MINUTES] [--seconds
+  SECONDS] [--microseconds MICROSECONDS] [--columns COLUMNS] [--dropna DROPNA]
+  [--clean] [--input_ts INPUT_TS] [--start_date START_DATE] [--end_date
+  END_DATE] [--round_index ROUND_INDEX]
+
+Apply an offset to a time-series.
+
+optional arguments:
+  -h | --help
+      show this help message and exit
+  --years YEARS
+      [optional, default is 0]
+      Relative number of years to offset the datetime index, may be negative;
+      adding or subtracting a relativedelta with relative information
+      performs the corresponding arithmetic operation on the original
+      datetime value with the information in
+  --months MONTHS
+      [optional, default is 0]
+      Relative number of months to offset the datetime index, may be negative;
+      adding or subtracting a relativedelta with relative information
+      performs the corresponding arithmetic operation on the original
+      datetime value with the information in
+  --weeks WEEKS
+      [optional, default is 0]
+      Relative number of weeks to offset the datetime index, may be negative;
+      adding or subtracting a relativedelta with relative information
+      performs the corresponding arithmetic operation on the original
+      datetime value with the information in
+  --days DAYS
+      [optional, default is 0]
+      Relative number of days to offset the datetime index, may be negative;
+      adding or subtracting a relativedelta with relative information
+      performs the corresponding arithmetic operation on the original
+      datetime value with the information in
+  --hours HOURS
+      [optional, default is 0]
+      Relative number of hours to offset the datetime index, may be negative;
+      adding or subtracting a relativedelta with relative information
+      performs the corresponding arithmetic operation on the original
+      datetime value with the information in
+  --minutes MINUTES
+      [optional, default is 0]
+      Relative number of minutes to offset the datetime index, may be negative;
+      adding or subtracting a relativedelta with relative information
+      performs the corresponding arithmetic operation on the original
+      datetime value with the information in
+  --seconds SECONDS
+      [optional, default is 0]
+      Relative number of seconds to offset the datetime index, may be negative;
+      adding or subtracting a relativedelta with relative information
+      performs the corresponding arithmetic operation on the original
+      datetime value with the information in
+  --microseconds MICROSECONDS
+      [optional, default is 0]
+      Relative number of microseconds to offset the datetime index, may be
+      negative; adding or subtracting a relativedelta with relative
+      information performs the corresponding arithmetic operation on the
+      original datetime value with the information in the relativedelta.
+  --columns COLUMNS
+      [optional]
+      Columns to select out of input. Can use column names from the first line
+      header or column numbers. If using numbers, column number 1 is the
+      first data column. To pick multiple columns; separate by commas with
+      no spaces. As used in tstoolbox pick command.
+  --dropna DROPNA
+      [optional, defauls it 'no']
+      Set dropna to 'any' to have records dropped that have NA value in any
+      column, or 'all' to have records dropped that have NA in all
+      columns. Set to 'no' to not drop any records. The default is 'no'.
+  --clean
+      [optional, default is False]
+      The 'clean' command will repair an index, removing duplicate index values
+      and sorting.
+  --input_ts INPUT_TS
+      [optional, required if using Python API, default is '-' (stdin)]
+      Whether from a file or standard input, data requires a first line header
+      of column names. Most separators will be automatically detected.
+      Most common date formats can be used, but the closer to ISO 8601
+      date/time standard the better.
+      Command line:
+      +-------------------------+------------------------+
+      | --input_ts=filename.csv | to read 'filename.csv' |
+      +-------------------------+------------------------+
+      | --input_ts='-'          | to read from standard  |
+      |                         | input (stdin).         |
+      +-------------------------+------------------------+
+      
+      In many cases it is better to use redirection rather that use
+      `--input_ts=filename.csv`.  The following are identical:
+      
+      From a file:
+      
+          command subcmd --input_ts=filename.csv
+      
+      From standard input:
+      
+          command subcmd --input_ts=- < filename.csv
+      
+      The BEST way since you don't have to include `--input_ts=-` because
+      that is the default:
+      
+          command subcmd < filename.csv
+      
+      Can also combine commands by piping:
+      
+          command subcmd < filename.csv | command subcmd1 > fileout.csv
+
+      As Python Library:
+      You MUST use the `input_ts=...` option where `input_ts` can be one
+      of a [pandas DataFrame, pandas Series, dict, tuple,
+      list, StringIO, or file name].
+      
+      If result is a time series, returns a pandas DataFrame.
+
+  --start_date START_DATE
+      [optional]
+      The start_date of the series in ISOdatetime format, or 'None' for
+      beginning.
+  --end_date END_DATE
+      [optional]
+      The end_date of the series in ISOdatetime format, or 'None' for end.
+  --round_index ROUND_INDEX
+      [optional]
+      Round the index to the nearest time point. Can significantly improve the
+      performance since can cut down on memory and processing
+      requirements, however be cautious about rounding to a very course
+      interval from a small one. This could lead to duplicate values in
+      the index.usage: tstoolbox about [-h]
+
+Display version number and system information.
+
+optional arguments:
+  -h, --help  show this help message and exit
