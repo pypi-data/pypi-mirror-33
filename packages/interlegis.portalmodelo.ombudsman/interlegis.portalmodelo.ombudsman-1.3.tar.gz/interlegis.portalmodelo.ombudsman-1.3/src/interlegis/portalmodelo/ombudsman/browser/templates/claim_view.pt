@@ -1,0 +1,177 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+    xmlns:metal="http://xml.zope.org/namespaces/metal"
+    xmlns:tal="http://xml.zope.org/namespaces/tal"
+    xmlns:i18n="http://xml.zope.org/namespaces/i18n"
+    lang="en"
+    metal:use-macro="context/main_template/macros/master"
+    i18n:domain="interlegis.portalmodelo.ombudsman">
+<head>
+  <metal:css fill-slot="style_slot">
+    <link type="text/css" rel="stylesheet"
+        tal:attributes="href string:${portal_url}/++resource++interlegis.portalmodelo.ombudsman/ombudsman.css" />
+  </metal:css>
+  <metal:js fill-slot="javascript_head_slot">
+    <script type="text/javascript"
+        tal:attributes="src string:${portal_url}/++resource++interlegis.portalmodelo.ombudsman/jquery.linkify.min.js">
+    </script>
+  </metal:js>
+</head>
+<body>
+<metal:main fill-slot="main">
+  <tal:main metal:define-macro="main"
+      define="toLocalizedTime nocall:context/@@plone/toLocalizedTime;
+              wtool context/@@plone_tools/workflow;">
+
+    <div tal:replace="structure provider:plone.abovecontenttitle" />
+
+    <h1 class="documentFirstHeading" tal:content="context/title">Title</h1>
+
+    <div tal:replace="structure provider:plone.belowcontenttitle" />
+
+    <fieldset class="claimTitle">
+      <p class="commentBody" tal:content="context/description" />
+    </fieldset>
+
+    <fieldset class="claimInformation">
+      <div>
+        <label class="horizontal" i18n:translate="">Created</label>:
+        <span tal:content="python:toLocalizedTime(context.created(), long_format=1)" />
+      </div>
+      <div>
+        <label class="horizontal" tal:content="structure view/w/kind/label|nothing" />:
+        <span tal:content="structure view/w/kind/render|nothing" />
+      </div>
+      <div>
+        <label class="horizontal" tal:content="structure view/w/area/label|nothing" />:
+        <span tal:content="structure view/w/area/render|nothing" />
+      </div>
+      <div>
+        <label class="horizontal" i18n:translate="">Protocol</label>:
+        <span tal:content="context/id|nothing" />
+      </div>
+      <div>
+        <label class="horizontal" i18n:translate="">Review State</label>:
+        <span i18n:domain="plone" i18n:translate=""
+              tal:define="review_state python:wtool.getInfoFor(context, 'review_state', '')"
+              tal:attributes="class python:'state-'+str(review_state)"
+              tal:content="python:wtool.getTitleForStateOnType(review_state, 'Claim')" />
+      </div>
+    </fieldset>
+
+    <div class="visualClear"><!----></div>
+
+    <div tal:replace="structure provider:plone.abovecontentbody" />
+
+    <div id="content-core">
+
+      <fieldset class="personalInformation" tal:condition="view/can_view_personal_info">
+        <legend i18n:translate="">Personal information</legend>
+        <div>
+          <label class="horizontal" tal:content="structure view/w/name/label|nothing" />:
+          <span tal:content="structure view/w/name/render|nothing" />
+        </div>
+        <div>
+          <label class="horizontal" tal:content="structure view/w/email/label|nothing" />:
+          <span tal:content="structure view/w/email/render|nothing" />
+        </div>
+        <div tal:condition="view/w/address">
+          <label class="horizontal" tal:content="structure view/w/address/label|nothing" />:
+          <span tal:content="structure view/w/address/render|nothing" />
+        </div>
+        <div>
+          <label class="horizontal"
+                 tal:condition="view/w/city/render" 
+                 tal:content="structure view/w/city/label|nothing" />:
+          <span tal:condition="view/w/city/render" tal:content="structure view/w/city/render|nothing" />
+          <label class="horizontal" tal:content="structure view/w/state/label|nothing" />:
+          <span tal:content="structure view/w/state/render|nothing" />
+          <label class="horizontal" tal:content="structure view/w/postal_code/label|nothing" />:
+          <span tal:content="structure view/w/postal_code/render|nothing" />
+        </div>
+      </fieldset>
+    </div>
+
+    <h2 i18n:translate="">Responses</h2>
+    <div tal:condition="view/has_responses" tal:repeat="response view/responses">
+      <div>
+        <h3 tal:content="response/id"/>
+      </div>
+      <div>
+        <label class="horizontal" i18n:translate="">Responsible</label>:
+        <a tal:attributes="href string:${portal_url}/author/${response/creator}"
+           tal:content="response/creator|nothing">author</a>
+      </div>
+      <div>
+        <label class="horizontal" i18n:translate="">Date</label>:
+        <span tal:content="python:toLocalizedTime(response['date'], long_format=1)" />
+      </div>
+      <div>
+        <label class="horizontal" i18n:translate="">Status</label>:
+        <span tal:content="response/review_state|nothing" />
+      </div>
+      <div>
+        <p class="commentBody" tal:content="structure response/text" />
+      </div>
+    </div>
+    <p tal:condition="not:view/has_responses" i18n:translate="">
+        No responses yet for this claim.
+    </p>
+
+    <div tal:condition="view/can_add_response">
+      <h2 i18n:translate="">Add response</h2>
+      <form action="@@add-response"
+          tal:attributes="action string:${context/absolute_url}/@@add-response">
+        <label class="horizontal" i18n:translate="">Action</label>:
+        <select name="transition">
+          <option value="" tal:repeat="transition view/transitions"
+              tal:content="transition/title|nothing"
+              tal:attributes="value transition/id" />
+        </select>
+        <textarea placeholder="Response text" title="Response text" rows="20" name="text"
+            i18n:attributes="placeholder; title"></textarea>
+        <button type="submit" i18n:translate="" id="btn-claim-submit" class="btn btn-primary">Add</button>
+      </form>
+    </div>
+
+    <h2 i18n:translate="">Files</h2>
+    <div tal:condition="view/has_files">
+      <table class="listing">
+        <thead>
+          <tr>
+            <th class="nosort" i18n:translate="">Id</th>
+            <th class="nosort" i18n:translate="">Title</th>
+            <th class="nosort" i18n:translate="">Description</th>
+            <th class="nosort" i18n:translate="">Responsible</th>
+            <th class="nosort" i18n:translate="">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr tal:repeat="file view/files">
+            <td tal:content="file/id"> 1 </td>
+            <td>
+              <a href=""
+                 tal:attributes="href file/url"
+                 tal:content="file/title|nothing"> File </a>
+            </td>
+            <td tal:content="file/description|nothing"> Description </td>
+            <td>
+              <a tal:attributes="href string:${portal_url}/author/${file/creator}"
+                 tal:content="file/creator|nothing">author</a>
+            </td>
+            <td tal:content="python:toLocalizedTime(file['date'], long_format=1)">
+              17/10/2013 04:32:00
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p tal:condition="not:view/has_files" i18n:translate="">
+        No files yet for this claim.
+    </p>
+
+    <div tal:replace="structure provider:plone.belowcontentbody" />
+
+  </tal:main>
+</metal:main>
+</body>
+</html>

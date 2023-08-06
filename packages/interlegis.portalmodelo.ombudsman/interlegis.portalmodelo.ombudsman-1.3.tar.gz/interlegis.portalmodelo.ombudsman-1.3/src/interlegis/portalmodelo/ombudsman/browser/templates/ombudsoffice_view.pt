@@ -1,0 +1,118 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+    xmlns:metal="http://xml.zope.org/namespaces/metal"
+    xmlns:tal="http://xml.zope.org/namespaces/tal"
+    xmlns:i18n="http://xml.zope.org/namespaces/i18n"
+    lang="en"
+    metal:use-macro="context/main_template/macros/master"
+    i18n:domain="interlegis.portalmodelo.ombudsman">
+<body>
+<metal:core fill-slot="content-core"
+            tal:define="Batch python:modules['Products.CMFPlone'].Batch;
+                        b_size python:25;
+                        b_start python:0; b_start request/b_start | b_start;
+                        results view/claims;
+                        batch python:Batch(results, b_size, int(b_start), orphan=1);
+                        toLocalizedTime nocall:context/@@plone/toLocalizedTime;
+                        canEdit python:checkPermission('Modify portal content', here)">
+  <tal:core metal:define-macro="content-core">
+    <div id="claim-button">
+        <form tal:attributes="action string:${context/absolute_url}/++add++Claim"
+              tal:condition="view/is_anonymous">
+          <input type="submit" i18n:attributes="value" value="Add new claim" id="add-new-claim" />
+        </form>
+    </div>
+    <h2 i18n:translate="">Check claim</h2>
+    <form tal:attributes="action string:${context/absolute_url}/@@search-claim">
+      <input class="searchField" type="text" placeholder="Claim number" title="Claim number" name="claim"
+             i18n:attributes="placeholder; title" />
+      <input type="submit" i18n:attributes="value" value="Search" class="searchButton" />
+    </form>
+
+    <p class="discreet"
+       tal:condition="not: batch"
+       i18n:translate="description_no_claims_in_folder">
+        There are currently no claims in this ombudsman office.
+    </p>
+
+    <tal:listing tal:condition="python:batch and view.display_claims_for_anon()">
+      <h2 i18n:translate="">Open claims</h2>
+      <table class="listing">
+          <thead>
+            <tr>
+              <th class="column" i18n:translate="">Topic</th>
+              <th tal:condition="canEdit" class="column" i18n:translate="">Area</th>
+              <th class="column" i18n:translate="">Review State</th>
+              <th class="column" i18n:translate="">Sent Date</th>
+              <th class="column" i18n:translate="">Last Modification</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr tal:repeat="claim batch">
+              <td>
+                <a href="" title="" tal:content="claim/title"
+                   tal:attributes="href claim/url; title claim/description" />
+              </td>
+              <td tal:condition="canEdit"
+                  tal:content="claim/area" />
+              <td tal:attributes="class claim/klass"
+                  tal:content="claim/review_state"
+                  i18n:translate="" />
+              <td tal:content="python:toLocalizedTime(claim['created'])" />
+              <td tal:content="python:toLocalizedTime(claim['modified'], long_format=1)" />
+            </tr>
+        </tbody>
+      </table>
+      <div metal:use-macro="context/batch_macros/macros/navigation" />
+
+      <div style="width:100px; height:100px;"></div>
+
+        <script type="text/javascript">
+          window.onload = function() {
+            var dataPoints = [];
+
+            var chart = new CanvasJS.Chart("chartContainer", {
+                animationEnabled: true,
+                theme: "light2",
+                backgroundColor: "transparent",
+                title: {
+                    text: "Estatísticas das Solicitações",
+                    fontSize: 18
+                },
+                axisY: {
+                    title: "solicitações",
+                    titleFontSize: 12
+                },
+                data: [{
+                    type: "column",
+                    yValueFormatString: "#,###solicitações",
+                    dataPoints: dataPoints
+                }]
+            });
+
+            function addData(data) {
+                for (var i = 0; i < data.length; i++) {
+                    dataPoints.push({
+                        label: data[i].label,
+                        y: data[i].count
+                    });
+                }
+                chart.render();
+            }
+            $.getJSON("ouvidoria/@@ombudsman-state-count", addData);
+            }
+        </script>
+
+        <div style="width:400px; height:400px;" width="400" height="400">
+
+      <div id="chartContainer" style="height: 370px; width: 100%;"></div>
+        <script src="https://canvasjs.com/assets/script/jquery-1.11.1.min.js"></script>
+        <script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+    </div>
+
+
+    </tal:listing>
+
+  </tal:core>
+</metal:core>
+</body>
+</html>
