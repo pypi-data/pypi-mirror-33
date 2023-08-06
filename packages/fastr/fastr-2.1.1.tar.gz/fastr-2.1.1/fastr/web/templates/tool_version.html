@@ -1,0 +1,238 @@
+<h1>{{ tool.name }}</h1>
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <h3 class="panel-title">
+            <a data-toggle="collapse" href="#collapse_info">Info</a>
+        </h3>
+    </div>
+    <div id="collapse_info" class="panel-collapse collapse in">
+        <div class="panel-body">
+            <dl class="dl-horizontal">
+                {% if tool.tags %}
+                    <dt>tags</dt>
+                    <dd><p>
+                    {% for tag in tool.tags %}
+                        <span class="label label-success">{{ tag }}</span>
+                    {% endfor %}
+                    </p></dd>
+                {% endif %}
+
+                <dt>id</dt>
+                <dd>{{ tool.id }}</dd>
+
+                {% if tool.authors %}
+                    <dt>authors</dt>
+                    <dd>
+                    {% for author in tool.authors %}
+                        <p>
+                        {% if author.url %}
+                            <a href="{{ author.url }}">{{ author.name }}</a>
+                        {% else %}
+                            {{ author.name }}
+                        {% endif %}
+                        {% if author.email %}
+                            (<a href="mailto:{{ author.email }}">{{ author.email }}</a>)
+                        {% endif %}
+                        </p>
+                    {% endfor %}
+                    </dd>
+                {% endif %}
+
+                <dt>wrapper version</dt>
+                <dd>{{ tool.version }}</dd>
+
+                <dt>description</dt>
+                <dd>{{ tool.description }}</dd>
+
+                <dt>help</dt>
+                <dd>{{ tool.help }}</dd>
+
+                {% if tool.cite %}
+                    <dt>cite</dt>
+                    <dd><pre>{{ tool.cite }}</pre></dd>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+</div>
+
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <h3 class="panel-title">
+            <a data-toggle="collapse" href="#collapse_command">Command</a>
+        </h3>
+    </div>
+    <div id="collapse_command" class="panel-collapse collapse in">
+        <div class="panel-body">
+            <dl class="dl-horizontal">
+                <dt>tool version</dt>
+                <dd>{{ tool.command.version }}</dd>
+                <dt>tool url</dt>
+                <dd>{{ tool.command.url }}</dd>
+                {% if tool.command.authors %}
+                <dt>tool authors</dt>
+                <dd>
+                    {% for author in tool.command.authors %}
+                    <p>
+                        {% if author.url %}
+                        <a href="{{ author.url }}">{{ author.name }}</a>
+                        {% else %}
+                        {{ author.name }}
+                        {% endif %}
+                        {% if author.email %}
+                        (<a href="mailto:{{ author.email }}">{{ author.email }}</a>)
+                        {% endif %}
+                    </p>
+                    {% endfor %}
+                </dd>
+                {% endif %}
+                {% if tool.command.description %}
+                <dt>tool description</dt>
+                <dd>
+                    <button type="button" class="btn btn-info btn-xs" data-toggle="modal" data-target="#description-modal">
+                        read description
+                    </button>
+                    <!-- Modal -->
+                    <div id="description-modal" class="modal fade" role="dialog">
+                        <div class="modal-dialog modal-lg">
+
+                            <!-- Modal content-->
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                    <h4 class="modal-title">{{ tool.name }} {{ tool.command.version }} License</h4>
+                                </div>
+                                <div class="modal-body">
+                                    <pre>
+                                        {{ tool.command.description }}
+                                    </pre>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </dd>
+                {% endif %}
+                <dt>tool license</dt>
+                <dd>
+                    {% if tool.command.license and tool.command.license != 'UNKNOWN' %}
+                    <button type="button" class="btn btn-info btn-xs" data-toggle="modal" data-target="#license-modal">
+                        read license
+                    </button>
+                    <!-- Modal -->
+                    <div id="license-modal" class="modal fade" role="dialog">
+                        <div class="modal-dialog modal-lg">
+
+                            <!-- Modal content-->
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                    <h4 class="modal-title">{{ tool.name }} {{ tool.command.version }} License</h4>
+                                </div>
+                                <div class="modal-body">
+                                    <pre>
+                                        {{ tool.command.license }}
+                                    </pre>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="bg-danger">UNKNOWN</p>
+                    {% endif %}
+                </dd>
+                <dt>targets</dt>
+                <dd>
+                {% for target in tool.command.targets %}
+                    <span class="label label-success">{{ target.os }}{% if target.arch != "*" %} ({{ target.arch }}){% endif %}</span>
+                {% endfor %}
+                </dd>
+            </dl>
+        </div>
+    </div>
+</div>
+
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <h3 class="panel-title">
+            <a data-toggle="collapse" href="#collapse_inputs">Inputs</a>
+        </h3>
+    </div>
+    <div id="collapse_inputs" class="panel-collapse collapse in">
+        <div class="panel-body">
+            <table class="table table-striped">
+                <thead>
+                <tr>
+                    <th>id</th>
+                    <th>datatype</th>
+                    <th>cardinality</th>
+                    <th>required</th>
+                    <th>default</th>
+                    <th>description</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for id, item in tool.inputs.items() %}
+                    <tr>
+                        <td>{{item.id}}</td>
+                        <td>{{item.datatype}}</td>
+                        <td>{{item.cardinality}}</td>
+                        <td>{% if item.required %}<span class="label label-primary">yes</span>{% endif %}</td>
+                        <td>{% if item.default %}<span class="label label-success">{{item.default}}</span>{% endif %}</td>
+                        <td>{{item.description}}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="panel-heading">
+        <h3 class="panel-title">
+            <a data-toggle="collapse" href="#collapse_outputs">Outputs</a>
+        </h3>
+    </div>
+    <div id="collapse_outputs" class="panel-collapse collapse in">
+        <div class="panel-body">
+            <table class="table table-striped">
+                <thead>
+                <tr>
+                    <th>id</th>
+                    <th>datatype</th>
+                    <th>cardinality</th>
+                    <th>required</th>
+                    <th>default</th>
+                    <th>description</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for id, item in tool.outputs.items() %}
+                <tr>
+                    <td>{{item.id}}</td>
+                    <td>{{item.datatype}}</td>
+                    <td>{{item.cardinality}}</td>
+                    <td>{% if item.required %}<span class="label label-primary">yes</span>{% endif %}</td>
+                    <td>{% if item.default %}<span class="label label-success">{{item.default}}</span>{% endif %}</td>
+                    <td>{{item.description}}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <h3 class="panel-title">Tests</h3>
+    </div>
+    <div class="panel-body">
+        Blaat
+    </div>
+</div>

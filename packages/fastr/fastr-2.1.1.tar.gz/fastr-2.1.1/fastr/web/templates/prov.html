@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script type="text/javascript" src="{{ url_for('static', filename='js/vis.js') }}"></script>
+<link href="{{ url_for('static', filename='vis.css') }}" rel="stylesheet" type="text/css" />
+
+<script type="text/javascript">
+    var nodes = null;
+    var edges = null;
+    var network = null;
+    var svgns = "http://www.w3.org/2000/svg";
+
+    function draw_prov_json(reader_onload_event) {
+        var content = JSON.parse(reader_onload_event.currentTarget.result);
+        draw_prov(content)
+    }
+
+    function handleFileSelect(evt) {
+        var files = evt.target.files; // FileList object
+
+        // files is a FileList of File objects. List some properties.
+        var output = [];
+        for (var i = 0, f; f = files[i]; i++) {
+            output.push('<li><strong>', escape(f.name), '</strong> (', f.type || 'n/a', ') - ',
+                    f.size, ' bytes, last modified: ',
+                    f.lastModifiedDate ? f.lastModifiedDate.toLocaleDateString() : 'n/a',
+                    '</li>');
+        }
+        document.getElementById('list').innerHTML = '<ul>' + output.join('') + '</ul>';
+
+        var reader = new FileReader();
+        reader.onload = draw_prov_json;
+        reader.readAsText(files[0])
+    }
+
+    function bboxText(string) {
+        var svgDocument = document.getElementById('prototype').contentDocument;
+        var data = svgDocument.createTextNode(string);
+
+        var svgElement = svgDocument.createElementNS( svgns, "text" );
+        svgElement.appendChild(data);
+        svgDocument.documentElement.appendChild(svgElement);
+
+        var bbox = svgElement.getBBox();
+        svgElement.parentNode.removeChild(svgElement);
+
+        return bbox;
+    }
+
+    function draw_prov(prov) {
+        var nodes = [];
+
+        Object.keys(prov.entity).forEach(function(id){
+            textwidth = bboxText(id).width;
+            fullwidth = Math.max(textwidth + 40, 80);
+            halfwidth = 0.5 * fullwidth;
+
+            data = '<svg xmlns="http://www.w3.org/2000/svg" width="{fwidth}" height="62.5" id="svg4097" version="1.1">'.replace(/{fwidth}/g, fullwidth.toString())  +
+                    '<ellipse cx="{hwidth}" cy="31.25" rx="{hwidth}" ry="31.25" id="ellipse3574" style="fill:#ffffbe;fill-opacity:1;stroke:none;stroke-dasharray:none;stroke-opacity:1" />'.replace(/{hwidth}/g, halfwidth.toString())  +
+                    '<ellipse cx="{hwidth}" cy="31.25" rx="{hwidth}" ry="31.25" id="ellipse3576" style="fill:none;fill-opacity:1;stroke:#7e7e7e;stroke-width:1.25;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" />'.replace(/{hwidth}/g, halfwidth.toString())  +
+                    '<text id="text3578" style="font-size:15px;fill:#000000;fill-opacity:1;stroke:none;stroke-dasharray:none;stroke-opacity:1;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;text-anchor:middle;text-align:center;writing-mode:lr;line-height:125%;">' +
+                    '<tspan font-size="12" font-weight="500" x="{hwidth}" y="36" textLength="{twidth}" id="tspan3580" style="font-weight:normal;font-size:15px;font-family:sans-serif;font-style:normal;font-stretch:normal;font-variant:normal;text-anchor:middle;text-align:center;writing-mode:lr;line-height:125%;">{label}</tspan>'.replace(/{label}/g, id).replace(/{twidth}/g, textwidth.toString()).replace(/{hwidth}/g, halfwidth.toString()) +
+                    '</text></svg>';
+
+            var DOMURL = window.URL || window.webkitURL || window;
+            var img = new Image();
+            var svg = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
+            var url = DOMURL.createObjectURL(svg);
+
+
+            nodes.push({
+                id: id,
+                label: id,
+                shape: 'image',
+                image: url
+            })
+        });
+
+        Object.keys(prov.agent).forEach(function(id) {
+            textwidth = bboxText(id).width;
+            fullwidth = Math.max(textwidth + 40, 80);
+            halfwidth = 0.5 * fullwidth;
+
+            data = '<svg xmlns="http://www.w3.org/2000/svg" width="{fwidth}" height="65">'.replace(/{fwidth}/g, fullwidth.toString()) +
+                    '<path d="M 0,65 0,23.3125 {hwidth},2.5 l {hwidth},20.8125 0,41.6875 z" id="path3590" style="fill:#FED37F;fill-opacity:1;stroke:none;stroke-dasharray:none;stroke-opacity:1" />'.replace(/{hwidth}/g, halfwidth.toString()) +
+                    '<path d="M 0,65 0,23.3125 {hwidth},2.5 l {hwidth},20.8125 0,41.6875 z" id="path3592" style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1.25;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" />'.replace(/{hwidth}/g, halfwidth.toString()) +
+                    '<a ref="{target}">'.replace('{target}', 'link_target') +
+                    '<text id="text3594" style="font-size:15px;line-height:125%;fill:#000000;fill-opacity:1;stroke:none;stroke-dasharray:none;stroke-opacity:1" x="0" y="0">' +
+                    '<tspan font-size="12" font-weight="500" x="{hwidth}" y="50" textLength="{twidth}" id="tspan3596" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;text-align:center;text-anchor:middle">{label}</tspan>'.replace(/{label}/g, id).replace(/{twidth}/g, textwidth.toString()).replace(/{hwidth}/g, halfwidth.toString()) +
+                    '</text>' +
+                    '</a>' +
+                    '</svg>';
+
+            var DOMURL = window.URL || window.webkitURL || window;
+            var img = new Image();
+            var svg = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
+            var url = DOMURL.createObjectURL(svg);
+
+            nodes.push({
+                id: id,
+                label: id,
+                shape: 'image',
+                image: url
+            })
+        });
+
+
+        Object.keys(prov.activity).forEach(function(id) {
+            textwidth = bboxText(id).width;
+            fullwidth = Math.max(textwidth + 40, 80);
+            halfwidth = 0.5 * fullwidth;
+
+            data = '<svg xmlns="http://www.w3.org/2000/svg" width="{fwidth}" height="62.5" id="svg4044" version="1.1">'.replace(/{fwidth}/g, fullwidth.toString()) +
+                    '<rect x="0" y="0" width="{fwidth}" height="62.5" id="rect3390" style="fill:#cfceff;fill-opacity:1;stroke:none;stroke-dasharray:none;stroke-opacity:1" />'.replace(/{fwidth}/g, fullwidth.toString()) +
+                    '<rect x="0" y="0" width="{fwidth}" height="62.5" id="rect3392" style="fill:none;fill-opacity:1;stroke:#0000ff;stroke-width:1.25;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1" />'.replace(/{fwidth}/g, fullwidth.toString()) +
+                    '<text id="text3394" style="font-size:15px;line-height:125%;text-align:center;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-dasharray:none;stroke-opacity:1" x="83.125" y="23">' +
+                    '<tspan font-size="12" font-weight="500" x="{hwidth}" y="36" textLength="{twidth}" id="tspan3396" style="font-weight:500;font-size:15px;line-height:125%;font-family:Helvetica;text-align:center;writing-mode:lr-tb;text-anchor:middle">{label}</tspan>'.replace(/{label}/g, id).replace(/{twidth}/g, textwidth.toString()).replace(/{hwidth}/g, halfwidth.toString()) +
+                    '</text></svg>';
+
+            var DOMURL = window.URL || window.webkitURL || window;
+            var img = new Image();
+            var svg = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
+            var url = DOMURL.createObjectURL(svg);
+
+            nodes.push({
+                id: id,
+                label: id,
+                shape: 'image',
+                image: url
+            })
+        });
+
+        var edges = [];
+
+        Object.keys(prov.actedOnBehalfOf).forEach(function(id){
+            var temp = prov.actedOnBehalfOf[id];
+            edges.push({
+                id: id,
+                from: temp['prov:delegate'],
+                to: temp['prov:responsible'],
+                label: 'actedOnBehalfOf',
+                arrows: {to: true},
+                font: {align: 'top'}
+            })
+        });
+
+        Object.keys(prov.wasGeneratedBy).forEach(function(id){
+            var temp = prov.wasGeneratedBy[id];
+            edges.push({
+                id: id,
+                from: temp['prov:entity'],
+                to: temp['prov:activity'],
+                label: 'wasGeneratedBy',
+                arrows: {to: true},
+                font: {align: 'top'}
+            })
+        });
+
+        Object.keys(prov.used).forEach(function(id){
+            var temp = prov.used[id];
+            edges.push({
+                id: id,
+                from: temp['prov:activity'],
+                to: temp['prov:entity'],
+                label: 'used',
+                arrows: {to: true},
+                font: {align: 'top'}
+            })
+        });
+
+        Object.keys(prov.wasAssociatedWith).forEach(function(id){
+            var temp = prov.wasAssociatedWith[id];
+            edges.push({
+                id: id,
+                from: temp['prov:activity'],
+                to: temp['prov:agent'],
+                label: 'wasAssociatedWith',
+                arrows: {to: true},
+                font: {align: 'top'}
+            })
+        });
+
+        // create a network
+        var container = document.getElementById('mynetwork');
+        var data = {
+            nodes: nodes,
+            edges: edges
+        };
+        var options = {
+            physics:{
+                solver: 'hierarchicalRepulsion',
+                hierarchicalRepulsion: {
+                    springLength: 150,
+                    nodeDistance: 200
+                }
+            },
+            layout: {
+                hierarchical: {
+                    enabled: true,
+                    sortMethod: 'directed'
+                }
+            }
+        };
+        network = new vis.Network(container, data, options);
+    }
+</script>
+
+<p>
+    Select a provenance file (prov-json format) to display
+</p>
+<input type="file" id="files" name="files[]" multiple />
+<output id="list"></output>
+<div id="mynetwork" style="width: 100%; height: 600px; border: 1px solid lightgray;}"></div>
+
+<div id="info"></div>
+<object data="{{ url_for('static', filename='empty.svg') }}" type="image/svg+xml" id="prototype" width="300px" height="300px" style="visibility: hidden;"></object>
+
+<script>
+    document.getElementById('files').addEventListener('change', handleFileSelect, false);
+</script>
+
+
+{% endblock %}
