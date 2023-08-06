@@ -1,0 +1,175 @@
+{% load i18n staticfiles arctic_tags arctic_pagination_tags %}
+
+<div class="row">
+    {% block tool_links %}
+        <div class="col-auto form-group">
+            {% for link in tool_links %}
+                {% if forloop.counter0 < tool_links_collapse %}
+                    <a class="btn btn-{{ link.style }}" title="{{ link.label }}" href="{{ link.url }}" id="{{ link.id }}"
+                        {% include 'arctic/partials/modal_attributes.html' with modal=link.modal %}
+                    >{% if link.icon %}<i title="{{ link.label }}" class="fa {{ link.icon }}"></i>{% else %}{{ link.label }}{% endif %}</a>
+                {% else %}
+                    {% if forloop.counter0 == tool_links_collapse %}
+                        <span class="dropdown">
+                            <button class="btn btn-secondary" type="button" data-toggle="dropdown" id="tool-links-dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fa {{ tool_links_icon }}"></i>
+                            </button>
+                            <div class="dropdown-menu" aria-labelledby="tool_links_dropdown">
+                    {% endif %}
+                                <a class="dropdown-item" href="{{ link.url }}"
+                                    {% include 'arctic/partials/modal_attributes.html' with modal=link.modal %}
+                                >{{ link.label }}</a>
+                    {% if forloop.last %}
+                            </div>
+                        </span>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endblock %}
+    <div class="col">
+    {% if not sorting_url %}
+        {% if simple_search_form or advanced_search_form %}
+            <form action="" method="GET" class="search-form">
+                {% block search_form %}
+                    <div id="arctic_search_form" class="form-group simple-search {% if simple_search_form.errors or advanced_search_form.errors %} invalid-form-field {% endif %}">
+                        {% for field in simple_search_form %}
+                            {{ field }}
+                        {% endfor %}
+                        {% if advanced_search_form %}
+                        {% block advanced_search_form %}
+                            <a id="arctic_toggle_advanced_search_form_button" class="btn btn-secondary arctic_toggle_form_button" data-toggle="popover" data-placement="bottom" data-container="#arctic_search_form" data-popover_content_container="#arctic_advanced_search">
+                                <i class="fa fa-sliders"></i>
+                            </a>
+                            <div class="artic_toggle_form hidden" id="arctic_advanced_search" hidden>
+                                {% include "arctic/partials/form_fields.html" with form=advanced_search_form %}
+                                <div class="form-block pull-right">
+                                    <input type="reset" value="{% trans 'Clear' %}" class="btn btn-secondary" onClick='location.href = location.pathname'>
+                                    <input type="submit" value="{% trans 'Search' %}" class="btn btn-primary">
+                                </div>
+                            </div>
+                        {% endblock %}
+                        {% endif %}
+                    </div>
+                {% endblock %}
+            </form>
+        {% endif %}
+    {% endif %}
+    </div>
+</div>
+
+{% block top_pagination %}
+{% endblock %}
+
+
+{% block table %}
+<div class="row">
+    {# data table #}
+    {% if list_items %}
+        <div class="col-sm-12 col">
+            <div class="arctic-card">
+                {% if list_summary %}
+                    <div class="arctic-card__header">
+                        <h4 class="arctic-card__title">
+                            {{ page_title }}
+                        </h4>
+                    </div>
+                {% endif %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                {% if sorting_url %}
+                                    <th class="drag-cell">&nbsp;</th>
+                                {% endif %}
+                                {% for item in list_header %}
+                                    <th>
+                                        {% if item.order_url %}
+                                            <a href="{{ item.order_url }}">{{ item.label }}&nbsp;
+                                                {% if item.order_direction == 'desc' %}
+                                                    <i class="fa fa-sort-desc"></i>
+                                                {% elif item.order_direction == 'asc' %}
+                                                    <i class="fa fa-sort-asc"></i>
+                                                {% else %}
+                                                    <i class="fa fa-sort show-on-hover"></i>
+                                                {% endif %}</a>
+                                        {% else %}
+                                            {{ item.label }}
+                                        {% endif %}
+                                        {% block extra_table_header_data %}{% endblock %}
+                                    </th>
+                                {% endfor %}
+
+                                {% if list_items.0.actions %}
+                                    <th>&nbsp;</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody {% if list_items.0.sorting_field %}data-sorting-url="{{ sorting_url }}"{% endif %}>
+                            {% for row in list_items %}
+                                <tr {% if row.id %} data-id="{{ row.id }}" {% endif %}>
+                                    {% if row.sorting_field %}
+                                        <td class="drag-cell">
+                                            <div class="list-actions drag-handle show-on-hover">
+                                                <i data-sorting-key="{{ row.sorting_field.id }}" data-sorting-value="{{ column.value }}" class="fa fa-bars"></i>
+                                            </div>
+                                        </td>
+                                    {% endif %}
+                                    {% for column in row.fields %}
+                                        <td {% if column.class %}class="{{ column.class }}"{%endif%}>
+                                            {% if column.url %}
+                                                <a href="{{ column.url }}"{% if list_items.0.sorting_field %}style="display:block;"{% endif %}
+                                                    {% include 'arctic/partials/modal_attributes.html' with modal=column.modal %}
+                                                >
+                                            {% endif %}
+                                            {% if column.value|typename != 'list' %}
+                                                {{ column.value|default_if_none:"" }}
+                                            {% else %}
+                                                {% for item in column.value %}
+                                                    <span class="list-tag">{{ item }}</span>
+                                                {% endfor %}
+                                            {% endif %}
+                                            {% if column.url %}
+                                                </a>
+                                            {% endif %}
+                                        </td>
+                                    {% endfor %}
+                                    {% if row.actions %}
+                                        <td>
+                                            {% block list_actions %}
+                                            <div class="list-actions">
+                                                {% for action in row.actions %}
+                                                    <a href="{{ action.url }}" class="action-{{ action.label }} btn btn-secondary btn-sm show-on-hover" title="{{ link.label|capfirst }}"
+                                                    {% include 'arctic/partials/modal_attributes.html' with modal=action.modal %}
+                                                    >
+                                                    {% if action.icon %}
+                                                        <i class="fa {{ action.icon }} fa-lg"></i>
+                                                    {% else %}
+                                                        {{ action.label|capfirst }}
+                                                    {% endif %}
+                                                    </a>
+                                                {% endfor %}
+                                                <div class="list-actions-placeholder"></div>
+                                            </div>
+                                            {% endblock %}
+                                        </td>
+                                    {% endif %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% block pagination %}
+                {% arctic_paginate page_obj paginator=paginator %}
+            {% endblock %}
+        </div>
+    {% else %}
+       <h3 class="col text-center">{% trans 'No result...' %}</h3>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_data %}{% endblock %}
+
+{% include 'arctic/partials/modal_dialogs.html' %}
