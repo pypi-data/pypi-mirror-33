@@ -1,0 +1,57 @@
+Skyscraper
+==========
+
+YAML based lightweight crawlers
+
+
+Usage
+-----
+
+Each web crawler is defined in a yml file
+
+```yaml
+
+# the name of the crawler
+name: Python 3.x docs
+# the number of parallel thread workers
+threads: 3
+
+# start urls
+params:
+  start_url: https://docs.python.org/3/index.html
+
+# how/where the results are saved
+results:
+  type: Json
+  file: "python.json"
+
+# on each url labeled "result", results will be extracted using
+# this scheme
+result_extractor:
+  fields:
+  - name: title
+    rules:
+      select: h1
+      text: yes
+      single: true
+
+
+# the first page is labeled "start" and for each extracted url, we label it
+# accordingly. In this example, we extract the results directly from
+# the first page
+steps:
+- name: start
+  label: start
+  extract:
+  - type: ahrefs
+    label: result
+    rules:
+      select: a.biglink
+
+```
+
+To run the crawler, execute
+
+```
+skyscraper run examples/python_docs.yaml
+```
