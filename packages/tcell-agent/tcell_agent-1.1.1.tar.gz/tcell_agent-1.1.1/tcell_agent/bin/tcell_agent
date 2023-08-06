@@ -1,0 +1,357 @@
+#!/usr/bin/python
+
+from __future__ import unicode_literals
+from __future__ import print_function
+
+import os
+import sys
+import argparse
+import json
+
+
+def which(program):
+    def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
+    fpath, _fname = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+
+    return None
+
+
+def setup(_parser, _args):
+    if os.path.isfile("tcell_agent.config"):
+        print("Error: Config file already exists!")
+        return
+    api_key = raw_input('Server-Agent-Scoped Api Key? >')
+    app_id = raw_input('App Id? (you can get this from the URL in our app, something like: MyApp-dkdn3) >')
+
+    config_json = {
+        "version": 1,
+        "applications": [
+            {
+                "app_id": app_id,
+                "api_key": api_key
+            }
+        ]
+    }
+
+    with open("tcell_agent.config", 'w') as outfile:
+        json.dump(config_json, outfile, indent=2)
+
+
+def loglevel(_parser, args):
+    level = args.level.upper()
+    if not os.path.isfile("tcell_agent.config"):
+        print("Error:Could not find config file")
+        return
+    try:
+        with open("tcell_agent.config") as data_file:
+            config_json = json.loads(data_file.read())
+    except Exception as e:
+        print("Error: Could not load the config file.")
+        print(e)
+        return
+
+    applications = config_json.get("applications", [])
+    if len(applications) == 0:
+        print("Error: No application found.")
+        return
+
+    if level == "OFF":
+        config_json["applications"][0]["logging_options"] = {
+            "enabled": False
+        }
+    else:
+        config_json["applications"][0]["logging_options"] = {
+            "enabled": True,
+            "level": level
+        }
+
+    with open("tcell_agent.config", 'w') as outfile:
+        json.dump(config_json, outfile, indent=2)
+
+
+def demomode(_parser, args):
+    if not os.path.isfile("tcell_agent.config"):
+        print("Error:Could not find config file")
+        return
+    try:
+        with open("tcell_agent.config") as data_file:
+            config_json = json.loads(data_file.read())
+    except Exception as e:
+        print("Error: Could not load the config file.")
+        print(e)
+        return
+
+    applications = config_json.get("applications", [])
+    if len(applications) == 0:
+        print("Error: No application found.")
+        return
+
+    if args.off:
+        if "demomode" in config_json["applications"][0]:
+            del config_json["applications"][0]["demomode"]
+    else:
+        config_json["applications"][0]["demomode"] = True
+
+    with open("tcell_agent.config", 'w') as outfile:
+        json.dump(config_json, outfile, indent=2)
+
+
+def report_packages(_parser, _args):
+    try:
+        from tcell_agent import system_info
+        from tcell_agent.config.configuration import CONFIGURATION
+        from tcell_agent.api import TCellAPI
+        from tcell_agent.sensor_events.server_agent_packages import ServerAgentPackagesEvent
+
+        print("Reporting packages ({0})".format(CONFIGURATION.tcell_input_url))
+        sape = ServerAgentPackagesEvent()
+
+        def add_package_to_event(package_obj):
+            print("\tfound {} {}".format(package_obj.key, package_obj.version))
+            sape.add_package(package_obj.key, package_obj.version)
+
+        system_info.get_packages(add_package_to_event)
+
+        API = TCellAPI()
+        status_code = API.v1send_events([sape])
+        if status_code == 200:
+            print("Done")
+        else:
+            print("API call returned status code: {}".format(status_code))
+    except Exception as e:
+        print(e)
+
+
+def test(_parser, _args):
+    def printm(msg):
+        template_msg = "{0:64}"
+        print(template_msg.format(msg), end="")
+
+    def prints(status):
+        template_status = "[{0}]"
+        print(template_status.format(status))
+
+    def passed():
+        prints("PASSED")
+
+    def failed():
+        prints("FAILED")
+
+    config_file = "tcell_agent.config"
+
+    printm("Checking if configuration file exists.")
+    if not os.path.isfile(config_file):
+        failed()
+        return
+    passed()
+    printm("Checking that config json is valid.")
+    try:
+        with open(config_file) as data_file:
+            config_json = json.loads(data_file.read())
+    except Exception as e:
+        failed()
+        print(e)
+        return
+    passed()
+
+    printm("Config file has valid version... ")
+    if config_json.get("version", 0) != 1:
+        failed()
+        return
+    passed()
+
+    printm("Config file has application")
+    applications = config_json.get("applications", [])
+    if len(applications) == 0:
+        failed()
+        return
+    passed()
+
+    from tcell_agent.config.unknown_options import get_unknown_options
+    printm("Check for unknown settings")
+    messages = get_unknown_options(config_json)
+    if len(messages) > 0:
+        failed()
+        for message in messages:
+            print(message)
+        return
+    passed()
+
+    application = applications[0]
+    printm("Application has api_key && app_id")
+    if (application.get("app_id") is None) or (application.get("api_key") is None):
+        failed()
+        return
+    prints(application.get("app_id"))
+
+    printm("Requiring tcell config library")
+    import tcell_agent  # pylint: disable=import-self,unused-variable
+    passed()
+
+    printm("Requiring tcell api library")
+    from tcell_agent.api import TCellAPI
+    API = TCellAPI()
+    passed()
+
+    from tcell_agent.config.configuration import CONFIGURATION
+
+    printm("Fetching a policy ({0})".format(CONFIGURATION.tcell_api_url))
+    try:
+        send_succeeded = API.v1update()
+        if send_succeeded.get("last_id") is None:
+            failed()
+            print("No results")
+            print(send_succeeded)
+        else:
+            passed()
+    except Exception as e:
+        failed()
+        print(e)
+
+    printm("Testing event sender ({0})".format(CONFIGURATION.tcell_input_url))
+    try:
+        send_succeeded = API.v1send_events([])
+        if send_succeeded != 200:
+            failed()
+            print(send_succeeded)
+        else:
+            passed()
+    except Exception as e:
+        failed()
+        print(e)
+
+    from tcell_agent.rust.whisperer import version, native_lib
+    printm("Loading native library (v{0})".format(version))
+    if native_lib:
+        passed()
+    else:
+        failed()
+
+
+def run(_parser, args):
+    import tcell_agent  # pylint: disable=import-self
+
+    executable_with_path = which(args.command)
+    if executable_with_path is None:
+        print("command '", args.command, "' not found.")
+        sys.exit(1)
+
+    executable = os.path.basename(executable_with_path)
+
+    path = os.path.dirname(tcell_agent.__file__)
+    tcellpath = os.path.realpath(path + "/../tcell_agent/pythonpath")
+    old_pythonpath = os.environ.get('PYTHONPATH', None)
+    if old_pythonpath is not None:
+        pythonpath_parts = old_pythonpath.split(":")
+        if len(pythonpath_parts) > 0:
+            first_package = pythonpath_parts.pop()
+            if "newrelic" in first_package:
+                pythonpath = first_package + ":" + tcellpath
+                if len(pythonpath_parts) > 0:
+                    pythonpath += ":" + ":".join(pythonpath_parts)
+            else:
+                pythonpath = tcellpath + ":" + old_pythonpath
+
+        else:
+            pythonpath = tcellpath + ":" + old_pythonpath
+
+    else:
+        pythonpath = tcellpath
+
+    os.environ['PYTHONPATH'] = pythonpath
+    if args.config is not None:
+        os.environ['TCELL_AGENT_CONFIG'] = args.config
+    if args.home is not None:
+        os.environ['TCELL_AGENT_HOME'] = args.home
+
+    new_args = args.argument
+    new_args.append(os.environ)
+    os.execle(executable_with_path, executable, *new_args)
+
+
+class _HelpAction(argparse._HelpAction):
+    def __call__(self, parser, namespace, values, option_string=None):
+        parser.print_usage()
+        print('''
+Common commands:
+ run <application command>     Run an application with tcell_agent instrumentation
+ setup                         Can be used for initial setup if you do not download config from the UI
+ loglevel <level>              Set the logging level or turn it off.
+ test                          Test that the config and network settings are valid
+ demomode                      Enable or disable mode in config file
+ packages                      Report all installed packages
+''')
+        # retrieve subparsers from parser
+        subparsers_actions = [
+            action for action in parser._actions
+            if isinstance(action, argparse._SubParsersAction)]
+        # there will probably only be one subparser_action,
+        # but better save than sorry
+        for subparsers_action in subparsers_actions:
+            # get all subparsers and print help
+            for _choice, subparser in subparsers_action.choices.items():
+                subparser.print_usage()
+                # print(subparser.format_help())
+        print()
+        parser.exit()
+
+
+class TCellAgentMain(object):
+    def __init__(self):
+        from tcell_agent import version
+
+        parser = argparse.ArgumentParser(description='tCell.io Agent')
+        parser = argparse.ArgumentParser(add_help=False)  # here we turn off default help action
+        parser.add_argument('-h', '--help', action=_HelpAction,
+                            help='help for help if you need some help')  # add custom help
+        parser.add_argument('--version', action='version', version='%(prog)s ' + version.VERSION)
+        # parser = argparse.ArgumentParser(
+        #    description='tCell.io Agent',
+        #    usage='%s' % (sys.argv[0]),
+        #    add_help=False)
+
+        subparsers = parser.add_subparsers(dest='command', metavar='{run,setup,test,loglevel,packages}')
+
+        run_command = subparsers.add_parser('run')
+        run_command.add_argument('command', help='Run an application with tcell_agent instrumentation')
+        run_command.add_argument('argument', nargs=argparse.REMAINDER, help='Run an application with tcell_agent instrumentation')
+        run_command.add_argument('-c', '--config', help='Location of initial tCell configuration file')
+        run_command.add_argument('--home', help='tCell home (if not CWD) where logs & cache files will be placed')
+        run_command.set_defaults(func=run)
+
+        setup_command = subparsers.add_parser('setup')
+        setup_command.set_defaults(func=setup)
+
+        test_command = subparsers.add_parser('test')
+        test_command.set_defaults(func=test)
+
+        loglevel_choices = ["debug", "info", "warn", "error", "off"]
+        loglevel_command = subparsers.add_parser('loglevel')
+        loglevel_command.add_argument('level', help='Log Level (' + ",".join(loglevel_choices) + ")",
+                                      choices=loglevel_choices)
+        loglevel_command.set_defaults(func=loglevel)
+
+        demo_command = subparsers.add_parser('demomode')
+        demo_command.set_defaults(func=demomode)
+        demo_command.add_argument('-o', '--off', action='store_true')
+
+        packages_command = subparsers.add_parser('packages')
+        packages_command.set_defaults(func=report_packages)
+
+        args = parser.parse_args()
+        args.func(parser, args)
+
+
+if __name__ == "__main__":
+    TCellAgentMain()
