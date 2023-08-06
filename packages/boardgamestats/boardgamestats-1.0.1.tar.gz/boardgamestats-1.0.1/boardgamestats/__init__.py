@@ -1,0 +1,2 @@
+from .bgs import boardGame
+
