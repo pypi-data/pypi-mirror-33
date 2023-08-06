@@ -1,0 +1,328 @@
+
+{% macro display_table_card_header( tableprofile) -%}
+     <div class="content click">
+          <a class="ui right corner mini label">
+        <i class="ui mouse pointer icon"></i>
+      </a>
+        <div class="header"> <a href="{{tableprofile.csv}}">{{tableprofile.csv.rpartition("/")[-1]}}</a></div>
+        <div class="meta">
+             {{tableprofile.no_rows| int}} rows x {{tableprofile.no_cols | int}} columns
+        </div>
+    </div>
+{%- endmacro %}
+
+{% macro display_table_dialect( table_meta ) %}
+
+ <div class="content">
+            <div class="ui mini divided horizontal list">
+                <div class="item">
+                    <div class="center aligned content">
+                        <div class="sub header">Quotechar</div>
+                        {{table_meta.dialect.quotechar}}&nbsp;
+                    </div>
+                </div>
+                <div class="item">
+                    <div class="center aligned content">
+                        <div class="sub header">Delimiter</div>
+                        {{table_meta.dialect.delimiter}}&nbsp;
+                    </div>
+                </div>
+                <div class="item">
+                    <div class="center aligned content">
+                        <div class="sub header">lineterminator</div>
+                        {{table_meta.dialect.lineterminator}}&nbsp;
+                    </div>
+                </div>
+                <div class="item">
+                    <div class="center aligned content">
+                        <div class="sub header">quoting</div>
+                        {{table_meta.dialect.quoting}}&nbsp;
+                    </div>
+                </div>
+                <div class="item">
+                    <div class="center aligned content">
+                        <div class="sub header">skipinitialspace</div>
+                        {{table_meta.dialect.skipinitialspace}}&nbsp;
+                    </div>
+                </div>
+                <div class="item">
+                    <div class="center aligned content">
+                        <div class="sub header">doublequote</div>
+                        {{table_meta.dialect.doublequote}}&nbsp;
+                    </div>
+                </div>
+            </div>
+        </div>
+{%- endmacro %}
+
+{% macro display_table_card_data( table, sample ) %}
+    <div class="content" style="display:none">
+        <h5 class="ui divider horizontal header">Table Sample</h5>
+        <div style="width:100%;overflow-x: scroll;">
+            <table class="ui celled striped very compact small table">
+                <thead>
+                     <tr>
+                        {% for h in  sample[0] %}
+                            <th {% if h|length >5 %}class="ellipsis" {% endif %}>{{h}}</th>
+                        {% endfor %}
+                    </th>
+                </thead>
+                <tbody style="display:none">
+                    {% for row in  sample[1:] %}
+                    <tr>
+                        {% for c in  row %}
+                        <td {% if c|length >5 %}class="ellipsis" {% endif %}>{{c}}</td>
+                        {% endfor %}
+                    </th>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{%- endmacro %}
+
+
+{% macro display_table_fd( profiledata) -%}
+    <div class="content" style="display:none">
+        <h5 class="ui divider horizontal header">Possible Primary key column (pairs)</h5>
+        {% for pk in profiledata.table_profile.table_tane %}
+            <span class="ui label">[
+                {% for c in pk %}
+                     {{profiledata.table_metadata.column_names[c|int]}}&nbsp;
+                {% endfor %}
+                ]
+            </span>
+        {% endfor %}
+
+    </div>
+{%- endmacro %}
+
+{% macro display_table_colum_profile(profiledata) -%}
+    <div class="content" style="display:none">
+        <h5 class="ui divider horizontal header">Column Profile</h5>
+        <div style="width:100%;overflow-x: scroll;">
+            <table class="ui very compact definition table">
+                <thead>
+                    <tr class="center aligned">
+                        <th></th>
+                        {% for id in profiledata.table_metadata.column_names %}
+                            <th>{{id}}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                {% for k in ['data_type','data_class','patterns','cset', 'stats_mode','stats_num_rows','stats_distinct','stats_empty', 'stats_min_value','stats_max_value'] %}
+                    <tr class="right aligned">
+                        <td>{{k | replace('stats_', '')}}</td>
+                        {% for i in range(0, profiledata.table_metadata.column_names| length,1 ) %}
+                            {% if k in ['data_type','data_class'] %}
+                                <td class="center aligned"><span class="ui basic label"><span class="ui sub header">{{ profiledata.col_profiles['col'~(i+1)][k] }}</span></span></td>
+                            {% else %}
+                                {% if profiledata.col_profiles['col'~(i+1)][k] is string %}
+                                    <td>{{ profiledata.col_profiles['col'~(i+1)][k] }}</td>
+                                {% else %}
+                                    <td>{{ profiledata.col_profiles['col'~(i+1)][k] }}</td>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                    <tr class="right aligned">
+                        <td>value length</td>
+                        {% for i in range(0, profiledata.table_metadata.column_names| length,1 ) %}
+                            <td>
+                                <table class="ui small very compact table">
+                                    <tbody>
+                                        <tr>
+                                            <th>min</th>
+                                            <th>mean</th>
+                                            <th>max</th>
+                                        </tr>
+                                        <tr>
+                                            <td>{{ profiledata.col_profiles['col'~(i+1)]['stats_min_len'] }}</td>
+                                            <td>{{ profiledata.col_profiles['col'~(i+1)]['stats_mean_len'] |round|int}}</td>
+                                            <td>{{ profiledata.col_profiles['col'~(i+1)]['stats_max_len'] }}</td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    {% for k in ['stats_constancy','stats_uniqueness','stats_mode','c_dist_dist','benford_follows','benford_chi'] %}
+                    <tr class="right aligned">
+                        <td>{{k}}</td>
+                        {% for i in range(0,profiledata.table_metadata.column_names| length,1 ) %}
+                            {% if k in ['data_type','data_class'] %}
+                                <td class="center aligned"><span class="ui basic olive label">{{ profiledata.col_profiles['col'~(i+1)][k] }}</span></td>
+                            {% else %}
+                                {% if profiledata.col_profiles['col'~(i+1)][k] is string %}
+                                    <td>{{ profiledata.col_profiles['col'~(i+1)][k] }}</td>
+                                {% else %}
+                                    <td>{{ profiledata.col_profiles['col'~(i+1)][k] }}</td>
+                                {% endif %}
+
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                {% for k in ['benford_dist'] %}
+                    <tr class="right aligned">
+                        <td>{{k}}</td>
+                        {% for i in range(0, profiledata.table_metadata.column_names| length,1 ) %}
+                                <td>{{ barchart( profiledata.col_profiles['col'~(i+1)][k] ) }}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{%- endmacro %}
+
+{% macro display_table( table, sample) -%}
+    <div class="ui fluid card" width="100%">
+       {{ display_table_card_header( table, sample ) }}
+       {{ display_table_card_data( table, sample ) }}
+       {{ display_table_fd( table, sample) }}
+    </div>
+{%- endmacro %}
+
+{% macro labelcolor(value) -%}
+    {% if value==1 %} green
+    {% elif value>0.5 %} orange
+    {% endif %}
+{%- endmacro %}
+
+{% macro v_rel_scores( results ) -%}
+    <div class="column">
+        <h4 class="ui block header">
+            <i class="resize vertical icon"></i>
+            <div class="content">Vertical relateness
+                <div class="sub header">score for appending the two tables
+                </div>
+            </div>
+        </h4>
+        <div class="ui  divided three list">
+            <div class="ui item  statistic small {{labelcolor(results.v_score)}}">
+                <div class="value">
+                    {{results.v_score| round(2)}}
+                </div>
+                <div class="label">
+                    <i class=" icon resize vertical"></i>
+
+                    V = (ND*SS)
+                </div>
+            </div>
+            <div class="ui item tiny statistic  {{labelcolor(results.nd_score)}}">
+                <div class="value">
+                    {{results.nd_score| round(2)}}
+                </div>
+                <div class="label">
+                    <i class=" icon resize vertical"></i>
+                    ND (new data score)
+                </div>
+            </div>
+            <div class="ui item tiny  statistic {{labelcolor(results.ss_score)}}">
+                <div class="value">
+
+                    {{results.ss_score| round(2)}}
+                </div>
+                <div class="label">
+                    <i class=" icon resize vertical"></i>
+                    SS (structural similarity)
+                </div>
+            </div>
+        </div>
+
+    </div>
+{%- endmacro %}
+{% macro h_rel_scores( results ) -%}
+    <div class="column">
+        <h4 class="ui block header">
+            <i class="resize horizontal icon"></i>
+            <div class="content">Horizontal relateness
+                <div class="sub header">score for joining/merging the two tables
+                </div>
+            </div>
+        </h4>
+        <div class="ui  divided three list">
+            <div class="ui item  small statistic {{labelcolor(results.h_score)}}">
+                <div class="value">
+                    <i class="icon resize horizontal"></i>
+                    {{results.h_score| round(2)}}
+                </div>
+                <div class="label">
+                    H  = (JC*SB)
+                </div>
+            </div>
+            <div class="ui item tiny  statistic {{labelcolor(results.jc_score)}}">
+                <div class="value">
+                    <i class=" icon small columns"></i>
+                    {{results.jc_score| round(2)}}
+                </div>
+                <div class="label">
+
+                    JC
+                </div>
+            </div>
+            <div class="ui item tiny  statistic {{labelcolor(results.sb_score)}}">
+                <div class="value">
+                    <i class=" icon clone"></i>
+                    {{results.sb_score| round(2)}}
+                </div>
+                <div class="label">
+
+                    SB
+                </div>
+            </div>
+        </div>
+    </div>
+{%- endmacro %}
+
+
+
+
+{% macro barchart(data) -%}
+    {% if data %}
+        <div class="graph_fancy" data-x-label="digits" data-y-label="">
+            <span class="bar"></span>
+            {% for digit, cnt in data.items() %}
+                <span class="bar" style="height: {{cnt*100}}%;" data-bar-label="{{digit}}" data-bar-value="{{cnt*100 | round}}%"></span>
+            {% endfor %}
+        </div>
+    {% endif %}
+{%- endmacro %}
+{% macro table_colum_profile(table , sample) -%}
+    <div class="ui fluid card" width="100%">
+       {{ display_table_card_header( table, sample ) }}
+       {{ display_table_colum_profile( table, sample ) }}
+    </div>
+{%- endmacro %}
+
+
+{% macro scripts() -%}
+    $('.menu .item')
+        .tab()
+    ;
+    $("thead").find("th").on("click", function() {
+        $(this).closest("table").find("tbody").toggle(); //you can set delay within toggle as well, like .toggle(500);
+    });
+
+
+    $("div.card").find("div.click").on("click", function() {
+        $(this).parent().find(".content").not(":eq(0)").toggle(); //you can set delay within toggle as well, like .toggle(500);
+    });
+
+    $('.accordion')
+        .accordion({
+            selector: {
+                trigger: '.title .icon'
+                }
+        })
+    ;
+
+     $('.gotodebug').click(function() { console.log('click')
+        $('.menu .item').tab('change tab', 'third')
+    });
+{%- endmacro %}
