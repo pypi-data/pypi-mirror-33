@@ -1,0 +1,284 @@
+Metadata-Version: 2.1
+Name: pytablereader
+Version: 0.20.2
+Summary: A Python library to load structured table data from files/strings/URL with various data format: CSV / Excel / Google-Sheets / HTML / JSON / LDJSON / LTSV / Markdown / SQLite / TSV.
+Home-page: https://github.com/thombashi/pytablereader
+Author: Tsuyoshi Hombashi
+Author-email: tsuyoshi.hombashi@gmail.com
+License: MIT License
+Project-URL: Documentation, http://pytablereader.rtfd.io/
+Project-URL: Tracker, https://github.com/thombashi/pytablereader/issues
+Keywords: table,reader,pandas,CSV,Excel,HTML,JSON,LTSV,Markdown,MediaWiki,TSV,SQLite
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Information Technology
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Topic :: Database
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Requires-Python: >=2.7,!=3.0.*,!=3.1.*,!=3.2.*
+Provides-Extra: test
+Provides-Extra: docs
+Provides-Extra: release
+Provides-Extra: gs
+Provides-Extra: build
+Requires-Dist: setuptools (>=38.3.0)
+Requires-Dist: beautifulsoup4 (>=4.6.0)
+Requires-Dist: DataProperty (>=0.31.1)
+Requires-Dist: jsonschema (>=2.6.0)
+Requires-Dist: logbook
+Requires-Dist: markdown2 (>=2.3.5)
+Requires-Dist: mbstrdecoder (>=0.4.0)
+Requires-Dist: pathvalidate (>=0.19.0)
+Requires-Dist: path.py (>=10.3.1)
+Requires-Dist: requests (>=2.18.4)
+Requires-Dist: simplejson (>=3.16.0)
+Requires-Dist: six
+Requires-Dist: tabledata (>=0.0.20)
+Requires-Dist: typepy (>=0.1.1)
+Requires-Dist: xlrd (>=1.1.0)
+Requires-Dist: enum34; python_version < "3.4"
+Provides-Extra: build
+Requires-Dist: wheel; extra == 'build'
+Provides-Extra: docs
+Requires-Dist: path.py; extra == 'docs'
+Requires-Dist: readmemaker (>=0.6.0); extra == 'docs'
+Requires-Dist: sphinx-rtd-theme; extra == 'docs'
+Requires-Dist: Sphinx; extra == 'docs'
+Provides-Extra: gs
+Requires-Dist: gspread; extra == 'gs'
+Requires-Dist: oauth2client; extra == 'gs'
+Requires-Dist: pyOpenSSL; extra == 'gs'
+Requires-Dist: SimpleSQLite (>=0.26.0); extra == 'gs'
+Provides-Extra: release
+Requires-Dist: releasecmd (>=0.0.10); extra == 'release'
+Provides-Extra: test
+Requires-Dist: pypandoc; extra == 'test'
+Requires-Dist: pytablewriter (>=0.30.0); extra == 'test'
+Requires-Dist: pytest-cov; extra == 'test'
+Requires-Dist: pytest; extra == 'test'
+Requires-Dist: responses; extra == 'test'
+Requires-Dist: SimpleSQLite (>=0.26.0); extra == 'test'
+Requires-Dist: tox; extra == 'test'
+Requires-Dist: urllib3 (==1.21.1); extra == 'test'
+
+**pytablereader**
+
+.. contents:: Table of Contents
+   :depth: 2
+
+Summary
+=========
+A Python library to load structured table data from files/strings/URL with various data format: CSV / Excel / Google-Sheets / HTML / JSON / LDJSON / LTSV / Markdown / SQLite / TSV.
+
+.. image:: https://badge.fury.io/py/pytablereader.svg
+    :target: https://badge.fury.io/py/pytablereader
+
+.. image:: https://img.shields.io/pypi/pyversions/pytablereader.svg
+   :target: https://pypi.python.org/pypi/pytablereader
+
+.. image:: https://img.shields.io/travis/thombashi/pytablereader/master.svg?label=Linux/macOS
+    :target: https://travis-ci.org/thombashi/pytablereader
+    :alt: Linux CI test status
+
+.. image:: https://img.shields.io/appveyor/ci/thombashi/pytablereader/master.svg?label=Windows
+    :target: https://ci.appveyor.com/project/thombashi/pytablereader/branch/master
+    :alt: Windows CI test status
+
+.. image:: https://coveralls.io/repos/github/thombashi/pytablereader/badge.svg?branch=master
+    :target: https://coveralls.io/github/thombashi/pytablereader?branch=master
+
+.. image:: https://img.shields.io/github/stars/thombashi/pytablereader.svg?style=social&label=Star
+   :target: https://github.com/thombashi/pytablereader
+
+Features
+--------
+- Extract structured tabular data from various data format:
+    - CSV
+    - Microsoft Excel :superscript:`TM` file
+    - `Google Sheets <https://www.google.com/intl/en_us/sheets/about/>`_
+    - HTML
+    - JSON
+    - `Labeled Tab-separated Values (LTSV) <http://ltsv.org/>`__
+    - `Line-delimited JSON(LDJSON) <https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON>`__/NDJSON/JSON Lines
+    - Markdown
+    - MediaWiki
+    - Space separated values (SSV)
+    - SQLite database file
+    - Tab separated values (TSV)
+- Supported data sources are:
+    - Files on a local file system
+    - Accessible URLs
+    - ``str`` instances
+- Loaded table data can be used as:
+    - `pandas.DataFrame <http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html>`__ instance
+    - ``dict`` instance
+
+Examples
+==========
+Load a CSV table
+------------------
+:Sample Code:
+    .. code-block:: python
+
+        import pytablereader as ptr
+        import pytablewriter as ptw
+
+
+        # prepare data ---
+        file_path = "sample_data.csv"
+        csv_text = "\n".join([
+            '"attr_a","attr_b","attr_c"',
+            '1,4,"a"',
+            '2,2.1,"bb"',
+            '3,120.9,"ccc"',
+        ])
+
+        with open(file_path, "w") as f:
+            f.write(csv_text)
+
+        # load from a csv file ---
+        loader = ptr.CsvTableFileLoader(file_path)
+        for table_data in loader.load():
+            print("\n".join([
+                "load from file",
+                "==============",
+                "{:s}".format(ptw.dump_tabledata(table_data)),
+            ]))
+
+        # load from a csv text ---
+        loader = ptr.CsvTableTextLoader(csv_text)
+        for table_data in loader.load():
+            print("\n".join([
+                "load from text",
+                "==============",
+                "{:s}".format(ptw.dump_tabledata(table_data)),
+            ]))
+
+
+:Output:
+    .. code-block::
+
+        load from file
+        ==============
+        .. table:: sample_data
+
+            ======  ======  ======
+            attr_a  attr_b  attr_c
+            ======  ======  ======
+                 1     4.0  a
+                 2     2.1  bb
+                 3   120.9  ccc
+            ======  ======  ======
+
+        load from text
+        ==============
+        .. table:: csv2
+
+            ======  ======  ======
+            attr_a  attr_b  attr_c
+            ======  ======  ======
+                 1     4.0  a
+                 2     2.1  bb
+                 3   120.9  ccc
+            ======  ======  ======
+
+Get loaded table data as pandas.DataFrame instance
+----------------------------------------------------
+
+:Sample Code:
+    .. code-block:: python
+
+        import pytablereader as ptr
+
+        loader = ptr.CsvTableTextLoader(
+            "\n".join([
+                "a,b",
+                "1,2",
+                "3.3,4.4",
+            ]))
+        for table_data in loader.load():
+            print(table_data.as_dataframe())
+
+:Output:
+    .. code-block::
+
+             a    b
+        0    1    2
+        1  3.3  4.4
+
+For more information
+----------------------
+More examples are available at 
+http://pytablereader.rtfd.io/en/latest/pages/examples/index.html
+
+Installation
+============
+
+::
+
+    pip install pytablereader
+
+
+Dependencies
+============
+Python 2.7+ or 3.4+
+
+Mandatory Python packages
+----------------------------------
+- `beautifulsoup4 <https://www.crummy.com/software/BeautifulSoup/>`__
+- `DataPropery <https://github.com/thombashi/DataProperty>`__ (Used to extract data types)
+- `jsonschema <https://github.com/Julian/jsonschema>`__
+- `logbook <http://logbook.readthedocs.io/en/stable/>`__
+- `markdown2 <https://github.com/trentm/python-markdown2>`__
+- `mbstrdecoder <https://github.com/thombashi/mbstrdecoder>`__
+- `pathvalidate <https://github.com/thombashi/pathvalidate>`__
+- `path.py <https://github.com/jaraco/path.py>`__
+- `requests <http://python-requests.org/>`__
+- `six <https://pypi.python.org/pypi/six/>`__
+- `tabledata <https://github.com/thombashi/tabledata>`__
+- `typepy <https://github.com/thombashi/typepy>`__
+- `xlrd <https://github.com/python-excel/xlrd>`__
+
+Optional Python packages
+------------------------------------------------
+- `pypandoc <https://github.com/bebraw/pypandoc>`__
+    - required when loading MediaWiki file
+- `pandas <http://pandas.pydata.org/>`__
+    - required to get table data as a pandas data frame
+- `lxml <http://lxml.de/installation.html>`__
+
+Optional packages (other than Python packages)
+------------------------------------------------
+- ``libxml2`` (faster HTML conversion)
+- `pandoc <http://pandoc.org/>`__ (required when loading MediaWiki file)
+
+Test dependencies
+-----------------
+- `pytablewriter <https://github.com/thombashi/pytablewriter>`__
+- `pytest <http://pytest.org/latest/>`__
+- `pytest-runner <https://pypi.python.org/pypi/pytest-runner>`__
+- `responses <https://github.com/getsentry/responses>`__
+- `SimpleSQLite <https://github.com/thombashi/SimpleSQLite>`__
+- `tox <https://testrun.org/tox/latest/>`__
+
+Documentation
+===============
+http://pytablereader.rtfd.io/
+
+Related Project
+=================
+- `pytablewriter <https://github.com/thombashi/pytablewriter>`__
+    - Tabular data loaded by ``pytablereader`` can be written another tabular data format with ``pytablewriter``.
+
+
+
