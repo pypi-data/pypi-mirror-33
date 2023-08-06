@@ -1,0 +1,249 @@
+all:
+    `ctx.opts = None`
+    (
+    args_def
+    `ctx.opts = args_def.res`
+    )?
+    rule_seq
+    `ctx.rule_defs = rule_seq.res`
+    end
+
+end:
+    '$'
+
+args_def:
+    args_sign
+    args_group
+    ```
+pairs = []
+item = args_group
+while 'arg_item' in item:
+    pairs.append(item.arg_item.res)
+    item = item.arg_item
+args = dict(pairs)
+ctx.res = args
+    ```
+
+args_sign:
+    '@'
+
+args_group:
+    brkt_beg (brkt_end | arg_item)
+
+brkt_beg:
+    r'\('
+
+brkt_end:
+    r'\)'
+
+arg_item:
+    arg_expr
+    ```
+ctx.res = arg_expr.res
+ctx.par.arg_item = ctx
+    ```
+    (brkt_end | arg_sep (brkt_end | arg_item))
+
+arg_expr:
+    arg_key
+    arg_kvsep
+    arg_val
+    `ctx.res = (arg_key.res, arg_val.res)`
+
+arg_key:
+    '[a-zA-Z_][a-zA-Z0-9_]*'
+    `ctx.res = arg_key.rem.group()`
+
+arg_kvsep:
+    '='
+
+arg_val:
+    lit_val
+    `ctx.res = lit_val.res`
+
+lit_val:
+    lit_str `ctx.res = lit_str.res`
+    | lit_num `ctx.res = lit_num.res`
+    | lit_bool `ctx.res = lit_bool.res`
+    | lit_none `ctx.res = lit_none.res`
+
+lit_str:
+    'r?(\'\'\'|"""|\'|")((?:[^\\\\]|\\\\.)*?)(\\1)'
+    `ctx.res = eval(lit_str.rem.group())`
+
+lit_num:
+    r"""
+([-+])?         # Sign
+(?=\d|[.]\d)    # Next is an integer part or a fraction part
+(\d*)           # Integer part
+([.]\d*)?       # Fraction part
+(e[-+]?\d+)?    # Exponent part
+""" @(flags='re.VERBOSE | re.IGNORECASE')
+    `ctx.res = eval(lit_num.rem.group())`
+
+lit_bool:
+    '(True|False)(?![a-zA-Z0-9_])'
+    `ctx.res = True if (lit_bool.rem.group() == 'True') else False`
+
+lit_none:
+    'None(?![a-zA-Z0-9_])'
+    `ctx.res = None`
+
+arg_sep:
+    ','
+
+rule_seq:
+    `ctx.res = []`
+    (rule_def
+    `ctx.res.append(rule_def.res)`
+    )+
+
+rule_def:
+    rule_name
+    rule_colon
+    `args = None`
+    (args_def
+    `args = args_def.res`
+    )?
+    or_expr
+    `ctx.res = RuleDef(name=rule_name.res, item=or_expr.res, args=args)`
+
+rule_name:
+    '[a-zA-Z_][a-zA-Z0-9_]*'
+    `ctx.res = rule_name.rem.group()`
+
+rule_colon:
+    ':'
+
+or_expr:
+    seq_expr
+    `items = [seq_expr.res]`
+    (or_expr_op
+    seq_expr
+    `items.append(seq_expr.res)`
+    )*
+    `ctx.res = ExprOr(items) if len(items) > 1 else items[0]`
+
+or_expr_op:
+    r'\|'
+
+seq_expr:
+    `items = []`
+    (
+        (code `items.append(code.res)`)*
+        occ_expr `items.append(occ_expr.res)`
+        (code `items.append(code.res)`)*
+    ) +
+    `ctx.res = ExprSeq(items) if len(items) > 1 else items[0]`
+
+code:
+    r'(`+)((?:.|\n)*?)\1'
+    `ctx.res = Code(code.rem.group(2))`
+
+occ_expr:
+    occ01_group
+    `ctx.res = occ01_group.res`
+    |
+    atom
+    `occ_type = None`
+    ( occ01_trailer `occ_type = 0`
+    | occ0m_trailer `occ_type = 1`
+    | occ1m_trailer `occ_type = 2`
+    )?
+    ```
+if occ_type is None:
+    ctx.res = atom.res
+elif occ_type == 0:
+    item = atom.res
+
+    while isinstance(item, ExprOcc01):
+        item = item.item
+
+    if isinstance(item, ExprOcc0m):
+        ctx.res = item
+    elif isinstance(item, ExprOcc1m):
+        ctx.res = ExprOcc0m(item.item)
+    else:
+        ctx.res = ExprOcc01(item)
+elif occ_type == 1:
+    item = atom.res
+
+    while isinstance(item, (ExprOcc01, ExprOcc0m, ExprOcc1m)):
+        item = item.item
+
+    ctx.res = ExprOcc0m(item)
+elif occ_type == 2:
+    item = atom.res
+
+    while isinstance(item, ExprOcc1m):
+        item = item.item
+
+    if isinstance(item, ExprOcc01):
+        ctx.res = ExprOcc0m(item.item)
+    elif isinstance(item, ExprOcc0m):
+        ctx.res = item
+    else:
+        ctx.res = ExprOcc1m(item)
+else:
+    assert 0
+    ```
+
+occ01_group:
+    sqrbrkt_beg
+    or_expr
+    sqrbrkt_end
+    ```
+item = or_expr.res
+
+while isinstance(item, ExprOcc01):
+    item = item.item
+
+if isinstance(item, ExprOcc0m):
+    ctx.res = item
+elif isinstance(item, ExprOcc1m):
+    ctx.res = ExprOcc0m(item.item)
+else:
+    ctx.res = ExprOcc01(item)
+    ```
+
+sqrbrkt_beg:
+    r'\['
+
+sqrbrkt_end:
+    r'\]'
+
+occ01_trailer:
+    r'\?'
+
+occ0m_trailer:
+    r'\*'
+
+occ1m_trailer:
+    r'\+'
+
+atom:
+    regex_str
+    `args = None`
+    (args_def
+    `args = args_def.res`
+    )?
+    `ctx.res = Pattern(regex_str.res, args=args)`
+    | rule_ref `ctx.res = rule_ref.res`
+    | group `ctx.res = group.res`
+
+regex_str:
+    'r?(\'\'\'|"""|\'|")((?:[^\\\\]|\\\\.)*?)(\\1)'
+    `ctx.res = regex_str.rem.group()`
+
+rule_ref:
+    r'([a-zA-Z_][a-zA-Z0-9_]*)(?![a-zA-Z0-9_])[\s]*(?![:])'
+    ```
+name = rule_ref.rem.group(1)
+ctx.res = RuleRef(name)
+    ```
+
+group:
+    brkt_beg
+    or_expr
+    brkt_end
+    `ctx.res = or_expr.res`
