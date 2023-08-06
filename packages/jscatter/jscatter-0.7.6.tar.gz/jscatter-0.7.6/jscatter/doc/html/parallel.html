@@ -1,0 +1,616 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>10. parallel &#8212; jscatter 0.7.6 documentation</title>
+    <link rel="stylesheet" href="_static//default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="shortcut icon" href="_static/Jscatter-32x-32.png"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="11. Plotting in XmGrace" href="GracePlot.html" />
+    <link rel="prev" title="9. dls" href="dls.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="GracePlot.html" title="11. Plotting in XmGrace"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="dls.html" title="9. dls"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">jscatter 0.7.6 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="parallel">
+<h1>10. parallel<a class="headerlink" href="#parallel" title="Permalink to this headline">¶</a></h1>
+<p>Functions for parallel computations on a single multi core machine using the standard library multiprocessing.</p>
+<p>Not the programming details, but the way how to speed up some things.</p>
+<ul class="simple">
+<li>If your computation is already fast (e.g. &lt;1s) go on without parallelisation.
+In an optimal case you gain a speedup as the number of cpu cores.</li>
+<li>If you want to use a cluster with all cpus, this is not the way (you need MPI).</li>
+</ul>
+<p>Parallelisation is no magic and this module is for convenience for non specialist of parallel computing.
+The main thing is to pass additional parameters to the processes (a pool of workers)
+and loop only over one parameter given as list.
+Opening and closing of the pool is hidden in the function.
+In this way we can use a multicore machine with all cpus.</p>
+<p>During testing I found that shared memory does not really speed up,
+if we just want to calculate a function e.g. for a list of different
+Q values dependent on model parameters. Here the pickling of numpy arrays is
+efficient enough compared to the computation we do.
+The amount of data pickled should not be too large as each process
+gets a copy and pickling needs time.</p>
+<p>If speed is an issue and shared memory gets important i advice using Fortran with OpenMP
+as used for ff.cloudScattering with parallel computation and shared memory.
+For me this was easier than the different solutions around.</p>
+<p>We use here only non modified input data and return a new dataset,
+so we dont need to care about what happens if one process changes the data needed
+in another process (race conditions,…), anyway its not shared.
+Please keep this in mind and dont complain if you find a way to modify input data.</p>
+<p>For easier debugging (to find the position of an error in the pdb debugger) use the option debug.
+In this case the multiprocessing is not used and the debugger finds the error correctly.</p>
+<p>See example in doForList.</p>
+<hr class="docutils" />
+<p><strong>Parallel functions</strong></p>
+<table border="1" class="longtable docutils">
+<colgroup>
+<col width="10%" />
+<col width="90%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><a class="reference internal" href="#jscatter.parallel.doForList" title="jscatter.parallel.doForList"><code class="xref py py-obj docutils literal notranslate"><span class="pre">doForList</span></code></a>(funktion,&nbsp;looplist,&nbsp;*args,&nbsp;**kwargs)</td>
+<td>Calculates function for values in looplist in a pool of workers in parallel usinf multiprocessing.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#jscatter.parallel.doForQlist" title="jscatter.parallel.doForQlist"><code class="xref py py-obj docutils literal notranslate"><span class="pre">doForQlist</span></code></a>(funktion,&nbsp;qList,&nbsp;*args,&nbsp;**kwargs)</td>
+<td>Calculates for qlist the function in a pool of workers using multiprocessing.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#jscatter.parallel.psphereAverage" title="jscatter.parallel.psphereAverage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">psphereAverage</span></code></a>(funktion[,&nbsp;relError])</td>
+<td>Parallel evaluation of spherical average of function.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Helper functions</strong></p>
+<table border="1" class="longtable docutils">
+<colgroup>
+<col width="10%" />
+<col width="90%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><a class="reference internal" href="#jscatter.parallel.randomPointsN" title="jscatter.parallel.randomPointsN"><code class="xref py py-obj docutils literal notranslate"><span class="pre">randomPointsN</span></code></a>(NN[,&nbsp;r,&nbsp;skip])</td>
+<td>N quasi random points on sphere of radius r based on low-discrepancy sequence.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#jscatter.parallel.rphitheta2xyz" title="jscatter.parallel.rphitheta2xyz"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rphitheta2xyz</span></code></a>(RPT)</td>
+<td>Transformation  spherical coordinates [r,phi,theta]  to cartesian coordinates [x,y,z]</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="#jscatter.parallel.fibonacciLatticePointsOnSphere" title="jscatter.parallel.fibonacciLatticePointsOnSphere"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fibonacciLatticePointsOnSphere</span></code></a>(NN[,&nbsp;r])</td>
+<td>Fibonacci lattice points on a sphere with radius r (default r=1)</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="#jscatter.parallel.haltonSequence" title="jscatter.parallel.haltonSequence"><code class="xref py py-obj docutils literal notranslate"><span class="pre">haltonSequence</span></code></a>(size,&nbsp;dim)</td>
+<td>Pseudo random numbers from the  Halton sequence</td>
+</tr>
+</tbody>
+</table>
+<hr class="docutils" />
+<span class="target" id="module-jscatter.parallel"></span><p>Functions for parallel computations on a single multi core machine using the standard library multiprocessing.</p>
+<p>Not the programming details, but the way how to speed up some things.</p>
+<ul class="simple">
+<li>If your computation is already fast (e.g. &lt;1s) go on without parallelisation.
+In an optimal case you gain a speedup as the number of cpu cores.</li>
+<li>If you want to use a cluster with all cpus, this is not the way (you need MPI).</li>
+</ul>
+<p>Parallelisation is no magic and this module is for convenience for non specialist of parallel computing.
+The main thing is to pass additional parameters to the processes (a pool of workers)
+and loop only over one parameter given as list.
+Opening and closing of the pool is hidden in the function.
+In this way we can use a multicore machine with all cpus.</p>
+<p>During testing I found that shared memory does not really speed up,
+if we just want to calculate a function e.g. for a list of different
+Q values dependent on model parameters. Here the pickling of numpy arrays is
+efficient enough compared to the computation we do.
+The amount of data pickled should not be too large as each process
+gets a copy and pickling needs time.</p>
+<p>If speed is an issue and shared memory gets important i advice using Fortran with OpenMP
+as used for ff.cloudScattering with parallel computation and shared memory.
+For me this was easier than the different solutions around.</p>
+<p>We use here only non modified input data and return a new dataset,
+so we dont need to care about what happens if one process changes the data needed
+in another process (race conditions,…), anyway its not shared.
+Please keep this in mind and dont complain if you find a way to modify input data.</p>
+<p>For easier debugging (to find the position of an error in the pdb debugger) use the option debug.
+In this case the multiprocessing is not used and the debugger finds the error correctly.</p>
+<p>See example in doForList.</p>
+<dl class="function">
+<dt id="jscatter.parallel.doForList">
+<code class="descclassname">jscatter.parallel.</code><code class="descname">doForList</code><span class="sig-paren">(</span><em>funktion</em>, <em>looplist</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/jscatter/parallel.html#doForList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jscatter.parallel.doForList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates function for values in looplist in a pool of workers in parallel usinf multiprocessing.</p>
+<p>Like multiprocessing map_async but distributes automatically all given arguments.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
+<dt><strong>funktion</strong> <span class="classifier-delimiter">:</span> <span class="classifier">function</span></dt>
+<dd><p class="first last">Function to process with arguments (looplist[i],args,kwargs)
+Return value of function should contain parameters or at least the loopover value to allow a check, if desired.</p>
+</dd>
+<dt><strong>looplist</strong> <span class="classifier-delimiter">:</span> <span class="classifier">list</span></dt>
+<dd><p class="first last">List of values to loop over.</p>
+</dd>
+<dt><strong>loopover</strong> <span class="classifier-delimiter">:</span> <span class="classifier">string, int,default= Not given</span></dt>
+<dd><p class="first last">Name of argument to use for looping over with values in looplist.
+If not given the first argument is used, which should be not included as argument.</p>
+</dd>
+<dt><strong>ncpu</strong> <span class="classifier-delimiter">:</span> <span class="classifier">int, optional</span></dt>
+<dd><dl class="first last docutils">
+<dt>Number of cpus in the pool.</dt>
+<dd><ul class="first last simple">
+<li>not given or 0   -&gt; all cpus are used</li>
+<li>int&gt;0      min (ncpu, mp.cpu_count)</li>
+<li>int&lt;0      ncpu not to use</li>
+</ul>
+</dd>
+</dl>
+</dd>
+<dt><strong>cb</strong> <span class="classifier-delimiter">:</span> <span class="classifier">None, function</span></dt>
+<dd><p class="first last">Callback after each calculation.</p>
+</dd>
+<dt><strong>debug</strong> <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd><p class="first last">debug &gt; 0 allows serial output for testing</p>
+</dd>
+</dl>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
+<dt><strong>list</strong> <span class="classifier-delimiter">:</span> <span class="classifier">list of function return values as  [result1,result2,…..]</span></dt>
+<dd><p class="first last">The order of return values is not explicitly synced to looplist.</p>
+</dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>The return array of function may be prepended with the value looplist[i] as reference.
+E.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">d</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">x</span><span class="p">,</span><span class="n">x</span><span class="o">+</span><span class="n">a</span><span class="o">+</span><span class="n">b</span><span class="o">+</span><span class="n">c</span><span class="o">+</span><span class="n">d</span><span class="p">]</span>
+</pre></div>
+</div>
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">d</span><span class="p">):</span>
+   <span class="n">res</span><span class="o">=</span><span class="n">x</span><span class="o">+</span><span class="n">a</span><span class="o">+</span><span class="n">b</span><span class="o">+</span><span class="n">c</span><span class="o">+</span><span class="n">d</span>
+   <span class="k">return</span> <span class="p">[</span><span class="n">x</span><span class="p">,</span><span class="n">res</span><span class="p">]</span>
+<span class="c1"># loop over first argument, here x</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">js</span><span class="o">.</span><span class="n">parallel</span><span class="o">.</span><span class="n">doForList</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="n">looplist</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">c</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">d</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
+<span class="c1"># loop over &#39;d&#39; ignoring the given d=11 (which can be omitted here)</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">js</span><span class="o">.</span><span class="n">parallel</span><span class="o">.</span><span class="n">doForList</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="n">looplist</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span><span class="n">loopover</span><span class="o">=</span><span class="s1">&#39;d&#39;</span><span class="p">,</span><span class="n">x</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">c</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">d</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="jscatter.parallel.doForQlist">
+<code class="descclassname">jscatter.parallel.</code><code class="descname">doForQlist</code><span class="sig-paren">(</span><em>funktion</em>, <em>qList</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/jscatter/parallel.html#doForQlist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jscatter.parallel.doForQlist" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates for qlist the function in a pool of workers using multiprocessing.</p>
+<p>Calcs [function(Qi, <a href="#id1"><span class="problematic" id="id2">*</span></a>args, <a href="#id3"><span class="problematic" id="id4">**</span></a>kwargs) for Qi in qlist ] in parallel.
+The return value of function will contain the value Qi as reference.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
+<dt><strong>funktion</strong> <span class="classifier-delimiter">:</span> <span class="classifier">function</span></dt>
+<dd><p class="first last">Function to process with arguments (looplist[i],args,kwargs)</p>
+</dd>
+<dt><strong>qList</strong> <span class="classifier-delimiter">:</span> <span class="classifier">list</span></dt>
+<dd><p class="first last">List of values for first argument in function.
+qList value prepends the arguments args.</p>
+</dd>
+<dt><strong>ncpu</strong> <span class="classifier-delimiter">:</span> <span class="classifier">int, optional</span></dt>
+<dd><div class="first last line-block">
+<div class="line">number of cpus in the pool</div>
+<div class="line">not given or 0   -&gt; all cpus are used</div>
+<div class="line">int&gt;0      min (ncpu, mp.cpu_count)</div>
+<div class="line">int&lt;0      ncpu not to use</div>
+</div>
+</dd>
+<dt><strong>cb :function, optional</strong></dt>
+<dd><p class="first last">Callback after each calculation</p>
+</dd>
+<dt><strong>debug</strong> <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd><p class="first last">debug &gt; 0 allows serial output for testing</p>
+</dd>
+</dl>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
+<dt><strong>list</strong> <span class="classifier-delimiter">:</span> <span class="classifier">ndim function_return.ndim+1</span></dt>
+<dd><p class="first last">The list elements will be prepended with the value qlist[i] as reference.</p>
+</dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">d</span><span class="p">):</span>
+   <span class="k">return</span> <span class="p">[</span><span class="n">x</span><span class="o">+</span><span class="n">a</span><span class="o">+</span><span class="n">b</span><span class="o">+</span><span class="n">c</span><span class="o">+</span><span class="n">d</span><span class="p">]</span>
+<span class="c1"># loop over first argument here x</span>
+<span class="n">js</span><span class="o">.</span><span class="n">parallel</span><span class="o">.</span><span class="n">doForList</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="n">Qlist</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span><span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">c</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">d</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="jscatter.parallel.fibonacciLatticePointsOnSphere">
+<code class="descclassname">jscatter.parallel.</code><code class="descname">fibonacciLatticePointsOnSphere</code><span class="sig-paren">(</span><em>NN</em>, <em>r=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/jscatter/parallel.html#fibonacciLatticePointsOnSphere"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jscatter.parallel.fibonacciLatticePointsOnSphere" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fibonacci lattice points on a sphere with radius r (default r=1)</p>
+<p>This can be used to integrate efficiently over a sphere with well distributed points.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
+<dt><strong>NN</strong> <span class="classifier-delimiter">:</span> <span class="classifier">integer</span></dt>
+<dd><p class="first last">number of points = 2*N+1</p>
+</dd>
+<dt><strong>r</strong> <span class="classifier-delimiter">:</span> <span class="classifier">float, default 1</span></dt>
+<dd><p class="first last">radius of sphere</p>
+</dd>
+</dl>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
+<dt><strong>list of [r,phi,theta]  pairs in radians</strong></dt>
+<dd><p class="first last">phi  azimuth -pi&lt;phi&lt;pi; theta polar angle  0&lt;theta&lt;pi</p>
+</dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">References</p>
+<table class="docutils citation" frame="void" id="r41fa007d96e8-1" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id5">[1]</a></td><td>Measurement of Areas on a Sphere Using Fibonacci and Latitude–Longitude Lattices
+Á. González Mathematical Geosciences 42, 49-64 (2009)</td></tr>
+</tbody>
+</table>
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jscatter</span> <span class="k">as</span> <span class="nn">js</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">mpl_toolkits.mplot3d</span> <span class="k">import</span> <span class="n">Axes3D</span>
+<span class="n">points</span><span class="o">=</span><span class="n">js</span><span class="o">.</span><span class="n">formel</span><span class="o">.</span><span class="n">fibonacciLatticePointsOnSphere</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span>
+<span class="n">pp</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">a</span><span class="p">:(</span><span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">&lt;</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">&lt;</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">2</span><span class="p">),</span><span class="n">points</span><span class="p">))</span>
+<span class="n">pxyz</span><span class="o">=</span><span class="n">js</span><span class="o">.</span><span class="n">formel</span><span class="o">.</span><span class="n">rphitheta2xyz</span><span class="p">(</span><span class="n">pp</span><span class="p">)</span>
+<span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="s1">&#39;3d&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">pxyz</span><span class="p">[:,</span><span class="mi">0</span><span class="p">],</span><span class="n">pxyz</span><span class="p">[:,</span><span class="mi">1</span><span class="p">],</span><span class="n">pxyz</span><span class="p">[:,</span><span class="mi">2</span><span class="p">],</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span><span class="n">s</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_zlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">&quot;equal&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="n">points</span><span class="o">=</span><span class="n">js</span><span class="o">.</span><span class="n">formel</span><span class="o">.</span><span class="n">fibonacciLatticePointsOnSphere</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span>
+<span class="n">pp</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">a</span><span class="p">:(</span><span class="n">a</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">&gt;</span><span class="mf">0.3</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">)</span> <span class="p">,</span><span class="n">points</span><span class="p">))</span>
+<span class="n">v</span><span class="o">=</span><span class="n">js</span><span class="o">.</span><span class="n">formel</span><span class="o">.</span><span class="n">rphitheta2xyz</span><span class="p">(</span><span class="n">pp</span><span class="p">)</span>
+<span class="n">R</span><span class="o">=</span><span class="n">js</span><span class="o">.</span><span class="n">formel</span><span class="o">.</span><span class="n">rotationMatrix</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span><span class="n">np</span><span class="o">.</span><span class="n">deg2rad</span><span class="p">(</span><span class="o">-</span><span class="mi">30</span><span class="p">))</span>
+<span class="n">pxyz</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">R</span><span class="p">,</span><span class="n">v</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+<span class="c1">#points in polar coordinates</span>
+<span class="n">prpt</span><span class="o">=</span><span class="n">js</span><span class="o">.</span><span class="n">formel</span><span class="o">.</span><span class="n">xyz2rphitheta</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">R</span><span class="p">,</span><span class="n">pxyz</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+<span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="s1">&#39;3d&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">pxyz</span><span class="p">[:,</span><span class="mi">0</span><span class="p">],</span><span class="n">pxyz</span><span class="p">[:,</span><span class="mi">1</span><span class="p">],</span><span class="n">pxyz</span><span class="p">[:,</span><span class="mi">2</span><span class="p">],</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span><span class="n">s</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_zlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">&quot;equal&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_zlabel</span><span class="p">(</span><span class="s1">&#39;z&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="jscatter.parallel.haltonSequence">
+<code class="descclassname">jscatter.parallel.</code><code class="descname">haltonSequence</code><span class="sig-paren">(</span><em>size</em>, <em>dim</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/jscatter/parallel.html#haltonSequence"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jscatter.parallel.haltonSequence" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pseudo random numbers from the  Halton sequence</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
+<dt><strong>size</strong> <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd><p class="first last">Samples from the sequence</p>
+</dd>
+<dt><strong>dim</strong> <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd><p class="first last">Dimensions</p>
+</dd>
+</dl>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
+<dt><strong>array</strong></dt>
+<dd></dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">References</p>
+<table class="docutils citation" frame="void" id="r73cde39ef733-1" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id6">[1]</a></td><td><a class="reference external" href="https://mail.python.org/pipermail/scipy-user/2013-June/034741.html">https://mail.python.org/pipermail/scipy-user/2013-June/034741.html</a>
+Author: Sebastien Paris,  Josef Perktold translation from c</td></tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="jscatter.parallel.psphereAverage">
+<code class="descclassname">jscatter.parallel.</code><code class="descname">psphereAverage</code><span class="sig-paren">(</span><em>funktion</em>, <em>relError=300</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/jscatter/parallel.html#psphereAverage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jscatter.parallel.psphereAverage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parallel evaluation of spherical average of function.</p>
+<p>A Fibonacci lattice or Monte Carlo integration with pseudo random grid is used.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
+<dt><strong>funktion</strong> <span class="classifier-delimiter">:</span> <span class="classifier">function</span></dt>
+<dd><p class="first last">Function to evaluate.
+Function first argument gets cartesian coordinate [x,y,z] of point on unit sphere.</p>
+</dd>
+<dt><strong>relError</strong> <span class="classifier-delimiter">:</span> <span class="classifier">float, default 300</span></dt>
+<dd><dl class="first last docutils">
+<dt>Determines how points on sphere are selected</dt>
+<dd><ul class="first last simple">
+<li>&gt;1  Fibonacci Lattice with relError*2+1 points</li>
+<li><dl class="first docutils">
+<dt>0&lt;1 Pseudo random points on sphere (see randomPointsN).</dt>
+<dd>Stops if relative improvement in mean is less than relError (uses steps of 40 new points).
+Final error is (stddev of N points) /sqrt(N) as for Monte Carlo methods
+even if it is not a correct 1-sigma error in this case.</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</dd>
+<dt><strong>arg,kwargs :</strong></dt>
+<dd><p class="first last">forwarded to function</p>
+</dd>
+</dl>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
+<dt><strong>array like with values from function and appended error</strong></dt>
+<dd></dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li>Works also on single core machines.</li>
+<li>For integration over a continous function as a form factor in scattering the random points are not statistically
+independent. Think of neigbouring points on an isosurface which are correlated and therefore the standard deviation is biased..
+In this case the Fibonacci lattice is the better choice as the standard deviation in a random sample is not a measure of error
+but more a measure of the differences on the isosurface.</li>
+</ul>
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">r</span><span class="p">):</span>
+   <span class="k">return</span> <span class="p">[</span><span class="n">js</span><span class="o">.</span><span class="n">formel</span><span class="o">.</span><span class="n">xyz2rphitheta</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">*</span><span class="n">r</span><span class="p">]</span>
+<span class="n">js</span><span class="o">.</span><span class="n">parallel</span><span class="o">.</span><span class="n">psphereAverage</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="n">relError</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span><span class="n">r</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="jscatter.parallel.randomPointsN">
+<code class="descclassname">jscatter.parallel.</code><code class="descname">randomPointsN</code><span class="sig-paren">(</span><em>NN</em>, <em>r=1</em>, <em>skip=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/jscatter/parallel.html#randomPointsN"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jscatter.parallel.randomPointsN" title="Permalink to this definition">¶</a></dt>
+<dd><p>N quasi random points on sphere of radius r based on low-discrepancy sequence.</p>
+<p>For numerical integration quasi random numbers are better than random samples as
+the error drops faster <a class="reference internal" href="#r2a35530aa53e-1" id="id7">[1]</a>. Here we use the Halton sequence to generate the sequence.
+Skipping points makes the sequence additive and does not repeat points.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
+<dt><strong>NN</strong> <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd><p class="first last">Number of points to generate.</p>
+</dd>
+<dt><strong>r</strong> <span class="classifier-delimiter">:</span> <span class="classifier">float</span></dt>
+<dd><p class="first last">Radius of sphere</p>
+</dd>
+<dt><strong>skip</strong> <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd><p class="first last">Number of points to skip in Halton sequence .</p>
+</dd>
+</dl>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
+<dt><strong>array of [r,phi,theta]  pairs in radians</strong></dt>
+<dd></dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">References</p>
+<table class="docutils citation" frame="void" id="r2a35530aa53e-1" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label">[1]</td><td><em>(<a class="fn-backref" href="#id7">1</a>, <a class="fn-backref" href="#id8">2</a>)</em> <a class="reference external" href="https://en.wikipedia.org/wiki/Low-discrepancy_sequence">https://en.wikipedia.org/wiki/Low-discrepancy_sequence</a></td></tr>
+</tbody>
+</table>
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jscatter</span> <span class="k">as</span> <span class="nn">js</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">mpl_toolkits.mplot3d</span> <span class="k">import</span> <span class="n">Axes3D</span>
+<span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="s1">&#39;3d&#39;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">color</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="s1">&#39;b&#39;</span><span class="p">,</span><span class="s1">&#39;g&#39;</span><span class="p">,</span><span class="s1">&#39;r&#39;</span><span class="p">,</span><span class="s1">&#39;y&#39;</span><span class="p">]):</span>
+   <span class="n">points</span><span class="o">=</span><span class="n">js</span><span class="o">.</span><span class="n">parallel</span><span class="o">.</span><span class="n">randomPointsN</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span><span class="n">skip</span><span class="o">=</span><span class="mi">400</span><span class="o">*</span><span class="n">i</span><span class="p">)</span>
+   <span class="n">points</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">a</span><span class="p">:(</span><span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)</span> <span class="p">,</span><span class="n">points</span><span class="p">))</span>
+   <span class="n">pxyz</span><span class="o">=</span><span class="n">js</span><span class="o">.</span><span class="n">formel</span><span class="o">.</span><span class="n">rphitheta2xyz</span><span class="p">(</span><span class="n">points</span><span class="p">)</span>
+   <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">pxyz</span><span class="p">[:,</span><span class="mi">0</span><span class="p">],</span><span class="n">pxyz</span><span class="p">[:,</span><span class="mi">1</span><span class="p">],</span><span class="n">pxyz</span><span class="p">[:,</span><span class="mi">2</span><span class="p">],</span><span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span><span class="n">s</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_zlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">&quot;equal&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="jscatter.parallel.rphitheta2xyz">
+<code class="descclassname">jscatter.parallel.</code><code class="descname">rphitheta2xyz</code><span class="sig-paren">(</span><em>RPT</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/jscatter/parallel.html#rphitheta2xyz"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#jscatter.parallel.rphitheta2xyz" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transformation  spherical coordinates [r,phi,theta]  to cartesian coordinates [x,y,z]</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
+<dt><strong>RPT</strong> <span class="classifier-delimiter">:</span> <span class="classifier">array Nx3</span></dt>
+<dd><div class="first last line-block">
+<div class="line">dim Nx3 with [r,phi,theta] coordinates</div>
+<div class="line">r     : float       length</div>
+<div class="line">phi   : float   azimuth     -pi &lt; phi &lt; pi</div>
+<div class="line">theta : float   polar angle  0 &lt; theta  &lt; pi</div>
+</div>
+</dd>
+</dl>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
+<dt><strong>Array with same dimmension as RPT.</strong></dt>
+<dd></dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="_static/Jscatter1.gif" alt="Logo"/>
+            </a></p>
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="BeginnersGuide.html">1. Beginners Guide / Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataArray.html">2. dataArray</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataList.html">3. dataList</a></li>
+<li class="toctree-l1"><a class="reference internal" href="formel.html">4. formel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sas.html">5. smallanglescattering (sas)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="formfactor.html">6. formfactor (ff)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="structurefactor.html">7. structurefactor (sf)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dynamic.html">8. dynamic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dls.html">9. dls</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">10. parallel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GracePlot.html">11. Plotting in XmGrace</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mpl.html">12. mpl</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">13. Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Extending.html">14. Extending/Contributing/Fortran</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tips.html">15. Tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Remarks.html">16. Intention and Remarks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Installation.html">17. Installation</a></li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="dls.html"
+                        title="previous chapter">9. dls</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="GracePlot.html"
+                        title="next chapter">11. Plotting in XmGrace</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/parallel.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="GracePlot.html" title="11. Plotting in XmGrace"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="dls.html" title="9. dls"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">jscatter 0.7.6 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2014-18, Ralf Biehl.
+      Last updated on Jul 02, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.2.
+    </div>
+  </body>
+</html>

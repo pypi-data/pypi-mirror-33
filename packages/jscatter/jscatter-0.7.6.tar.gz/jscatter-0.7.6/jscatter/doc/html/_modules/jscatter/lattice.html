@@ -1,0 +1,1275 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>jscatter.lattice &#8212; jscatter 0.7.6 documentation</title>
+    <link rel="stylesheet" href="../../_static//default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../_static/Jscatter-32x-32.png"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">jscatter 0.7.6 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for jscatter.lattice</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># written by Ralf Biehl at the Forschungszentrum Jülich ,</span>
+<span class="c1"># Jülich Center for Neutron Science 1 and Institute of Complex Systems 1</span>
+<span class="c1">#    jscatter is a program to read, analyse and plot data</span>
+<span class="c1">#    Copyright (C) 2015  Ralf Biehl</span>
+<span class="c1">#</span>
+<span class="c1">#    This program is free software: you can redistribute it and/or modify</span>
+<span class="c1">#    it under the terms of the GNU General Public License as published by</span>
+<span class="c1">#    the Free Software Foundation, either version 3 of the License, or</span>
+<span class="c1">#    (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1">#    This program is distributed in the hope that it will be useful,</span>
+<span class="c1">#    but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1">#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1">#    GNU General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1">#    You should have received a copy of the GNU General Public License</span>
+<span class="c1">#    along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="c1">#</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">---</span>
+<span class="sd">Lattice objects describing a lattice of points.</span>
+
+<span class="sd">Included are methods to select sublattices as parallelepiped, sphere or side of planes.</span>
+
+<span class="sd">The small angle scattering is calculated by js.ff.cloudScattering.</span>
+
+<span class="sd">The same method can be used to calculate the wide angle scattering with bragg peaks</span>
+<span class="sd">using larger scattering vectors to get crystalline bragg peaks of nanoparticles.</span>
+
+
+<span class="sd">**Examples**</span>
+
+<span class="sd">A hollow sphere cut to a wedge.</span>
+<span class="sd">::</span>
+
+<span class="sd"> import jscatter as js</span>
+<span class="sd"> import numpy as np</span>
+<span class="sd"> grid= js.lattice.scLattice(1/2.,2*8,b=[0])</span>
+<span class="sd"> grid.inSphere(6,b=1)</span>
+<span class="sd"> grid.inSphere(4,b=0)</span>
+<span class="sd"> grid.planeSide([1,1,1],b=0)</span>
+<span class="sd"> grid.planeSide([1,-1,-1],b=0)</span>
+<span class="sd"> grid.show()</span>
+
+<span class="sd"> q=js.loglist(0.01,5,600)</span>
+<span class="sd"> ffe=js.ff.cloudScattering(q,grid.points,relError=0.02,rms=0.1)</span>
+<span class="sd"> p=js.grace()</span>
+<span class="sd"> p.plot(ffe)</span>
+
+<span class="sd">A cube decorated with spheres.</span>
+<span class="sd">::</span>
+
+<span class="sd">  import jscatter as js</span>
+<span class="sd">  import numpy as np</span>
+<span class="sd">  grid= js.lattice.scLattice(0.2,2*15,b=[0])</span>
+<span class="sd">  v1=np.r_[4,0,0]</span>
+<span class="sd">  v2=np.r_[0,4,0]</span>
+<span class="sd">  v3=np.r_[0,0,4]</span>
+<span class="sd">  grid.inParallelepiped(v1,v2,v3,b=1)</span>
+<span class="sd">  grid.inSphere(1,center=[0,0,0],b=2)</span>
+<span class="sd">  grid.inSphere(1,center=v1,b=3)</span>
+<span class="sd">  grid.inSphere(1,center=v2,b=4)</span>
+<span class="sd">  grid.inSphere(1,center=v3,b=5)</span>
+<span class="sd">  grid.inSphere(1,center=v1+v2,b=6)</span>
+<span class="sd">  grid.inSphere(1,center=v2+v3,b=7)</span>
+<span class="sd">  grid.inSphere(1,center=v3+v1,b=8)</span>
+<span class="sd">  grid.inSphere(1,center=v3+v2+v1,b=9)</span>
+<span class="sd">  grid.show()</span>
+
+<span class="sd">  q=js.loglist(0.01,5,600)</span>
+<span class="sd">  ffe=js.ff.cloudScattering(q,grid.points,relError=0.02,rms=0.)</span>
+<span class="sd">  p=js.grace()</span>
+<span class="sd">  p.plot(ffe)</span>
+
+
+
+<span class="sd">A comparison of sc, bcc and fcc nanoparticles (takes a while )</span>
+<span class="sd">::</span>
+
+<span class="sd"> import jscatter as js</span>
+<span class="sd"> import numpy as np</span>
+<span class="sd"> q=js.loglist(0.01,35,1500)</span>
+<span class="sd"> q=np.r_[js.loglist(0.01,3,200),3:40:800j]</span>
+<span class="sd"> unitcelllength=1.5</span>
+<span class="sd"> N=8</span>
+
+<span class="sd"> scgrid= js.lattice.scLattice(unitcelllength,N)</span>
+<span class="sd"> sc=js.ff.cloudScattering(q,scgrid.points,relError=50,rms=0.05)</span>
+<span class="sd"> bccgrid= js.lattice.bccLattice(unitcelllength,N)</span>
+<span class="sd"> bcc=js.ff.cloudScattering(q,bccgrid.points,relError=50,rms=0.05)</span>
+<span class="sd"> fccgrid= js.lattice.fccLattice(unitcelllength,N)</span>
+<span class="sd"> fcc=js.ff.cloudScattering(q,fccgrid.points,relError=50,rms=0.05)</span>
+
+<span class="sd"> p=js.grace(1.5,1)</span>
+<span class="sd"> # smooth with Gaussian to include instrument resolution</span>
+<span class="sd"> p.plot(sc.X,js.formel.smooth(sc,10, window=&#39;gaussian&#39;),legend=&#39;sc&#39;)</span>
+<span class="sd"> p.plot(bcc.X,js.formel.smooth(bcc,10, window=&#39;gaussian&#39;),legend=&#39;bcc&#39;)</span>
+<span class="sd"> p.plot(fcc.X,js.formel.smooth(fcc,10, window=&#39;gaussian&#39;),legend=&#39;fcc&#39;)</span>
+
+<span class="sd"> q=q=js.loglist(1,35,100)</span>
+<span class="sd"> p.plot(q,(1-np.exp(-q*q*0.05**2))/scgrid.shape[0],li=1,sy=0,le=&#39;sc diffusive&#39;)</span>
+<span class="sd"> p.plot(q,(1-np.exp(-q*q*0.05**2))/bccgrid.shape[0],li=2,sy=0,le=&#39;bcc diffusive&#39;)</span>
+<span class="sd"> p.plot(q,(1-np.exp(-q*q*0.05**2))/fccgrid.shape[0],li=3,sy=0,le=&#39;fcc diffusive&#39;)</span>
+
+<span class="sd"> p.title(&#39;Comparison sc, bcc, fcc lattice for a nano cube&#39;)</span>
+<span class="sd"> p.yaxis(scale=&#39;l&#39;,label=&#39;I(Q)&#39;)</span>
+<span class="sd"> p.xaxis(scale=&#39;l&#39;,label=&#39;Q / A\S-1&#39;)</span>
+<span class="sd"> p.legend(x=0.03,y=0.001,charsize=1.5)</span>
+<span class="sd"> p.text(&#39;cube formfactor&#39;,x=0.02,y=0.05,charsize=1.4)</span>
+<span class="sd"> p.text(&#39;Bragg peaks&#39;,x=4,y=0.05,charsize=1.4)</span>
+<span class="sd"> p.text(&#39;diffusive scattering&#39;,x=4,y=1e-6,charsize=1.4)</span>
+
+<span class="sd">END</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="k">import</span> <span class="n">linalg</span> <span class="k">as</span> <span class="n">la</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+    <span class="kn">from</span> <span class="nn">mpl_toolkits.mplot3d</span> <span class="k">import</span> <span class="n">Axes3D</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="k">pass</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">fscatter</span>
+    <span class="n">useFortran</span><span class="o">=</span><span class="kc">True</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="n">useFortran</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">formel</span>
+
+
+<div class="viewcode-block" id="lattice"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.lattice">[docs]</a><span class="k">class</span> <span class="nc">lattice</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="n">isLattice</span><span class="o">=</span><span class="kc">True</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create an arbitrary lattice</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="n">item</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="p">[</span><span class="n">item</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="o">==</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="n">item</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Wrong shape of given value&#39;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">dimension</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">X</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;X coordinates&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">Y</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Y coordinates&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">Z</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Z coordinates&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">XYZ</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;X,Y,Z coordinates array Nx3&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">b</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Scattering length&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">shape</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns type of the lattice&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_type</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">array</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Coordinates and scattering length as array&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">)</span>
+
+<div class="viewcode-block" id="lattice.set_b"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.lattice.set_b">[docs]</a>    <span class="k">def</span> <span class="nf">set_b</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">b</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set all initial points to given scattering length.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[:,</span><span class="mi">3</span><span class="p">]</span><span class="o">=</span><span class="n">b</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">points</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;points with scattering length &gt;0 &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[</span> <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[:,</span><span class="mi">3</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="p">]</span>
+
+<div class="viewcode-block" id="lattice.filter"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.lattice.filter">[docs]</a>    <span class="k">def</span> <span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">funktion</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set lattice points scattering length according to a function.</span>
+
+<span class="sd">        All existing points in the lattice size are used.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        funktion : function returning float</span>
+<span class="sd">            Function to set lattice points scattering length.</span>
+<span class="sd">            The function is applied with each i point coordinates (array) as input as .points[i,:3].</span>
+<span class="sd">            The return value is the corresponding scattering length.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         # To select points inside of a sphere with radius 5 around [1,1,1]:</span>
+<span class="sd">         from numpy import linalg as la</span>
+<span class="sd">         sc=js.sf.scLattice(0.9,10)</span>
+<span class="sd">         sc.filter(lambda xyz: 1 if la.norm(xyz-np.r_[1,1,1])&lt;5 else 0)</span>
+
+<span class="sd">         # sphere with ex decay from center</span>
+<span class="sd">         from numpy import linalg as la</span>
+<span class="sd">         sc=js.sf.scLattice(0.9,10)</span>
+<span class="sd">         sc.filter(lambda xyz: 2*(la.norm(xyz)) if la.norm(xyz)&lt;5 else 0)</span>
+<span class="sd">         fig=sc.show()</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[:,</span><span class="mi">3</span><span class="p">]</span><span class="o">=</span><span class="p">[</span><span class="n">funktion</span><span class="p">(</span><span class="n">point</span><span class="p">)</span> <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[:,:</span><span class="mi">3</span><span class="p">]]</span></div>
+
+<div class="viewcode-block" id="lattice.centerOfMass"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.lattice.centerOfMass">[docs]</a>    <span class="k">def</span> <span class="nf">centerOfMass</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        CenterOf mass</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[:,:</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="lattice.numberOfAtoms"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.lattice.numberOfAtoms">[docs]</a>    <span class="k">def</span> <span class="nf">numberOfAtoms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of Atoms</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="lattice.move"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.lattice.move">[docs]</a>    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">vector</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Move all points by vector.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        vector : list of 3 float or array</span>
+<span class="sd">            Vector to shift the points.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[:,:</span><span class="mi">3</span><span class="p">]</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[:,:</span><span class="mi">3</span><span class="p">]</span><span class="o">+</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">vector</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="lattice.inParallelepiped"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.lattice.inParallelepiped">[docs]</a>    <span class="k">def</span> <span class="nf">inParallelepiped</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">,</span> <span class="n">v3</span><span class="p">,</span> <span class="n">corner</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set scattering length for points in parallelepiped.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        corner : 3x float</span>
+<span class="sd">            Corner of parallelepiped</span>
+<span class="sd">        v1,v2,v3 : each 3x float</span>
+<span class="sd">            Vectors from corner that define the parallelepiped.</span>
+<span class="sd">        b:  float</span>
+<span class="sd">            Scattering length for selected points.</span>
+<span class="sd">        invert : bool</span>
+<span class="sd">            Invert selection</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         sc=js.sf.scLattice(0.2,10,b=[0])</span>
+<span class="sd">         sc.inParallelepiped([1,0,0],[0,1,0],[0,0,1],[0,0,0],1)</span>
+<span class="sd">         sc.show()</span>
+<span class="sd">         sc=js.sf.scLattice(0.1,30,b=[0])</span>
+<span class="sd">         sc.inParallelepiped([1,1,0],[0,1,1],[1,0,1],[-1,-1,-1],2)</span>
+<span class="sd">         sc.show()</span>
+
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">corner</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">corner</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">a1</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">v2</span><span class="p">,</span><span class="n">v3</span><span class="p">)</span>
+        <span class="n">b1</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">v3</span><span class="p">,</span><span class="n">v1</span><span class="p">)</span>
+        <span class="n">c1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span><span class="n">v2</span><span class="p">)</span>
+        <span class="c1">#vectors perpendicular to planes</span>
+        <span class="n">a1</span> <span class="o">=</span> <span class="n">a1</span> <span class="o">/</span> <span class="n">la</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">a1</span><span class="p">)</span>
+        <span class="n">b1</span> <span class="o">=</span> <span class="n">b1</span> <span class="o">/</span> <span class="n">la</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">b1</span><span class="p">)</span>
+        <span class="n">c1</span> <span class="o">=</span> <span class="n">c1</span> <span class="o">/</span> <span class="n">la</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">c1</span><span class="p">)</span>
+        <span class="n">da</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">corner</span><span class="p">,</span> <span class="n">a1</span><span class="p">)</span>
+        <span class="n">da1</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v1</span><span class="p">)</span> <span class="p">,</span> <span class="n">a1</span><span class="p">)</span>
+        <span class="n">db</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">corner</span><span class="p">,</span> <span class="n">b1</span><span class="p">)</span>
+        <span class="n">db1</span><span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v2</span><span class="p">)</span> <span class="p">,</span> <span class="n">b1</span><span class="p">)</span>
+        <span class="n">dc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">corner</span><span class="p">,</span> <span class="n">c1</span><span class="p">)</span>
+        <span class="n">dc1</span><span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v3</span><span class="p">)</span> <span class="p">,</span> <span class="n">c1</span><span class="p">)</span>
+        <span class="n">choose</span> <span class="o">=</span>  <span class="p">(</span><span class="mi">0</span><span class="o">&lt;=</span><span class="n">da</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">da</span><span class="o">&lt;=</span><span class="n">da1</span><span class="p">)</span>  <span class="o">&amp;</span> <span class="p">(</span><span class="mi">0</span><span class="o">&lt;=</span><span class="n">db</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">db</span><span class="o">&lt;=</span><span class="n">db1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="mi">0</span><span class="o">&lt;=</span><span class="n">dc</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">dc</span><span class="o">&lt;=</span><span class="n">dc1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">invert</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[</span><span class="o">~</span><span class="n">choose</span><span class="p">,</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[</span><span class="n">choose</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span></div>
+
+<div class="viewcode-block" id="lattice.planeSide"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.lattice.planeSide">[docs]</a>    <span class="k">def</span> <span class="nf">planeSide</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vector</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set scattering length for points on one side of a plane.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        center : 3x float, default [0,0,0]</span>
+<span class="sd">            Point in plane.</span>
+<span class="sd">        vector : list 3x float</span>
+<span class="sd">            Vector perpendicular to plane.</span>
+<span class="sd">        b:  float</span>
+<span class="sd">            Scattering length for selected points.</span>
+<span class="sd">        invert : bool</span>
+<span class="sd">            False choose points at origin side. True other side.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         sc=js.sf.scLattice(1,10,b=[0])</span>
+<span class="sd">         sc.planeSide([1,1,1],[3,3,3],1)</span>
+<span class="sd">         sc.show()</span>
+<span class="sd">         sc.planeSide([-1,-1,0],3)</span>
+<span class="sd">         sc.show()</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">center</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">v</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">vector</span><span class="p">)</span>
+        <span class="n">c</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">center</span><span class="p">)</span>
+        <span class="n">vv</span><span class="o">=</span><span class="p">(</span><span class="n">v</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">**</span> <span class="mf">0.5</span>
+        <span class="n">v</span><span class="o">=</span><span class="n">v</span><span class="o">/</span><span class="n">vv</span>
+        <span class="n">choose</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">c</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">invert</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[</span><span class="o">~</span><span class="n">choose</span><span class="p">,</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[</span><span class="n">choose</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span></div>
+
+<div class="viewcode-block" id="lattice.inSphere"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.lattice.inSphere">[docs]</a>    <span class="k">def</span> <span class="nf">inSphere</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set scattering length for points in sphere.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        center : 3 x float, default [0,0,0]</span>
+<span class="sd">            Center of the sphere.</span>
+<span class="sd">        R: float</span>
+<span class="sd">            Radius of sphere around origin.</span>
+<span class="sd">        b:  float</span>
+<span class="sd">            Scattering length for selected points.</span>
+<span class="sd">        invert : bool</span>
+<span class="sd">            True to invert selection.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         sc=js.sf.scLattice(1,15,b=[0])</span>
+<span class="sd">         sc.inSphere(6,[2,2,2],b=1)</span>
+<span class="sd">         sc.show()</span>
+<span class="sd">         sc.inSphere(6,[-2,-2,-2],b=2)</span>
+<span class="sd">         sc.show()</span>
+
+<span class="sd">         sc=js.sf.scLattice(0.8,20,b=[0])</span>
+<span class="sd">         sc.inSphere(3,[2,2,2],b=1)</span>
+<span class="sd">         sc.inSphere(3,[-2,-2,-2],b=1)</span>
+<span class="sd">         sc.show()</span>
+
+<span class="sd">         sc=js.sf.scLattice(0.8,20,b=[0])</span>
+<span class="sd">         sc.inSphere(3,[2,2,2],b=1)</span>
+<span class="sd">         sc.inSphere(4,[0,0,0],b=2)</span>
+<span class="sd">         sc.show()</span>
+
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">center</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">choose</span><span class="o">=</span><span class="n">la</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[:,:</span><span class="mi">3</span><span class="p">]</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">center</span><span class="p">),</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">&lt;</span><span class="nb">abs</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">invert</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[</span><span class="o">~</span><span class="n">choose</span><span class="p">,</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="p">[</span><span class="n">choose</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span></div>
+
+<div class="viewcode-block" id="lattice.show"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.lattice.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">R</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;rainbow&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Show the lattice in matplotlib with scattering length color coded.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        R : float,None</span>
+<span class="sd">            Radius around origin to show.</span>
+<span class="sd">        cmap : colormap</span>
+<span class="sd">            Colormap. E.g. &#39;rainbow&#39;, &#39;winter&#39;,&#39;autumn&#39;,&#39;gray&#39;</span>
+<span class="sd">            Use js.mpl.showColors() for all possibilities.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">         fig handle</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">R</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">points</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">choose</span><span class="o">=</span><span class="n">la</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[:,:</span><span class="mi">3</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">&lt;</span><span class="n">R</span>
+            <span class="n">points</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="n">choose</span><span class="p">]</span>
+        <span class="n">bmax</span> <span class="o">=</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="n">bmin</span> <span class="o">=</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="s1">&#39;3d&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">points</span><span class="p">[:,</span><span class="mi">0</span><span class="p">],</span><span class="n">points</span><span class="p">[:,</span><span class="mi">1</span><span class="p">],</span><span class="n">points</span><span class="p">[:,</span><span class="mi">2</span><span class="p">],</span><span class="n">c</span><span class="o">=</span><span class="n">points</span><span class="p">[:,</span><span class="mi">3</span><span class="p">],</span><span class="n">s</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span><span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span><span class="n">vmin</span><span class="o">=</span><span class="n">bmin</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="n">bmax</span><span class="p">,</span><span class="n">depthshade</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">latticeVectors</span><span class="p">:</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]],[</span><span class="mi">0</span><span class="p">,</span><span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">]],[</span><span class="mi">0</span><span class="p">,</span><span class="n">v</span><span class="p">[</span><span class="mi">2</span><span class="p">]],</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;g&#39;</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">unitCellAtomPositions</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">v</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+                    <span class="k">pass</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]],[</span><span class="mi">0</span><span class="p">,</span><span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">]],[</span><span class="mi">0</span><span class="p">,</span><span class="n">v</span><span class="p">[</span><span class="mi">2</span><span class="p">]],</span><span class="n">color</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;x axis&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;y axis&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_zlabel</span><span class="p">(</span><span class="s1">&#39;z axis&#39;</span><span class="p">)</span>
+        <span class="c1">#ax.set_aspect(&quot;equal&quot;)</span>
+        <span class="n">xyzmin</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">XYZ</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        <span class="n">xyzmax</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">XYZ</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">xyzmin</span><span class="p">,</span><span class="n">xyzmax</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">xyzmin</span><span class="p">,</span><span class="n">xyzmax</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_zlim</span><span class="p">(</span><span class="n">xyzmin</span><span class="p">,</span><span class="n">xyzmax</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fig</span></div>
+
+    <span class="k">def</span> <span class="nf">getReciprocalLattice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Only for rhombic lattices&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">rotate2hkl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">grid</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span><span class="n">k</span><span class="p">,</span><span class="n">l</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Only for rhombic lattices&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="pseudoRandomLattice"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.pseudoRandomLattice">[docs]</a><span class="k">class</span> <span class="nc">pseudoRandomLattice</span><span class="p">(</span><span class="n">lattice</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">numberOfPoints</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a  lattice with a pseudo random distribution of points.</span>
+
+<span class="sd">        Allows to create 1D, 2D or 3D pseudo random latices.</span>
+<span class="sd">        The Halton sequence is used with skipping the first seed elements of the Halton sequence.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        size :3x float</span>
+<span class="sd">            Size of the lattice for each dimension relative to origin.</span>
+<span class="sd">        numberOfPoints : int</span>
+<span class="sd">            Number of points.</span>
+<span class="sd">        b : float,array</span>
+<span class="sd">            Scattering length of atoms. If array the sequence is repeated to fill N atoms.</span>
+<span class="sd">        seed : None, int</span>
+<span class="sd">            Seed for the Halton sequence by skipping the first seed elements of the sequence.</span>
+<span class="sd">            If None an random integer between 10 and 1e6 is chosen.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lattice object</span>
+<span class="sd">            .array  grid points as numpy array</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         grid=js.sf.pseudoRandomLattice([5,5,5],3000)</span>
+<span class="sd">         fig=grid.show()</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">pseudoRandomLattice</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_makeLattice</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">numberOfPoints</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">seed</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span><span class="o">=</span><span class="s1">&#39;pseudorandom&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_makeLattice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">N</span> <span class="p">,</span><span class="n">pb</span><span class="o">=</span><span class="kc">None</span> <span class="p">,</span><span class="n">skip</span><span class="o">=</span><span class="kc">None</span> <span class="p">):</span>
+        <span class="k">if</span> <span class="n">pb</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pb</span><span class="o">=</span><span class="mi">1</span>
+        <span class="n">dim</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">size</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">skip</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">skip</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">1000000</span><span class="p">)</span>
+        <span class="n">seq</span><span class="o">=</span><span class="n">fscatter</span><span class="o">.</span><span class="n">pseudorandom</span><span class="o">.</span><span class="n">halton_sequence</span><span class="p">(</span><span class="n">skip</span><span class="p">,</span><span class="n">skip</span><span class="o">+</span><span class="n">N</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">dim</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">seq</span><span class="o">=</span><span class="n">seq</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dim</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">]:</span>
+            <span class="n">seq</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">seq</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">N</span><span class="p">,</span><span class="mi">3</span><span class="o">-</span><span class="n">dim</span><span class="p">))]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">seq</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">pb</span><span class="p">,</span><span class="n">N</span><span class="p">)[:</span><span class="n">N</span><span class="p">]]</span></div>
+
+
+<span class="c1"># noinspection PyMissingConstructor</span>
+<div class="viewcode-block" id="rhombicLattice"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.rhombicLattice">[docs]</a><span class="k">class</span> <span class="nc">rhombicLattice</span><span class="p">(</span><span class="n">lattice</span><span class="p">):</span>
+
+    <span class="n">isRhombic</span><span class="o">=</span><span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">unitCellAtoms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a rhombic lattice with specified unit cell atoms.</span>
+
+<span class="sd">        Allows to create 1D, 2D or 3D latices by using 1, 2 or 3 latticeVectors.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        latticeVectors : list of array 3x1</span>
+<span class="sd">            Lattice vectors defining the translation of the unit cell along its principal axes.</span>
+<span class="sd">        size :3x integer or integer</span>
+<span class="sd">            A list of integers describing the size in direction of the respective latticeVectors.</span>
+<span class="sd">            Size is symmetric around zero in interval [-i,..,i] with length 2i+1.</span>
+<span class="sd">            If one integer is given it is used for all 3 dimensions.</span>
+<span class="sd">        unitCellAtoms : list of 3x1 array, None=[0,0,0]</span>
+<span class="sd">            Position vectors of atoms in the unit cell in relative units of the lattice vectors [0&lt;x&lt;1].</span>
+<span class="sd">        b : list of float</span>
+<span class="sd">            Corresponding scattering length of atoms in the unit cell.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lattice object</span>
+<span class="sd">            .array  grid points as numpy array</span>
+<span class="sd">            .unitCellVolume         V = a1*a2 x a3 with latticeVectors a1, a2, a3;  if existing.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         import matplotlib.pyplot as plt</span>
+<span class="sd">         from mpl_toolkits.mplot3d import Axes3D</span>
+<span class="sd">         # cubic lattice with diatomic base</span>
+<span class="sd">         grid=js.sf.rhombicLattice([[1,0,0],[0,1,0],[0,0,1]],[3,3,3],[[-0.1,-0.1,-0.1],[0.1,0.1,0.1]],[1,2])</span>
+<span class="sd">         grid.show(1.5)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">latticeVectors</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">size</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;size and latticeVectors not compatible. Check dimension!&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">unitCellAtoms</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">unitCellAtoms</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]]</span>
+        <span class="n">size</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">trunc</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">b</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">b</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">unitCellAtoms</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unitCellAtoms_b</span><span class="o">=</span><span class="n">b</span>
+
+        <span class="c1"># calc reciprocal vectors</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">latticeVectors</span><span class="p">)</span><span class="o">==</span><span class="mi">3</span><span class="p">:</span>
+            <span class="n">V</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unitCellVolume</span> <span class="o">=</span> <span class="n">V</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">V</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">latticeVectors</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">V</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">latticeVectors</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="n">V</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">latticeVectors</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">latticeVectors</span><span class="p">)</span><span class="o">==</span><span class="mi">2</span><span class="p">:</span>
+            <span class="n">R</span><span class="o">=</span><span class="n">formel</span><span class="o">.</span><span class="n">rotationMatrix</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">v0</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">R</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">v1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">R</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unitCellVolume</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v0</span><span class="p">,</span><span class="n">v1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>  <span class="o">*</span> <span class="n">v1</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">v1</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>  <span class="o">*</span> <span class="n">v0</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">v0</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">latticeVectors</span><span class="p">)</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">R</span> <span class="o">=</span> <span class="n">formel</span><span class="o">.</span><span class="n">rotationMatrix</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">v0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">R</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unitCellVolume</span> <span class="o">=</span> <span class="n">la</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">v0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span><span class="n">v0</span><span class="o">/</span><span class="n">la</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">v0</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">latticeVectors</span><span class="o">=</span><span class="n">latticeVectors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="o">=</span><span class="n">size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_makeLattice</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">unitCellAtoms</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unitCellAtoms_b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span><span class="o">=</span><span class="s1">&#39;rhombic&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_makeLattice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">unitCellAtoms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">pb</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">abc</span><span class="o">=</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="o">-</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">][:,</span><span class="kc">None</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">size</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">abc</span> <span class="o">=</span> <span class="n">abc</span><span class="o">+</span><span class="p">(</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="o">-</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">][:,</span><span class="kc">None</span><span class="p">])[:,</span><span class="kc">None</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">size</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">abc</span> <span class="o">=</span> <span class="n">abc</span> <span class="o">+</span> <span class="p">(</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="o">-</span><span class="n">size</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span><span class="n">size</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">][:,</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">])[:,</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">]</span>
+        <span class="n">abc</span><span class="o">=</span><span class="n">abc</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">abc</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[(</span><span class="n">abc</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))]</span>
+        <span class="n">uCA</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;il,ji&#39;</span><span class="p">,</span><span class="n">latticeVectors</span><span class="p">,</span><span class="n">unitCellAtoms</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_points</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">abc</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">ev</span><span class="p">,</span><span class="n">b</span><span class="p">]</span> <span class="k">for</span> <span class="n">ev</span><span class="p">,</span><span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">uCA</span><span class="p">,</span><span class="n">pb</span><span class="p">)])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unitCellAtoms</span><span class="o">=</span><span class="n">unitCellAtoms</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">unitCellAtomPositions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Absolute positions of unit cell atoms.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;il,ji&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">latticeVectors</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">unitCellAtoms</span><span class="p">)</span>
+
+<div class="viewcode-block" id="rhombicLattice.getReciprocalLattice"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.rhombicLattice.getReciprocalLattice">[docs]</a>    <span class="k">def</span> <span class="nf">getReciprocalLattice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">size</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reciprocal lattice of given size with peak scattering intensity.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        size : 3x int, default 3</span>
+<span class="sd">            Number of reciprocal lattice points in each direction (+- direction).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            Array [N x 4] with</span>
+<span class="sd">             reciprocal lattice vectors                 [:,:3]</span>
+<span class="sd">             corresponding structure factor fhkl**2&gt;0   [:, 3]</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,</span><span class="nb">int</span><span class="p">):</span>
+            <span class="n">size</span><span class="o">=</span><span class="p">[</span><span class="n">size</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span>
+        <span class="n">size</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">trunc</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="c1"># create lattice</span>
+        <span class="n">bbb</span> <span class="o">=</span>        <span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="o">-</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="n">hkl</span> <span class="o">=</span>        <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>              <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="o">-</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">bbb</span> <span class="o">=</span> <span class="n">bbb</span> <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="o">-</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">])[:,</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="n">hkl</span> <span class="o">=</span> <span class="n">hkl</span> <span class="o">+</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>              <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="o">-</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">])[:,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">bbb</span> <span class="o">=</span> <span class="n">bbb</span> <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reciprocalVectors</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="o">-</span><span class="n">size</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span><span class="n">size</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">])[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="n">hkl</span> <span class="o">=</span> <span class="n">hkl</span> <span class="o">+</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>              <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="o">-</span><span class="n">size</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span><span class="n">size</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">][:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">])[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+
+        <span class="n">bbb</span> <span class="o">=</span> <span class="n">bbb</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">hkl</span> <span class="o">=</span> <span class="n">hkl</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="c1"># calc structure factor</span>
+        <span class="n">f2hkl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_f2hkl</span><span class="p">(</span><span class="n">hkl</span><span class="p">)</span>
+        <span class="c1"># selection rule</span>
+        <span class="n">choose</span><span class="o">=</span><span class="p">[</span><span class="n">f2hkl</span> <span class="o">&gt;</span> <span class="mf">1e-10</span><span class="o">*</span><span class="n">f2hkl</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="p">]</span>
+
+        <span class="k">return</span>  <span class="n">np</span><span class="o">.</span><span class="n">c_</span><span class="p">[</span><span class="n">bbb</span><span class="p">[</span><span class="n">choose</span><span class="p">],</span><span class="n">f2hkl</span><span class="p">[</span><span class="n">choose</span><span class="p">]]</span></div>
+
+<div class="viewcode-block" id="rhombicLattice.getRadialReciprocalLattice"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.rhombicLattice.getRadialReciprocalLattice">[docs]</a>    <span class="k">def</span> <span class="nf">getRadialReciprocalLattice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">size</span><span class="p">,</span><span class="n">includeZero</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get radial distribution of Bragg peaks with structure factor and multiplicity.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        size : int</span>
+<span class="sd">            Size of the lattice as maximum included Miller indices.</span>
+<span class="sd">        includeZero : bool</span>
+<span class="sd">            Include q=0 peak</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            3x list of [unique q values, structure factor fhkl(q)**2, multiplicity mhkl(q)]</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">qxyzb</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getReciprocalLattice</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="n">qr</span><span class="o">=</span><span class="n">la</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">qxyzb</span><span class="p">[:,:</span><span class="mi">3</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">f2hkl</span><span class="o">=</span><span class="n">qxyzb</span><span class="p">[:,</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">tol</span><span class="o">=</span><span class="mf">1e7</span>
+        <span class="n">qrunique</span><span class="p">,</span><span class="n">qrindex</span><span class="p">,</span><span class="n">qrcount</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">qr</span><span class="o">*</span><span class="n">tol</span><span class="p">)</span><span class="o">/</span><span class="n">tol</span><span class="p">,</span><span class="n">return_index</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">return_inverse</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="n">return_counts</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># q values of unique peaks, scattering strength f2hkl, multiplicity as number of unique peaks from 3D count</span>
+        <span class="k">if</span> <span class="n">includeZero</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">qrunique</span><span class="p">,</span><span class="n">f2hkl</span><span class="p">[</span><span class="n">qrindex</span><span class="p">],</span><span class="n">qrcount</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">qrunique</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">f2hkl</span><span class="p">[</span><span class="n">qrindex</span><span class="p">][</span><span class="mi">1</span><span class="p">:],</span> <span class="n">qrcount</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span></div>
+
+    <span class="k">def</span> <span class="nf">_f2hkl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">hkl</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Structure factor f**2_hkl which includes the extinction rules.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pb</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unitCellAtoms_b</span><span class="p">)[:,</span><span class="kc">None</span><span class="p">]</span>
+        <span class="n">hxkylz</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;ij,lj&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">unitCellAtoms</span><span class="p">,</span><span class="n">hkl</span><span class="p">)</span>
+        <span class="n">fhkl</span><span class="o">=</span><span class="p">(</span><span class="n">pb</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">2</span><span class="n">j</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">hxkylz</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">fhkl</span><span class="o">*</span><span class="n">fhkl</span><span class="o">.</span><span class="n">conj</span><span class="p">())</span><span class="o">.</span><span class="n">real</span>
+
+<div class="viewcode-block" id="rhombicLattice.rotate2hkl"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.rhombicLattice.rotate2hkl">[docs]</a>    <span class="k">def</span> <span class="nf">rotate2hkl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">grid</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span><span class="n">k</span><span class="p">,</span><span class="n">l</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Rotate grid that the grid center lies in hkl direction and tangential to hkl direction.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        grid : array Nx3</span>
+<span class="sd">            Grid points</span>
+<span class="sd">        h,k,l : integer, float</span>
+<span class="sd">            Miller indices indicating the direction where to rotate to.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">            grid points array 4xN</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         import numpy as np</span>
+<span class="sd">         R=8</span>
+<span class="sd">         N=10</span>
+<span class="sd">         qxy=np.mgrid[-R:R:N*1j, -R:R:N*1j].reshape(2,-1).T</span>
+<span class="sd">         qxyz=np.c_[qxy,np.zeros(N**2)]</span>
+<span class="sd">         fccgrid = js.lattice.fccLattice(2.1, 1)</span>
+<span class="sd">         xyz=fccgrid.rotate2hkl(qxyz,1,1,1)</span>
+<span class="sd">         p=js.mpl.scatter3d(xyz[:,0],xyz[:,1],xyz[:,2])</span>
+<span class="sd">         p.axes[0].scatter(fccgrid.X,fccgrid.Y,fccgrid.Z)</span>
+
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># hkl direction</span>
+        <span class="n">vhkl</span><span class="o">=</span><span class="n">h</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="n">k</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="n">l</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">latticeVectors</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="c1"># vector perpendicular to grid plane</span>
+        <span class="n">center</span><span class="o">=</span><span class="n">grid</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">centerdistance</span><span class="o">=</span><span class="p">((</span><span class="n">grid</span><span class="o">-</span><span class="n">center</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="mf">0.5</span>
+        <span class="n">isort</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">centerdistance</span><span class="p">)</span>
+        <span class="c1"># first vector in grid close to center, then next with cross &gt;0</span>
+        <span class="n">v1</span><span class="o">=</span><span class="n">grid</span><span class="p">[</span><span class="n">isort</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">-</span><span class="n">grid</span><span class="p">[</span><span class="n">isort</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">i</span><span class="o">=</span><span class="mi">2</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">v2</span><span class="o">=</span><span class="n">grid</span><span class="p">[</span><span class="n">isort</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">-</span><span class="n">grid</span><span class="p">[</span><span class="n">isort</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+            <span class="n">v3</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span><span class="n">v2</span><span class="p">)</span>
+            <span class="c1"># test if &gt;0 then it is perpendicular to plane</span>
+            <span class="k">if</span> <span class="n">la</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">v3</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span><span class="n">i</span><span class="o">+=</span><span class="mi">1</span>
+        <span class="n">rotvector</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">vhkl</span><span class="p">,</span><span class="n">v3</span><span class="p">)</span><span class="o">/</span><span class="n">la</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">v3</span><span class="p">)</span><span class="o">/</span><span class="n">la</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">vhkl</span><span class="p">)</span>
+        <span class="n">angle</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arccos</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">vhkl</span><span class="o">/</span><span class="n">la</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">vhkl</span><span class="p">),</span> <span class="n">v3</span><span class="o">/</span><span class="n">la</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">v3</span><span class="p">)),</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+        <span class="n">R</span><span class="o">=</span><span class="n">formel</span><span class="o">.</span><span class="n">rotationMatrix</span><span class="p">(</span><span class="n">rotvector</span><span class="p">,</span><span class="n">angle</span><span class="p">)</span>
+        <span class="n">Rgrid</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;ij,kj-&gt;ki&#39;</span><span class="p">,</span><span class="n">R</span><span class="p">,</span><span class="n">grid</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Rgrid</span></div></div>
+
+
+<div class="viewcode-block" id="bravaisLattice"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.bravaisLattice">[docs]</a><span class="k">class</span> <span class="nc">bravaisLattice</span><span class="p">(</span><span class="n">rhombicLattice</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a Bravais lattice. Lattice with one atom in the unit cell.</span>
+
+<span class="sd">        See rhombicLattice for methods and attributes.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        latticeVectors : list of array 1x3</span>
+<span class="sd">            Lattice vectors defining the translation of the unit cell along its principal axes.</span>
+<span class="sd">        size :3x integer, integer</span>
+<span class="sd">            A list of integers describing the size in direction of the respective latticeVectors.</span>
+<span class="sd">            Size is symmetric around zero in interval [-i,..,i] with length 2i+1.</span>
+<span class="sd">            If one integer is given it is used for all 3 dimensions.</span>
+<span class="sd">        b : list of float</span>
+<span class="sd">            Corresponding scattering length of atoms in the unit cell.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lattice object</span>
+<span class="sd">            .array  grid points as numpy array</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rhombicLattice</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">unitCellAtoms</span><span class="o">=</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]],</span> <span class="n">b</span><span class="o">=</span><span class="n">b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;bravais&#39;</span></div>
+
+
+<div class="viewcode-block" id="scLattice"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.scLattice">[docs]</a><span class="k">class</span> <span class="nc">scLattice</span><span class="p">(</span><span class="n">bravaisLattice</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">abc</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Simple Cubic lattice.</span>
+
+<span class="sd">        See rhombicLattice for methods.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        abc : float</span>
+<span class="sd">            Point distance.</span>
+<span class="sd">        size : 3x integer, integer</span>
+<span class="sd">            A list of integers describing the size in direction of the respective latticeVectors.</span>
+<span class="sd">            Size is symmetric around zero in interval [-i,..,i] with length 2i+1.</span>
+<span class="sd">            If one integer is given it is used for all 3 dimensions.</span>
+<span class="sd">        b : list of float</span>
+<span class="sd">            Corresponding scattering length of atoms in the unit cell.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lattice object</span>
+<span class="sd">            .array  grid points as numpy array</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         import matplotlib.pyplot as plt</span>
+<span class="sd">         from mpl_toolkits.mplot3d import Axes3D</span>
+<span class="sd">         grid=js.sf.bccLattice(1.2,1)</span>
+<span class="sd">         grid.show(2)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">latticeVectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">abc</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">abc</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">abc</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,(</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">)):</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="p">[</span><span class="n">size</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span>
+        <span class="n">bravaisLattice</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="n">b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;sc&#39;</span></div>
+
+
+<div class="viewcode-block" id="bccLattice"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.bccLattice">[docs]</a><span class="k">class</span> <span class="nc">bccLattice</span><span class="p">(</span><span class="n">rhombicLattice</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">abc</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Body centered cubic lattice.</span>
+
+<span class="sd">        See rhombicLattice for methods.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        abc : float</span>
+<span class="sd">            Point distance.</span>
+<span class="sd">        size : 3x integer, integer</span>
+<span class="sd">            A list of integers describing the size in direction of the respective latticeVectors.</span>
+<span class="sd">            Size is symmetric around zero in interval [-i,..,i] with length 2i+1.</span>
+<span class="sd">            If one integer is given it is used for all 3 dimensions.</span>
+<span class="sd">        b : list of float</span>
+<span class="sd">            Corresponding scattering length of atoms in the unit cell.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lattice object</span>
+<span class="sd">            .array  grid points as numpy array</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         grid=js.sf.bccLattice(1.2,1)</span>
+<span class="sd">         grid.show(2)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">unitCellAtoms</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]]</span>
+        <span class="n">latticeVectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">abc</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">abc</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">abc</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,(</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">)):</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="p">[</span><span class="n">size</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span>
+        <span class="n">rhombicLattice</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">unitCellAtoms</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="n">b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;bcc&#39;</span></div>
+
+
+<div class="viewcode-block" id="fccLattice"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.fccLattice">[docs]</a><span class="k">class</span> <span class="nc">fccLattice</span><span class="p">(</span><span class="n">rhombicLattice</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">abc</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Face centered cubic lattice.</span>
+
+<span class="sd">        See rhombicLattice for methods.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        abc : float</span>
+<span class="sd">            Point distance.</span>
+<span class="sd">        size : 3x integer, integer</span>
+<span class="sd">            A list of integers describing the size in direction of the respective latticeVectors.</span>
+<span class="sd">            Size is symmetric around zero in interval [-i,..,i] with length 2i+1.</span>
+<span class="sd">            If one integer is given it is used for all 3 dimensions.</span>
+<span class="sd">        b : list of float</span>
+<span class="sd">            Corresponding scattering length of atoms in the unit cell.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lattice object</span>
+<span class="sd">            .array  grid points as numpy array</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         import matplotlib.pyplot as plt</span>
+<span class="sd">         from mpl_toolkits.mplot3d import Axes3D</span>
+<span class="sd">         grid=js.sf.fccLattice(1.2,1)</span>
+<span class="sd">         grid.show(2)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">unitCellAtoms</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">],</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">]]</span>
+        <span class="n">latticeVectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">abc</span> <span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">abc</span> <span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">abc</span> <span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,(</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">)):</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="p">[</span><span class="n">size</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span>
+        <span class="n">rhombicLattice</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">unitCellAtoms</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="n">b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;fcc&#39;</span></div>
+
+
+<div class="viewcode-block" id="diamondLattice"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.diamondLattice">[docs]</a><span class="k">class</span> <span class="nc">diamondLattice</span><span class="p">(</span><span class="n">rhombicLattice</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">abc</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Diamond cubic lattice with 8 atoms in unit cell.</span>
+
+<span class="sd">        See rhombicLattice for methods.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        abc : float</span>
+<span class="sd">            Point distance.</span>
+<span class="sd">        size : 3x integer, integer</span>
+<span class="sd">            A list of integers describing the size in direction of the respective latticeVectors.</span>
+<span class="sd">            Size is symmetric around zero in interval [-i,..,i] with length 2i+1.</span>
+<span class="sd">            If one integer is given it is used for all 3 dimensions.</span>
+<span class="sd">        b : list of float</span>
+<span class="sd">            Corresponding scattering length of atoms in the unit cell.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lattice object</span>
+<span class="sd">            .array  grid points as numpy array</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         grid=js.sf.diamondLattice(1.2,1)</span>
+<span class="sd">         grid.show(2)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">unitCellAtoms</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">],</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">1</span> <span class="o">/</span> <span class="mf">4.</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mf">4.</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mf">4.</span><span class="p">],</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">3</span> <span class="o">/</span> <span class="mf">4.</span><span class="p">,</span> <span class="mi">3</span> <span class="o">/</span> <span class="mf">4.</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mf">4.</span><span class="p">],</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">1</span> <span class="o">/</span> <span class="mf">4.</span><span class="p">,</span> <span class="mi">3</span> <span class="o">/</span> <span class="mf">4.</span><span class="p">,</span> <span class="mi">3</span> <span class="o">/</span> <span class="mf">4.</span><span class="p">],</span>
+                         <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">3</span> <span class="o">/</span> <span class="mf">4.</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mf">4.</span><span class="p">,</span> <span class="mi">3</span> <span class="o">/</span> <span class="mf">4.</span><span class="p">]]</span>
+        <span class="n">latticeVectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">abc</span> <span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">abc</span> <span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">abc</span> <span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,(</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">)):</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="p">[</span><span class="n">size</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span>
+        <span class="n">rhombicLattice</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">unitCellAtoms</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="n">b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;diamond&#39;</span></div>
+
+
+<span class="k">class</span> <span class="nc">hexLattice</span><span class="p">(</span><span class="n">rhombicLattice</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ab</span><span class="p">,</span><span class="n">c</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Hexagonal lattice.</span>
+
+<span class="sd">        See rhombicLattice for methods.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ab,c : float</span>
+<span class="sd">            Point distance.</span>
+<span class="sd">            ab is distance in hexagonal plane, c perpendicular.</span>
+<span class="sd">            For c/a = (8/3)**0.5 the hcp structure</span>
+<span class="sd">        size : 3x integer, integer</span>
+<span class="sd">            A list of integers describing the size in direction of the respective latticeVectors.</span>
+<span class="sd">            Size is symmetric around zero in interval [-i,..,i] with length 2i+1.</span>
+<span class="sd">            If one integer is given it is used for all 3 dimensions.</span>
+<span class="sd">        b : list of float</span>
+<span class="sd">            Corresponding scattering length of atoms in the unit cell.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lattice object</span>
+<span class="sd">            .array  grid points as numpy array</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         import matplotlib.pyplot as plt</span>
+<span class="sd">         from mpl_toolkits.mplot3d import Axes3D</span>
+<span class="sd">         grid=js.sf.hexLattice(1.,2,[2,2,2])</span>
+<span class="sd">         grid.show(2)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">latticeVectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">ab</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.5</span><span class="o">*</span><span class="n">ab</span><span class="p">,</span> <span class="mi">3</span><span class="o">**</span><span class="mf">0.5</span><span class="o">/</span><span class="mi">2</span><span class="o">*</span><span class="n">ab</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="n">c</span><span class="p">]]</span>
+        <span class="n">unitCellAtoms</span> <span class="o">=</span> <span class="p">[</span>      <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,(</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">)):</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="p">[</span><span class="n">size</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span>
+        <span class="n">rhombicLattice</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">unitCellAtoms</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="n">b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;hex&#39;</span>
+
+
+<div class="viewcode-block" id="hcpLattice"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.hcpLattice">[docs]</a><span class="k">class</span> <span class="nc">hcpLattice</span><span class="p">(</span><span class="n">rhombicLattice</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ab</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Hexagonal closed packed lattice.</span>
+
+<span class="sd">        See rhombicLattice for methods.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ab : float</span>
+<span class="sd">            Point distance.</span>
+<span class="sd">            ab is distance in hexagonal plane, c = ab* (8/3)**0.5</span>
+<span class="sd">        size : 3x integer, integer</span>
+<span class="sd">            A list of integers describing the size in direction of the respective latticeVectors.</span>
+<span class="sd">            Size is symmetric around zero in interval [-i,..,i] with length 2i+1.</span>
+<span class="sd">            If one integer is given it is used for all 3 dimensions.</span>
+<span class="sd">        b : list of float</span>
+<span class="sd">            Corresponding scattering length of atoms in the unit cell.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lattice object</span>
+<span class="sd">            .array  grid points as numpy array</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         import matplotlib.pyplot as plt</span>
+<span class="sd">         from mpl_toolkits.mplot3d import Axes3D</span>
+<span class="sd">         grid=js.sf.hcpLattice(1.2,[3,3,1])</span>
+<span class="sd">         grid.show(2)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">ab</span><span class="o">*</span> <span class="p">(</span><span class="mi">8</span><span class="o">/</span><span class="mf">3.</span><span class="p">)</span><span class="o">**</span><span class="mf">0.5</span>
+        <span class="n">latticeVectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">ab</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.5</span><span class="o">*</span><span class="n">ab</span><span class="p">,</span> <span class="mi">3</span><span class="o">**</span><span class="mf">0.5</span><span class="o">/</span><span class="mi">2</span><span class="o">*</span><span class="n">ab</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="n">c</span><span class="p">]]</span>
+        <span class="n">unitCellAtoms</span> <span class="o">=</span> <span class="p">[</span>   <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                            <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mi">1</span><span class="o">/</span><span class="mf">3.</span> <span class="p">,</span> <span class="mi">1</span><span class="o">/</span><span class="mf">3.</span><span class="p">,</span><span class="mf">0.5</span> <span class="p">]]</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,(</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">)):</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="p">[</span><span class="n">size</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span>
+        <span class="n">rhombicLattice</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">unitCellAtoms</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="n">b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;hcp&#39;</span></div>
+
+
+<span class="k">class</span> <span class="nc">sqLattice</span><span class="p">(</span><span class="n">bravaisLattice</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ab</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Simple 2D square lattice.</span>
+
+<span class="sd">        See rhombicLattice for methods.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ab : float</span>
+<span class="sd">            Point distance.</span>
+<span class="sd">        size : 2x integer, integer</span>
+<span class="sd">            A list of integers describing the size in direction of the respective latticeVectors.</span>
+<span class="sd">            Size is symmetric around zero in interval [-i,..,i] with length 2i+1.</span>
+<span class="sd">            If one integer is given it is used for all 3 dimensions.</span>
+<span class="sd">        b : list of float</span>
+<span class="sd">            Corresponding scattering length of atoms in the unit cell.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lattice object</span>
+<span class="sd">            .array  grid points as numpy array</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         grid=js.sf.sqLattice(1.2,1)</span>
+<span class="sd">         grid.show(2)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">latticeVectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">ab</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">ab</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">1.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,(</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">)):</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="p">[</span><span class="n">size</span><span class="p">]</span><span class="o">*</span><span class="mi">2</span>
+        <span class="n">bravaisLattice</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="n">b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;sq&#39;</span>
+
+
+<div class="viewcode-block" id="hexLattice"><a class="viewcode-back" href="../../structurefactor.html#jscatter.structurefactor.hexLattice">[docs]</a><span class="k">class</span> <span class="nc">hexLattice</span><span class="p">(</span><span class="n">bravaisLattice</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ab</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Simple 2D hexagonal lattice.</span>
+
+<span class="sd">        See rhombicLattice for methods.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ab : float</span>
+<span class="sd">            Point distance.</span>
+<span class="sd">        size : 2x integer, integer</span>
+<span class="sd">            A list of integers describing the size in direction of the respective latticeVectors.</span>
+<span class="sd">            Size is symmetric around zero in interval [-i,..,i] with length 2i+1.</span>
+<span class="sd">            If one integer is given it is used for all 3 dimensions.</span>
+<span class="sd">        b : list of float</span>
+<span class="sd">            Corresponding scattering length of atoms in the unit cell.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lattice object</span>
+<span class="sd">            .array  grid points as numpy array</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         grid=js.sf.hexLattice(1.2,1)</span>
+<span class="sd">         grid.show(2)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">latticeVectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">ab</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">],</span>
+                          <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.5</span><span class="o">*</span><span class="n">ab</span><span class="p">,</span> <span class="mi">3</span><span class="o">**</span><span class="mf">0.5</span><span class="o">/</span><span class="mi">2</span><span class="o">*</span><span class="n">ab</span><span class="p">,</span> <span class="mf">0.</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,(</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">)):</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="p">[</span><span class="n">size</span><span class="p">]</span><span class="o">*</span><span class="mi">2</span>
+        <span class="n">bravaisLattice</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="n">b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;hex&#39;</span></div>
+
+
+<span class="k">class</span> <span class="nc">lamLattice</span><span class="p">(</span><span class="n">bravaisLattice</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        1D lamellar lattice.</span>
+
+<span class="sd">        See rhombicLattice for methods.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        a : float</span>
+<span class="sd">            Point distance.</span>
+<span class="sd">        size : 2x integer, integer</span>
+<span class="sd">            A list of integers describing the size in direction of the respective latticeVectors.</span>
+<span class="sd">            Size is symmetric around zero in interval [-i,..,i] with length 2i+1.</span>
+<span class="sd">            If one integer is given it is used for all 3 dimensions.</span>
+<span class="sd">        b : list of float</span>
+<span class="sd">            Corresponding scattering length of atoms in the unit cell.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        lattice object</span>
+<span class="sd">            .array  grid points as numpy array</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+
+<span class="sd">         import jscatter as js</span>
+<span class="sd">         grid=js.sf.lamLattice(1.2,1)</span>
+<span class="sd">         grid.show(2)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">latticeVectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">size</span><span class="p">,(</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">)):</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="p">[</span><span class="n">size</span><span class="p">]</span><span class="o">*</span><span class="mi">1</span>
+        <span class="n">bravaisLattice</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latticeVectors</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span><span class="n">b</span><span class="o">=</span><span class="n">b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="s1">&#39;lam&#39;</span>
+
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../index.html">
+              <img class="logo" src="../../_static/Jscatter1.gif" alt="Logo"/>
+            </a></p>
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../BeginnersGuide.html">1. Beginners Guide / Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dataArray.html">2. dataArray</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dataList.html">3. dataList</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formel.html">4. formel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../sas.html">5. smallanglescattering (sas)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formfactor.html">6. formfactor (ff)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../structurefactor.html">7. structurefactor (sf)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dynamic.html">8. dynamic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dls.html">9. dls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../parallel.html">10. parallel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../GracePlot.html">11. Plotting in XmGrace</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mpl.html">12. mpl</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples.html">13. Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../Extending.html">14. Extending/Contributing/Fortran</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tips.html">15. Tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../Remarks.html">16. Intention and Remarks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../Installation.html">17. Installation</a></li>
+</ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">jscatter 0.7.6 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2014-18, Ralf Biehl.
+      Last updated on Jul 02, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.2.
+    </div>
+  </body>
+</html>
