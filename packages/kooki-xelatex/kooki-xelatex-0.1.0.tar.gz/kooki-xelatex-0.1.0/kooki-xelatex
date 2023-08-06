@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+
+import subprocess, os, shutil, tempfile, argparse, textwrap
+
+
+def main(args):
+
+    current = os.getcwd()
+    temp_dir = tempfile.mkdtemp()
+    os.chdir(temp_dir)
+    print(temp_dir)
+
+    name = args.file.split('/')[-1].split('.')[0]
+
+    pdf_file_name = '{0}.pdf'.format(name.split('/')[-1])
+    relative_output_path = '/'.join(name.split('/')[:-1])
+    absolute_output_path = os.path.join(current, relative_output_path)
+    pdf_file_path = os.path.join(temp_dir, pdf_file_name)
+
+    command = textwrap.dedent('''\
+        xelatex -interaction=nonstopmode -halt-on-error -output-directory={1} {0}\
+        ''').format(args.file, temp_dir)
+
+    log_file = os.path.join(temp_dir, 'xelatex.log')
+    command_bib = 'bibtex {}'.format(name)
+    command_glossary = 'makeglossaries {}'.format(name)
+
+    with open(log_file, 'w') as f:
+        subprocess.call(command, shell=True, stdout=f)
+        subprocess.call(command_bib, shell=True, stdout=f)
+        subprocess.call(command_glossary, shell=True, stdout=f)
+        subprocess.call(command, shell=True, stdout=f)
+        subprocess.call(command, shell=True, stdout=f)
+    print('XeLaTeX output: cat {0}'.format(log_file))
+
+    if not os.path.isdir(absolute_output_path):
+        os.makedirs(absolute_output_path)
+
+    if os.path.isfile(pdf_file_path):
+        shutil.copy(pdf_file_path, absolute_output_path)
+        print('exported to {}'.format(os.path.join(absolute_output_path, pdf_file_name)))
+    else:
+        print('the file {} is missing'.format(pdf_file_name))
+
+    # shutil.rmtree(temp_dir)
+    os.chdir(current)
+
+
+if __name__ == '__main__':
+    try:
+        parser = argparse.ArgumentParser(prog='kooki-xelatex', add_help=False)
+        parser.add_argument('file', help='path to tex file')
+        args = parser.parse_args()
+        main(args)
+
+    except (KeyboardInterrupt, SystemExit):
+        pass
