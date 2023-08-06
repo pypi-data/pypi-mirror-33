@@ -1,0 +1,112 @@
+#!/bin/bash
+
+function check_py_version
+{
+	# Full version number e.g. 2.7.1
+	python_version="$(echo "$($1 -V 2>&1)" | sed -e "s/^.* \(.*\)$/\\1/g")"
+
+	# Return (the first letter -lt "3")
+	! [ "$(echo $python_version | head -c 1 )" -lt "3" ]
+}
+
+MESSAGE_EXIT_CODE=60
+PYTHON_BINARY=""
+POTENTIAL_BINARIES=( "python" "python3" "python3.6" "python3.5" )
+PY3_SUPPORT=false
+
+for i in "${POTENTIAL_BINARIES[@]}"
+do
+	PYTHON_BINARY="$i"
+	#echo "Checking for $PYTHON_BINARY"
+
+	if  $(check_py_version $PYTHON_BINARY) ;
+	then
+		PY3_SUPPORT=true
+		break
+	fi
+done
+
+if [ ! $PY3_SUPPORT ]
+then
+	echo "[ERROR] Could not find python3 binary, please add it to your \$PATH before continuing"
+	exit
+fi
+
+# Is the user passing the config flag instead of directly invoking the python binary?
+if [ "$1" == "config" ]
+then
+	if [ -z "$2" ]
+	then
+		# Default to global
+		$PYTHON_BINARY -m jira_issue_selector -e "global"
+	else
+		if [ "$2" == "copy" ]
+		then
+			# special check: does the user want to copy an old config?
+			$PYTHON_BINARY -m jira_issue_selector --copy-config
+
+		else
+			# Or whatever the user passed
+			$PYTHON_BINARY -m jira_issue_selector -e "$2"
+		fi
+	fi
+	exit
+fi
+
+# The user wants to make a commit!
+if [ "$1" == "commit" ]
+then
+
+	# Create temporary file to store the issue the user selects
+	TEMP_FILE="$(mktemp)"
+
+	# Actually run the program (also pass all arguments after 'commit'
+	$PYTHON_BINARY -m jira_issue_selector -i "$TEMP_FILE" "${@:2}"
+
+	# Did the program exit correctly? (EXIT_CODE = 0)
+	EXIT_CODE=$?
+	if [ $EXIT_CODE -eq 0 ];then
+		# If so create a new commit with that file
+		git commit -t $TEMP_FILE
+	elif [ $EXIT_CODE -eq $MESSAGE_EXIT_CODE ];
+	then
+		# If the message is already in the file
+		# lets just pass it along automatically
+		git commit -m "$(cat $TEMP_FILE)"
+	fi
+
+	# Clean-up afterwards!
+	rm $TEMP_FILE
+	exit
+fi
+
+
+if [ $# -eq 1 ]
+then
+
+	case "$1" in
+
+		# Might put more stuff here, later. Haven't decided.
+		"help")
+			$PYTHON_BINARY -m jira_issue_selector -h
+			echo
+			echo "You may also use the 'git jira' wrapper script."
+			echo "It simply wraps the python script, and adds some functionality:"
+			echo
+			echo "usage: git jira [config global|local|copy] [help] [commit]"
+			echo
+			echo "optional arguments: "
+			echo "  [commit] Run the issue-selector, then pass the selected issue to 'git commit'"
+			echo "  [config] same as the -e flag above. Note: Pass 'copy' to initiate the interactive config copying dialogue"
+			echo "  [help] same as the -h flag above"
+			exit
+			;;
+
+	esac
+
+fi
+
+# If we made it here it means the user just wants to forward their
+# args to the python script (and, well, execute it)
+# What? It's easier than typing "python -m jira_issue_selector"
+$PYTHON_BINARY -m jira_issue_selector $@
