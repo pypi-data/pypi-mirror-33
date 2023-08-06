@@ -1,0 +1,62 @@
+#!/bin/bash
+set -e
+
+PWD=$(cd "`dirname $0`"/..; pwd)
+
+function fatal_error () {
+	echo "ERROR: $1" 1>&2
+	exit 1
+}
+
+
+if [[ -z "${VARSPARK_HOME}" ]]; then
+	VARSPARK_HOME="${PWD}"
+fi
+
+if [[ -n "${VS_ECHO_CMDLINE}" ]]; then
+	echo "$0" "$@"
+fi
+
+VS_ASSEMBLY_JAR="`${VARSPARK_HOME}/bin/find-varspark-jar`"
+
+RUNNER="--spark"
+declare -a SPARK_PARAMS 
+spark_param_index=0
+if [[ "$1" == "--spark"  || "$1" == "--emr" || "$1" == "--local" ]]; then
+	RUNNER="$1"
+	shift 1
+	while [[ "$#" -gt 0 ]]; do
+		arg="$1"
+		shift 1
+		if [[ "$arg" == "--" ]]; then
+			break
+		fi
+		SPARK_PARAMS[spark_param_index]="$arg"
+		((spark_param_index+=1))
+	done
+fi
+
+if [[ -n "${VS_DEBUG}" ]]; then
+	echo "Home: ${VARSPARK_HOME} "
+	echo "Runner: ${RUNNER}"
+	echo "Jar: ${VS_ASSEMBLY_JAR}"
+fi
+
+if [[ "${RUNNER}" == "--spark" ]]; then
+	[[ $(type -P "spark-submit") ]] || fatal_error  "\`spark-submit\` cannot be found. Please make sure it's on your PATH." 
+	spark-submit --class au.csiro.variantspark.cli.VariantSparkApp \
+ 	--driver-class-path ${VARSPARK_HOME}/conf \
+ 	"${SPARK_PARAMS[@]}" \
+ 	${VS_ASSEMBLY_JAR} "$@"
+elif [[ "${RUNNER}" == "--emr" ]]; then
+	[[ $(type -P "spark-submit") ]] || fatal_error  "\`spark-submit\` cannot be found. Please make sure it's on your PATH." 
+	spark-submit --class au.csiro.variantspark.cli.VariantSparkApp \
+ 	"${SPARK_PARAMS[@]}" \
+ 	${VS_ASSEMBLY_JAR} "$@"
+else
+	[[ -n "$SPARK_HOME" ]] || fatal_error "\`SPARK_HOME\` is not defined. Please set it to the root of your Spark installation."
+	SPARK_JARS="${SPARK_HOME}/jars/*"
+	SPARK_CLASSPATH="${VARSPARK_HOME}/conf:${VS_ASSEMBLY_JAR}:${SPARK_JARS}:/usr/lib/hadoop/lib/*:/usr/lib/hadoop/.//*:/usr/lib/hadoop-hdfs/./:/usr/lib/hadoop-hdfs/lib/*:/usr/lib/hadoop-hdfs/.//*:/usr/lib/hadoop-yarn/lib/*:/usr/lib/hadoop-yarn/.//*:/usr/lib/hadoop-mapreduce/lib/*:/usr/lib/hadoop-mapreduce/.//*"
+        echo "$SPARK_CLASSPATH"
+	java -cp "${SPARK_CLASSPATH}" "${SPARK_PARAMS[@]}"  au.csiro.variantspark.cli.VariantSparkApp "$@"
+fi
