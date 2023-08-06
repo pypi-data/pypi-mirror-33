@@ -1,0 +1,189 @@
+Metadata-Version: 2.1
+Name: devpi-server
+Version: 4.6.0
+Summary: devpi-server: reliable private and pypi.org caching server
+Home-page: http://doc.devpi.net
+Maintainer: Holger Krekel, Florian Schulze
+Maintainer-email: holger@merlinux.eu
+License: MIT
+Keywords: pypi realtime cache server
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Web Environment
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: System Administrators
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python
+Classifier: Topic :: Internet :: WWW/HTTP
+Classifier: Topic :: Internet :: WWW/HTTP :: WSGI :: Application
+Classifier: Programming Language :: Python :: Implementation :: PyPy
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Requires-Dist: py (>=1.4.23)
+Requires-Dist: devpi-common (<4,>=3.2.0)
+Requires-Dist: itsdangerous (>=0.24)
+Requires-Dist: execnet (>=1.2)
+Requires-Dist: pyramid (>=1.8)
+Requires-Dist: waitress (>=1.0.1)
+Requires-Dist: repoze.lru (>=0.6)
+Requires-Dist: passlib[argon2]
+Requires-Dist: pluggy (<1.0,>=0.3.0)
+
+=============================================================================
+devpi-server: pypi server for caching and private indexes
+=============================================================================
+
+* `issue tracker <https://github.com/devpi/devpi/issues>`_, `repo
+  <https://github.com/devpi/devpi>`_
+
+* IRC: #devpi on freenode, `mailing list
+  <https://mail.python.org/mm3/mailman3/lists/devpi-dev.python.org/>`_ 
+
+* compatibility: {win,unix}-py{27,34,35,36,py}
+
+consistent robust pypi-cache
+============================
+
+You can point ``pip or easy_install`` to the ``root/pypi/+simple/``
+index, serving as a self-updating transparent cache for pypi-hosted
+**and** external packages.  Cache-invalidation uses the latest and
+greatest PyPI protocols.  The cache index continues to serve when
+offline and will resume cache-updates once network is available.
+
+user specific indexes
+=====================
+
+Each user (which can represent a person or a project, team) can have
+multiple indexes and upload packages and docs via standard ``setup.py``
+invocations command.  Users and indexes can be manipulated through a
+RESTful HTTP API.
+
+index inheritance
+=================
+
+Each index can be configured to merge in other indexes so that it serves
+both its uploads and all releases from other index(es).  For example, an
+index using ``root/pypi`` as a parent is a good place to test out a
+release candidate before you push it to PyPI.
+
+good defaults and easy deployment
+=================================
+
+Get started easily and create a permanent devpi-server deployment
+including pre-configured templates for ``nginx`` and cron. 
+
+separate tool for Packaging/Testing activities
+==============================================
+
+The complementary `devpi-client <https://pypi.org/project/devpi-client/>`_ tool
+helps to manage users, indexes, logins and typical setup.py-based upload and
+installation workflows.
+
+See https://doc.devpi.net for getting started and documentation.
+
+
+
+=========
+Changelog
+=========
+
+
+
+.. towncrier release notes start
+
+4.6.0 (2018-07-13)
+==================
+
+Features
+--------
+
+- implement #448: allow deletion of single release files.
+
+- implement #530: set caching headers for release files to expire far in the
+  future.
+
+- implement #535: Generate absolute URLs on project simple index pages when
+  ``--absolute-urls`` option is used or ``X-DEVPI-ABSOLUTE-URLS`` header is
+  set.
+
+- add `--max-request-body-size` option to control maximum upload size
+
+- add `--request-timeout` option to provide adjustable request timeout
+
+
+Bug Fixes
+---------
+
+- fix #549: reduce timeout for requests to PyPI etc from 30 to 5 seconds. This
+  can be changed with the ``--request-timeout`` option.
+
+- fix raising of UpstreamError by using correct ``status_code`` attribute of
+  response instead of not existing ``status``.
+
+- Fix cumulating log tags for request numbers by wrapping the responsible code
+  in a try/finally block to always remove the tag, even when there was an
+  exception.
+
+
+4.5.0 (2018-05-04)
+==================
+
+Features
+--------
+
+- add ``devpiserver_on_remove_file`` hook to handle removal of files in
+  plugins. Thanks to Dr Colin Kong for the PR.
+
+- Use ``pypi.org`` as new default for ``root/pypi`` mirror index.
+
+
+Bug Fixes
+---------
+
+- adjust minimum version of pyramid to 1.8 (related to #430)
+
+- fix #494: PEP 503 compliance, html and redirect fixes.
+
+- fix #510: catch another possible error when trying to open sqlite db with uri
+  keyword.
+
+
+4.4.0 (2018-01-17)
+==================
+
+Features
+--------
+
+- fix issue469: Add ``acl_toxresult_upload`` to index configuration.
+
+
+Bug Fixes
+---------
+
+- fix issue477: importing with --no-root-pypi failed.
+
+
+4.3.2 (2017-12-19)
+==================
+
+Bug Fixes
+---------
+
+- fix issue480: store additional metadata for packages.
+
+- fix issue489: ignore download errors in replica thread for mirrored files
+  that were removed from the filesystem on master and from the mirrored source.
+
+
+4.3.1 (2017-11-23)
+==================
+
+Bug Fixes
+---------
+
+- fix +api on replica when master is down.
+
+
+
