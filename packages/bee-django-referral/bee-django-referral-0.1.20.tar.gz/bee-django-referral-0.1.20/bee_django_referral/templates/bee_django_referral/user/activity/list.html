@@ -1,0 +1,77 @@
+{% extends "bee_django_referral/base.html" %}
+{% load bee_django_referral_filter %}
+
+{% block content %}
+    {% include 'bee_django_referral/logo.html' %}
+    {% include 'bee_django_referral/nav.html' %}
+    <div class="text-center"><h3>
+        {{ user|get_name }}的转介活动列表
+    </h3>
+    </div>
+
+    <h4>全部可见活动</h4>
+    <table class="table">
+        <thead>
+        <tr>
+            <th></th>
+            <th>活动名称</th>
+
+
+        </tr>
+        </thead>
+        <tbody>
+        {% for activity in activity_list %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ activity.name }}</td>
+
+            </tr>
+
+        {% endfor %}
+        </tbody>
+    </table>
+    <hr>
+    <h4>指定用户可见活动</h4>
+    <div class="text-right">
+        <a class="btn btn-default" href="{% url 'bee_django_referral:user_activity_add' user.id %}">添加</a>
+    </div>
+    <table class="table">
+        <thead>
+        <tr>
+            <th></th>
+            <th>活动名称</th>
+
+
+        </tr>
+        </thead>
+        <tbody>
+        {% for user_activity in user_activity_list %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ user_activity.activity.name }}</td>
+                <td>
+                    <a href="#" id="delete_{{ user_activity.id }}"
+                       data-confirm="{% url "bee_django_referral:user_activity_delete"  user_activity.id %}"
+                       onclick="click_del(this)">删除</a>
+                </td>
+            </tr>
+
+        {% endfor %}
+        </tbody>
+    </table>
+    {% include 'bee_django_referral/paginator.html' %}
+{% endblock %}
+{% block scripts %}
+    <script>
+        function click_del(_this) {
+            if (!confirm('确认要执行这个操作？')) {
+                return false;
+            }
+            var url = $(_this).attr('data-confirm');
+            $.post(url).done(function (data) {
+                alert('删除成功!');
+                location.reload();
+            });
+        }
+    </script>
+{% endblock %}
