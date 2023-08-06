@@ -1,0 +1,58 @@
+env:
+  global:
+    - secure: "WDG1lYvH4eJUqtzX/+lA+CRRHuRdjLUvJQDb4OIQ8LhrTS2VNrFtjFOO2L4BPOothwoB7WMBd4Sgd5x4DHilvqYlj8O9Jfe2rBXZbZC73I9weCBezgJ1l2eM7fFkUrnhqW8QOXRI4ALE4bhSwW6y/CMOhkLW++xw0AVlWnF+gLa44V/dPBoaQODkS5Rn/k+vE4cwyyMBLFoTXvCKeyQQZBTZ5t3VV3QLR+gpcti+GfnkAkozBEjUpWGuafu4Z+rsqvvadErP/lihM0QjDxbKv5BXFTpts1ooSj0L4i9ga0qbNuD9sSGpj2TPV8qAomZqaoIsi9PCep4StcyuFhvPKt860WrIvCNi3yBG4N7DfH4rHruOHfDT7bUZtLWJ7qlVwdrs/qz7t0l6VpnInw1WoBFbC7Jbd0qFD/38AzkZ4UKHgh+Zp5gUPdOs5oLgHq59YEzkS/2Lv7dMU98BT5TpcqqJhvzBclW0xqUz3yabgw3rOpVfmiwoVSgtCJfkgJy7xJDd78Mr1JmWOT4/zkZBNTHDnfZtRGNfyEXOeohL6JrtRft1o/qKypsA2pi86H0bAM4j0KBBCpptgpckNvS2vdRUZlBWJRISp/sEEQdoT+u9YIDPpa8Kr1tzbdXLoIV4K+FIW3dvWSkVwL+IFpvQzcpKMWTHKXawzBai42Fccfo="
+    - secure: "LK4LJMHZaik7zmibnNCVcFfqUZirwmc6VSwOAa/eNmUOldM9Jxq4+F9rK4zghwFq6HR5xptcTtCFMn8muX4mDq5AKNbsfrcKoA/d5uNdfbviCm34VB0F0ALLqXkBsfwcm7FbRVox4o1HomMRCTu7Grahy7LvH6a5B4bSvtZM2teuss2nMasT7OBv5c1RT7onx+dwQeLlhNDaaGOQYRLNh2CiPgGAXSA5433IQg2pNW8HuCjGGKdSisPmkGqNVDAoCPsuk8EmvMlWq4S6Bmja8gToxPNbyXe9zqF3SjAdLxhDRgivpBEeFFJSDBCmVdnwQnAY1Edmw1/bERU0+/E0XOCFJpeiFxd9Arjw+dcD3ZHpAbga0x3/jsj2PYitZNhg1HBzIYKTeR7MgfSJGMwG/oKtSMaKILV5bpWfdUcvdk8r3z23uMBRZoGrl4EcF0jKpfe99oUTFkqVF226eu8tLA9KasFyFBMXqw+t7Wk3vnoQZ7IlT4XTKy4cMIuGkcoswkMsLZWQHzOQ/z3znifc703KmxJXNlK/VweDnT/h7dmxlraJRElCkhQSDcJoruuvcnTV8qMPcPm0x5o20hgtvdtFzuh0obHp3qDd/26SL7CcPI1kTUMw4oT1h3yG5u/kFPb/ChfpVDY/y3wwGr6baUvmXyrDGG9yCNPj9wCoo6A="
+
+matrix:
+  include:
+    - language: python
+      os: linux
+      env: DEPLOY=true
+      python: 3.6
+      addons:
+        apt:
+          packages:
+          - ca-certificates
+          - libc++-dev
+          - g++-7
+          - clang
+          sources:
+          - sourceline: 'ppa:ubuntu-toolchain-r/test'
+          - sourceline: 'ppa:jonathonf/gcc-7.1'
+          - sourceline: 'ppa:deadsnakes/ppa'
+      dist: trusty
+    - language: cpp
+      os: osx
+      env: DEPLOY=false
+      osx_image: xcode8
+      before_install:
+        - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew update; fi
+        - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew upgrade python; fi
+        - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install llvm; fi
+        - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export PATH=/usr/local/opt/llvm/bin:$PATH; fi
+
+install:
+  - pip3 install setuptools
+  - pip3 install codecov
+  - python3 setup.py develop
+
+script:
+  - which clang++ && clang++ --version
+  - which llvm-ar && llvm-ar --version
+  - which python3 && python3 --version
+  - which pip3    && pip3    --version
+  - python3 setup.py test
+  - python3 -m coverage run setup.py test
+  - python3 -m coverage combine
+
+after_success:
+  - codecov
+
+deploy:
+  provider: pypi
+  user:     "$PYPIUSER"
+  password: "$PYPIPASSWORD"
+  skip_cleanup: true
+  on:
+    all_branches: true
+    condition: $DEPLOY = true
