@@ -1,0 +1,50 @@
+heat_template_version: 2016-10-14
+
+description: Template for networks
+
+parameters:
+  dns:
+    type: comma_delimited_list
+    label: DNS nameserver
+    description: Comma separated list of DNS nameservers for the private network. (e.g. "8.8.8.8","8.8.4.4")
+    default: "8.8.8.8"
+  cidr:
+    type: string
+    label: Network address in CIDR 
+    description: Network address in CIDR format (e.g. 192.168.0.0/24, 2001:DB8::/48)
+  gateway:
+    type: string
+    label: Gateway IP address
+    description: IP address of Gateway (e.g. 192.168.0.254) The default value is the first IP of the network address (e.g. 192.168.0.1 for 192.168.0.0/24, 2001:DB8::1 for 2001:DB8::/48). If you use the default, leave blank. If you do not want to use a gateway, check 'Disable Gateway' below.
+  public_network:
+    type: string
+    label: Public network name or ID
+    description: Public network to attach server to.
+    default: Public_Network
+
+resources:
+  private_network:
+    type: OS::Neutron::Net
+    properties:
+      name: { get_param: 'OS::stack_name' }
+
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: { get_param: 'OS::stack_name' }
+      network_id: { get_resource: private_network }
+      cidr: { get_param: cidr }
+      dns_nameservers: { get_param: dns }
+      gateway_ip: { get_param: gateway }
+
+  router:
+    type: OS::Neutron::Router
+    properties:
+      external_gateway_info:
+        network: { get_param: public_network }
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: router }
+      subnet: { get_resource: private_subnet }

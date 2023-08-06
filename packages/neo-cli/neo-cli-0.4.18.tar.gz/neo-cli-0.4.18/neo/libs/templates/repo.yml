@@ -1,0 +1,99 @@
+clusters:
+  kubernetes:
+    url: "git+https://github.com/BiznetGIO/neo-heat-kubernetes.git"
+    description: "Template that installs a kubernetes cluster resource group and a master node."
+    parameters:
+      image:
+        type: string
+        label: Image name
+        description: Image to be used for server. Please use an Centos based image.
+        default: 16f795e6-aa68-4b49-a318-d6de8d1bd8aa
+      controller_flavor:
+        type: string
+        label: Flavor
+        description: Type of instance (flavor) to be used on the compute instance.
+        default: SS2.1
+      master_flavor:
+        type: string
+        label: Master Flavor
+        description: Type of instance (flavor) to be used on the compute instance.
+        dependences: "func:get_flavor"
+      worker_flavor:
+        type: string
+        label: Worker Flavor
+        description: Type of instance (flavor) to be used on the compute instance.
+        dependences: "func:get_flavor"
+      public_network:
+        type: string
+        label: Public network name or ID
+        description: Public network to attach server to.
+        default: Public_Network
+      master_size:
+        type: number
+        label: Master size
+        description: Number of instances in cluster.
+      worker_size:
+        type: number
+        label: Worker size
+        description: Number of instances in cluster.
+      private_network:
+        type: string
+        label: Private Network
+        description: Setup Private network
+        dependences: "repo:networks.private"
+
+networks:
+  private:
+    url: "git+https://github.com/BiznetGIO/neo-heat-private-network.git"
+    description: "Private network setup"
+    lists: "get_network"
+    parameters:
+      dns:
+        type: comma_delimited_list
+        label: DNS nameserver
+        description: Comma separated list of DNS nameservers for the private network. (e.g. "8.8.8.8","8.8.4.4")
+        default: "8.8.8.8"
+      cidr:
+        type: string
+        label: Network address in CIDR (e.g. 192.168.0.0/24, 2001:DB8::/48)
+        description: Network address in CIDR format (e.g. 192.168.0.0/24, 2001:DB8::/48)
+      gateway:
+        type: string
+        label: IP address of Gateway (e.g. 192.168.0.254)
+        description: IP address of Gateway (e.g. 192.168.0.254) The default value is the first IP of the network address (e.g. 192.168.0.1 for 192.168.0.0/24, 2001:DB8::1 for 2001:DB8::/48). If you use the default, leave blank. If you do not want to use a gateway, check 'Disable Gateway' below.
+
+instances:
+  vm:
+    url: "git+https://github.com/BiznetGIO/neo-heat-vm.git"
+    description: "Create Virtual Machine"
+    parameters:
+      private_network:
+        type: string
+        label: Private Network
+        description: Setup Private network
+        dependences: "repo:networks.private"
+      key_name:
+        type: string
+        label: Key Name
+        description: Key name
+        dependences: "repo:others.key-pairs"
+      image:
+        type: string
+        label: Image name or ID
+        description: Image to be used for server. Please use an Centos based image.
+        dependences: "func:get_img"
+      flavor:
+        type: string
+        label: Flavor
+        description: Type of instance (flavor) to be used on the compute instance.
+        dependences: "func:get_flavor"
+      username:
+        type: string
+        label: Set Username
+        description: Set username to virtual machine.
+
+others:
+    key-pairs:
+      url: "git+https://github.com/BiznetGIO/neo-heat-key-pairs.git"
+      description: "Key pairs setup"
+      lists: "get_key"

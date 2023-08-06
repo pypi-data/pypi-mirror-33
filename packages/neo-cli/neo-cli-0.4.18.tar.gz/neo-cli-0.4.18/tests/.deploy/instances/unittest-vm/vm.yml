@@ -1,0 +1,115 @@
+heat_template_version: 2016-10-14
+
+description: Template create vm.
+
+#####################################
+# PARAMETERS
+#####################################
+parameters:
+  key_name:
+    type: string
+    label: Key Name
+    description: Key name 
+  image:
+    type: string
+    label: Image name or ID
+    description: Image to be used for server. Please use an Centos based image.
+  flavor:
+    type: string
+    label: Flavor
+    description: Type of instance (flavor) to be used on the compute instance.
+  private_network:
+    type: string
+    label: Private Network
+    description: Setup Private network
+  public_network:
+    type: string
+    label: Public network name or ID
+    description: Public network to attach server to.
+    default: Public_Network
+  username:
+    type: string
+    label: Set Username
+    description: Set username to virtual machine.
+
+resources:
+  cloud_config:
+    type: OS::Heat::MultipartMime
+    properties:
+      parts:
+        - config:
+            str_replace:
+              params:
+                $USERNAME : { get_param: username }
+              template: |
+                #cloud-config
+                system_info:
+                  default_user:
+                    name: $USERNAME
+                    lock_passwd: true
+                    gecos: Instances Interactive User
+                    groups: [wheel, adm, systemd-journal]
+                    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+                    shell: /bin/bash
+          
+  
+  secgroup:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name:
+        list_join: [-, [{ get_param: 'OS::stack_name' },neo,secgroup]]
+      rules:
+        - protocol: icmp
+        - protocol: udp
+        - protocol: tcp
+          port_range_min: 22
+          port_range_max: 22
+        - protocol: tcp
+          port_range_min: 443
+          port_range_max: 443
+        - protocol: tcp
+          port_range_min: 80
+          port_range_max: 80
+        - remote_mode: remote_group_id
+
+  create_vm:
+    type: OS::Nova::Server
+    properties:
+      name: { get_param: 'OS::stack_name' }
+      image: {get_param: image}
+      flavor: {get_param: flavor}
+      key_name: {get_param: key_name}
+      networks:
+        - port: {get_resource: define_port}
+      user_data_format: RAW
+      user_data: {get_resource: cloud_config}
+        
+  
+  define_port:
+    type: OS::Neutron::Port
+    properties:
+      admin_state_up: true
+      network_id: { get_param: private_network }
+      security_groups:
+        - {get_resource: secgroup}
+       
+  floating:
+      type: OS::Neutron::FloatingIP
+      properties:
+        floating_network: {get_param: public_network}
+        port_id: {get_resource: define_port}
+
+outputs:
+  user:
+    description: User Name
+    value: {get_param: username}
+  controller:
+    description: Controller IP
+    value: {get_attr: [floating,floating_ip_address]}
+  key_name:
+    description: Key Name
+    value: {get_param: key_name}
+  sec_group:
+    description: Security Group
+    value:
+      list_join: [-, [{ get_param: 'OS::stack_name' },neo,secgroup]]
