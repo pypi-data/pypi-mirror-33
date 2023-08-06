@@ -1,0 +1,161 @@
+#!/usr/bin/python3
+
+import argparse, os, sys
+import json, argparse, textwrap
+from collections import OrderedDict
+from mistune import Markdown, Renderer, InlineLexer, BlockLexer
+
+__version__ = '0.0.0'
+__program__ = 'mdfmt'
+__description__ = ''
+
+
+def main(args):
+    show_version(args)
+    with open(args.markdown, 'r') as stream:
+        content = stream.read()
+        result = format_markdown(content)
+        print(result)
+
+
+def show_version(args):
+    if args.version:
+        print('{0} {1}\nPython {2}'.format(__program__, __version__, sys.version))
+        raise SystemExit(0)
+
+
+def format_markdown(content):
+    renderer = MdFmtRenderer()
+    markdown = MdFmtMarkdown(renderer=renderer)
+    return markdown(content)
+
+
+class MdFmtInlineLexer(InlineLexer):
+
+    default_rules = ['text']
+
+
+class MdFmtBlockLexer(BlockLexer):
+
+    default_rules = [
+        'table', 'paragraph', 'text']
+
+
+class MdFmtMarkdown(Markdown):
+
+    def __init__(self, renderer, **kwargs):
+        if 'inline' not in kwargs:
+            kwargs['inline'] = MdFmtInlineLexer(renderer)
+        if 'block' not in kwargs:
+            kwargs['block'] = MdFmtBlockLexer()
+        super(MdFmtMarkdown, self).__init__(renderer, **kwargs)
+
+
+class MdFmtRenderer(Renderer):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.header = []
+        self.align = []
+        self.line = []
+        self.tab = []
+
+    def paragraph(self, text):
+        return text + '\n\n'
+
+    def table(self, header, body):
+        column_sizes = []
+        column_number = len(self.header)
+
+        for i in range(0, len(self.header)):
+            column_size = len(self.header[i])
+            for line in self.tab:
+                if len(line[i]) > column_size:
+                    column_size = len(line[i])
+            column_sizes.append(column_size)
+
+        md = ''
+
+        # header
+        md += '|'
+        for element, align, column_size in list(zip(self.header, self.align, column_sizes)):
+            md += ' '
+            if align == 'center':
+                md += element.center(column_size)
+            elif align == 'left':
+                md += element.ljust(column_size)
+            elif align == 'right':
+                md += element.rjust(column_size)
+            else:
+                md += element.ljust(column_size)
+            md += ' |'
+        md += '\n'
+
+        # alignment
+        md += '|'
+        for align, column_size in list(zip(self.align, column_sizes)):
+            before = ' '
+            after = ' '
+            if align == 'center':
+                before = ':'
+                after = ':'
+            elif align == 'left':
+                before = ':'
+                after = ' '
+            elif align == 'right':
+                before = ' '
+                after = ':'
+
+            md += before + ('-' * column_size) + after + '|'
+        md += '\n'
+
+        # table
+        for line in self.tab:
+            md += '|'
+            for element, align, column_size in list(zip(line, self.align, column_sizes)):
+                md += ' '
+                if align == 'center':
+                    md += element.center(column_size)
+                elif align == 'left':
+                    md += element.ljust(column_size)
+                elif align == 'right':
+                    md += element.rjust(column_size)
+                else:
+                    md += element.ljust(column_size)
+                md += ' |'
+            md += '\n'
+
+        self.header = []
+        self.align = []
+        self.line = []
+        self.tab = []
+        md += '\n'
+
+        return md
+
+    def table_row(self, content):
+        if self.line != []:
+            self.tab.append(self.line.copy())
+            self.line = []
+        return ''
+
+    def table_cell(self, content, header, align):
+        if header:
+            self.header.append(content)
+            self.align.append(align)
+        else:
+            self.line.append(content)
+
+        return ''
+
+
+if __name__ == '__main__':
+    try:
+        parser = argparse.ArgumentParser(prog=__program__, description=__description__, add_help=False)
+        parser.add_argument('-v', '--version', help='Show program\'s version number and exit.', action='store_true')
+        parser.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS, help='Show this help message and exit.')
+        parser.add_argument('markdown', help='The markdown file to format.')
+        args = parser.parse_args()
+        main(args)
+    except (KeyboardInterrupt, SystemExit):
+        pass
