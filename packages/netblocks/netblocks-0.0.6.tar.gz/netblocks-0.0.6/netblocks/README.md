@@ -1,0 +1,55 @@
+# Netblocks
+
+**This is not an official Google product.**
+
+This module retrieves the DNS entries recursively as per the below links
+https://cloud.google.com/compute/docs/faq#where_can_i_find_product_name_short_ip_ranges
+https://support.google.com/a/answer/60764
+
+Install the package with `pip install netblocks` or `pip install git+https://github.com/hm-distro/netblocks/`
+
+The `fetch()` method has the default parameter value of `initial_dns_list=[GOOGLE_INITIAL_CLOUD_NETBLOCK_DNS, GOOGLE_INITIAL_SPF_NETBLOCK_DNS]`
+
+where 
+
+
+GOOGLE_INITIAL_CLOUD_NETBLOCK_DNS = "_cloud-netblocks.googleusercontent.com"
+
+GOOGLE_INITIAL_SPF_NETBLOCK_DNS= "_spf.google.com"
+
+See [here](https://github.com/hm-distro/netblocks) on how to use this module in Google App Engine  
+### API Usage
+
+    import netblocks
+    cidr_blocks = set()
+    netblocks_api = netblocks.NetBlocks()
+    try:
+        # returns both GOOGLE_INITIAL_CLOUD_NETBLOCK_DNS and GOOGLE_INITIAL_SPF_NETBLOCK_DNS
+        cidr_blocks = netblocks_api.fetch()
+        
+        # To get only the SPF list use the below:
+        #  cidr_blocks = netblocks_api.fetch([netblocks.GOOGLE_INITIAL_SPF_NETBLOCK_DNS])
+ 
+        
+        # To get only the GCE list use the below:
+        #  cidr_blocks = netblocks_api.fetch([netblocks.GOOGLE_INITIAL_CLOUD_NETBLOCK_DNS]) 
+        
+        """
+        The cidr_blocks set contains strings like the below
+        ip4:146.148.2.0/23
+        ...
+        ip6:2600:1900::/35
+        """
+        
+    except netblocks.NetBlockRetrievalException as err:
+        #exception handling
+        pass
+
+## Language
+- [Python](https://www.python.org/)
+
+## Dependencies
+requests
+
+## License
+Apache 2.0; see [LICENSE](https://github.com/hm-distro/netblocks/blob/master/netblocks/LICENSE) for details.
