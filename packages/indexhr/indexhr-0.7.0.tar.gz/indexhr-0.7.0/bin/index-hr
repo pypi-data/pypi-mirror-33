@@ -1,0 +1,130 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import curses, os, webbrowser, sys, argparse
+from indexhr import scrapped_data
+from indexhr import __version__, __summary__
+
+
+n_color = curses.A_NORMAL   # color for regular option
+h_colors = {                # higlight color options
+    'vijesti': curses.COLOR_BLUE,
+    'sport': curses.COLOR_GREEN,
+    'magazin': curses.COLOR_RED
+}
+
+DOWN_ARROW_KEY = 258
+UP_ARROW_KEY = 259
+EXIT_KEY = ord('q')
+ENTER_KEY = ord('\n')
+
+
+class Style:
+   BOLD = '\033[1m'
+   END = '\033[0m'
+
+
+def get_highlight_color(section):
+    curses.init_pair(1, curses.COLOR_WHITE, h_colors.get(section, curses.COLOR_WHITE))
+    return curses.color_pair(1)
+
+
+def _navigate_tui(menu, pos):
+    screen = curses.initscr()
+    curses.noecho() # disable automatic echo of key presses
+    curses.cbreak() # disable line buffering (run each key as pressed instead of waiting for return key to be pressed)
+    curses.start_color() # enable using colors when highlighting
+    screen.keypad(1) # capture input from keypad
+
+    optioncount = len(menu)
+    oldpos = None
+    x = None
+
+    while x != ENTER_KEY:
+        # Stop the screen from redrawing if no need
+        if pos != oldpos:
+            oldpos = pos
+            screen.border(0)
+
+            for index, option in enumerate(menu):
+                is_section = option.get('type') == 'section'
+                textstyle = get_highlight_color(option.get('section')) if pos == index else n_color
+                indent = 4
+                if is_section:
+                    textstyle = curses.A_BOLD
+                    indent -= 2
+                screen.addstr(index + 2, indent, option.get('text'), textstyle)
+
+            screen.addstr(optioncount + 4, 2, 'Press q to exit...', n_color)
+            screen.refresh()
+
+        # Listen and process user input
+        x = screen.getch()
+        if x == EXIT_KEY:
+            _get_out_of_here()
+        elif x == DOWN_ARROW_KEY:
+            pos = pos + 1 if pos < optioncount else 0
+        elif x == UP_ARROW_KEY:
+            pos = pos - 1 if pos > 0 else optioncount
+
+    return pos
+
+
+def _display_tui():
+    menu = scrapped_data()
+    current_position = 0
+    while True:
+        current_position = _navigate_tui(menu, current_position)
+        selected = menu[current_position]
+        if selected.get('type') == 'article':
+            webbrowser.open(selected.get('url'), new=2)
+
+
+def _display_scrapped_and_exit():
+    for d in scrapped_data():
+        if d.get('type') == 'section':
+            continue
+        print('')
+        print('{} - {}{}{}'.format(
+            d.get('section'),
+            Style.BOLD,
+            d.get('text').decode('utf-8'),
+            Style.END
+        ))
+        print(d.get('url'))
+    print('')
+    sys.exit(1)
+
+
+def _get_out_of_here():
+    curses.endwin()
+    sys.exit(1)
+
+
+def _start_tui():
+    try:
+        _display_tui()
+    except Exception as exception:
+        curses.endwin()
+        print(str(exception))
+        sys.exit(1)
+
+    _get_out_of_here()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__summary__)
+    parser.add_argument('-v', '--version', action='store_true', help='currently installed version')
+    parser.add_argument('-r', '--raw', action='store_true', help='raw parsed data without cli')
+    args = parser.parse_args()
+    if args.raw:
+        _display_scrapped_and_exit()
+    if args.version:
+        print(__version__)
+        sys.exit(1)
+
+    _start_tui()
+
+
+if __name__ == '__main__':
+    main()
