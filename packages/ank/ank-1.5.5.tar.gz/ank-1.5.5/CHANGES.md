@@ -1,0 +1,10 @@
+- 2015/10/15 -- Initial project
+- 2016/06/21 -- Public project
+- 2016/06/25 -- Upload to pip
+- 2016/06/29 -- Add kafka
+- 2016/06/30 -- Add zeroMQ
+- 2016/10/04 -- Support python3
+- 2016/12/17 -- Generate template, docker
+- 2017/03/20 -- Using pika for rabbitMQ
+- 2017/03/22 -- Support branching
+- 2018/06/20 -- Refactor, edit example
