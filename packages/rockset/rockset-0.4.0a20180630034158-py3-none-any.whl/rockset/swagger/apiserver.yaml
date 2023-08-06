@@ -1,0 +1,1542 @@
+swagger: '2.0'
+info:
+  version: '0.3.0'
+  title: Rockset APIs
+  description: |
+    **Rockset APIs allows for creating, and managing, all Rockset resources
+    in Rockset such as collections**
+
+    Rockset allows you to continuously ingest data from any data silo and
+    provides fast search, aggregation and graph queries without requiring
+    any data modeling, index schema management or complex data pipelines.
+
+    Live feeds of unstructured (email, PDFs), semi-structured (JSON,
+    Parquet, CSV, TSV etc) or structured (Tables) data from apps, operational
+    dbs, log stores, warehouses and cloud data services can be fed into a
+    collection.
+
+    All endpoints are only accessible via https.
+    ```
+    https://api.rockset.com/v1
+    ```
+
+    Build something awesome!
+
+  termsOfService: http://rockset.com/terms/
+  contact:
+    name: Rockset API team
+    email: api@rockset.com
+    url: http://rockset.com
+
+################################################################################
+## Basics
+################################################################################
+
+host: api.rockset.com
+basePath: /v1
+schemes:
+  - https
+consumes:
+  - application/json
+produces:
+  - application/json
+
+################################################################################
+## Security
+################################################################################
+
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: authorization
+    in: header
+    description: |
+      Pass your Rockset api_key in the ```authorization``` header as
+      ```ApiKey <api_key>```.
+      Example:
+        ```authorization: ApiKey aB35kDjg93J5nsf4GjwMeErAVd832F7ad4vhsW1S02kfZiab42sTsfW5Sxt25asT```
+
+security:
+  - api_key: []
+
+################################################################################
+## Paths
+################################################################################
+paths:
+
+################################################################################
+#### Collections
+################################################################################
+  /orgs/{org}/ws/{workspace}/collections:
+    parameters:
+      - name: org
+        in: path
+        description: Name of the organization
+        required: true
+        type: string
+      - name: workspace
+        in: path
+        description: Name of the workspace
+        required: true
+        type: string
+    post:
+      description: |
+        ## Creates a new collection.
+
+        One or more data sources can be attached to the new collection and
+        Rockset will continuously index the source and keep the collection
+        consistent.
+        <br/>
+
+      operationId: create
+      tags:
+        - All
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: request
+          in: body
+          description: |
+            Details about the collection to be created.
+          required: true
+          schema:
+            $ref: '#/definitions/CreateRequest'
+      responses:
+        '200':
+          description: |
+            Details about the newly created collection.  The same
+            response as the describe API.
+          schema:
+            $ref: '#/definitions/CreateResponse'
+        '400':
+          description: BadRequest
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '401':
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '501':
+          description: NotYetImplemented
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '503':
+          description: TransientUnavailability
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '500':
+          description: InternalServerError
+          schema:
+            $ref: '#/definitions/ErrorModel'
+    get:
+      description: |
+        ## List collections
+
+        Retrieves details about collections defined in the account.
+        Supports pagination via the ```after```, ```before``` and ```limit```
+        request parameters.
+      operationId: list
+      tags:
+        - All
+      produces:
+        - application/json
+      parameters:
+        - name: after
+          in: query
+          description: |
+            Pagination marker used to fetch the next set of ```limit``` results.
+            Pass the handle from field ```pagination.after``` from the current
+            result set.
+          required: false
+          type: string
+        - name: before
+          in: query
+          description: |
+            Pagination marker used to fetch the previous set of ```limit```
+            results. Pass the handle from field ```pagination.before``` from
+            the current result set.
+          required: false
+          type: string
+        - name: limit
+          in: query
+          description: |
+            Maximum number of resources to return.
+          required: false
+          type: integer
+          format: int32
+      responses:
+        '200':
+          description: List of resources such as collections
+          schema:
+            $ref: '#/definitions/ListResponse'
+        '400':
+          description: BadRequest
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '401':
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '501':
+          description: NotYetImplemented
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '503':
+          description: TransientUnavailability
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '500':
+          description: InternalServerError
+          schema:
+            $ref: '#/definitions/ErrorModel'
+
+  /orgs/{org}/ws/{workspace}/collections/{collection}:
+    parameters:
+      - name: org
+        in: path
+        description: Name of the organization
+        required: true
+        type: string
+      - name: workspace
+        in: path
+        description: Name of the workspace
+        required: true
+        type: string
+      - name: collection
+        in: path
+        description: Name of the collection
+        required: true
+        type: string
+    get:
+      description: |
+        ## Describe collection
+
+        Returns details about a collection including description of
+        all data sources attached and stats related to performance and
+        resource usage.
+      operationId: describe
+      tags:
+        - All
+      parameters:
+        - name: all
+          in: query
+          description: Fetch all details
+          type: boolean
+          required: false
+          default: false
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: Returns the details about the collection.
+          schema:
+            $ref: '#/definitions/DescribeResponse'
+        '400':
+          description: BadRequest
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '401':
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '404':
+          description: NotFound
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '503':
+          description: TransientUnavailability
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '500':
+          description: InternalServerError
+          schema:
+            $ref: '#/definitions/ErrorModel'
+    delete:
+      description: |
+        ## Drop collection
+
+        **Note: Deleting a collection is not undoable and will permanently
+        remove all the documents in that collection.**
+      operationId: drop
+      tags:
+        - All
+      responses:
+        '200':
+          description: Returns the details about the dropped collection.
+          schema:
+            $ref: '#/definitions/DropResponse'
+        '400':
+          description: BadRequest
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '401':
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '404':
+          description: NotFound
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '503':
+          description: TransientUnavailability
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '500':
+          description: InternalServerError
+          schema:
+            $ref: '#/definitions/ErrorModel'
+
+  /orgs/{org}/ws/{workspace}/collections/{collection}/add:
+    parameters:
+      - name: org
+        in: path
+        description: Name of the organization
+        required: true
+        type: string
+      - name: workspace
+        in: path
+        description: Name of the workspace
+        required: true
+        type: string
+      - name: collection
+        in: path
+        description: Name of the collection
+        required: true
+        type: string
+    post:
+      description: |
+        ## Merges (or inserts if new) a set of documents to a collection.
+
+        The ```:id``` field within each document uniquely identifies it. If
+        the input documents do not specify the ```:id``` field, then Rockset
+        will assign unique IDs to each document, insert those documents to the
+        collection and the IDs will be returned as part of the response.
+
+        If the document already exists in the collection, then the fields
+        provided as input will be merged with the existing document.
+
+      operationId: addDocuments
+      tags:
+        - All
+      produces:
+        - application/json
+      parameters:
+        - name: request
+          in: body
+          description: List of documents to be added or merged.
+          required: true
+          schema:
+            $ref: '#/definitions/AddDocumentsRequest'
+      responses:
+        '200':
+          description: |
+            List of document status records, one for each input document,
+            that will indicate whether the input document was successfully
+            merged/inserted or not.
+          schema:
+            $ref: '#/definitions/AddDocumentsResponse'
+        '400':
+          description: BadRequest
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '401':
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '404':
+          description: NotFound
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '501':
+          description: NotYetImplemented
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '503':
+          description: TransientUnavailability
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '500':
+          description: InternalServerError
+          schema:
+            $ref: '#/definitions/ErrorModel'
+
+  /orgs/{org}/ws/{workspace}/collections/{collection}/replace:
+    parameters:
+      - name: org
+        in: path
+        description: Name of the organization
+        required: true
+        type: string
+      - name: workspace
+        in: path
+        description: Name of the workspace
+        required: true
+        type: string
+      - name: collection
+        in: path
+        description: Name of the collection
+        required: true
+        type: string
+    post:
+      description: |
+        ## Replaces (or inserts if new) a set of documents to a collection.
+
+        The ```:id``` field within each document uniquely identifies it. If
+        the input documents do not specify the ```:id``` field, then Rockset
+        will assign unique IDs to each document, insert those documents to the
+        collection and the IDs will be returned as part of the response.
+
+        If the document already exists in the collection, then the existing
+        document will be deleted and replaced with the new fields provided as
+        input.
+
+      operationId: replaceDocuments
+      tags:
+        - All
+      produces:
+        - application/json
+      parameters:
+        - name: request
+          in: body
+          description: List of documents to be added or replaced.
+          required: true
+          schema:
+            $ref: '#/definitions/ReplaceDocumentsRequest'
+      responses:
+        '200':
+          description: |
+            List of document status records, one for each input document,
+            that will indicate whether the input document was successfully
+            replaced/inserted or not.
+          schema:
+            $ref: '#/definitions/ReplaceDocumentsResponse'
+        '400':
+          description: BadRequest
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '401':
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '404':
+          description: NotFound
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '501':
+          description: NotYetImplemented
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '503':
+          description: TransientUnavailability
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '500':
+          description: InternalServerError
+          schema:
+            $ref: '#/definitions/ErrorModel'
+
+  /orgs/{org}/ws/{workspace}/collections/{collection}/delete:
+    parameters:
+      - name: org
+        in: path
+        description: Name of the organization
+        required: true
+        type: string
+      - name: workspace
+        in: path
+        description: Name of the workspace
+        required: true
+        type: string
+      - name: collection
+        in: path
+        description: Name of the collection
+        required: true
+        type: string
+    post:
+      description: |
+        ## Deletes a set of documents from a collection.
+
+        Each input document needs to have the ```:id``` field populated. All
+        other fields in these documents are ignored.
+
+      operationId: deleteDocuments
+      tags:
+        - All
+      produces:
+        - application/json
+      parameters:
+        - name: request
+          in: body
+          description: List of Documents to be removed
+          required: true
+          schema:
+            $ref: '#/definitions/DeleteDocumentsRequest'
+      responses:
+        '200':
+          description:  |
+            List of document status records, one for each input document,
+            that will indicate whether the input document was successfully
+            deleted or not.
+          schema:
+            $ref: '#/definitions/DeleteDocumentsResponse'
+        '400':
+          description: BadRequest
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '401':
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '404':
+          description: NotFound
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '413':
+          description: LimitReached
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '501':
+          description: NotYetImplemented
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '503':
+          description: TransientUnavailability
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '500':
+          description: InternalServerError
+          schema:
+            $ref: '#/definitions/ErrorModel'
+
+  /orgs/{org}/ws/{workspace}/collections/{collection}/fence:
+    parameters:
+      - name: org
+        in: path
+        description: Name of the organization
+        required: true
+        type: string
+      - name: workspace
+        in: path
+        description: Name of the workspace
+        required: true
+        type: string
+      - name: collection
+        in: path
+        description: Name of the collection.
+        required: true
+        type: string
+    post:
+      description: |
+        All write requests in Rockset are asynchronous. So, if your application
+        requires stronger consistency guarantees such as read-your-writes,
+        then you can use the fence API. Every write operation includes a
+        CommitMark in the API response. You can pass that CommitMark to the
+        fence API to enquire if Rockset's indexes have crossed that CommitMark.
+        If the fence API returns success, then the subsequent read will include
+        the effect of the write operation that returned the original CommitMark.
+      operationId: fence
+      tags:
+        - All
+      produces:
+        - application/json
+      parameters:
+        - name: poll_max
+          in: query
+          description: Check if all leaves have passed the barrier
+          type: boolean
+          default: false
+        - name: commit_mark
+          in: body
+          description: Commit mark to wait for
+          required: true
+          schema:
+            $ref: '#/definitions/FenceRequest'
+      responses:
+        '200':
+          description: Barrier pass result (true/false)
+          schema:
+            $ref: '#/definitions/FenceResponse'
+        '401':
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '404':
+          description: NotFound
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '413':
+          description: LimitReached
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '501':
+          description: NotYetImplemented
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '503':
+          description: TransientUnavailability
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '500':
+          description: InternalServerError
+          schema:
+            $ref: '#/definitions/ErrorModel'
+
+  /orgs/{org}/ws/{workspace}/collections/{collection}/documents/{documentId}:
+    parameters:
+      - name: org
+        in: path
+        description: Name of the organization
+        required: true
+        type: string
+      - name: workspace
+        in: path
+        description: Name of the workspace
+        required: true
+        type: string
+      - name: collection
+        in: path
+        description: Name of the collection
+        required: true
+        type: string
+      - name: documentId
+        in: path
+        description: Document ```:id``` to retrieve
+        required: true
+        type: string
+    get:
+      description: |
+        ## Get document
+        Returns a document from a collection as JSON object.
+      operationId: getDocument
+      tags:
+        - All
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: Requested document from a collection.
+          schema:
+            $ref: '#/definitions/GetDocumentResponse'
+        '400':
+          description: BadRequest
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '401':
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '404':
+          description: NotFound
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '503':
+          description: TransientUnavailability
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '500':
+          description: InternalServerError
+          schema:
+            $ref: '#/definitions/ErrorModel'
+
+  /orgs/{org}/ws/{workspace}/collections/{collection}/queries:
+    parameters:
+      - name: org
+        in: path
+        description: Name of the organization
+        required: true
+        type: string
+      - name: workspace
+        in: path
+        description: Name of the workspace
+        required: true
+        type: string
+      - name: collection
+        in: path
+        description: Name of the collection to query
+        required: true
+        type: string
+    post:
+      description: |
+        ## Query a collection.
+
+        The input query needs to be in s-expression format, which is Rockset's
+        internal representation for the query. Please use Rockset's query
+        builder class in your language's client library to construct
+        complex and powerful filtering, search, aggregation or analytic queries.
+        Rockset's query builders should allow you to construct such powerful
+        queries in a higher level language and assist you to converting them
+        to this s-expression syntax.
+
+      operationId: query
+      tags:
+        - All
+      produces:
+        - application/json
+      parameters:
+        - name: query
+          in: body
+          description: Input query
+          required: true
+          schema:
+            $ref: '#/definitions/QueryRequest'
+        - name: flood_all_leaves
+          in: query
+          description: Flood query to all leaves
+          type: boolean
+          required: false
+          default: false
+      responses:
+        '200':
+          description: Query results
+          schema:
+            $ref: '#/definitions/QueryResponse'
+        '400':
+          description: BadRequest
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '401':
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '404':
+          description: NotFound
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '413':
+          description: LimitReached
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '501':
+          description: NotYetImplemented
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '503':
+          description: TransientUnavailability
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '500':
+          description: InternalServerError
+          schema:
+            $ref: '#/definitions/ErrorModel'
+
+  /orgs/{org}/queries:
+    parameters:
+      - name: org
+        in: path
+        description: Name of the organization
+        required: true
+        type: string
+    post:
+      description: |
+        ## Run a query and return results if query completes within specified
+        ## timeout
+
+        The input query can be in specified in SQL or generated by Rockset's
+        query builder class.
+
+      operationId: sql
+      tags:
+        - All
+      produces:
+        - application/json
+      parameters:
+        - name: query
+          in: body
+          description: Input query
+          required: true
+          schema:
+            $ref: '#/definitions/QueryRequest'
+        - name: flood_all_leaves
+          in: query
+          description: Flood query to all leaves
+          type: boolean
+          required: false
+          default: false
+      responses:
+        '200':
+          description: Query results
+          schema:
+            $ref: '#/definitions/QueryResponse'
+        '400':
+          description: BadRequest
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '401':
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '404':
+          description: NotFound
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '413':
+          description: LimitReached
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '501':
+          description: NotYetImplemented
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '503':
+          description: TransientUnavailability
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '500':
+          description: InternalServerError
+          schema:
+            $ref: '#/definitions/ErrorModel'
+
+  /orgs/{org}/metrics:
+    parameters:
+      - name: org
+        in: path
+        description: Name of the organization
+        required: true
+        type: string
+    post:
+      description: |
+        ## Get statistics
+        An endpoint for retrieving account level statistics.
+
+      operationId: getStats
+      tags:
+        - All
+      produces:
+        - application/json
+      parameters:
+        - name: stats
+          in: body
+          description: A list of statistics to retrieve.
+          required: true
+          schema:
+            $ref: '#/definitions/StatsRequest'
+
+      responses:
+        '200':
+          description: Statistics results
+          schema:
+            $ref: '#/definitions/StatsResponse'
+        '400':
+          description: BadRequest
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '401':
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '403':
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '404':
+          description: NotFound
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '413':
+          description: LimitReached
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '501':
+          description: NotYetImplemented
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '503':
+          description: TransientUnavailability
+          schema:
+            $ref: '#/definitions/ErrorModel'
+        '500':
+          description: InternalServerError
+          schema:
+            $ref: '#/definitions/ErrorModel'
+
+################################################################################
+#### Data structures
+################################################################################
+
+definitions:
+################################################################################
+###### Create API
+################################################################################
+  CreateRequest:
+    type: object
+    description: Request to create a new collection
+    required:
+      - type
+      - name
+    properties:
+      type:
+        type: string
+        enum: ['COLLECTION']
+      name:
+        type: string
+        pattern: '^[A-Za-z0-9_\-.]+$'
+      description:
+        type: string
+        x-nullable: 'true'
+      sources:
+        type: array
+        items:
+          $ref: '#/definitions/Source'
+        x-nullable: 'true'
+      sort_key_info:
+        type: object
+        x-nullable: 'true'
+        properties:
+          field:
+            type: string
+            x-nullable: 'true'
+          format:
+            type: string
+            x-nullable: 'true'
+          time_zone:
+            type: string
+            x-nullable: 'true'
+      mappings:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/FieldMapping'
+
+  CreateResponse:
+    type: object
+    description: Response to the create API
+    properties:
+      data:
+        $ref: '#/definitions/Resource'
+
+################################################################################
+###### List API
+################################################################################
+  ListResponse:
+    type: object
+    properties:
+      data:
+        type: array
+        items:
+          $ref: '#/definitions/Resource'
+      pagination:
+        type: object
+        properties:
+          has_more:
+            type: boolean
+            description: True, if there are more results to fetch
+          after:
+            type: string
+            description: |
+              Pagination handle to pass to fetch the next set of results.
+          before:
+            type: string
+            description: |
+              Pagination handle to pass to fetch the previous set of results.
+
+################################################################################
+###### Describe API
+################################################################################
+  DescribeResponse:
+    type: object
+    description: Response to the describe API
+    properties:
+      data:
+        $ref: '#/definitions/Resource'
+
+################################################################################
+###### Drop API
+################################################################################
+  DropResponse:
+    type: object
+    description: Response to the drop API
+    properties:
+      data:
+        $ref: '#/definitions/Resource'
+
+################################################################################
+###### Add Documents API
+################################################################################
+  AddDocumentsRequest:
+    type: object
+    description: Request to add documents to a collection
+    properties:
+      data:
+        type: array
+        description: Array of JSON documents
+        items:
+          description: A JSON document
+          type: object
+
+  AddDocumentsResponse:
+    type: object
+    description: Response to add documents API.
+    properties:
+      data:
+        $ref: '#/definitions/DocumentStatusList'
+      commit_mark:
+        $ref: '#/definitions/CommitMark'
+
+################################################################################
+###### Replace Documents API
+################################################################################
+  ReplaceDocumentsRequest:
+    type: object
+    description: Request to replace documents in a collection
+    properties:
+      data:
+        type: array
+        description: Array of JSON documents
+        items:
+          description: A JSON document
+          type: object
+
+  ReplaceDocumentsResponse:
+    type: object
+    description: Response to replace documents API.
+    properties:
+      data:
+        $ref: '#/definitions/DocumentStatusList'
+      commit_mark:
+        $ref: '#/definitions/CommitMark'
+
+################################################################################
+###### Delete Documents API
+################################################################################
+  DeleteDocumentsRequest:
+    type: object
+    description: Request to delete documents in a collection
+    properties:
+      data:
+        type: array
+        description: Array of document ids
+        items:
+          type: object
+          required:
+            - :id
+          properties:
+            :id:
+              type: string
+
+  DeleteDocumentsResponse:
+    type: object
+    description: Response to delete documents API.
+    properties:
+      data:
+        $ref: '#/definitions/DocumentStatusList'
+      commit_mark:
+        $ref: '#/definitions/CommitMark'
+
+################################################################################
+###### Fence API
+################################################################################
+  FenceRequest:
+    type: object
+    properties:
+      commit_mark:
+        $ref: '#/definitions/CommitMark'
+
+  FenceResponse:
+    type: object
+    required:
+      - passed
+    properties:
+      passed:
+        type: boolean
+
+################################################################################
+###### Document API
+################################################################################
+  GetDocumentResponse:
+    type: object
+    description: Response to the get document API
+    properties:
+      data:
+        description: Requested document in JSON
+        type: object
+
+################################################################################
+###### Query API
+################################################################################
+  QueryRequest:
+    type: object
+    required:
+      - s_expression
+    properties:
+      s_expression:
+        type: string
+      sql:
+        type: object
+        properties:
+          query:
+            type: string
+          parameters:
+            type: array
+            items:
+              $ref: '#/definitions/QueryParameter'
+            x-nullable: 'true'
+      defaultWorkspace:
+        type: string
+
+  QueryParameter:
+    type: object
+    properties:
+      name:
+        type: string
+        x-nullable: 'true'
+      type:
+        type: string
+        x-nullable: 'true'
+      value:
+        type: string
+        x-nullable: 'true'
+
+  QueryResponse:
+    type: object
+    properties:
+      fields:
+        type: array
+        items:
+          $ref: '#/definitions/QueryFieldType'
+        x-nullable: 'true'
+      results:
+        type: array
+        items:
+          type: object
+      stats:
+        type: object
+        properties:
+          elapsed_time_ms:
+            description: The elapsed time in milliseconds needed to execute the query
+            type: integer
+            format: int64
+            x-nullable: 'true'
+
+  QueryFieldType:
+    type: object
+    properties:
+      name:
+        type: string
+      type:
+        type: string
+
+################################################################################
+###### Stats API
+################################################################################
+  StatsRequest:
+    type: object
+    required:
+      - stats
+    properties:
+      stats:
+        type: array
+        items:
+          type: object
+          required:
+            - metric
+            - startTime
+            - endTime
+            - step
+          properties:
+            metric:
+              type: string
+            parameters:
+              type: object
+            startTime:
+              type: integer
+              format: int64
+            endTime:
+              type: integer
+              format: int64
+            step:
+              type: integer
+              format: int64
+
+  StatsResponse:
+    type: object
+    properties:
+      metrics:
+        type: array
+        items:
+          type: object
+          properties:
+            metric:
+              type: string
+            parameters:
+              type: object
+            datapoints:
+              type: array
+              items:
+                type: object
+                properties:
+                  timestamp:
+                    type: integer
+                    format: int64
+                  value:
+                    type: number
+                    format: double
+
+################################################################################
+###### Common structs
+################################################################################
+  ErrorModel:
+    description: Describes details about an error
+    type: object
+    properties:
+      code:
+        type: integer
+        description: |
+          HTTPS status code and reference help.
+          400 BadRequest:
+              User request has a missing or invalid parameter and cannot be
+              processed as is. Syntax errors in queries fall in this category.
+          401 Unauthorized:
+              API key or access token is missing, expired or invalid.
+              Re-authenticating with a valid API key should normally fix this.
+          403 Forbidden:
+              The server could understand the input request but refuses to
+              execute it. This commonly happens when an account limit has been
+              reached or the client version you are using is too old.
+              Please reach out to Rockset Support with more details to alter
+              your account limit.
+          404 NotFound:
+              Requested resource is not found. Please verify if the resource is
+              still present.
+          413 LimitReached:
+              User request took longer than the allotted time limit for the
+              request. Commonly happens when an expensive query reaches the
+              maximum time limit specified for the query.
+          500 InternalServerError:
+              Something totally unexpected happened on our backend and most
+              likely you have encountered a bug in Rockset. Please contact
+              Rockset Support and provide all the details your received along
+              with the error for quick diagnosis and resolution.
+          501 NotYetImplemented:
+              Supporting this feature is in the roadmap but we haven't gotten
+              around to it yet. Please reach out to Rockset Support with more
+              details to prioritize this feature.
+          503 TransientUnavailability:
+              It was a valid request but some transient Rockset hiccup made us
+              fail this request. This means our support and oncall engineers
+              are actively working on this issue already. Please retry after
+              sometime.
+      message:
+        type: string
+        description: A descriptive message regarding the error or exception.
+        x-nullable: 'true'
+      type:
+        type: string
+        description: Rockset error code to provide more details about the error.
+        enum: [
+          'AuthException',
+          'InternalError',
+          'InvalidInput',
+          'NotImplementedYet',
+          'ProtocolError' ,
+          'QueryParseError',
+          'ResourceExceeded',
+          'ResourceNameTooLong',
+          'AlreadyExists',
+          'Paused',
+          ]
+        x-nullable: 'true'
+      context:
+        type: object
+        description: Arguments that provide more details about the error code.
+        x-nullable: 'true'
+        properties:
+          lineinfo:
+            type: string
+
+      debug:
+        type: object
+        description: Debug context for faster troubleshooting by Rockset Support
+        x-nullable: 'true'
+
+################################################################################
+###### Resource definitions used to describe Collections
+################################################################################
+  Resource:
+    type: object
+    required:
+      - name
+    properties:
+      type:
+        type: string
+        enum: ['COLLECTION']
+      name:
+        type: string
+        pattern: '^[A-Za-z0-9_\-.]+$'
+      creation_time:
+        type: integer
+        format: int64
+      status:
+        type: string
+        enum: ['CREATED', 'READY', 'DELETED', 'PAUSED', 'RESUMING', 'UNKNOWN']
+      description:
+        type: string
+        x-nullable: 'true'
+      sources:
+        type: array
+        items:
+          $ref: '#/definitions/Source'
+        x-nullable: 'true'
+      mappings:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/FieldMapping'
+      stats:
+        type: object
+        properties:
+          doc_count:
+            type: integer
+            format: int64
+            x-nullable: 'true'
+          total_size:
+            type: integer
+            format: int64
+            x-nullable: 'true'
+          last_updated_ms:
+            description: milliseconds since epoch Jan 1, 1970
+            type: integer
+            format: int64
+            x-nullable: 'true'
+          last_queried_ms:
+            description: milliseconds since epoch Jan 1, 1970
+            type: integer
+            format: int64
+            x-nullable: 'true'
+          fill_progress:
+            description: |
+                A number between 0 and 1 that indicates progress of resource
+                creation such as creating a collection from a data source
+                such as AWS S3 and initializing it.
+            type: number
+            format: double
+            x-nullable: 'true'
+          currentProgress:
+            type: number
+            format: double
+            x-nullable: 'true'
+      url:
+        type: string
+        description: URI for this resource
+
+  Source:
+    type: object
+    description: |
+      Details about the data source for the given collection.
+      Only one of the following fields are allowed to be defined.
+    properties:
+      dropbox:
+        $ref: '#/definitions/SourceDropbox'
+      gmail:
+        $ref: '#/definitions/SourceGmail'
+      office365:
+        $ref: '#/definitions/SourceOffice365'
+      s3:
+        $ref: '#/definitions/SourceS3'
+      collection:
+        $ref: '#/definitions/SourceCollection'
+
+  SourceGmail:
+    type: object
+    properties:
+      refresh_token:
+        type: string
+      access_token:
+        type: string
+
+  SourceDropbox:
+    type: object
+    properties:
+      access_token:
+        type: string
+      path:
+        type: string
+
+  SourceS3:
+    type: object
+    required:
+      - bucket
+    properties:
+      format:
+        type: string
+        enum: ['JSON']
+      bucket:
+        type: string
+      prefixes:
+        type: array
+        items:
+          type: string
+      access_key:
+        type: string
+      secret_access:
+        type: string
+      region:
+        type: string
+      mappings:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/FieldMask'
+
+  FieldMask:
+    type: object
+    required:
+      - input_path
+      - mask
+    properties:
+      input_path:
+        type: array
+        items:
+          type: string
+      mask:
+        description: Field masking function name + args. The args is a JSON object.
+        type: object
+        required:
+          - name
+        properties:
+          name:
+            type: string
+          args:
+            type: object
+
+  SourceOffice365:
+    type: object
+    required:
+      - client_id
+      - client_secret
+    properties:
+      client_id:
+        type: string
+      client_secret:
+        type: string
+
+  SourceCollection:
+    type: object
+    required:
+      - name
+    properties:
+      name:
+        type: string
+      query:
+        type: string
+      mappings:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/FieldMapping'
+
+  FieldMapping:
+    type: object
+    required:
+      - output_field
+      - projection
+    properties:
+      output_field:
+        type: string
+      projection:
+        type: string
+
+################################################################################
+###### Documents definitions used to define a single document or sets of docs
+################################################################################
+  DocumentStatus:
+    type: object
+    properties:
+      type:
+        type: string
+        enum: ['DOCUMENT']
+        default: 'DOCUMENT'
+      :id:
+        type: string
+        x-nullable: 'true'
+      :collection:
+        type: string
+        x-nullable: 'true'
+      status:
+        type: string
+        enum: ['ADDED', 'REPLACED', 'DELETED', 'ERROR']
+      error:
+        $ref: '#/definitions/ErrorModel'
+        x-nullable: 'true'
+      url:
+        type: string
+        description: URI for this resource
+        x-nullable: 'true'
+
+  DocumentStatusList:
+    type: array
+    description: Array of document status objects
+    items:
+      $ref: '#/definitions/DocumentStatus'
+
+  CommitMark:
+    type: object
+    required:
+      - org_id
+      - collection_name
+      - positions
+    properties:
+      org_id:
+        type: string
+      collection_name:
+        type: string
+      positions:
+        type: array
+        items:
+          type: object
+          required:
+            - microshard
+            - position
+          properties:
+            microshard:
+              type: integer
+              format: int32
+            position:
+              type: integer
+              format: int64
+
