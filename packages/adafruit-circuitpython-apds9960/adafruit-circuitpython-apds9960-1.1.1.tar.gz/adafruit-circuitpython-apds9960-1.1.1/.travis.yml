@@ -1,0 +1,30 @@
+dist: trusty
+sudo: false
+language: python
+python:
+- '3.6'
+cache:
+  pip: true
+deploy:
+  - provider: releases
+    api_key: "$GITHUB_TOKEN"
+    file_glob: true
+    file: "$TRAVIS_BUILD_DIR/bundles/*"
+    skip_cleanup: true
+    overwrite: true
+    on:
+      tags: true
+  - provider: pypi
+    user: adafruit-travis
+    on:
+      tags: true
+    password:
+      secure: kIJfJmBtYrU1oFHMkpPM1fs5+vdkCvWgwHHUXOtbOlC//OE2+ekP6iqENSiqxLIJfcJhytexOuYY16UlgyGrGufO/wBOtSVCaRreyOqtsn7iGPf81hCdBZ/ahcpGaSI8CrvFs4iqA1fJr/AdtUt1MYVizQ2kZjmKpPPCYicE+2QHTNnN8QDzcWadLVuujy4IqG+orxTXEZbmDQflS/ZoHMlROTGux4JAR8ELscciUHLnilyFjkqhtaIIJszZyQuiaYT53skLEGf0mz0cWK1/hmUPi5x7XfWo4703FEi+Z+Mc18IxWbFzTWHIaM0iuEaryil6aPQjXR+6VEJX4VAbdRk2HS8eTBnjAuQJH8aWC2baw/8+O/6p3xlqgE8n3SFn0O/lk/9DdBa70bP82zSBoOFk6X3YUDkUDlzice7mVVO6Z8CtBCl1usZjFk5OHsm7tI1bBODYP0O2Pk3LHzElrE5DdkWfeXWOsw7qspdmjkIBjTSD48aroy97uWwYQxTo22kRfhotIBUCxxqKjHdsRbM24rwAlDDNP7vr/pVZmlMPb7QEYH5FR7eEqulNcsM3QZ3XZ9llv1m7Ke/ZLB/T397+zj+Ju9wYoH3SM4MEh8DWNYzmuJ8qpDxpM0wJZkHKEC1K1slRFiXB6J0NdDs/1v6cWmZHO56y9yezAFjUxcM=
+install:
+- pip install -r requirements.txt
+- pip install pylint circuitpython-build-tools Sphinx sphinx-rtd-theme
+script:
+- pylint adafruit_apds9960/*.py
+- ([[ ! -d "examples" ]] || pylint --disable=missing-docstring,invalid-name examples/*.py)
+- circuitpython-build-bundles --filename_prefix adafruit-circuitpython-apds9960 --library_location .
+- cd docs && sphinx-build -E -W -b html . _build/html && cd ..
