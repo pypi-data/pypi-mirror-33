@@ -3,36 +3,10 @@
 This repo contains 40000 packages uploaded to PyPI between 
 2018-06-16 04:53 and 2018-07-15 15:35.
 
-The repo is 59% (23996/40000) complete.
+The repo is 64% (25996/40000) complete.
 
-## Packages:
+Package contents can be found [in the code branch](https://github.com/pypi-data/pypi-mirror-33/tree/code/packages).
 
-| Name  | Count |
-| ----- | ----- |
-| lalsuite | 216 |
-| cs18-sidecar | 172 |
-| uforge-python-sdk | 140 |
-| nonocaptcha | 138 |
-| uforgecli | 128 |
-| ruamel.yaml | 100 |
-| liknorm | 95 |
-| rasterio | 92 |
-| tdl | 88 |
-| vectordash | 79 |
-| spylunking | 76 |
-| rescape-graphene | 74 |
-| eazebot | 74 |
-| fastavro | 72 |
-| pyspedas | 68 |
-| aiofile | 65 |
-| uamqp | 63 |
-| gluoncv | 62 |
-| tfp-nightly | 60 |
-| itt | 60 |
-| grpcio-tools | 60 |
-| grpcio | 60 |
-| catboost | 60 |
-| xxhash | 59 |
-| frida | 58 |
+A browsable package list for all repositories [all packages here](https://pypi-data.github.io/website/repositories/pypi-mirror-33).
 
 
