@@ -1,0 +1,2158 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>SQLite Extensions &#8212; peewee 3.5.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Playhouse, extensions to Peewee" href="playhouse.html" />
+    <link rel="prev" title="API Documentation" href="api.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="playhouse.html" title="Playhouse, extensions to Peewee"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="api.html" title="API Documentation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">peewee 3.5.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="sqlite-extensions">
+<span id="sqlite-ext"></span><h1>SQLite Extensions<a class="headerlink" href="#sqlite-extensions" title="Permalink to this headline">¶</a></h1>
+<p>The default <a class="reference internal" href="api.html#SqliteDatabase" title="SqliteDatabase"><code class="xref py py-class docutils literal notranslate"><span class="pre">SqliteDatabase</span></code></a> already includes many SQLite-specific
+features:</p>
+<ul class="simple">
+<li><a class="reference internal" href="database.html#using-sqlite"><span class="std std-ref">General notes on using SQLite</span></a>.</li>
+<li><a class="reference internal" href="database.html#sqlite-pragma"><span class="std std-ref">Configuring SQLite using PRAGMA statements</span></a>.</li>
+<li><a class="reference internal" href="database.html#sqlite-user-functions"><span class="std std-ref">User-defined functions, aggregate and collations</span></a>.</li>
+<li><a class="reference internal" href="database.html#sqlite-locking"><span class="std std-ref">Locking modes for transactions</span></a>.</li>
+</ul>
+<p>The <code class="docutils literal notranslate"><span class="pre">playhouse.sqlite_ext</span></code> includes even more SQLite features, including:</p>
+<ul class="simple">
+<li><a class="reference internal" href="#sqlite-fts"><span class="std std-ref">Full-text search</span></a></li>
+<li><a class="reference internal" href="#sqlite-json1"><span class="std std-ref">JSON extension integration</span></a></li>
+<li><a class="reference internal" href="#sqlite-closure-table"><span class="std std-ref">Closure table extension support</span></a></li>
+<li><a class="reference internal" href="#sqlite-lsm1"><span class="std std-ref">LSM1 extension support</span></a></li>
+<li><a class="reference internal" href="#sqlite-vtfunc"><span class="std std-ref">User-defined table functions</span></a></li>
+<li>Support for online backups using backup API: <a class="reference internal" href="#CSqliteExtDatabase.backup_to_file" title="CSqliteExtDatabase.backup_to_file"><code class="xref py py-meth docutils literal notranslate"><span class="pre">backup_to_file()</span></code></a></li>
+<li><a class="reference internal" href="#sqlite-blob"><span class="std std-ref">BLOB API support, for efficient binary data storage</span></a>.</li>
+<li><a class="reference internal" href="#sqlite-extras"><span class="std std-ref">Additional helpers</span></a>, including bloom filter, more.</li>
+</ul>
+<div class="section" id="getting-started">
+<h2>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
+<p>To get started with the features described in this document, you will want to
+use the <a class="reference internal" href="#SqliteExtDatabase" title="SqliteExtDatabase"><code class="xref py py-class docutils literal notranslate"><span class="pre">SqliteExtDatabase</span></code></a> class from the <code class="docutils literal notranslate"><span class="pre">playhouse.sqlite_ext</span></code>
+module. Furthermore, some features require the <code class="docutils literal notranslate"><span class="pre">playhouse._sqlite_ext</span></code> C
+extension – these features will be noted in the documentation.</p>
+<p>Instantiating a <a class="reference internal" href="#SqliteExtDatabase" title="SqliteExtDatabase"><code class="xref py py-class docutils literal notranslate"><span class="pre">SqliteExtDatabase</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">playhouse.sqlite_ext</span> <span class="kn">import</span> <span class="n">SqliteExtDatabase</span>
+
+<span class="n">db</span> <span class="o">=</span> <span class="n">SqliteExtDatabase</span><span class="p">(</span><span class="s1">&#39;my_app.db&#39;</span><span class="p">,</span> <span class="n">pragmas</span><span class="o">=</span><span class="p">(</span>
+    <span class="p">(</span><span class="s1">&#39;cache_size&#39;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">64</span><span class="p">),</span>  <span class="c1"># 64MB page-cache.</span>
+    <span class="p">(</span><span class="s1">&#39;journal_mode&#39;</span><span class="p">,</span> <span class="s1">&#39;wal&#39;</span><span class="p">),</span>  <span class="c1"># Use WAL-mode (you should always use this!).</span>
+    <span class="p">(</span><span class="s1">&#39;foreign_keys&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>  <span class="c1"># Enforce foreign-key constraints.</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="apis">
+<h2>APIs<a class="headerlink" href="#apis" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="SqliteExtDatabase">
+<em class="property">class </em><code class="descname">SqliteExtDatabase</code><span class="sig-paren">(</span><em>database</em><span class="optional">[</span>, <em>pragmas=None</em><span class="optional">[</span>, <em>timeout=5</em><span class="optional">[</span>, <em>c_extensions=None</em><span class="optional">[</span>, <em>rank_functions=True</em><span class="optional">[</span>, <em>hash_functions=False</em><span class="optional">[</span>, <em>regexp_function=False</em><span class="optional">[</span>, <em>bloomfilter=False</em><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#SqliteExtDatabase" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>pragmas</strong> (<em>list</em>) – A list of 2-tuples containing pragma key and value to
+set every time a connection is opened.</li>
+<li><strong>timeout</strong> – Set the busy-timeout on the SQLite driver (in seconds).</li>
+<li><strong>c_extensions</strong> (<em>bool</em>) – Declare that C extension speedups must/must-not
+be used. If set to <code class="docutils literal notranslate"><span class="pre">True</span></code> and the extension module is not available,
+will raise an <code class="xref py py-class docutils literal notranslate"><span class="pre">ImproperlyConfigured</span></code> exception.</li>
+<li><strong>rank_functions</strong> (<em>bool</em>) – Make search result ranking functions available.</li>
+<li><strong>hash_functions</strong> (<em>bool</em>) – Make hashing functions available (md5, sha1, etc).</li>
+<li><strong>regexp_function</strong> (<em>bool</em>) – Make the REGEXP function available.</li>
+<li><strong>bloomfilter</strong> (<em>bool</em>) – Make the <a class="reference internal" href="#sqlite-extras"><span class="std std-ref">bloom filter</span></a> available.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Extends <a class="reference internal" href="api.html#SqliteDatabase" title="SqliteDatabase"><code class="xref py py-class docutils literal notranslate"><span class="pre">SqliteDatabase</span></code></a> and inherits methods for declaring
+user-defined functions, pragmas, etc.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="CSqliteExtDatabase">
+<em class="property">class </em><code class="descname">CSqliteExtDatabase</code><span class="sig-paren">(</span><em>database</em><span class="optional">[</span>, <em>pragmas=None</em><span class="optional">[</span>, <em>timeout=5</em><span class="optional">[</span>, <em>c_extensions=None</em><span class="optional">[</span>, <em>rank_functions=True</em><span class="optional">[</span>, <em>hash_functions=False</em><span class="optional">[</span>, <em>regexp_function=False</em><span class="optional">[</span>, <em>bloomfilter=False</em><span class="optional">[</span>, <em>replace_busy_handler=False</em><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#CSqliteExtDatabase" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>pragmas</strong> (<em>list</em>) – A list of 2-tuples containing pragma key and value to
+set every time a connection is opened.</li>
+<li><strong>timeout</strong> – Set the busy-timeout on the SQLite driver (in seconds).</li>
+<li><strong>c_extensions</strong> (<em>bool</em>) – Declare that C extension speedups must/must-not
+be used. If set to <code class="docutils literal notranslate"><span class="pre">True</span></code> and the extension module is not available,
+will raise an <code class="xref py py-class docutils literal notranslate"><span class="pre">ImproperlyConfigured</span></code> exception.</li>
+<li><strong>rank_functions</strong> (<em>bool</em>) – Make search result ranking functions available.</li>
+<li><strong>hash_functions</strong> (<em>bool</em>) – Make hashing functions available (md5, sha1, etc).</li>
+<li><strong>regexp_function</strong> (<em>bool</em>) – Make the REGEXP function available.</li>
+<li><strong>bloomfilter</strong> (<em>bool</em>) – Make the <a class="reference internal" href="#sqlite-extras"><span class="std std-ref">bloom filter</span></a> available.</li>
+<li><strong>replace_busy_handler</strong> (<em>bool</em>) – Use a smarter busy-handler implementation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Extends <a class="reference internal" href="#SqliteExtDatabase" title="SqliteExtDatabase"><code class="xref py py-class docutils literal notranslate"><span class="pre">SqliteExtDatabase</span></code></a> and requires that the
+<code class="docutils literal notranslate"><span class="pre">playhouse._sqlite_ext</span></code> extension module be available.</p>
+<dl class="method">
+<dt id="CSqliteExtDatabase.on_commit">
+<code class="descname">on_commit</code><span class="sig-paren">(</span><em>fn</em><span class="sig-paren">)</span><a class="headerlink" href="#CSqliteExtDatabase.on_commit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register a callback to be executed whenever a transaction is committed
+on the current connection. The callback accepts no parameters and the
+return value is ignored.</p>
+<p>However, if the callback raises a <code class="xref py py-class docutils literal notranslate"><span class="pre">ValueError</span></code>, the
+transaction will be aborted and rolled-back.</p>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">db</span> <span class="o">=</span> <span class="n">CSqliteExtDatabase</span><span class="p">(</span><span class="s1">&#39;:memory:&#39;</span><span class="p">)</span>
+
+<span class="nd">@db.on_commit</span>
+<span class="k">def</span> <span class="nf">on_commit</span><span class="p">():</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;COMMITing changes&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="CSqliteExtDatabase.on_rollback">
+<code class="descname">on_rollback</code><span class="sig-paren">(</span><em>fn</em><span class="sig-paren">)</span><a class="headerlink" href="#CSqliteExtDatabase.on_rollback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register a callback to be executed whenever a transaction is rolled
+back on the current connection. The callback accepts no parameters and
+the return value is ignored.</p>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@db.on_rollback</span>
+<span class="k">def</span> <span class="nf">on_rollback</span><span class="p">():</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Rolling back changes&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="CSqliteExtDatabase.on_update">
+<code class="descname">on_update</code><span class="sig-paren">(</span><em>fn</em><span class="sig-paren">)</span><a class="headerlink" href="#CSqliteExtDatabase.on_update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register a callback to be executed whenever the database is written to
+(via an <em>UPDATE</em>, <em>INSERT</em> or <em>DELETE</em> query). The callback should
+accept the following parameters:</p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">query</span></code> - the type of query, either <em>INSERT</em>, <em>UPDATE</em> or <em>DELETE</em>.</li>
+<li>database name - the default database is named <em>main</em>.</li>
+<li>table name - name of table being modified.</li>
+<li>rowid - the rowid of the row being modified.</li>
+</ul>
+<p>The callback’s return value is ignored.</p>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">db</span> <span class="o">=</span> <span class="n">CSqliteExtDatabase</span><span class="p">(</span><span class="s1">&#39;:memory:&#39;</span><span class="p">)</span>
+
+<span class="nd">@db.on_update</span>
+<span class="k">def</span> <span class="nf">on_update</span><span class="p">(</span><span class="n">query_type</span><span class="p">,</span> <span class="n">db</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">rowid</span><span class="p">):</span>
+    <span class="c1"># e.g. INSERT row 3 into table users.</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> row </span><span class="si">%s</span><span class="s1"> into table </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">query_type</span><span class="p">,</span> <span class="n">rowid</span><span class="p">,</span> <span class="n">table</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="CSqliteExtDatabase.changes">
+<code class="descname">changes</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#CSqliteExtDatabase.changes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the number of rows modified in the currently-open transaction.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="CSqliteExtDatabase.autocommit">
+<code class="descname">autocommit</code><a class="headerlink" href="#CSqliteExtDatabase.autocommit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Property which returns a boolean indicating if autocommit is enabled.
+By default, this value will be <code class="docutils literal notranslate"><span class="pre">True</span></code> except when inside a
+transaction (or <a class="reference internal" href="api.html#Database.atomic" title="Database.atomic"><code class="xref py py-meth docutils literal notranslate"><span class="pre">atomic()</span></code></a> block).</p>
+<p>Example:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span> <span class="o">=</span> <span class="n">CSqliteExtDatabase</span><span class="p">(</span><span class="s1">&#39;:memory:&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">autocommit</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">db</span><span class="o">.</span><span class="n">atomic</span><span class="p">():</span>
+<span class="gp">... </span>    <span class="k">print</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">autocommit</span><span class="p">)</span>
+<span class="gp">...</span>
+<span class="go">False</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">autocommit</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="CSqliteExtDatabase.backup">
+<code class="descname">backup</code><span class="sig-paren">(</span><em>destination</em><span class="optional">[</span>, <em>pages=None</em>, <em>name=None</em>, <em>progress=None</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#CSqliteExtDatabase.backup" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>destination</strong> (<a class="reference internal" href="api.html#SqliteDatabase" title="SqliteDatabase"><em>SqliteDatabase</em></a>) – Database object to serve as
+destination for the backup.</li>
+<li><strong>pages</strong> (<em>int</em>) – Number of pages per iteration. Default value of -1
+indicates all pages should be backed-up in a single step.</li>
+<li><strong>name</strong> (<em>str</em>) – Name of source database (may differ if you used ATTACH
+DATABASE to load multiple databases). Defaults to “main”.</li>
+<li><strong>progress</strong> – Progress callback, called with three parameters: the
+number of pages remaining, the total page count, and whether the
+backup is complete.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">master</span> <span class="o">=</span> <span class="n">CSqliteExtDatabase</span><span class="p">(</span><span class="s1">&#39;master.db&#39;</span><span class="p">)</span>
+<span class="n">replica</span> <span class="o">=</span> <span class="n">CSqliteExtDatabase</span><span class="p">(</span><span class="s1">&#39;replica.db&#39;</span><span class="p">)</span>
+
+<span class="c1"># Backup the contents of master to replica.</span>
+<span class="n">master</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">replica</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="CSqliteExtDatabase.backup_to_file">
+<code class="descname">backup_to_file</code><span class="sig-paren">(</span><em>filename</em><span class="optional">[</span>, <em>pages</em>, <em>name</em>, <em>progress</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#CSqliteExtDatabase.backup_to_file" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>filename</strong> – Filename to store the database backup.</li>
+<li><strong>pages</strong> (<em>int</em>) – Number of pages per iteration. Default value of -1
+indicates all pages should be backed-up in a single step.</li>
+<li><strong>name</strong> (<em>str</em>) – Name of source database (may differ if you used ATTACH
+DATABASE to load multiple databases). Defaults to “main”.</li>
+<li><strong>progress</strong> – Progress callback, called with three parameters: the
+number of pages remaining, the total page count, and whether the
+backup is complete.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Backup the current database to a file. The backed-up data is not a
+database dump, but an actual SQLite database file.</p>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">db</span> <span class="o">=</span> <span class="n">CSqliteExtDatabase</span><span class="p">(</span><span class="s1">&#39;app.db&#39;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">nightly_backup</span><span class="p">():</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;backup-</span><span class="si">%s</span><span class="s1">.db&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">())</span>
+    <span class="n">db</span><span class="o">.</span><span class="n">backup_to_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="CSqliteExtDatabase.blob_open">
+<code class="descname">blob_open</code><span class="sig-paren">(</span><em>table</em>, <em>column</em>, <em>rowid</em><span class="optional">[</span>, <em>read_only=False</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#CSqliteExtDatabase.blob_open" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>table</strong> (<em>str</em>) – Name of table containing data.</li>
+<li><strong>column</strong> (<em>str</em>) – Name of column containing data.</li>
+<li><strong>rowid</strong> (<em>int</em>) – ID of row to retrieve.</li>
+<li><strong>read_only</strong> (<em>bool</em>) – Open the blob for reading only.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><a class="reference internal" href="#Blob" title="Blob"><code class="xref py py-class docutils literal notranslate"><span class="pre">Blob</span></code></a> instance which provides efficient access to
+the underlying binary data.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="#Blob" title="Blob">Blob</a></p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>See <a class="reference internal" href="#Blob" title="Blob"><code class="xref py py-class docutils literal notranslate"><span class="pre">Blob</span></code></a> and <a class="reference internal" href="#ZeroBlob" title="ZeroBlob"><code class="xref py py-class docutils literal notranslate"><span class="pre">ZeroBlob</span></code></a> for more information.</p>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Image</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">()</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">BlobField</span><span class="p">()</span>
+
+<span class="n">buf_size</span> <span class="o">=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">8</span>  <span class="c1"># Allocate 8MB for storing file.</span>
+<span class="n">rowid</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">insert</span><span class="p">({</span><span class="n">Image</span><span class="o">.</span><span class="n">filename</span><span class="p">:</span> <span class="s1">&#39;thefile.jpg&#39;</span><span class="p">,</span>
+                      <span class="n">Image</span><span class="o">.</span><span class="n">data</span><span class="p">:</span> <span class="n">ZeroBlob</span><span class="p">(</span><span class="n">buf_size</span><span class="p">)})</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+
+<span class="c1"># Open the blob, returning a file-like object.</span>
+<span class="n">blob</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">blob_open</span><span class="p">(</span><span class="s1">&#39;image&#39;</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="n">rowid</span><span class="p">)</span>
+
+<span class="c1"># Write some data to the blob.</span>
+<span class="n">blob</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">image_data</span><span class="p">)</span>
+<span class="n">img_size</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span>
+
+<span class="c1"># Read the data back out of the blob.</span>
+<span class="n">blob</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">image_data</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">img_size</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="RowIDField">
+<em class="property">class </em><code class="descname">RowIDField</code><a class="headerlink" href="#RowIDField" title="Permalink to this definition">¶</a></dt>
+<dd><p>Primary-key field that corresponds to the SQLite <code class="docutils literal notranslate"><span class="pre">rowid</span></code> field. For more
+information, see the SQLite documentation on <a class="reference external" href="https://www.sqlite.org/rowidtable.html">rowid tables</a>..</p>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Note</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">rowid</span> <span class="o">=</span> <span class="n">RowIDField</span><span class="p">()</span>  <span class="c1"># Will be primary key.</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">()</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">TimestampField</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="class">
+<dt id="DocIDField">
+<em class="property">class </em><code class="descname">DocIDField</code><a class="headerlink" href="#DocIDField" title="Permalink to this definition">¶</a></dt>
+<dd><p>Subclass of <a class="reference internal" href="#RowIDField" title="RowIDField"><code class="xref py py-class docutils literal notranslate"><span class="pre">RowIDField</span></code></a> for use on virtual tables that
+specifically use the convention of <code class="docutils literal notranslate"><span class="pre">docid</span></code> for the primary key. As far as
+I know this only pertains to tables using the FTS3 and FTS4 full-text
+search extensions.</p>
+<div class="admonition attention">
+<p class="first admonition-title">Attention</p>
+<p class="last">In FTS3 and FTS4, “docid” is simply an alias for “rowid”. To reduce
+confusion, it’s probably best to just always use <a class="reference internal" href="#RowIDField" title="RowIDField"><code class="xref py py-class docutils literal notranslate"><span class="pre">RowIDField</span></code></a>
+and never use <a class="reference internal" href="#DocIDField" title="DocIDField"><code class="xref py py-class docutils literal notranslate"><span class="pre">DocIDField</span></code></a>.</p>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">NoteIndex</span><span class="p">(</span><span class="n">FTSModel</span><span class="p">):</span>
+    <span class="n">docid</span> <span class="o">=</span> <span class="n">DocIDField</span><span class="p">()</span>  <span class="c1"># &quot;docid&quot; is used as an alias for &quot;rowid&quot;.</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="n">SearchField</span><span class="p">()</span>
+
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">database</span> <span class="o">=</span> <span class="n">db</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="class">
+<dt id="AutoIncrementField">
+<em class="property">class </em><code class="descname">AutoIncrementField</code><a class="headerlink" href="#AutoIncrementField" title="Permalink to this definition">¶</a></dt>
+<dd><p>SQLite, by default, may reuse primary key values after rows are deleted. To
+ensure that the primary key is <em>always</em> monotonically increasing,
+regardless of deletions, you should use <a class="reference internal" href="#AutoIncrementField" title="AutoIncrementField"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoIncrementField</span></code></a>.
+There is a small performance cost for this feature. For more information,
+see the SQLite docs on <a class="reference external" href="https://sqlite.org/autoinc.html">autoincrement</a>.</p>
+</dd></dl>
+
+<span class="target" id="sqlite-json1"></span><dl class="class">
+<dt id="JSONField">
+<em class="property">class </em><code class="descname">JSONField</code><a class="headerlink" href="#JSONField" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field class suitable for storing JSON data, with special methods designed
+to work with the <a class="reference external" href="https://sqlite.org/json1.html">json1 extension</a>.</p>
+<p>SQLite 3.9.0 added <a class="reference external" href="https://www.sqlite.org/json1.html">JSON support</a> in
+the form of an extension library. The SQLite json1 extension provides a
+number of helper functions for working with JSON data. These APIs are
+exposed as methods of a special field-type, <a class="reference internal" href="#JSONField" title="JSONField"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONField</span></code></a>.</p>
+<p>To access or modify specific object keys or array indexes in a JSON
+structure, you can treat the <a class="reference internal" href="#JSONField" title="JSONField"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONField</span></code></a> as if it were a
+dictionary/list.</p>
+<p>Let’s look at some examples of using the SQLite json1 extension with
+Peewee. Here we’ll prepare a database and a simple model for testing the
+<a class="reference external" href="http://sqlite.org/json1.html">json1 extension</a>:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">playhouse.sqlite_ext</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span> <span class="o">=</span> <span class="n">SqliteExtDatabase</span><span class="p">(</span><span class="s1">&#39;:memory:&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">KV</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">key</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">()</span>
+<span class="gp">... </span>    <span class="n">value</span> <span class="o">=</span> <span class="n">JSONField</span><span class="p">()</span>
+<span class="gp">... </span>    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">database</span> <span class="o">=</span> <span class="n">db</span>
+<span class="gp">...</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">create_table</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Storing data works as you might expect. There’s no need to serialize
+dictionaries or lists as JSON, as this is done automatically by Peewee:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;k1&#39;</span><span class="p">:</span> <span class="s1">&#39;v1&#39;</span><span class="p">})</span>
+<span class="go">&lt;KV: 1&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">KV</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;a&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+<span class="go">{&#39;k1&#39;: &#39;v1&#39;}</span>
+</pre></div>
+</div>
+<p>We can access specific parts of the JSON data using dictionary lookups:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">KV</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="s1">&#39;k1&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;v1&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">key</span>
+<span class="go">&#39;a&#39;</span>
+</pre></div>
+</div>
+<p>It’s possible to update a JSON value in-place using the <a class="reference internal" href="#JSONField.update" title="JSONField.update"><code class="xref py py-meth docutils literal notranslate"><span class="pre">update()</span></code></a>
+method. Note that “k1=v1” is preserved:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">KV</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;k2&#39;</span><span class="p">:</span> <span class="s1">&#39;v2&#39;</span><span class="p">,</span> <span class="s1">&#39;k3&#39;</span><span class="p">:</span> <span class="s1">&#39;v3&#39;</span><span class="p">}))</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">KV</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;a&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+<span class="go">{&#39;k1&#39;: &#39;v1&#39;, &#39;k2&#39;: &#39;v2&#39;, &#39;k3&#39;: &#39;v3&#39;}</span>
+</pre></div>
+</div>
+<p>We can also update existing data atomically, or remove keys by setting
+their value to <code class="docutils literal notranslate"><span class="pre">None</span></code>. In the following example, we’ll update the value
+of “k1” and remove “k3” (“k2” will not be modified):</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">KV</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;k1&#39;</span><span class="p">:</span> <span class="s1">&#39;v1-x&#39;</span><span class="p">,</span> <span class="s1">&#39;k3&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">}))</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">KV</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;a&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+<span class="go">{&#39;k1&#39;: &#39;v1-x&#39;, &#39;k2&#39;: &#39;v2&#39;}</span>
+</pre></div>
+</div>
+<p>We can also set individual parts of the JSON data using the <a class="reference internal" href="#JSONField.set" title="JSONField.set"><code class="xref py py-meth docutils literal notranslate"><span class="pre">set()</span></code></a> method:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">KV</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="s1">&#39;k1&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;v1&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">KV</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;a&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+<span class="go">{&#39;k1&#39;: &#39;v1&#39;, &#39;k2&#39;: &#39;v2&#39;}</span>
+</pre></div>
+</div>
+<p>The <a class="reference internal" href="#JSONField.set" title="JSONField.set"><code class="xref py py-meth docutils literal notranslate"><span class="pre">set()</span></code></a> method can also be used with objects, in
+addition to scalar values:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">KV</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="s1">&#39;k2&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">({</span><span class="s1">&#39;x2&#39;</span><span class="p">:</span> <span class="s1">&#39;y2&#39;</span><span class="p">}))</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">KV</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;a&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+<span class="go">{&#39;k1&#39;: &#39;v1&#39;, &#39;k2&#39;: {&#39;x2&#39;: &#39;y2&#39;}}</span>
+</pre></div>
+</div>
+<p>Individual parts of the JSON data can be removed atomically as well, using
+<a class="reference internal" href="#JSONField.remove" title="JSONField.remove"><code class="xref py py-meth docutils literal notranslate"><span class="pre">remove()</span></code></a>:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">KV</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="s1">&#39;k2&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">remove</span><span class="p">())</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">KV</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;a&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+<span class="go">{&#39;k1&#39;: &#39;v1&#39;}</span>
+</pre></div>
+</div>
+<p>We can also get the type of value stored at a specific location in the JSON
+data using the <a class="reference internal" href="#JSONField.json_type" title="JSONField.json_type"><code class="xref py py-meth docutils literal notranslate"><span class="pre">json_type()</span></code></a> method:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">KV</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">json_type</span><span class="p">(),</span> <span class="n">KV</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="s1">&#39;k1&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">json_type</span><span class="p">())</span><span class="o">.</span><span class="n">tuples</span><span class="p">()[:]</span>
+<span class="go">[(&#39;object&#39;, &#39;text&#39;)]</span>
+</pre></div>
+</div>
+<p>Let’s add a nested value and then see how to iterate through it’s contents
+recursively using the <a class="reference internal" href="#JSONField.tree" title="JSONField.tree"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tree()</span></code></a> method:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;x1&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;y1&#39;</span><span class="p">:</span> <span class="s1">&#39;z1&#39;</span><span class="p">,</span> <span class="s1">&#39;y2&#39;</span><span class="p">:</span> <span class="s1">&#39;z2&#39;</span><span class="p">},</span> <span class="s1">&#39;x2&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]})</span>
+<span class="go">&lt;KV: 2&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">tree</span> <span class="o">=</span> <span class="n">KV</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">tree</span><span class="p">()</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;tree&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">query</span> <span class="o">=</span> <span class="n">KV</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">KV</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="n">tree</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">fullkey</span><span class="p">,</span> <span class="n">tree</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">from_</span><span class="p">(</span><span class="n">KV</span><span class="p">,</span> <span class="n">tree</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">query</span><span class="o">.</span><span class="n">tuples</span><span class="p">()[:]</span>
+<span class="go">[(&#39;a&#39;, &#39;$&#39;, {&#39;k1&#39;: &#39;v1&#39;}),</span>
+<span class="go"> (&#39;a&#39;, &#39;$.k1&#39;, &#39;v1&#39;),</span>
+<span class="go"> (&#39;b&#39;, &#39;$&#39;, {&#39;x1&#39;: {&#39;y1&#39;: &#39;z1&#39;, &#39;y2&#39;: &#39;z2&#39;}, &#39;x2&#39;: [1, 2]}),</span>
+<span class="go"> (&#39;b&#39;, &#39;$.x2&#39;, [1, 2]),</span>
+<span class="go"> (&#39;b&#39;, &#39;$.x2[0]&#39;, 1),</span>
+<span class="go"> (&#39;b&#39;, &#39;$.x2[1]&#39;, 2),</span>
+<span class="go"> (&#39;b&#39;, &#39;$.x1&#39;, {&#39;y1&#39;: &#39;z1&#39;, &#39;y2&#39;: &#39;z2&#39;}),</span>
+<span class="go"> (&#39;b&#39;, &#39;$.x1.y1&#39;, &#39;z1&#39;),</span>
+<span class="go"> (&#39;b&#39;, &#39;$.x1.y2&#39;, &#39;z2&#39;)]</span>
+</pre></div>
+</div>
+<p>The <a class="reference internal" href="#JSONField.tree" title="JSONField.tree"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tree()</span></code></a> and <a class="reference internal" href="#JSONField.children" title="JSONField.children"><code class="xref py py-meth docutils literal notranslate"><span class="pre">children()</span></code></a> methods
+are powerful. For more information on how to utilize them, see the
+<a class="reference external" href="http://sqlite.org/json1.html#jtree">json1 extension documentation</a>.</p>
+<p>Also note, that <a class="reference internal" href="#JSONField" title="JSONField"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONField</span></code></a> lookups can be chained:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">query</span> <span class="o">=</span> <span class="n">KV</span><span class="o">.</span><span class="n">select</span><span class="p">()</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">KV</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="s1">&#39;x1&#39;</span><span class="p">][</span><span class="s1">&#39;y1&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;z1&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">query</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="k">print</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+<span class="gp">...</span>
+
+<span class="go">&#39;b&#39;, {&#39;x1&#39;: {&#39;y1&#39;: &#39;z1&#39;, &#39;y2&#39;: &#39;z2&#39;}, &#39;x2&#39;: [1, 2]}</span>
+</pre></div>
+</div>
+<p>For more information, refer to the <a class="reference external" href="http://sqlite.org/json1.html">sqlite json1 documentation</a>.</p>
+<dl class="method">
+<dt id="JSONField.__getitem__">
+<code class="descname">__getitem__</code><span class="sig-paren">(</span><em>item</em><span class="sig-paren">)</span><a class="headerlink" href="#JSONField.__getitem__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>item</strong> – Access a specific key or array index in the JSON data.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a special object exposing access to the JSON data.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#JSONPath" title="JSONPath">JSONPath</a></td>
+</tr>
+</tbody>
+</table>
+<p>Access a specific key or array index in the JSON data. Returns a
+<a class="reference internal" href="#JSONPath" title="JSONPath"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONPath</span></code></a> object, which exposes convenient methods for
+reading or modifying a particular part of a JSON object.</p>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># If metadata contains {&quot;tags&quot;: [&quot;list&quot;, &quot;of&quot;, &quot;tags&quot;]}, we can</span>
+<span class="c1"># extract the first tag in this way:</span>
+<span class="n">Post</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Post</span><span class="p">,</span> <span class="n">Post</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;tags&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;first_tag&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>For more examples see the <a class="reference internal" href="#JSONPath" title="JSONPath"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONPath</span></code></a> API documentation.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONField.set">
+<code class="descname">set</code><span class="sig-paren">(</span><em>value</em><span class="optional">[</span>, <em>as_json=None</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#JSONField.set" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>value</strong> – a scalar value, list, or dictionary.</li>
+<li><strong>as_json</strong> (<em>bool</em>) – force the value to be treated as JSON, in which
+case it will be serialized as JSON in Python beforehand. By
+default, lists and dictionaries are treated as JSON to be
+serialized, while strings and integers are passed as-is.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Set the value stored in a <a class="reference internal" href="#JSONField" title="JSONField"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONField</span></code></a>.</p>
+<p>Uses the <a class="reference external" href="http://sqlite.org/json1.html#jset">json_set()</a> function
+from the json1 extension.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONField.update">
+<code class="descname">update</code><span class="sig-paren">(</span><em>data</em><span class="sig-paren">)</span><a class="headerlink" href="#JSONField.update" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>data</strong> – a scalar value, list or dictionary to merge with the data
+currently stored in a <a class="reference internal" href="#JSONField" title="JSONField"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONField</span></code></a>. To remove a particular
+key, set that key to <code class="docutils literal notranslate"><span class="pre">None</span></code> in the updated data.</td>
+</tr>
+</tbody>
+</table>
+<p>Merge new data into the JSON value using the RFC-7396 MergePatch
+algorithm to apply a patch (<code class="docutils literal notranslate"><span class="pre">data</span></code> parameter) against the column
+data. MergePatch can add, modify, or delete elements of a JSON object,
+which means <a class="reference internal" href="#JSONField.update" title="JSONField.update"><code class="xref py py-meth docutils literal notranslate"><span class="pre">update()</span></code></a> is a generalized replacement
+for both <a class="reference internal" href="#JSONField.set" title="JSONField.set"><code class="xref py py-meth docutils literal notranslate"><span class="pre">set()</span></code></a> and <a class="reference internal" href="#JSONField.remove" title="JSONField.remove"><code class="xref py py-meth docutils literal notranslate"><span class="pre">remove()</span></code></a>.
+MergePatch treats JSON array objects as atomic, so <code class="docutils literal notranslate"><span class="pre">update()</span></code> cannot
+append to an array, nor modify individual elements of an array.</p>
+<p>For more information as well as examples, see the SQLite <a class="reference external" href="http://sqlite.org/json1.html#jpatch">json_patch()</a>
+function documentation.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONField.remove">
+<code class="descname">remove</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#JSONField.remove" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove the data stored in the <a class="reference internal" href="#JSONField" title="JSONField"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONField</span></code></a>.</p>
+<p>Uses the <a class="reference external" href="https://www.sqlite.org/json1.html#jrm">json_type</a> function
+from the json1 extension.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONField.json_type">
+<code class="descname">json_type</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#JSONField.json_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string identifying the type of value stored in the column.</p>
+<p>The type returned will be one of:</p>
+<ul class="simple">
+<li>object</li>
+<li>array</li>
+<li>integer</li>
+<li>real</li>
+<li>true</li>
+<li>false</li>
+<li>text</li>
+<li>null  &lt;– the string “null” means an actual NULL value</li>
+<li>NULL  &lt;– an actual NULL value means the path was not found</li>
+</ul>
+<p>Uses the <a class="reference external" href="https://www.sqlite.org/json1.html#jtype">json_type</a>
+function from the json1 extension.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONField.length">
+<code class="descname">length</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#JSONField.length" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the length of the array stored in the column.</p>
+<p>Uses the <a class="reference external" href="https://www.sqlite.org/json1.html#jarraylen">json_array_length</a>
+function from the json1 extension.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONField.children">
+<code class="descname">children</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#JSONField.children" title="Permalink to this definition">¶</a></dt>
+<dd><p>The <code class="docutils literal notranslate"><span class="pre">children</span></code> function corresponds to <code class="docutils literal notranslate"><span class="pre">json_each</span></code>, a table-valued
+function that walks the JSON value provided and returns the immediate
+children of the top-level array or object. If a path is specified, then
+that path is treated as the top-most element.</p>
+<p>The rows returned by calls to <code class="docutils literal notranslate"><span class="pre">children()</span></code> have the following
+attributes:</p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">key</span></code>: the key of the current element relative to its parent.</li>
+<li><code class="docutils literal notranslate"><span class="pre">value</span></code>: the value of the current element.</li>
+<li><code class="docutils literal notranslate"><span class="pre">type</span></code>: one of the data-types (see <a class="reference internal" href="#JSONField.json_type" title="JSONField.json_type"><code class="xref py py-meth docutils literal notranslate"><span class="pre">json_type()</span></code></a>).</li>
+<li><code class="docutils literal notranslate"><span class="pre">atom</span></code>: the scalar value for primitive types, <code class="docutils literal notranslate"><span class="pre">NULL</span></code> for arrays and objects.</li>
+<li><code class="docutils literal notranslate"><span class="pre">id</span></code>: a unique ID referencing the current node in the tree.</li>
+<li><code class="docutils literal notranslate"><span class="pre">parent</span></code>: the ID of the containing node.</li>
+<li><code class="docutils literal notranslate"><span class="pre">fullkey</span></code>: the full path describing the current element.</li>
+<li><code class="docutils literal notranslate"><span class="pre">path</span></code>: the path to the container of the current row.</li>
+</ul>
+<p>For examples, see <a class="reference external" href="http://charlesleifer.com/blog/using-the-sqlite-json1-and-fts5-extensions-with-python/">my blog post on JSON1</a>.</p>
+<p>Uses the <a class="reference external" href="https://www.sqlite.org/json1.html#jeach">json_each</a>
+function from the json1 extension.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONField.tree">
+<code class="descname">tree</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#JSONField.tree" title="Permalink to this definition">¶</a></dt>
+<dd><p>The <code class="docutils literal notranslate"><span class="pre">tree</span></code> function corresponds to <code class="docutils literal notranslate"><span class="pre">json_tree</span></code>, a table-valued
+function that recursively walks the JSON value provided and returns
+information about the keys at each level. If a path is specified, then
+that path is treated as the top-most element.</p>
+<p>The rows returned by calls to <code class="docutils literal notranslate"><span class="pre">tree()</span></code> have the same attributes as
+rows returned by calls to <a class="reference internal" href="#JSONField.children" title="JSONField.children"><code class="xref py py-meth docutils literal notranslate"><span class="pre">children()</span></code></a>:</p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">key</span></code>: the key of the current element relative to its parent.</li>
+<li><code class="docutils literal notranslate"><span class="pre">value</span></code>: the value of the current element.</li>
+<li><code class="docutils literal notranslate"><span class="pre">type</span></code>: one of the data-types (see <a class="reference internal" href="#JSONField.json_type" title="JSONField.json_type"><code class="xref py py-meth docutils literal notranslate"><span class="pre">json_type()</span></code></a>).</li>
+<li><code class="docutils literal notranslate"><span class="pre">atom</span></code>: the scalar value for primitive types, <code class="docutils literal notranslate"><span class="pre">NULL</span></code> for arrays and objects.</li>
+<li><code class="docutils literal notranslate"><span class="pre">id</span></code>: a unique ID referencing the current node in the tree.</li>
+<li><code class="docutils literal notranslate"><span class="pre">parent</span></code>: the ID of the containing node.</li>
+<li><code class="docutils literal notranslate"><span class="pre">fullkey</span></code>: the full path describing the current element.</li>
+<li><code class="docutils literal notranslate"><span class="pre">path</span></code>: the path to the container of the current row.</li>
+</ul>
+<p>For examples, see <a class="reference external" href="http://charlesleifer.com/blog/using-the-sqlite-json1-and-fts5-extensions-with-python/">my blog post on JSON1</a>.</p>
+<p>Uses the <a class="reference external" href="https://www.sqlite.org/json1.html#jtree">json_tree</a>
+function from the json1 extension.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="JSONPath">
+<em class="property">class </em><code class="descname">JSONPath</code><span class="sig-paren">(</span><em>field</em><span class="optional">[</span>, <em>path=None</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#JSONPath" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>field</strong> (<a class="reference internal" href="#JSONField" title="JSONField"><em>JSONField</em></a>) – the field object we intend to access.</li>
+<li><strong>path</strong> (<em>tuple</em>) – Components comprising the JSON path.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>A convenient, Pythonic way of representing JSON paths for use with
+<a class="reference internal" href="#JSONField" title="JSONField"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONField</span></code></a>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">JSONPath</span></code> object implements <code class="docutils literal notranslate"><span class="pre">__getitem__</span></code>, accumulating path
+components, which it can turn into the corresponding json-path expression.</p>
+<dl class="method">
+<dt id="JSONPath.__getitem__">
+<code class="descname">__getitem__</code><span class="sig-paren">(</span><em>item</em><span class="sig-paren">)</span><a class="headerlink" href="#JSONPath.__getitem__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>item</strong> – Access a sub-key key or array index.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a <a class="reference internal" href="#JSONPath" title="JSONPath"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONPath</span></code></a> representing the new path.</td>
+</tr>
+</tbody>
+</table>
+<p>Access a sub-key or array index in the JSON data. Returns a
+<a class="reference internal" href="#JSONPath" title="JSONPath"><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONPath</span></code></a> object, which exposes convenient methods for
+reading or modifying a particular part of a JSON object.</p>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># If metadata contains {&quot;tags&quot;: [&quot;list&quot;, &quot;of&quot;, &quot;tags&quot;]}, we can</span>
+<span class="c1"># extract the first tag in this way:</span>
+<span class="n">first_tag</span> <span class="o">=</span> <span class="n">Post</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;tags&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Post</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Post</span><span class="p">,</span> <span class="n">first_tag</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;first_tag&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">first_tag</span><span class="p">))</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONPath.set">
+<code class="descname">set</code><span class="sig-paren">(</span><em>value</em><span class="optional">[</span>, <em>as_json=None</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#JSONPath.set" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>value</strong> – a scalar value, list, or dictionary.</li>
+<li><strong>as_json</strong> (<em>bool</em>) – force the value to be treated as JSON, in which
+case it will be serialized as JSON in Python beforehand. By
+default, lists and dictionaries are treated as JSON to be
+serialized, while strings and integers are passed as-is.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Set the value at the given location in the JSON data.</p>
+<p>Uses the <a class="reference external" href="http://sqlite.org/json1.html#jset">json_set()</a> function
+from the json1 extension.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONPath.update">
+<code class="descname">update</code><span class="sig-paren">(</span><em>data</em><span class="sig-paren">)</span><a class="headerlink" href="#JSONPath.update" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>data</strong> – a scalar value, list or dictionary to merge with the data
+at the given location in the JSON data. To remove a particular key,
+set that key to <code class="docutils literal notranslate"><span class="pre">None</span></code> in the updated data.</td>
+</tr>
+</tbody>
+</table>
+<p>Merge new data into the JSON value using the RFC-7396 MergePatch
+algorithm to apply a patch (<code class="docutils literal notranslate"><span class="pre">data</span></code> parameter) against the column
+data. MergePatch can add, modify, or delete elements of a JSON object,
+which means <a class="reference internal" href="#JSONPath.update" title="JSONPath.update"><code class="xref py py-meth docutils literal notranslate"><span class="pre">update()</span></code></a> is a generalized replacement
+for both <a class="reference internal" href="#JSONPath.set" title="JSONPath.set"><code class="xref py py-meth docutils literal notranslate"><span class="pre">set()</span></code></a> and <a class="reference internal" href="#JSONPath.remove" title="JSONPath.remove"><code class="xref py py-meth docutils literal notranslate"><span class="pre">remove()</span></code></a>.
+MergePatch treats JSON array objects as atomic, so <code class="docutils literal notranslate"><span class="pre">update()</span></code> cannot
+append to an array, nor modify individual elements of an array.</p>
+<p>For more information as well as examples, see the SQLite <a class="reference external" href="http://sqlite.org/json1.html#jpatch">json_patch()</a>
+function documentation.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONPath.remove">
+<code class="descname">remove</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#JSONPath.remove" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove the data stored in at the given location in the JSON data.</p>
+<p>Uses the <a class="reference external" href="https://www.sqlite.org/json1.html#jrm">json_type</a> function
+from the json1 extension.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONPath.json_type">
+<code class="descname">json_type</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#JSONPath.json_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string identifying the type of value stored at the given
+location in the JSON data.</p>
+<p>The type returned will be one of:</p>
+<ul class="simple">
+<li>object</li>
+<li>array</li>
+<li>integer</li>
+<li>real</li>
+<li>true</li>
+<li>false</li>
+<li>text</li>
+<li>null  &lt;– the string “null” means an actual NULL value</li>
+<li>NULL  &lt;– an actual NULL value means the path was not found</li>
+</ul>
+<p>Uses the <a class="reference external" href="https://www.sqlite.org/json1.html#jtype">json_type</a>
+function from the json1 extension.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONPath.length">
+<code class="descname">length</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#JSONPath.length" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the length of the array stored at the given location in the JSON
+data.</p>
+<p>Uses the <a class="reference external" href="https://www.sqlite.org/json1.html#jarraylen">json_array_length</a>
+function from the json1 extension.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONPath.children">
+<code class="descname">children</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#JSONPath.children" title="Permalink to this definition">¶</a></dt>
+<dd><p>Table-valued function that exposes the direct descendants of a JSON
+object at the given location. See also <a class="reference internal" href="#JSONField.children" title="JSONField.children"><code class="xref py py-meth docutils literal notranslate"><span class="pre">JSONField.children()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="JSONPath.tree">
+<code class="descname">tree</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#JSONPath.tree" title="Permalink to this definition">¶</a></dt>
+<dd><p>Table-valued function that exposes all descendants, recursively, of a
+JSON object at the given location. See also <a class="reference internal" href="#JSONField.tree" title="JSONField.tree"><code class="xref py py-meth docutils literal notranslate"><span class="pre">JSONField.tree()</span></code></a>.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="SearchField">
+<em class="property">class </em><code class="descname">SearchField</code><span class="sig-paren">(</span><span class="optional">[</span><em>unindexed=False</em><span class="optional">[</span>, <em>column_name=None</em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#SearchField" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field-class to be used for columns on models representing full-text search
+virtual tables. The full-text search extensions prohibit the specification
+of any typing or constraints on columns. This behavior is enforced by the
+<a class="reference internal" href="#SearchField" title="SearchField"><code class="xref py py-class docutils literal notranslate"><span class="pre">SearchField</span></code></a>, which raises an exception if any configuration is
+attempted that would be incompatible with the full-text search extensions.</p>
+<p>Example model for document search index (timestamp is stored in the table
+but it’s data is not searchable):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">DocumentIndex</span><span class="p">(</span><span class="n">FTSModel</span><span class="p">):</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="n">SearchField</span><span class="p">()</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="n">SearchField</span><span class="p">()</span>
+    <span class="n">tags</span> <span class="o">=</span> <span class="n">SearchField</span><span class="p">()</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">SearchField</span><span class="p">(</span><span class="n">unindexed</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="class">
+<dt id="VirtualModel">
+<em class="property">class </em><code class="descname">VirtualModel</code><a class="headerlink" href="#VirtualModel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Model class designed to be used to represent virtual tables. The default
+metadata settings are slightly different, to match those frequently used by
+virtual tables.</p>
+<p>Metadata options:</p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">arguments</span></code> - arguments passed to the virtual table constructor.</li>
+<li><code class="docutils literal notranslate"><span class="pre">extension_module</span></code> - name of extension to use for virtual table.</li>
+<li><dl class="first docutils">
+<dt><code class="docutils literal notranslate"><span class="pre">options</span></code> - a dictionary of settings to apply in virtual table</dt>
+<dd>constructor.</dd>
+</dl>
+</li>
+<li><code class="docutils literal notranslate"><span class="pre">primary_key</span></code> - defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>, indicating no primary key.</li>
+</ul>
+<p>These all are combined in the following way:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span> <span class="n">VIRTUAL</span> <span class="k">TABLE</span> <span class="o">&lt;</span><span class="k">table_name</span><span class="o">&gt;</span>
+<span class="k">USING</span> <span class="o">&lt;</span><span class="n">extension_module</span><span class="o">&gt;</span>
+<span class="p">([</span><span class="n">prefix_arguments</span><span class="p">,</span> <span class="p">...]</span> <span class="n">fields</span><span class="p">,</span> <span class="p">...</span> <span class="p">[</span><span class="n">arguments</span><span class="p">,</span> <span class="p">...],</span> <span class="p">[</span><span class="k">options</span><span class="p">...])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<span class="target" id="sqlite-fts"></span><dl class="class">
+<dt id="FTSModel">
+<em class="property">class </em><code class="descname">FTSModel</code><a class="headerlink" href="#FTSModel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Subclass of <a class="reference internal" href="#VirtualModel" title="VirtualModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">VirtualModel</span></code></a> to be used with the <a class="reference external" href="https://sqlite.org/fts3.html">FTS3 and FTS4</a>
+full-text search extensions.</p>
+<p>FTSModel subclasses should be defined normally, however there are a couple
+caveats:</p>
+<ul class="simple">
+<li>Unique constraints, not null constraints, check constraints and foreign
+keys are not supported.</li>
+<li>Indexes on fields and multi-column indexes are ignored completely</li>
+<li>Sqlite will treat all column types as <code class="docutils literal notranslate"><span class="pre">TEXT</span></code> (although you
+can store other data types, Sqlite will treat them as text).</li>
+<li>FTS models contain a <code class="docutils literal notranslate"><span class="pre">rowid</span></code> field which is automatically created and
+managed by SQLite (unless you choose to explicitly set it during model
+creation). Lookups on this column <strong>are fast and efficient</strong>.</li>
+</ul>
+<p>Given these constraints, it is strongly recommended that all fields
+declared on an <code class="docutils literal notranslate"><span class="pre">FTSModel</span></code> subclass be instances of
+<a class="reference internal" href="#SearchField" title="SearchField"><code class="xref py py-class docutils literal notranslate"><span class="pre">SearchField</span></code></a> (though an exception is made for explicitly
+declaring a <a class="reference internal" href="#RowIDField" title="RowIDField"><code class="xref py py-class docutils literal notranslate"><span class="pre">RowIDField</span></code></a>). Using <a class="reference internal" href="#SearchField" title="SearchField"><code class="xref py py-class docutils literal notranslate"><span class="pre">SearchField</span></code></a> will
+help prevent you accidentally creating invalid column constraints. If you
+wish to store metadata in the index but would not like it to be included in
+the full-text index, then specify <code class="docutils literal notranslate"><span class="pre">unindexed=True</span></code> when instantiating the
+<a class="reference internal" href="#SearchField" title="SearchField"><code class="xref py py-class docutils literal notranslate"><span class="pre">SearchField</span></code></a>.</p>
+<p>The only exception to the above is for the <code class="docutils literal notranslate"><span class="pre">rowid</span></code> primary key, which can
+be declared using <a class="reference internal" href="#RowIDField" title="RowIDField"><code class="xref py py-class docutils literal notranslate"><span class="pre">RowIDField</span></code></a>. Lookups on the <code class="docutils literal notranslate"><span class="pre">rowid</span></code> are very
+efficient. If you are using FTS4 you can also use <a class="reference internal" href="#DocIDField" title="DocIDField"><code class="xref py py-class docutils literal notranslate"><span class="pre">DocIDField</span></code></a>,
+which is an alias for the rowid (though there is no benefit to doing so).</p>
+<p>Because of the lack of secondary indexes, it usually makes sense to use
+the <code class="docutils literal notranslate"><span class="pre">rowid</span></code> primary key as a pointer to a row in a regular table. For
+example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Document</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+    <span class="c1"># Canonical source of data, stored in a regular table.</span>
+    <span class="n">author</span> <span class="o">=</span> <span class="n">ForeignKeyField</span><span class="p">(</span><span class="n">User</span><span class="p">,</span> <span class="n">backref</span><span class="o">=</span><span class="s1">&#39;documents&#39;</span><span class="p">)</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">(</span><span class="n">null</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">(</span><span class="n">null</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">DateTimeField</span><span class="p">()</span>
+
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">database</span> <span class="o">=</span> <span class="n">db</span>
+
+<span class="k">class</span> <span class="nc">DocumentIndex</span><span class="p">(</span><span class="n">FTSModel</span><span class="p">):</span>
+    <span class="c1"># Full-text search index.</span>
+    <span class="n">rowid</span> <span class="o">=</span> <span class="n">RowIDField</span><span class="p">()</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="n">SearchField</span><span class="p">()</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="n">SearchField</span><span class="p">()</span>
+
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">database</span> <span class="o">=</span> <span class="n">db</span>
+        <span class="c1"># Use the porter stemming algorithm to tokenize content.</span>
+        <span class="n">options</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;tokenize&#39;</span><span class="p">:</span> <span class="s1">&#39;porter&#39;</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>To store a document in the document index, we will <code class="docutils literal notranslate"><span class="pre">INSERT</span></code> a row into
+the <code class="docutils literal notranslate"><span class="pre">DocumentIndex</span></code> table, manually setting the <code class="docutils literal notranslate"><span class="pre">rowid</span></code> so that it
+matches the primary-key of the corresponding <code class="docutils literal notranslate"><span class="pre">Document</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">store_document</span><span class="p">(</span><span class="n">document</span><span class="p">):</span>
+    <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">insert</span><span class="p">({</span>
+        <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">rowid</span><span class="p">:</span> <span class="n">document</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+        <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">title</span><span class="p">:</span> <span class="n">document</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">content</span><span class="p">:</span> <span class="n">document</span><span class="o">.</span><span class="n">content</span><span class="p">})</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>To perform a search and return ranked results, we can query the
+<code class="docutils literal notranslate"><span class="pre">Document</span></code> table and join on the <code class="docutils literal notranslate"><span class="pre">DocumentIndex</span></code>. This join will be
+efficient because lookups on an FTSModel’s <code class="docutils literal notranslate"><span class="pre">rowid</span></code> field are fast:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">search</span><span class="p">(</span><span class="n">phrase</span><span class="p">):</span>
+    <span class="c1"># Query the search index and join the corresponding Document</span>
+    <span class="c1"># object on each search result.</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">Document</span>
+            <span class="o">.</span><span class="n">select</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="n">DocumentIndex</span><span class="p">,</span>
+                <span class="n">on</span><span class="o">=</span><span class="p">(</span><span class="n">Document</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">rowid</span><span class="p">))</span>
+            <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">DocumentIndex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">phrase</span><span class="p">))</span>
+            <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">DocumentIndex</span><span class="o">.</span><span class="n">bm25</span><span class="p">()))</span>
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">All SQL queries on <code class="docutils literal notranslate"><span class="pre">FTSModel</span></code> classes will be full-table scans
+<strong>except</strong> full-text searches and <code class="docutils literal notranslate"><span class="pre">rowid</span></code> lookups.</p>
+</div>
+<p>If the primary source of the content you are indexing exists in a separate
+table, you can save some disk space by instructing SQLite to not store an
+additional copy of the search index content. SQLite will still create the
+metadata and data-structures needed to perform searches on the content, but
+the content itself will not be stored in the search index.</p>
+<p>To accomplish this, you can specify a table or column using the <code class="docutils literal notranslate"><span class="pre">content</span></code>
+option. The <a class="reference external" href="http://sqlite.org/fts3.html#section_6_2">FTS4 documentation</a>
+has more information.</p>
+<p>Here is a short example illustrating how to implement this with peewee:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Blog</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">()</span>
+    <span class="n">pub_date</span> <span class="o">=</span> <span class="n">DateTimeField</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">)</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">()</span>  <span class="c1"># We want to search this.</span>
+
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">database</span> <span class="o">=</span> <span class="n">db</span>
+
+<span class="k">class</span> <span class="nc">BlogIndex</span><span class="p">(</span><span class="n">FTSModel</span><span class="p">):</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="n">SearchField</span><span class="p">()</span>
+
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">database</span> <span class="o">=</span> <span class="n">db</span>
+        <span class="n">options</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;content&#39;</span><span class="p">:</span> <span class="n">Blog</span><span class="o">.</span><span class="n">content</span><span class="p">}</span>  <span class="c1"># &lt;-- specify data source.</span>
+
+<span class="n">db</span><span class="o">.</span><span class="n">create_tables</span><span class="p">([</span><span class="n">Blog</span><span class="p">,</span> <span class="n">BlogIndex</span><span class="p">])</span>
+
+<span class="c1"># Now, we can manage content in the BlogIndex. To populate the</span>
+<span class="c1"># search index:</span>
+<span class="n">BlogIndex</span><span class="o">.</span><span class="n">rebuild</span><span class="p">()</span>
+
+<span class="c1"># Optimize the index.</span>
+<span class="n">BlogIndex</span><span class="o">.</span><span class="n">optimize</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">content</span></code> option accepts either a single <a class="reference internal" href="api.html#Field" title="Field"><code class="xref py py-class docutils literal notranslate"><span class="pre">Field</span></code></a> or a
+<a class="reference internal" href="api.html#Model" title="Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a> and can reduce the amount of storage used by the database
+file. However, content will need to be manually moved to/from the
+associated <code class="docutils literal notranslate"><span class="pre">FTSModel</span></code>.</p>
+<dl class="classmethod">
+<dt id="FTSModel.match">
+<em class="property">classmethod </em><code class="descname">match</code><span class="sig-paren">(</span><em>term</em><span class="sig-paren">)</span><a class="headerlink" href="#FTSModel.match" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>term</strong> – Search term or expression.</td>
+</tr>
+</tbody>
+</table>
+<p>Generate a SQL expression representing a search for the given term or
+expression in the table. SQLite uses the <code class="docutils literal notranslate"><span class="pre">MATCH</span></code> operator to indicate
+a full-text search.</p>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Search index for &quot;search phrase&quot; and return results ranked</span>
+<span class="c1"># by relevancy using the BM25 algorithm.</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">DocumentIndex</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">()</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">DocumentIndex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;search phrase&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">DocumentIndex</span><span class="o">.</span><span class="n">bm25</span><span class="p">()))</span>
+<span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">query</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;Result: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">result</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTSModel.search">
+<em class="property">classmethod </em><code class="descname">search</code><span class="sig-paren">(</span><em>term</em><span class="optional">[</span>, <em>weights=None</em><span class="optional">[</span>, <em>with_score=False</em><span class="optional">[</span>, <em>score_alias='score'</em><span class="optional">[</span>, <em>explicit_ordering=False</em><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#FTSModel.search" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>term</strong> (<em>str</em>) – Search term to use.</li>
+<li><strong>weights</strong> – A list of weights for the columns, ordered with respect
+to the column’s position in the table. <strong>Or</strong>, a dictionary keyed by
+the field or field name and mapped to a value.</li>
+<li><strong>with_score</strong> – Whether the score should be returned as part of
+the <code class="docutils literal notranslate"><span class="pre">SELECT</span></code> statement.</li>
+<li><strong>score_alias</strong> (<em>str</em>) – Alias to use for the calculated rank score.
+This is the attribute you will use to access the score
+if <code class="docutils literal notranslate"><span class="pre">with_score=True</span></code>.</li>
+<li><strong>explicit_ordering</strong> (<em>bool</em>) – Order using full SQL function to
+calculate rank, as opposed to simply referencing the score alias
+in the ORDER BY clause.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Shorthand way of searching for a term and sorting results by the
+quality of the match.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This method uses a simplified algorithm for determining the
+relevance rank of results. For more sophisticated result ranking,
+use the <a class="reference internal" href="#FTSModel.search_bm25" title="FTSModel.search_bm25"><code class="xref py py-meth docutils literal notranslate"><span class="pre">search_bm25()</span></code></a> method.</p>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Simple search.</span>
+<span class="n">docs</span> <span class="o">=</span> <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;search term&#39;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">docs</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+
+<span class="c1"># More complete example.</span>
+<span class="n">docs</span> <span class="o">=</span> <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
+    <span class="s1">&#39;search term&#39;</span><span class="p">,</span>
+    <span class="n">weights</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">,</span> <span class="s1">&#39;content&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">},</span>
+    <span class="n">with_score</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+    <span class="n">score_alias</span><span class="o">=</span><span class="s1">&#39;search_score&#39;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">docs</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">title</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">search_score</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTSModel.search_bm25">
+<em class="property">classmethod </em><code class="descname">search_bm25</code><span class="sig-paren">(</span><em>term</em><span class="optional">[</span>, <em>weights=None</em><span class="optional">[</span>, <em>with_score=False</em><span class="optional">[</span>, <em>score_alias='score'</em><span class="optional">[</span>, <em>explicit_ordering=False</em><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#FTSModel.search_bm25" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>term</strong> (<em>str</em>) – Search term to use.</li>
+<li><strong>weights</strong> – A list of weights for the columns, ordered with respect
+to the column’s position in the table. <strong>Or</strong>, a dictionary keyed by
+the field or field name and mapped to a value.</li>
+<li><strong>with_score</strong> – Whether the score should be returned as part of
+the <code class="docutils literal notranslate"><span class="pre">SELECT</span></code> statement.</li>
+<li><strong>score_alias</strong> (<em>str</em>) – Alias to use for the calculated rank score.
+This is the attribute you will use to access the score
+if <code class="docutils literal notranslate"><span class="pre">with_score=True</span></code>.</li>
+<li><strong>explicit_ordering</strong> (<em>bool</em>) – Order using full SQL function to
+calculate rank, as opposed to simply referencing the score alias
+in the ORDER BY clause.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Shorthand way of searching for a term and sorting results by the
+quality of the match using the BM25 algorithm.</p>
+<div class="admonition attention">
+<p class="first admonition-title">Attention</p>
+<p class="last">The BM25 ranking algorithm is only available for FTS4. If you are
+using FTS3, use the <a class="reference internal" href="#FTSModel.search" title="FTSModel.search"><code class="xref py py-meth docutils literal notranslate"><span class="pre">search()</span></code></a> method instead.</p>
+</div>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTSModel.search_bm25f">
+<em class="property">classmethod </em><code class="descname">search_bm25f</code><span class="sig-paren">(</span><em>term</em><span class="optional">[</span>, <em>weights=None</em><span class="optional">[</span>, <em>with_score=False</em><span class="optional">[</span>, <em>score_alias='score'</em><span class="optional">[</span>, <em>explicit_ordering=False</em><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#FTSModel.search_bm25f" title="Permalink to this definition">¶</a></dt>
+<dd><p>Same as <a class="reference internal" href="#FTSModel.search_bm25" title="FTSModel.search_bm25"><code class="xref py py-meth docutils literal notranslate"><span class="pre">FTSModel.search_bm25()</span></code></a>, but using the BM25f variant
+of the BM25 ranking algorithm.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTSModel.search_lucene">
+<em class="property">classmethod </em><code class="descname">search_lucene</code><span class="sig-paren">(</span><em>term</em><span class="optional">[</span>, <em>weights=None</em><span class="optional">[</span>, <em>with_score=False</em><span class="optional">[</span>, <em>score_alias='score'</em><span class="optional">[</span>, <em>explicit_ordering=False</em><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#FTSModel.search_lucene" title="Permalink to this definition">¶</a></dt>
+<dd><p>Same as <a class="reference internal" href="#FTSModel.search_bm25" title="FTSModel.search_bm25"><code class="xref py py-meth docutils literal notranslate"><span class="pre">FTSModel.search_bm25()</span></code></a>, but using the result ranking
+algorithm from the Lucene search engine.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTSModel.rank">
+<em class="property">classmethod </em><code class="descname">rank</code><span class="sig-paren">(</span><span class="optional">[</span><em>col1_weight</em>, <em>col2_weight...coln_weight</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#FTSModel.rank" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>col_weight</strong> (<em>float</em>) – (Optional) weight to give to the <a href="#id9"><span class="problematic" id="id10">*</span></a>i*th column
+of the model. By default all columns have a weight of <code class="docutils literal notranslate"><span class="pre">1.0</span></code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Generate an expression that will calculate and return the quality of
+the search match. This <code class="docutils literal notranslate"><span class="pre">rank</span></code> can be used to sort the search results.
+A higher rank score indicates a better match.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">rank</span></code> function accepts optional parameters that allow you to
+specify weights for the various columns. If no weights are specified,
+all columns are considered of equal importance.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>The algorithm used by <a class="reference internal" href="#FTSModel.rank" title="FTSModel.rank"><code class="xref py py-meth docutils literal notranslate"><span class="pre">rank()</span></code></a> is simple and
+relatively quick. For more sophisticated result ranking, use:</p>
+<ul class="last simple">
+<li><a class="reference internal" href="#FTSModel.bm25" title="FTSModel.bm25"><code class="xref py py-meth docutils literal notranslate"><span class="pre">bm25()</span></code></a></li>
+<li><a class="reference internal" href="#FTSModel.bm25f" title="FTSModel.bm25f"><code class="xref py py-meth docutils literal notranslate"><span class="pre">bm25f()</span></code></a></li>
+<li><a class="reference internal" href="#FTSModel.lucene" title="FTSModel.lucene"><code class="xref py py-meth docutils literal notranslate"><span class="pre">lucene()</span></code></a></li>
+</ul>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">DocumentIndex</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span>
+             <span class="n">DocumentIndex</span><span class="p">,</span>
+             <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">rank</span><span class="p">()</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;score&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">DocumentIndex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;search phrase&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">DocumentIndex</span><span class="o">.</span><span class="n">rank</span><span class="p">()))</span>
+
+<span class="k">for</span> <span class="n">search_result</span> <span class="ow">in</span> <span class="n">query</span><span class="p">:</span>
+    <span class="k">print</span> <span class="n">search_result</span><span class="o">.</span><span class="n">title</span><span class="p">,</span> <span class="n">search_result</span><span class="o">.</span><span class="n">score</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTSModel.bm25">
+<em class="property">classmethod </em><code class="descname">bm25</code><span class="sig-paren">(</span><span class="optional">[</span><em>col1_weight</em>, <em>col2_weight...coln_weight</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#FTSModel.bm25" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>col_weight</strong> (<em>float</em>) – (Optional) weight to give to the <a href="#id11"><span class="problematic" id="id12">*</span></a>i*th column
+of the model. By default all columns have a weight of <code class="docutils literal notranslate"><span class="pre">1.0</span></code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Generate an expression that will calculate and return the quality of
+the search match using the <a class="reference external" href="https://en.wikipedia.org/wiki/Okapi_BM25">BM25 algorithm</a>.
+This value can be used to sort the search results, with higher scores
+corresponding to better matches.</p>
+<p>Like <a class="reference internal" href="#FTSModel.rank" title="FTSModel.rank"><code class="xref py py-meth docutils literal notranslate"><span class="pre">rank()</span></code></a>, <code class="docutils literal notranslate"><span class="pre">bm25</span></code> function accepts optional
+parameters that allow you to specify weights for the various columns.
+If no weights are specified, all columns are considered of equal
+importance.</p>
+<div class="admonition attention">
+<p class="first admonition-title">Attention</p>
+<p class="last">The BM25 result ranking algorithm requires FTS4. If you are using
+FTS3, use <a class="reference internal" href="#FTSModel.rank" title="FTSModel.rank"><code class="xref py py-meth docutils literal notranslate"><span class="pre">rank()</span></code></a> instead.</p>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">DocumentIndex</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span>
+             <span class="n">DocumentIndex</span><span class="p">,</span>
+             <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">bm25</span><span class="p">()</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;score&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">DocumentIndex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;search phrase&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">DocumentIndex</span><span class="o">.</span><span class="n">bm25</span><span class="p">()))</span>
+
+<span class="k">for</span> <span class="n">search_result</span> <span class="ow">in</span> <span class="n">query</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">search_result</span><span class="o">.</span><span class="n">title</span><span class="p">,</span> <span class="n">search_result</span><span class="o">.</span><span class="n">score</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>The above code example is equivalent to calling the
+<a class="reference internal" href="#FTSModel.search_bm25" title="FTSModel.search_bm25"><code class="xref py py-meth docutils literal notranslate"><span class="pre">search_bm25()</span></code></a> method:</p>
+<div class="last highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">search_bm25</span><span class="p">(</span><span class="s1">&#39;search phrase&#39;</span><span class="p">,</span> <span class="n">with_score</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">search_result</span> <span class="ow">in</span> <span class="n">query</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">search_result</span><span class="o">.</span><span class="n">title</span><span class="p">,</span> <span class="n">search_result</span><span class="o">.</span><span class="n">score</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTSModel.bm25f">
+<em class="property">classmethod </em><code class="descname">bm25f</code><span class="sig-paren">(</span><span class="optional">[</span><em>col1_weight</em>, <em>col2_weight...coln_weight</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#FTSModel.bm25f" title="Permalink to this definition">¶</a></dt>
+<dd><p>Identical to <a class="reference internal" href="#FTSModel.bm25" title="FTSModel.bm25"><code class="xref py py-meth docutils literal notranslate"><span class="pre">bm25()</span></code></a>, except that it uses the BM25f
+variant of the BM25 ranking algorithm.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTSModel.lucene">
+<em class="property">classmethod </em><code class="descname">lucene</code><span class="sig-paren">(</span><span class="optional">[</span><em>col1_weight</em>, <em>col2_weight...coln_weight</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#FTSModel.lucene" title="Permalink to this definition">¶</a></dt>
+<dd><p>Identical to <a class="reference internal" href="#FTSModel.bm25" title="FTSModel.bm25"><code class="xref py py-meth docutils literal notranslate"><span class="pre">bm25()</span></code></a>, except that it uses the Lucene
+search result ranking algorithm.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTSModel.rebuild">
+<em class="property">classmethod </em><code class="descname">rebuild</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#FTSModel.rebuild" title="Permalink to this definition">¶</a></dt>
+<dd><p>Rebuild the search index – this only works when the <code class="docutils literal notranslate"><span class="pre">content</span></code> option
+was specified during table creation.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTSModel.optimize">
+<em class="property">classmethod </em><code class="descname">optimize</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#FTSModel.optimize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Optimize the search index.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="FTS5Model">
+<em class="property">class </em><code class="descname">FTS5Model</code><a class="headerlink" href="#FTS5Model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Subclass of <a class="reference internal" href="#VirtualModel" title="VirtualModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">VirtualModel</span></code></a> to be used with the <a class="reference external" href="https://sqlite.org/fts5.html">FTS5</a>
+full-text search extensions.</p>
+<p>FTS5Model subclasses should be defined normally, however there are a couple
+caveats:</p>
+<ul class="simple">
+<li>FTS5 explicitly disallows specification of any constraints, data-type or
+indexes on columns. For that reason, all columns <strong>must</strong> be instances
+of <a class="reference internal" href="#SearchField" title="SearchField"><code class="xref py py-class docutils literal notranslate"><span class="pre">SearchField</span></code></a>.</li>
+<li>FTS5 models contain a <code class="docutils literal notranslate"><span class="pre">rowid</span></code> field which is automatically created and
+managed by SQLite (unless you choose to explicitly set it during model
+creation). Lookups on this column <strong>are fast and efficient</strong>.</li>
+<li>Indexes on fields and multi-column indexes are not supported.</li>
+</ul>
+<p>The <code class="docutils literal notranslate"><span class="pre">FTS5</span></code> extension comes with a built-in implementation of the BM25
+ranking function. Therefore, the <code class="docutils literal notranslate"><span class="pre">search</span></code> and <code class="docutils literal notranslate"><span class="pre">search_bm25</span></code> methods
+have been overridden to use the builtin ranking functions rather than
+user-defined functions.</p>
+<dl class="classmethod">
+<dt id="FTS5Model.fts5_installed">
+<em class="property">classmethod </em><code class="descname">fts5_installed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#FTS5Model.fts5_installed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a boolean indicating whether the FTS5 extension is installed. If
+it is not installed, an attempt will be made to load the extension.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTS5Model.search">
+<em class="property">classmethod </em><code class="descname">search</code><span class="sig-paren">(</span><em>term</em><span class="optional">[</span>, <em>weights=None</em><span class="optional">[</span>, <em>with_score=False</em><span class="optional">[</span>, <em>score_alias='score'</em><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#FTS5Model.search" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>term</strong> (<em>str</em>) – Search term to use.</li>
+<li><strong>weights</strong> – A list of weights for the columns, ordered with respect
+to the column’s position in the table. <strong>Or</strong>, a dictionary keyed by
+the field or field name and mapped to a value.</li>
+<li><strong>with_score</strong> – Whether the score should be returned as part of
+the <code class="docutils literal notranslate"><span class="pre">SELECT</span></code> statement.</li>
+<li><strong>score_alias</strong> (<em>str</em>) – Alias to use for the calculated rank score.
+This is the attribute you will use to access the score
+if <code class="docutils literal notranslate"><span class="pre">with_score=True</span></code>.</li>
+<li><strong>explicit_ordering</strong> (<em>bool</em>) – Order using full SQL function to
+calculate rank, as opposed to simply referencing the score alias
+in the ORDER BY clause.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Shorthand way of searching for a term and sorting results by the
+quality of the match. The <code class="docutils literal notranslate"><span class="pre">FTS5</span></code> extension provides a built-in
+implementation of the BM25 algorithm, which is used to rank the results
+by relevance.</p>
+<p>Higher scores correspond to better matches.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Simple search.</span>
+<span class="n">docs</span> <span class="o">=</span> <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;search term&#39;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">docs</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+
+<span class="c1"># More complete example.</span>
+<span class="n">docs</span> <span class="o">=</span> <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
+    <span class="s1">&#39;search term&#39;</span><span class="p">,</span>
+    <span class="n">weights</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">,</span> <span class="s1">&#39;content&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">},</span>
+    <span class="n">with_score</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+    <span class="n">score_alias</span><span class="o">=</span><span class="s1">&#39;search_score&#39;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">docs</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">title</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">search_score</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTS5Model.search_bm25">
+<em class="property">classmethod </em><code class="descname">search_bm25</code><span class="sig-paren">(</span><em>term</em><span class="optional">[</span>, <em>weights=None</em><span class="optional">[</span>, <em>with_score=False</em><span class="optional">[</span>, <em>score_alias='score'</em><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#FTS5Model.search_bm25" title="Permalink to this definition">¶</a></dt>
+<dd><p>With FTS5, <a class="reference internal" href="#FTS5Model.search_bm25" title="FTS5Model.search_bm25"><code class="xref py py-meth docutils literal notranslate"><span class="pre">search_bm25()</span></code></a> is identical to the
+<a class="reference internal" href="#FTS5Model.search" title="FTS5Model.search"><code class="xref py py-meth docutils literal notranslate"><span class="pre">search()</span></code></a> method.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTS5Model.rank">
+<em class="property">classmethod </em><code class="descname">rank</code><span class="sig-paren">(</span><span class="optional">[</span><em>col1_weight</em>, <em>col2_weight...coln_weight</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#FTS5Model.rank" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>col_weight</strong> (<em>float</em>) – (Optional) weight to give to the <a href="#id13"><span class="problematic" id="id14">*</span></a>i*th column
+of the model. By default all columns have a weight of <code class="docutils literal notranslate"><span class="pre">1.0</span></code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Generate an expression that will calculate and return the quality of
+the search match using the <a class="reference external" href="https://en.wikipedia.org/wiki/Okapi_BM25">BM25 algorithm</a>.
+This value can be used to sort the search results, with higher scores
+corresponding to better matches.</p>
+<p>The <a class="reference internal" href="#FTS5Model.rank" title="FTS5Model.rank"><code class="xref py py-meth docutils literal notranslate"><span class="pre">rank()</span></code></a> function accepts optional parameters
+that allow you to specify weights for the various columns.  If no
+weights are specified, all columns are considered of equal importance.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">DocumentIndex</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span>
+             <span class="n">DocumentIndex</span><span class="p">,</span>
+             <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">rank</span><span class="p">()</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;score&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">DocumentIndex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;search phrase&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">DocumentIndex</span><span class="o">.</span><span class="n">rank</span><span class="p">()))</span>
+
+<span class="k">for</span> <span class="n">search_result</span> <span class="ow">in</span> <span class="n">query</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">search_result</span><span class="o">.</span><span class="n">title</span><span class="p">,</span> <span class="n">search_result</span><span class="o">.</span><span class="n">score</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>The above code example is equivalent to calling the
+<a class="reference internal" href="#FTS5Model.search" title="FTS5Model.search"><code class="xref py py-meth docutils literal notranslate"><span class="pre">search()</span></code></a> method:</p>
+<div class="last highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">DocumentIndex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;search phrase&#39;</span><span class="p">,</span> <span class="n">with_score</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">search_result</span> <span class="ow">in</span> <span class="n">query</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">search_result</span><span class="o">.</span><span class="n">title</span><span class="p">,</span> <span class="n">search_result</span><span class="o">.</span><span class="n">score</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTS5Model.bm25">
+<em class="property">classmethod </em><code class="descname">bm25</code><span class="sig-paren">(</span><span class="optional">[</span><em>col1_weight</em>, <em>col2_weight...coln_weight</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#FTS5Model.bm25" title="Permalink to this definition">¶</a></dt>
+<dd><p>Because FTS5 provides built-in support for BM25, the
+<a class="reference internal" href="#FTS5Model.bm25" title="FTS5Model.bm25"><code class="xref py py-meth docutils literal notranslate"><span class="pre">bm25()</span></code></a> method is identical to the
+<a class="reference internal" href="#FTS5Model.rank" title="FTS5Model.rank"><code class="xref py py-meth docutils literal notranslate"><span class="pre">rank()</span></code></a> method.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="FTS5Model.VocabModel">
+<em class="property">classmethod </em><code class="descname">VocabModel</code><span class="sig-paren">(</span><span class="optional">[</span><em>table_type='row'|'col'|'instance'</em><span class="optional">[</span>, <em>table_name=None</em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#FTS5Model.VocabModel" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>table_type</strong> (<em>str</em>) – Either ‘row’, ‘col’ or ‘instance’.</li>
+<li><strong>table_name</strong> – Name for the vocab table. If not specified, will be
+“fts5tablename_v”.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Generate a model class suitable for accessing the <a class="reference external" href="http://sqlite.org/fts5.html#the_fts5vocab_virtual_table_module">vocab table</a>
+corresponding to FTS5 search index.</p>
+</dd></dl>
+
+</dd></dl>
+
+<span class="target" id="sqlite-vtfunc"></span><dl class="class">
+<dt id="TableFunction">
+<em class="property">class </em><code class="descname">TableFunction</code><a class="headerlink" href="#TableFunction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implement a user-defined table-valued function. Unlike a simple
+<a class="reference internal" href="database.html#sqlite-user-functions"><span class="std std-ref">scalar or aggregate</span></a> function, which returns
+a single scalar value, a table-valued function can return any number of
+rows of tabular data.</p>
+<p>Simple example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">playhouse.sqlite_ext</span> <span class="kn">import</span> <span class="n">TableFunction</span>
+
+
+<span class="k">class</span> <span class="nc">Series</span><span class="p">(</span><span class="n">TableFunction</span><span class="p">):</span>
+    <span class="c1"># Name of columns in each row of generated data.</span>
+    <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+
+    <span class="c1"># Name of parameters the function may be called with.</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;stop&#39;</span><span class="p">,</span> <span class="s1">&#39;step&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Table-functions declare an initialize() method, which is</span>
+<span class="sd">        called with whatever arguments the user has called the</span>
+<span class="sd">        function with.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current</span> <span class="o">=</span> <span class="n">start</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stop</span> <span class="o">=</span> <span class="n">stop</span> <span class="ow">or</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;Inf&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">step</span> <span class="o">=</span> <span class="n">step</span>
+
+    <span class="k">def</span> <span class="nf">iterate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Iterate is called repeatedly by the SQLite database engine</span>
+<span class="sd">        until the required number of rows has been read **or** the</span>
+<span class="sd">        function raises a `StopIteration` signalling no more rows</span>
+<span class="sd">        are available.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">current</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">StopIteration</span>
+
+        <span class="n">ret</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">current</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">current</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">ret</span><span class="p">,)</span>
+
+<span class="c1"># Register the table-function with our database, which ensures it</span>
+<span class="c1"># is declared whenever a connection is opened.</span>
+<span class="n">db</span><span class="o">.</span><span class="n">table_function</span><span class="p">(</span><span class="s1">&#39;series&#39;</span><span class="p">)(</span><span class="n">Series</span><span class="p">)</span>
+
+<span class="c1"># Usage:</span>
+<span class="n">cursor</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="s1">&#39;SELECT * FROM series(?, ?, ?)&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+<span class="k">for</span> <span class="n">value</span><span class="p">,</span> <span class="ow">in</span> <span class="n">cursor</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">A <a class="reference internal" href="#TableFunction" title="TableFunction"><code class="xref py py-class docutils literal notranslate"><span class="pre">TableFunction</span></code></a> must be registered with a database
+connection before it can be used. To ensure the table function is
+always available, you can use the
+<a class="reference internal" href="api.html#SqliteDatabase.table_function" title="SqliteDatabase.table_function"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SqliteDatabase.table_function()</span></code></a> decorator to register the
+function with the database.</p>
+</div>
+<p><a class="reference internal" href="#TableFunction" title="TableFunction"><code class="xref py py-class docutils literal notranslate"><span class="pre">TableFunction</span></code></a> implementations must provide two attributes and
+implement two methods, described below.</p>
+<dl class="attribute">
+<dt id="TableFunction.columns">
+<code class="descname">columns</code><a class="headerlink" href="#TableFunction.columns" title="Permalink to this definition">¶</a></dt>
+<dd><p>A list containing the names of the columns for the data returned by the
+function. For example, a function that is used to split a string on a
+delimiter might specify 3 columns: <code class="docutils literal notranslate"><span class="pre">[substring,</span> <span class="pre">start_idx,</span> <span class="pre">end_idx]</span></code>.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="TableFunction.params">
+<code class="descname">params</code><a class="headerlink" href="#TableFunction.params" title="Permalink to this definition">¶</a></dt>
+<dd><p>The names of the parameters the function may be called with. All
+parameters, including optional parameters, should be listed. For
+example, a function that is used to split a string on a delimiter might
+specify 2 params: <code class="docutils literal notranslate"><span class="pre">[string,</span> <span class="pre">delimiter]</span></code>.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="TableFunction.name">
+<code class="descname">name</code><a class="headerlink" href="#TableFunction.name" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>Optional</em> - specify the name for the table function. If not provided,
+name will be taken from the class name.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">print_tracebacks = True</code></dt>
+<dd><p>Print a full traceback for any errors that occur in the
+table-function’s callback methods. When set to False, only the generic
+OperationalError will be visible.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="TableFunction.initialize">
+<code class="descname">initialize</code><span class="sig-paren">(</span><em>**parameter_values</em><span class="sig-paren">)</span><a class="headerlink" href="#TableFunction.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>parameter_values</strong> – Parameters the function was called with.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">No return value.</td>
+</tr>
+</tbody>
+</table>
+<p>The <code class="docutils literal notranslate"><span class="pre">initialize</span></code> method is called to initialize the table function
+with the parameters the user specified when calling the function.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="TableFunction.iterate">
+<code class="descname">iterate</code><span class="sig-paren">(</span><em>idx</em><span class="sig-paren">)</span><a class="headerlink" href="#TableFunction.iterate" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>idx</strong> (<em>int</em>) – current iteration step</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A tuple of row data corresponding to the columns named
+in the <a class="reference internal" href="#TableFunction.columns" title="TableFunction.columns"><code class="xref py py-attr docutils literal notranslate"><span class="pre">columns</span></code></a> attribute.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><strong>StopIteration</strong> – To signal that no more rows are available.</td>
+</tr>
+</tbody>
+</table>
+<p>This function is called repeatedly and returns successive rows of data.
+The function may terminate before all rows are consumed (especially if
+the user specified a <code class="docutils literal notranslate"><span class="pre">LIMIT</span></code> on the results). Alternatively, the
+function can signal that no more data is available by raising a
+<code class="docutils literal notranslate"><span class="pre">StopIteration</span></code> exception.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="TableFunction.register">
+<em class="property">classmethod </em><code class="descname">register</code><span class="sig-paren">(</span><em>conn</em><span class="sig-paren">)</span><a class="headerlink" href="#TableFunction.register" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>conn</strong> – A <code class="docutils literal notranslate"><span class="pre">sqlite3.Connection</span></code> object.</td>
+</tr>
+</tbody>
+</table>
+<p>Register the table function with a DB-API 2.0 <code class="docutils literal notranslate"><span class="pre">sqlite3.Connection</span></code>
+object. Table-valued functions <strong>must</strong> be registered before they can
+be used in a query.</p>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyTableFunction</span><span class="p">(</span><span class="n">TableFunction</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;my_func&#39;</span>
+    <span class="c1"># ... other attributes and methods ...</span>
+
+<span class="n">db</span> <span class="o">=</span> <span class="n">SqliteDatabase</span><span class="p">(</span><span class="s1">&#39;:memory:&#39;</span><span class="p">)</span>
+<span class="n">db</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+
+<span class="n">MyTableFunction</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">connection</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>To ensure the <a class="reference internal" href="#TableFunction" title="TableFunction"><code class="xref py py-class docutils literal notranslate"><span class="pre">TableFunction</span></code></a> is registered every time a
+connection is opened, use the <a class="reference internal" href="api.html#SqliteDatabase.table_function" title="SqliteDatabase.table_function"><code class="xref py py-meth docutils literal notranslate"><span class="pre">table_function()</span></code></a>
+decorator.</p>
+</dd></dl>
+
+</dd></dl>
+
+<span class="target" id="sqlite-closure-table"></span><dl class="function">
+<dt id="ClosureTable">
+<code class="descname">ClosureTable</code><span class="sig-paren">(</span><em>model_class</em><span class="optional">[</span>, <em>foreign_key=None</em><span class="optional">[</span>, <em>referencing_class=None</em><span class="optional">[</span>, <em>referencing_key=None</em><span class="optional">]</span><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#ClosureTable" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>model_class</strong> – The model class containing the nodes in the tree.</li>
+<li><strong>foreign_key</strong> – The self-referential parent-node field on the model
+class. If not provided, peewee will introspect the model to find a
+suitable key.</li>
+<li><strong>referencing_class</strong> – Intermediate table for a many-to-many relationship.</li>
+<li><strong>referencing_key</strong> – For a many-to-many relationship, the originating
+side of the relation.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Returns a <a class="reference internal" href="#VirtualModel" title="VirtualModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">VirtualModel</span></code></a> for working with a closure table.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Factory function for creating a model class suitable for working with a
+<a class="reference external" href="http://www.sqlite.org/cgi/src/artifact/636024302cde41b2bf0c542f81c40c624cfb7012">transitive closure</a>
+table. Closure tables are <a class="reference internal" href="#VirtualModel" title="VirtualModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">VirtualModel</span></code></a> subclasses that work
+with the transitive closure SQLite extension. These special tables are
+designed to make it easy to efficiently query hierarchical data. The SQLite
+extension manages an AVL tree behind-the-scenes, transparently updating the
+tree when your table changes and making it easy to perform common queries
+on hierarchical data.</p>
+<p>To use the closure table extension in your project, you need:</p>
+<ol class="arabic">
+<li><p class="first">A copy of the SQLite extension. The source code can be found in
+the <a class="reference external" href="http://www.sqlite.org/cgi/src/artifact/636024302cde41b2bf0c542f81c40c624cfb7012">SQLite code repository</a>
+or by cloning <a class="reference external" href="https://gist.github.com/coleifer/7f3593c5c2a645913b92">this gist</a>:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> git clone https://gist.github.com/coleifer/7f3593c5c2a645913b92 closure
+<span class="gp">$</span> <span class="nb">cd</span> closure/
+</pre></div>
+</div>
+</li>
+<li><p class="first">Compile the extension as a shared library, e.g.</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$</span> gcc -g -fPIC -shared closure.c -o closure.so
+</pre></div>
+</div>
+</li>
+<li><p class="first">Create a model for your hierarchical data. The only requirement here is
+that the model has an integer primary key and a self-referential foreign
+key. Any additional fields are fine.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Category</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">CharField</span><span class="p">()</span>
+    <span class="n">metadata</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">()</span>
+    <span class="n">parent</span> <span class="o">=</span> <span class="n">ForeignKeyField</span><span class="p">(</span><span class="s1">&#39;self&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">null</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>  <span class="c1"># Required.</span>
+
+<span class="c1"># Generate a model for the closure virtual table.</span>
+<span class="n">CategoryClosure</span> <span class="o">=</span> <span class="n">ClosureTable</span><span class="p">(</span><span class="n">Category</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The self-referentiality can also be achieved via an intermediate table
+(for a many-to-many relation).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">User</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">CharField</span><span class="p">()</span>
+
+<span class="k">class</span> <span class="nc">UserRelations</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">ForeignKeyField</span><span class="p">(</span><span class="n">User</span><span class="p">)</span>
+    <span class="n">knows</span> <span class="o">=</span> <span class="n">ForeignKeyField</span><span class="p">(</span><span class="n">User</span><span class="p">,</span> <span class="n">backref</span><span class="o">=</span><span class="s1">&#39;_known_by&#39;</span><span class="p">)</span>
+
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">primary_key</span> <span class="o">=</span> <span class="n">CompositeKey</span><span class="p">(</span><span class="s1">&#39;user&#39;</span><span class="p">,</span> <span class="s1">&#39;knows&#39;</span><span class="p">)</span> <span class="c1"># Alternatively, a unique index on both columns.</span>
+
+<span class="c1"># Generate a model for the closure virtual table, specifying the UserRelations as the referencing table</span>
+<span class="n">UserClosure</span> <span class="o">=</span> <span class="n">ClosureTable</span><span class="p">(</span>
+    <span class="n">User</span><span class="p">,</span>
+    <span class="n">referencing_class</span><span class="o">=</span><span class="n">UserRelations</span><span class="p">,</span>
+    <span class="n">foreign_key</span><span class="o">=</span><span class="n">UserRelations</span><span class="o">.</span><span class="n">knows</span><span class="p">,</span>
+    <span class="n">referencing_key</span><span class="o">=</span><span class="n">UserRelations</span><span class="o">.</span><span class="n">user</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">In your application code, make sure you load the extension when you
+instantiate your <a class="reference internal" href="api.html#Database" title="Database"><code class="xref py py-class docutils literal notranslate"><span class="pre">Database</span></code></a> object. This is done by passing
+the path to the shared library to the <code class="xref py py-meth docutils literal notranslate"><span class="pre">load_extension()</span></code> method.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">db</span> <span class="o">=</span> <span class="n">SqliteExtDatabase</span><span class="p">(</span><span class="s1">&#39;my_database.db&#39;</span><span class="p">)</span>
+<span class="n">db</span><span class="o">.</span><span class="n">load_extension</span><span class="p">(</span><span class="s1">&#39;/path/to/closure&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">There are two caveats you should be aware of when using the
+<code class="docutils literal notranslate"><span class="pre">transitive_closure</span></code> extension. First, it requires that your <em>source
+model</em> have an integer primary key. Second, it is strongly recommended
+that you create an index on the self-referential foreign key.</p>
+</div>
+<p>Example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Category</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">CharField</span><span class="p">()</span>
+    <span class="n">metadata</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">()</span>
+    <span class="n">parent</span> <span class="o">=</span> <span class="n">ForeignKeyField</span><span class="p">(</span><span class="s1">&#39;self&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">null</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>  <span class="c1"># Required.</span>
+
+<span class="c1"># Generate a model for the closure virtual table.</span>
+<span class="n">CategoryClosure</span> <span class="o">=</span> <span class="n">ClosureTable</span><span class="p">(</span><span class="n">Category</span><span class="p">)</span>
+
+ <span class="c1"># Create the tables if they do not exist.</span>
+ <span class="n">db</span><span class="o">.</span><span class="n">create_tables</span><span class="p">([</span><span class="n">Category</span><span class="p">,</span> <span class="n">CategoryClosure</span><span class="p">],</span> <span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>It is now possible to perform interesting queries using the data from the
+closure table:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get all ancestors for a particular node.</span>
+<span class="n">laptops</span> <span class="o">=</span> <span class="n">Category</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">Category</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Laptops&#39;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">parent</span> <span class="ow">in</span> <span class="n">Closure</span><span class="o">.</span><span class="n">ancestors</span><span class="p">(</span><span class="n">laptops</span><span class="p">):</span>
+    <span class="k">print</span> <span class="n">parent</span><span class="o">.</span><span class="n">name</span>
+
+<span class="c1"># Computer Hardware</span>
+<span class="c1"># Computers</span>
+<span class="c1"># Electronics</span>
+<span class="c1"># All products</span>
+
+<span class="c1"># Get all descendants for a particular node.</span>
+<span class="n">hardware</span> <span class="o">=</span> <span class="n">Category</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">Category</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Computer Hardware&#39;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">Closure</span><span class="o">.</span><span class="n">descendants</span><span class="p">(</span><span class="n">hardware</span><span class="p">):</span>
+    <span class="k">print</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span>
+
+<span class="c1"># Laptops</span>
+<span class="c1"># Desktops</span>
+<span class="c1"># Hard-drives</span>
+<span class="c1"># Monitors</span>
+<span class="c1"># LCD Monitors</span>
+<span class="c1"># LED Monitors</span>
+</pre></div>
+</div>
+<p>API of the <a class="reference internal" href="#VirtualModel" title="VirtualModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">VirtualModel</span></code></a> returned by <a class="reference internal" href="#ClosureTable" title="ClosureTable"><code class="xref py py-func docutils literal notranslate"><span class="pre">ClosureTable()</span></code></a>.</p>
+<dl class="class">
+<dt id="BaseClosureTable">
+<em class="property">class </em><code class="descname">BaseClosureTable</code><a class="headerlink" href="#BaseClosureTable" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="BaseClosureTable.id">
+<code class="descname">id</code><a class="headerlink" href="#BaseClosureTable.id" title="Permalink to this definition">¶</a></dt>
+<dd><p>A field for the primary key of the given node.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="BaseClosureTable.depth">
+<code class="descname">depth</code><a class="headerlink" href="#BaseClosureTable.depth" title="Permalink to this definition">¶</a></dt>
+<dd><p>A field representing the relative depth of the given node.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="BaseClosureTable.root">
+<code class="descname">root</code><a class="headerlink" href="#BaseClosureTable.root" title="Permalink to this definition">¶</a></dt>
+<dd><p>A field representing the relative root node.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="BaseClosureTable.descendants">
+<code class="descname">descendants</code><span class="sig-paren">(</span><em>node</em><span class="optional">[</span>, <em>depth=None</em><span class="optional">[</span>, <em>include_node=False</em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#BaseClosureTable.descendants" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve all descendants of the given node. If a depth is
+specified, only nodes at that depth (relative to the given node)
+will be returned.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">node</span> <span class="o">=</span> <span class="n">Category</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">Category</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Electronics&#39;</span><span class="p">)</span>
+
+<span class="c1"># Direct child categories.</span>
+<span class="n">children</span> <span class="o">=</span> <span class="n">CategoryClosure</span><span class="o">.</span><span class="n">descendants</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="c1"># Grand-child categories.</span>
+<span class="n">children</span> <span class="o">=</span> <span class="n">CategoryClosure</span><span class="o">.</span><span class="n">descendants</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="c1"># Descendants at all depths.</span>
+<span class="n">all_descendants</span> <span class="o">=</span> <span class="n">CategoryClosure</span><span class="o">.</span><span class="n">descendants</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="BaseClosureTable.ancestors">
+<code class="descname">ancestors</code><span class="sig-paren">(</span><em>node</em><span class="optional">[</span>, <em>depth=None</em><span class="optional">[</span>, <em>include_node=False</em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#BaseClosureTable.ancestors" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve all ancestors of the given node. If a depth is specified,
+only nodes at that depth (relative to the given node) will be
+returned.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">node</span> <span class="o">=</span> <span class="n">Category</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">Category</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Laptops&#39;</span><span class="p">)</span>
+
+<span class="c1"># All ancestors.</span>
+<span class="n">all_ancestors</span> <span class="o">=</span> <span class="n">CategoryClosure</span><span class="o">.</span><span class="n">ancestors</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+
+<span class="c1"># Grand-parent category.</span>
+<span class="n">grandparent</span> <span class="o">=</span> <span class="n">CategoryClosure</span><span class="o">.</span><span class="n">ancestores</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="BaseClosureTable.siblings">
+<code class="descname">siblings</code><span class="sig-paren">(</span><em>node</em><span class="optional">[</span>, <em>include_node=False</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#BaseClosureTable.siblings" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve all nodes that are children of the specified node’s
+parent.</p>
+</dd></dl>
+
+</dd></dl>
+
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">For an in-depth discussion of the SQLite transitive closure extension,
+check out this blog post, <a class="reference external" href="http://charlesleifer.com/blog/querying-tree-structures-in-sqlite-using-python-and-the-transitive-closure-extension/">Querying Tree Structures in SQLite using Python and the Transitive Closure Extension</a>.</p>
+</div>
+</dd></dl>
+
+<span class="target" id="sqlite-lsm1"></span><dl class="class">
+<dt id="LSMTable">
+<em class="property">class </em><code class="descname">LSMTable</code><a class="headerlink" href="#LSMTable" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference internal" href="#VirtualModel" title="VirtualModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">VirtualModel</span></code></a> subclass suitable for working with the <a class="reference external" href="http://charlesleifer.com/blog/lsm-key-value-storage-in-sqlite3/">lsm1 extension</a>
+The <em>lsm1</em> extension is a virtual table that provides a SQL interface to
+the <a class="reference external" href="http://sqlite.org/src4/doc/trunk/www/lsmusr.wiki">lsm key/value storage engine from SQLite4</a>.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The LSM1 extension has not been released yet (SQLite version 3.22 at
+time of writing), so consider this feature experimental with potential
+to change in subsequent releases.</p>
+</div>
+<p>LSM tables define one primary key column and an arbitrary number of
+additional value columns (which are serialized and stored in a single value
+field in the storage engine). The primary key must be all of the same type
+and use one of the following field types:</p>
+<ul class="simple">
+<li><a class="reference internal" href="api.html#IntegerField" title="IntegerField"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntegerField</span></code></a></li>
+<li><a class="reference internal" href="api.html#TextField" title="TextField"><code class="xref py py-class docutils literal notranslate"><span class="pre">TextField</span></code></a></li>
+<li><a class="reference internal" href="api.html#BlobField" title="BlobField"><code class="xref py py-class docutils literal notranslate"><span class="pre">BlobField</span></code></a></li>
+</ul>
+<p>Since the LSM storage engine is a key/value store, primary keys (including
+integers) must be specified by the application.</p>
+<div class="admonition attention">
+<p class="first admonition-title">Attention</p>
+<p class="last">Secondary indexes are not supported by the LSM engine, so the only
+efficient queries will be lookups (or range queries) on the primary
+key.  Other fields can be queried and filtered on, but may result in a
+full table-scan.</p>
+</div>
+<p>Example model declaration:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">db</span> <span class="o">=</span> <span class="n">SqliteExtDatabase</span><span class="p">(</span><span class="s1">&#39;my_app.db&#39;</span><span class="p">)</span>
+<span class="n">db</span><span class="o">.</span><span class="n">load_extension</span><span class="p">(</span><span class="s1">&#39;lsm.so&#39;</span><span class="p">)</span>  <span class="c1"># Load shared library.</span>
+
+<span class="k">class</span> <span class="nc">EventLog</span><span class="p">(</span><span class="n">LSMTable</span><span class="p">):</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">IntegerField</span><span class="p">(</span><span class="n">primary_key</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">action</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">()</span>
+    <span class="n">sender</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">()</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">()</span>
+
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">database</span> <span class="o">=</span> <span class="n">db</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;eventlog.ldb&#39;</span>  <span class="c1"># LSM data is stored in separate db.</span>
+
+<span class="c1"># Declare virtual table.</span>
+<span class="n">EventLog</span><span class="o">.</span><span class="n">create_table</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Example queries:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Use dictionary operators to get, set and delete rows from the LSM</span>
+<span class="c1"># table. Slices may be passed to represent a range of key values.</span>
+<span class="k">def</span> <span class="nf">get_timestamp</span><span class="p">():</span>
+    <span class="c1"># Return time as integer expressing time in microseconds.</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000000</span><span class="p">)</span>
+
+<span class="c1"># Create a new row, at current timestamp.</span>
+<span class="n">ts</span> <span class="o">=</span> <span class="n">get_timestamp</span><span class="p">()</span>
+<span class="n">EventLog</span><span class="p">[</span><span class="n">ts</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;pageview&#39;</span><span class="p">,</span> <span class="s1">&#39;search&#39;</span><span class="p">,</span> <span class="s1">&#39;/blog/some-post/&#39;</span><span class="p">)</span>
+
+<span class="c1"># Retrieve row from event log.</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">EventLog</span><span class="p">[</span><span class="n">ts</span><span class="p">]</span>
+<span class="k">print</span><span class="p">(</span><span class="n">log</span><span class="o">.</span><span class="n">action</span><span class="p">,</span> <span class="n">log</span><span class="o">.</span><span class="n">sender</span><span class="p">,</span> <span class="n">log</span><span class="o">.</span><span class="n">target</span><span class="p">)</span>
+<span class="c1"># Prints (&quot;pageview&quot;, &quot;search&quot;, &quot;/blog/some-post/&quot;)</span>
+
+<span class="c1"># Delete the row.</span>
+<span class="k">del</span> <span class="n">EventLog</span><span class="p">[</span><span class="n">ts</span><span class="p">]</span>
+
+<span class="c1"># We can also use the &quot;create()&quot; method.</span>
+<span class="n">EventLog</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">timestamp</span><span class="o">=</span><span class="n">get_timestamp</span><span class="p">(),</span>
+    <span class="n">action</span><span class="o">=</span><span class="s1">&#39;signup&#39;</span><span class="p">,</span>
+    <span class="n">sender</span><span class="o">=</span><span class="s1">&#39;newsletter&#39;</span><span class="p">,</span>
+    <span class="n">target</span><span class="o">=</span><span class="s1">&#39;sqlite-news&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Simple key/value model declaration:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">KV</span><span class="p">(</span><span class="n">LSMTable</span><span class="p">):</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">(</span><span class="n">primary_key</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">TextField</span><span class="p">()</span>
+
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">database</span> <span class="o">=</span> <span class="n">db</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;kv.ldb&#39;</span>
+
+<span class="n">db</span><span class="o">.</span><span class="n">create_tables</span><span class="p">([</span><span class="n">KV</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>For tables consisting of a single value field, Peewee will return the value
+directly when getting a single item. You can also request slices of rows,
+in which case Peewee returns a corresponding <a class="reference internal" href="api.html#Select" title="Select"><code class="xref py py-class docutils literal notranslate"><span class="pre">Select</span></code></a> query,
+which can be iterated over. Below are some examples:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="p">[</span><span class="s1">&#39;k0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;v0&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span><span class="p">(</span><span class="n">KV</span><span class="p">[</span><span class="s1">&#39;k0&#39;</span><span class="p">])</span>
+<span class="go">&#39;v0&#39;</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">data</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;key&#39;</span><span class="p">:</span> <span class="s1">&#39;k</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="s1">&#39;v</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span><span class="p">}</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">20</span><span class="p">)]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">insert_many</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="o">.</span><span class="n">select</span><span class="p">()</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+<span class="go">20</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="p">[</span><span class="s1">&#39;k8&#39;</span><span class="p">]</span>
+<span class="go">&#39;v8&#39;</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="n">KV</span><span class="p">[</span><span class="s1">&#39;k4.1&#39;</span><span class="p">:</span><span class="s1">&#39;k7.x&#39;</span><span class="p">]</span>
+<span class="go">[Row(key=&#39;k5&#39;, value=&#39;v5&#39;),</span>
+<span class="go"> Row(key=&#39;k6&#39;, value=&#39;v6&#39;),</span>
+<span class="go"> Row(key=&#39;k7&#39;, value=&#39;v7&#39;)]</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="n">KV</span><span class="p">[</span><span class="s1">&#39;k6xxx&#39;</span><span class="p">:])</span>
+<span class="go">[Row(key=&#39;k7&#39;, value=&#39;v7&#39;),</span>
+<span class="go"> Row(key=&#39;k8&#39;, value=&#39;v8&#39;),</span>
+<span class="go"> Row(key=&#39;k9&#39;, value=&#39;v9&#39;)]</span>
+</pre></div>
+</div>
+<p>You can also index the <a class="reference internal" href="#LSMTable" title="LSMTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">LSMTable</span></code></a> using expressions:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="n">KV</span><span class="p">[</span><span class="n">KV</span><span class="o">.</span><span class="n">key</span> <span class="o">&gt;</span> <span class="s1">&#39;k6&#39;</span><span class="p">])</span>
+<span class="go">[Row(key=&#39;k7&#39;, value=&#39;v7&#39;),</span>
+<span class="go"> Row(key=&#39;k8&#39;, value=&#39;v8&#39;),</span>
+<span class="go"> Row(key=&#39;k9&#39;, value=&#39;v9&#39;)]</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="n">KV</span><span class="p">[(</span><span class="n">KV</span><span class="o">.</span><span class="n">key</span> <span class="o">&gt;</span> <span class="s1">&#39;k6&#39;</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">KV</span><span class="o">.</span><span class="n">value</span> <span class="o">!=</span> <span class="s1">&#39;v8&#39;</span><span class="p">)])</span>
+<span class="go">[Row(key=&#39;k7&#39;, value=&#39;v7&#39;),</span>
+<span class="go"> Row(key=&#39;k9&#39;, value=&#39;v9&#39;)]</span>
+</pre></div>
+</div>
+<p>You can delete single rows using <code class="docutils literal notranslate"><span class="pre">del</span></code> or multiple rows using slices
+or expressions:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">del</span> <span class="n">KV</span><span class="p">[</span><span class="s1">&#39;k1&#39;</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">del</span> <span class="n">KV</span><span class="p">[</span><span class="s1">&#39;k3x&#39;</span><span class="p">:</span><span class="s1">&#39;k8&#39;</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">del</span> <span class="n">KV</span><span class="p">[</span><span class="n">KV</span><span class="o">.</span><span class="n">key</span><span class="o">.</span><span class="n">between</span><span class="p">(</span><span class="s1">&#39;k10&#39;</span><span class="p">,</span> <span class="s1">&#39;k18&#39;</span><span class="p">)]</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="n">KV</span><span class="p">[:])</span>
+<span class="go">[Row(key=&#39;k0&#39;, value=&#39;v0&#39;),</span>
+<span class="go"> Row(key=&#39;k19&#39;, value=&#39;v19&#39;),</span>
+<span class="go"> Row(key=&#39;k2&#39;, value=&#39;v2&#39;),</span>
+<span class="go"> Row(key=&#39;k3&#39;, value=&#39;v3&#39;),</span>
+<span class="go"> Row(key=&#39;k9&#39;, value=&#39;v9&#39;)]</span>
+</pre></div>
+</div>
+<p>Attempting to get a single non-existant key will result in a <code class="docutils literal notranslate"><span class="pre">KeyError</span></code>,
+but slices will not raise an exception:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">KV</span><span class="p">[</span><span class="s1">&#39;k1&#39;</span><span class="p">]</span>
+<span class="gp">...</span>
+<span class="go">KeyError: &#39;k1&#39;</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="n">KV</span><span class="p">[</span><span class="s1">&#39;k1&#39;</span><span class="p">:</span><span class="s1">&#39;k1&#39;</span><span class="p">])</span>
+<span class="go">[]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<span class="target" id="sqlite-blob"></span><dl class="class">
+<dt id="ZeroBlob">
+<em class="property">class </em><code class="descname">ZeroBlob</code><span class="sig-paren">(</span><em>length</em><span class="sig-paren">)</span><a class="headerlink" href="#ZeroBlob" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>length</strong> (<em>int</em>) – Size of blob in bytes.</td>
+</tr>
+</tbody>
+</table>
+<p><a class="reference internal" href="#ZeroBlob" title="ZeroBlob"><code class="xref py py-class docutils literal notranslate"><span class="pre">ZeroBlob</span></code></a> is used solely to reserve space for storing a BLOB
+that supports incremental I/O. To use the <a class="reference external" href="https://www.sqlite.org/c3ref/blob_open.html">SQLite BLOB-store</a>
+it is necessary to first insert a ZeroBlob of the desired size into the
+row you wish to use with incremental I/O.</p>
+<p>For example, see <a class="reference internal" href="#Blob" title="Blob"><code class="xref py py-class docutils literal notranslate"><span class="pre">Blob</span></code></a>.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="Blob">
+<em class="property">class </em><code class="descname">Blob</code><span class="sig-paren">(</span><em>database</em>, <em>table</em>, <em>column</em>, <em>rowid</em><span class="optional">[</span>, <em>read_only=False</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#Blob" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>database</strong> – <a class="reference internal" href="#SqliteExtDatabase" title="SqliteExtDatabase"><code class="xref py py-class docutils literal notranslate"><span class="pre">SqliteExtDatabase</span></code></a> instance.</li>
+<li><strong>table</strong> (<em>str</em>) – Name of table being accessed.</li>
+<li><strong>column</strong> (<em>str</em>) – Name of column being accessed.</li>
+<li><strong>rowid</strong> (<em>int</em>) – Primary-key of row being accessed.</li>
+<li><strong>read_only</strong> (<em>bool</em>) – Prevent any modifications to the blob data.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Open a blob, stored in the given table/column/row, for incremental I/O.
+To allocate storage for new data, you can use the <a class="reference internal" href="#ZeroBlob" title="ZeroBlob"><code class="xref py py-class docutils literal notranslate"><span class="pre">ZeroBlob</span></code></a>,
+which is very efficient.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">RawData</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">BlobField</span><span class="p">()</span>
+
+<span class="c1"># Allocate 100MB of space for writing a large file incrementally:</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">RawData</span><span class="o">.</span><span class="n">insert</span><span class="p">({</span><span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="n">ZeroBlob</span><span class="p">(</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">100</span><span class="p">)})</span>
+<span class="n">rowid</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+
+<span class="c1"># Now we can open the row for incremental I/O:</span>
+<span class="n">blob</span> <span class="o">=</span> <span class="n">Blob</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="s1">&#39;rawdata&#39;</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="n">rowid</span><span class="p">)</span>
+
+<span class="c1"># Read from the file and write to the blob in chunks of 4096 bytes.</span>
+<span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">file_handle</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">4096</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+        <span class="k">break</span>
+    <span class="n">blob</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+<span class="n">bytes_written</span> <span class="o">=</span> <span class="n">blob</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span>
+<span class="n">blob</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="Blob.read">
+<code class="descname">read</code><span class="sig-paren">(</span><span class="optional">[</span><em>n=None</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#Blob.read" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>n</strong> (<em>int</em>) – Only read up to <em>n</em> bytes from current position in file.</td>
+</tr>
+</tbody>
+</table>
+<p>Read up to <em>n</em> bytes from the current position in the blob file. If <em>n</em>
+is not specified, the entire blob will be read.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Blob.seek">
+<code class="descname">seek</code><span class="sig-paren">(</span><em>offset</em><span class="optional">[</span>, <em>whence=0</em><span class="optional">]</span><span class="sig-paren">)</span><a class="headerlink" href="#Blob.seek" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>offset</strong> (<em>int</em>) – Seek to the given offset in the file.</li>
+<li><strong>whence</strong> (<em>int</em>) – Seek relative to the specified frame of reference.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Values for <code class="docutils literal notranslate"><span class="pre">whence</span></code>:</p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">0</span></code>: beginning of file</li>
+<li><code class="docutils literal notranslate"><span class="pre">1</span></code>: current position</li>
+<li><code class="docutils literal notranslate"><span class="pre">2</span></code>: end of file</li>
+</ul>
+</dd></dl>
+
+<dl class="method">
+<dt id="Blob.tell">
+<code class="descname">tell</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#Blob.tell" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return current offset within the file.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Blob.write">
+<code class="descname">write</code><span class="sig-paren">(</span><em>data</em><span class="sig-paren">)</span><a class="headerlink" href="#Blob.write" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>data</strong> (<em>bytes</em>) – Data to be written</td>
+</tr>
+</tbody>
+</table>
+<p>Writes the given data, starting at the current position in the file.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Blob.close">
+<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#Blob.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close the file and free associated resources.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Blob.reopen">
+<code class="descname">reopen</code><span class="sig-paren">(</span><em>rowid</em><span class="sig-paren">)</span><a class="headerlink" href="#Blob.reopen" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>rowid</strong> (<em>int</em>) – Primary key of row to open.</td>
+</tr>
+</tbody>
+</table>
+<p>If a blob has already been opened for a given table/column, you can use
+the <a class="reference internal" href="#Blob.reopen" title="Blob.reopen"><code class="xref py py-meth docutils literal notranslate"><span class="pre">reopen()</span></code></a> method to re-use the same <a class="reference internal" href="#Blob" title="Blob"><code class="xref py py-class docutils literal notranslate"><span class="pre">Blob</span></code></a>
+object for accessing multiple rows in the table.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="additional-features">
+<span id="sqlite-extras"></span><h2>Additional Features<a class="headerlink" href="#additional-features" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="reference internal" href="#SqliteExtDatabase" title="SqliteExtDatabase"><code class="xref py py-class docutils literal notranslate"><span class="pre">SqliteExtDatabase</span></code></a> accepts an initialization option to register
+support for a simple <a class="reference external" href="https://en.wikipedia.org/wiki/Bloom_filter">bloom filter</a>.
+The bloom filter, once initialized, can then be used for efficient membership
+queries on large set of data.</p>
+<p>Here’s an example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">db</span> <span class="o">=</span> <span class="n">CSqliteExtDatabase</span><span class="p">(</span><span class="s1">&#39;:memory:&#39;</span><span class="p">,</span> <span class="n">bloomfilter</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<span class="c1"># Create and define a table to store some data.</span>
+<span class="n">db</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="s1">&#39;CREATE TABLE &quot;register&quot; (&quot;data&quot; TEXT)&#39;</span><span class="p">)</span>
+<span class="n">Register</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="s1">&#39;register&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;data&#39;</span><span class="p">,))</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
+
+<span class="c1"># Populate the database with a bunch of text.</span>
+<span class="k">with</span> <span class="n">db</span><span class="o">.</span><span class="n">atomic</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="s1">&#39;abcdefghijklmnopqrstuvwxyz&#39;</span><span class="p">:</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="n">j</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">)]</span>  <span class="c1"># a, aa, aaa, ... aaaaaaaaa</span>
+        <span class="n">Register</span><span class="o">.</span><span class="n">insert</span><span class="p">([{</span><span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="n">key</span><span class="p">}</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">])</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+
+<span class="c1"># Collect data into a 16KB bloomfilter.</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">Register</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">bloomfilter</span><span class="p">(</span><span class="n">Register</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="mi">16</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;buf&#39;</span><span class="p">))</span>
+<span class="n">row</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+<span class="n">buf</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;buf&#39;</span><span class="p">]</span>
+
+<span class="c1"># Use bloomfilter buf to test whether other keys are members.</span>
+<span class="n">test_keys</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="p">(</span><span class="s1">&#39;aaaa&#39;</span><span class="p">,</span> <span class="bp">True</span><span class="p">),</span>
+    <span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">),</span>
+    <span class="p">(</span><span class="s1">&#39;zzzzzzz&#39;</span><span class="p">,</span> <span class="bp">True</span><span class="p">),</span>
+    <span class="p">(</span><span class="s1">&#39;zyxwvut&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">))</span>
+<span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">is_present</span> <span class="ow">in</span> <span class="n">test_keys</span><span class="p">:</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">Register</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">bloomfilter_contains</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">buf</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;is_member&#39;</span><span class="p">))</span>
+    <span class="n">answer</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">get</span><span class="p">()[</span><span class="s1">&#39;is_member&#39;</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">answer</span> <span class="o">==</span> <span class="n">is_present</span>
+</pre></div>
+</div>
+<p>The <a class="reference internal" href="#SqliteExtDatabase" title="SqliteExtDatabase"><code class="xref py py-class docutils literal notranslate"><span class="pre">SqliteExtDatabase</span></code></a> can also register other useful functions:</p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">rank_functions</span></code> (enabled by default): registers functions for ranking
+search results, such as <em>bm25</em> and <em>lucene</em>.</li>
+<li><code class="docutils literal notranslate"><span class="pre">hash_functions</span></code>: registers md5, sha1, sha256, adler32, crc32 and
+murmurhash functions.</li>
+<li><code class="docutils literal notranslate"><span class="pre">regexp_function</span></code>: registers a regexp function.</li>
+</ul>
+<p>Examples:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">create_new_user</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">):</span>
+    <span class="c1"># DO NOT DO THIS IN REAL LIFE. PLEASE.</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">insert</span><span class="p">({</span><span class="s1">&#39;username&#39;</span><span class="p">:</span> <span class="n">username</span><span class="p">,</span> <span class="s1">&#39;password&#39;</span><span class="p">:</span> <span class="n">fn</span><span class="o">.</span><span class="n">sha1</span><span class="p">(</span><span class="n">password</span><span class="p">)})</span>
+    <span class="n">new_user_id</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>You can use the <em>murmurhash</em> function to hash bytes to an integer for compact
+storage:</p>
+<div class="highlight-pycon notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span> <span class="o">=</span> <span class="n">SqliteExtDatabase</span><span class="p">(</span><span class="s1">&#39;:memory:&#39;</span><span class="p">,</span> <span class="n">hash_functions</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="s1">&#39;SELECT murmurhash(?)&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;abcdefg&#39;</span><span class="p">,))</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+<span class="go">(4188131059,)</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">SQLite Extensions</a><ul>
+<li><a class="reference internal" href="#getting-started">Getting started</a></li>
+<li><a class="reference internal" href="#apis">APIs</a></li>
+<li><a class="reference internal" href="#additional-features">Additional Features</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="api.html"
+                        title="previous chapter">API Documentation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="playhouse.html"
+                        title="next chapter">Playhouse, extensions to Peewee</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/peewee/sqlite_ext.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="playhouse.html" title="Playhouse, extensions to Peewee"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="api.html" title="API Documentation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">peewee 3.5.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright charles leifer.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.5.
+    </div>
+  </body>
+</html>
