@@ -1,0 +1,23 @@
+- name: Installing Agent system dependencies (Ubuntu)...
+  apt:
+    name:
+      - libssl-dev
+      - libffi-dev
+      - libsasl2-dev
+      - liblz4-dev
+      - libcurl4-openssl-dev
+    update_cache: yes
+  when: ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian'
+- name: Installing Agent system dependencies (Alpine)...
+  apk:
+    name: curl-dev
+    update_cache: yes
+  when: ansible_distribution == 'Alpine'
+- name: Installing Agent extra dependencies...
+  pip:
+    # TODO(dmu) MEDIUM: Should we explicitly define Packy Agent package here?
+    name: '{{ packy_agent_package_name }}[post]'
+    extra_args: '{{ pip_extra_args }}'
+    virtualenv: '{{ temp_venv_dir }}'
+
+- include_tasks: directories.yaml

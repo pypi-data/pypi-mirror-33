@@ -1,0 +1,53 @@
+- name: Install
+  hosts: '*'
+  become: yes
+  become_user: root
+  vars:
+    packy_agent_package_name: .
+    packy_server_base_url: "{{ lookup('env', 'PACKY_SERVER_BASE_URL') | default('https://p05.packy.io', true) }}"
+    packy_control_server_config: "{{ lookup('env', 'PACKY_CONTROL_SERVER_CONFIG') | default('/etc/packy-control-server.yaml', true) }}"
+    is_development: True
+    is_inside_docker_container: False
+  tasks:
+      include_tasks: components/common.yaml
+    - include_tasks: components/common/facts.yaml
+    - include_tasks: components/common/directories.yaml
+    - include_tasks: components/common/configuration.yaml
+      include_tasks: components/agent/directories.yaml
+      include_tasks: components/control-server/directories.yaml
+      include_tasks: components/control-server/configuration-uwsgi.yaml
+      include_tasks: components/watchdog/directories.yaml
+    - name: Installing/upgrading/configuring common dependencies (post)...
+      include_tasks: components/common-post.yaml
+    - name: Stopping Packy Agent...
+      service:
+        name: packy
+        state: stopped
+        daemon_reload: yes
+      ignore_errors: yes
+      failed_when: False
+      when: not is_inside_docker_container
+    - name: Preparing installation recovery...
+      include_tasks: misc/recovery.yaml
+    - name: Replacing virtualenv...
+      vars:
+        command: 'rmvirtualenv {{ venv }};
+                  rm -rf {{ venv_dir }};
+                  cpvirtualenv {{ temp_venv }} {{ venv }}'
+      include_tasks: misc/virtualenvwrapper.yaml
+    - name: Starting Packy Agent and enabling it to start on boot...
+      service:
+        name: packy
+        enabled: True
+        state: restarted
+        daemon_reload: yes
+      when: not is_inside_docker_container and restart
+    - name: Creating Packy run script for Docker...
+      template:
+        src: misc/packy-run.sh.j2
+        dest: '{{ root_home }}/packy-run.sh'
+        mode: u+x
+      when: is_inside_docker_container
+    - name: Restarting service for Docker...
+      command: '{{ supervisorctl_executable }} restart all'
+      when: is_inside_docker_container and restart

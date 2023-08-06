@@ -1,0 +1,27 @@
+- name: Retrieving Control Server default configuration file as variable...
+  include_vars:
+    file: ../../../configuration/control_server/custom.yaml
+    name: control_server_configuration
+- stat:
+    path: '{{ packy_control_server_config }}'
+  register: packy_control_server_config_file_stat
+- name: Retrieving Control Server custom configuration file as variable...
+  include_vars:
+    file: '{{ packy_control_server_config }}'
+    name: control_server_configuration_custom
+  when: packy_control_server_config_file_stat.stat.exists
+- set_fact:
+    control_server_configuration_custom: '{{ control_server_configuration_custom | default({}) }}'
+- name: Setting Packy Server Base URL...
+  set_fact:
+    control_server_configuration_custom: "{{ control_server_configuration_custom | combine({'packy': {'control_server': {'server_base_url': packy_server_base_url + '/'}}}, recursive=True) }}"
+- name: Setting Packy Control Server port...
+  set_fact:
+    control_server_configuration_custom: "{{ control_server_configuration_custom | combine({'packy': {'control_server': {'http_port': packy_control_server_port|int}}}, recursive=True) }}"
+  when: packy_control_server_port and packy_control_server_port != 0
+- name: Merging default and custom configuration variables
+  set_fact:
+    control_server_configuration: "{{ control_server_configuration | combine(control_server_configuration_custom.get('packy', {}).get('control_server', {}), recursive=True) }}"
+- name: Getting Packy Control Server port...
+  set_fact:
+    packy_control_server_port: "{{ control_server_configuration['http_port'] }}"

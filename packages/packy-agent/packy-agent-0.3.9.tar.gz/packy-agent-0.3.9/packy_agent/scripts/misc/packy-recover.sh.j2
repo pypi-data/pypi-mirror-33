@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+
+set -x
+set -e
+date
+if [ ! -f {{ expected_version_file_path }} ]; then
+    exit
+fi
+source {{ expected_version_file_path }}
+
+export WORKON_HOME={{ venvs_dir }}
+
+if [ ! -f /usr/local/bin/virtualenvwrapper.sh ]; then
+    apt-get update
+    apt-get install -y python-pip python-dev build-essential pkg-config
+    pip install setuptools
+    pip install pip==10.0.1
+    hash -d pip  # rehash new pip location at /usr/local/bin/pip instead of /usr/bin/pip
+    pip install virtualenv==16.0.0
+    pip install virtualenvwrapper==4.8.2
+    mkdir -p $WORKON_HOME
+fi
+
+set +x
+echo '+ source /usr/local/bin/virtualenvwrapper.sh'
+source /usr/local/bin/virtualenvwrapper.sh
+
+set +e
+echo '+ workon {{ venv }}'
+workon {{ venv }}
+WORKON_RC=$?
+set -e
+set -x
+
+if [ "$WORKON_RC" == "0" ]; then
+    PACKY_CURRENT_VERSION=`python -c 'import packy_agent; print packy_agent.__version__'`
+
+    set +x
+    echo '+ deactivate'
+    deactivate
+    set -x
+
+    if [ "$PACKY_EXPECTED_VERSION" == "$PACKY_CURRENT_VERSION" ]; then
+        set +e
+        source /etc/packy-agent-version
+        source /etc/packy-control-server-version
+        source /etc/packy-watchdog-version
+        set -e
+        if [ "$PACKY_AGENT_VERSION" == "$PACKY_EXPECTED_VERSION" -a "$PACKY_CONTROL_SERVER_VERSION" == "$PACKY_EXPECTED_VERSION" -a "$PACKY_WATCHDOG_VERSION" == "$PACKY_EXPECTED_VERSION" ]; then
+             echo 'All good. No recovery is required'
+             rm -f {{ expected_version_file_path }}
+             exit
+        fi
+    fi
+fi
+
+# This if-clause is required to support dockerized version
+if [ "$PACKY_SERVER_BASE_URL" == "" ]; then
+     # TODO(dmu) MEDIUM: Following if-clause is for backward-compatibility only. Refactor
+     #                   once all agents upgrade to v0.3.3 or higher
+    if [ "$DEFAULT_PACKY_SERVER_BASE_URL" == "" ]; then
+        export PACKY_SERVER_BASE_URL={{ packy_server_base_url }}
+    else
+        export PACKY_SERVER_BASE_URL=$DEFAULT_PACKY_SERVER_BASE_URL
+    fi
+fi
+
+{% if pip_extra_args %}
+export PIP_EXTRA_ARGS='{{ pip_extra_args }}'
+{% endif %}
+
+{% with with_shebang=False, download_args='?os=alpine' if is_inside_docker_container else None %}{% include 'packy-get-install-script.sh.j2' %}{% endwith %}

@@ -1,0 +1,16 @@
+- name: Starting Packy Agent and enabling it to start on boot...
+  service:
+    name: packy
+    enabled: True
+    state: restarted
+    daemon_reload: yes
+  when: not is_inside_docker_container and restart
+- name: Creating Packy run script for Docker...
+  template:
+    src: misc/packy-run.sh.j2
+    dest: '{{ root_home }}/packy-run.sh'
+    mode: u+x
+  when: is_inside_docker_container
+- name: Restarting service for Docker...
+  shell: '{{ supervisorctl_executable }} -c {{ supervisor_configuration_file }} reread && {{ supervisorctl_executable }} -c {{ supervisor_configuration_file }} restart all'
+  when: is_inside_docker_container and restart
