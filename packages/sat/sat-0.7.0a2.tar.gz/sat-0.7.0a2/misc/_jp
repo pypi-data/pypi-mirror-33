@@ -1,0 +1,141 @@
+#compdef jp jp_dev
+# jp: a SAT command line tool
+# Copyright (C) 2009-2016 Jérôme Poisson (goffi@goffi.org)
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+#TODO: - caching (see _store_cache en _retrieve_cache)
+#      - filtering imposibles arguments
+#      - arguments (jids, files)
+
+PYTHON='python2'
+
+local optionals subcommands arguments
+local context state state_descr line
+typeset -A val_args
+
+_jp() {
+	eval `/usr/bin/env $PYTHON 2> /dev/null <<- PYTHONEND
+	import re
+	from subprocess import check_output
+	
+	# import sys
+	# words_raw="jp_dev " + ' '.join(sys.argv[1:]) # for debugging in a script
+	words_raw="$words" # $words is the command line currently completed
+	
+	words_all = words_raw.split()
+	prog_name = words_all[0]
+	
+	words_no_opt = [word for word in words_all if not word.startswith('-')] # command line without optional arguments
+	
+	choices_cache = {}
+	
+	ARG = r'[-a-z0-9_]' # charset accepted for an argument name
+	subcommands_re = re.compile(r"^ +{((?:" + ARG + r"+)(?:," + ARG + r"+)*)}", re.MULTILINE)
+	optionals_re = re.compile(r"^ {2,}(--?" + ARG + r"+(?: [A-Z_0-9]+)?(?:, --" + ARG + r"+(?: [A-Z_0-9]+)?)?)\n? {2,}(.*(?:\n {4,}.*)*$)", re.MULTILINE)
+	arguments_re = re.compile(r"^ {2,}([a-z_]" + ARG + r"*) {2,}(.*$)", re.MULTILINE)
+	clean_re = re.compile(r"(?P<prefix_spaces>^ +)|(?P<double_spaces> {2,})|(?P<newline>\n)|(?P<quote>')|(?P<suffix_spaces> +$)", re.MULTILINE)
+	
+	def _clean(desc):
+	    def sub_clean(match):
+	        matched_dict = match.groupdict()
+	        matched = {matched for matched in matched_dict if matched_dict[matched]}
+	        if matched.intersection(('prefix_spaces', 'suffix_spaces')):
+	            return ''
+	        elif matched.intersection(('double_spaces', 'newline')):
+	            return ' '
+	        elif matched.intersection(('quote',)):
+	            return r"'\''"
+	        else:
+	            raise ValueError
+	    return clean_re.sub(sub_clean, desc)
+	
+	def parse_help(jp_help):
+	    # parse the help returning subcommands, optionals arguments, and mandatory arguments
+	    subcommands = subcommands_re.findall(jp_help)
+	    subcommands = {subcommand:"" for subcommand in subcommands[0].split(',')} if subcommands else {}
+	    optionals = dict(optionals_re.findall(jp_help))
+	    arguments = dict(arguments_re.findall(jp_help))
+	    for subcommand in subcommands:
+	        subcommands[subcommand] = arguments.pop(subcommand, '')
+	    return subcommands, optionals, arguments
+	
+	def get_choice(opt_choice):
+	    choices = choices_cache.get(opt_choice)
+	    if choices is not None:
+	        return choices
+	    if opt_choice == 'PROFILE':
+	        profiles = check_output([prog_name, 'profile', 'list'])
+	        choices = ":profile:(%s)" % ' '.join(profiles.split('\n'))
+	    if choices:
+	        choices_cache[opt_choice] = choices
+	        return choices
+	    else:
+	        return ""
+	
+	def construct_opt(opts, desc):
+	    # construct zsh's _arguments line for optional arguments
+	    arg_lines = []
+	    for opt in opts.split(', '):
+	        try:
+	            opt_name, opt_choice = opt.split()
+	        except ValueError:
+	            # there is no argument
+	            opt_name, opt_choice = opt, None
+	        # arg_lines.append("'()%s[%s]%s'" % (opt_name+('=' if opt_name.startswith('--') else '+'),
+	        arg_lines.append("'()%s[%s]%s'" % (opt_name,
+	                                           _clean(desc),
+	                                           "%s" % get_choice(opt_choice) if opt_choice else ''
+	                                          ))
+	    return ' '.join(arg_lines)
+	
+	current_args = []
+	
+	while True:
+	    # parse jp's help recursively until words_no_opt doesn't correspond anymore to a subcommand
+	    try:
+	        current_args.append(words_no_opt.pop(0))
+	        jp_help = check_output(current_args + ['--help'])
+	        # print "jp_help (%s):\n%s\n\n---\n" % (' '.join(current_args), jp_help) # for debugging
+	        subcommands, optionals, arguments = parse_help(jp_help)
+	        if words_no_opt[0] not in subcommands:
+	            break
+	    except IndexError:
+	        break
+	
+	# now we fill the arrays so zsh can use them
+	env=[]
+	env.append("optionals=(%s)" % ' '.join(construct_opt(opt, desc) for opt, desc in optionals.items()))
+	env.append("subcommands=(%s)" % ' '.join(["'%s[%s]'" % (subcommand, _clean(desc)) for subcommand, desc in subcommands.items()]))
+	env.append("arguments=(%s)" % ' '.join(["'%s[%s]'" % (argument, _clean(desc)) for argument, desc in arguments.items()]))
+	
+	print ";".join(env) # this line is for eval
+	PYTHONEND
+	`
+	
+	if [  -n "$optionals" ]; then
+		_values optional $optionals
+		
+	fi
+	if [  -n "$subcommands" ]; then
+		_values subcommand $subcommands
+	fi
+	if [ -n "$arguments" ]; then
+		#_values argument $arguments
+	fi
+}
+
+
+_jp "$@"
