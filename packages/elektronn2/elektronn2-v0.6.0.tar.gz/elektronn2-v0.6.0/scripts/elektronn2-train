@@ -1,0 +1,102 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# ELEKTRONN2 Toolkit
+# Copyright (c) 2015 Marius F. Killinger
+# All rights reserved
+from __future__ import absolute_import, division, print_function
+from builtins import filter, hex, input, int, map, next, oct, pow, range, super, zip
+
+import os
+import inspect
+import argparse
+import traceback
+from subprocess import check_call, CalledProcessError
+
+import matplotlib
+
+def parseargs():
+    def convert(s):
+        if s.lower() == 'auto':  # 'auto' is unsupported now. TODO: Remove
+            return 'auto'
+        elif s.lower() in ['none', 'false']:
+            return None
+        else:
+            return int(s)
+
+    parser = argparse.ArgumentParser(
+        usage="$ elektronn2-train </path/to_config_file> "
+              "[--gpu={auto|none|<int>}] "
+              "[--mpl-backend={auto|<backend_name>|force-<backend_name>}]")
+    parser.add_argument("config", type=str)
+    parser.add_argument("--func", type=str, choices=['train', 'trace', 'tracernn'], default='train')  # TODO: Reflect this in ``usage`` once it's ready
+    parser.add_argument("--gpu", default=None, type=convert, choices=[False, None]+list(range(0,100)))
+    parser.add_argument("--mpl-backend", type=str, default='auto')
+    parsed = parser.parse_args()
+    print(parsed)
+    return parsed.config, parsed.func, parsed.gpu, parsed.mpl_backend
+
+exp_config_file, func, gpu, mpl_backend = parseargs()
+
+if mpl_backend.lower() == 'agg':
+    matplotlib.use('AGG')
+    print('Using the AGG backend for matplotlib. No support for X11 windows.')
+else:
+    if mpl_backend.startswith('force-'):
+        matplotlib.use(mpl_backend.partition('force-')[-1])
+    else:
+        # Prevent setting of mpl qt-backend on machines without X-server before other modules import mpl.
+        with open(os.devnull, 'w') as devnull:
+            try:
+                # "xset q" will always succeed to run if an X server is currently running
+                check_call(['xset', 'q'], stdout=devnull, stderr=devnull)
+                if mpl_backend.lower() == 'auto':
+                    pass  # Backend is silently set to system default.
+                else:
+                    matplotlib.use(mpl_backend)
+                print('Using the {} backend for matplotlib.'.format(matplotlib.get_backend()))
+                # Don't set backend explicitly, use system default...
+            # if "xset q" fails, conclude that X is not running
+            except (OSError, CalledProcessError):
+                print('No X11 server found. Falling back to AGG backend for matplotlib.')
+                matplotlib.use('AGG')
+
+
+from elektronn2.config import config
+
+if config.device is None:
+    from elektronn2.utils.gpu import initgpu
+    initgpu(gpu)
+else:
+    if gpu:
+        print("Cannot init gpu to %s because there is already the value %s "
+              "in ~/.elektronn2rc." %(gpu, config.device))
+
+
+from elektronn2.training import trainer
+from elektronn2.training import trainutils
+
+
+this_file = os.path.abspath(inspect.getframeinfo(inspect.currentframe()).filename)  # TODO: Why not sys.argv[0]?
+exp_config = trainutils.ExperimentConfig(exp_config_file, this_file)
+
+if func=='train':
+    T = trainer.Trainer(exp_config)
+elif func=='trace':
+    T = trainer.TracingTrainer(exp_config)
+elif func=='tracernn':
+    T = trainer.TracingTrainerRNN(exp_config)
+else:
+    raise ValueError("Unrecognised training function %s" %func)
+try:
+    from elektronn2.utils.d3viz import visualise_model
+    visualise_model(T.model, '1-model-graph')
+except Exception as e:
+    traceback.print_exc()
+    print("Could not plot model graph")
+
+T.debug_getcnnbatch()
+
+
+T.run()
+os.mknod("0-EVAL-needed")
+#trainutils.evaluate_model_binary(T.model, exp_config.save_name, T.data, n_proc=7)
