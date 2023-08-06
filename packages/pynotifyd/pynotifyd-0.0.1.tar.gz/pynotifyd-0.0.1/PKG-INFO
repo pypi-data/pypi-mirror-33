@@ -1,0 +1,75 @@
+Metadata-Version: 2.1
+Name: pynotifyd
+Version: 0.0.1
+Summary: Simple notification server
+Home-page: https://github.com/ricede/pynotifyd
+Author: Tudor Roman
+Author-email: tudurom@gmail.com
+License: UNKNOWN
+Description: # `pynotifyd`
+        
+        Simple freedesktop notification daemon.
+        
+        ## Installation
+        
+        ```shell
+        pip install pynotifyd
+        ```
+        
+        ## Usage
+        
+        `pynotifyd` outputs JSON-formatted notification events at the standard output
+        and debug information at `stderr`. Each notification is on exactly one line to
+        make it easier to be collected by shell scripts.
+        
+        ## Event types:
+        
+        ### `notify` - Notification has been emitted
+        
+        ```json
+        {
+          "action": "notify",
+          "notification": {
+            "id": 3,
+            "app_name": "KDE Connect",
+            "app_icon": "kdeconnect",
+            "summary": "WhatsApp",
+            "body": "Tudor: Hi!",
+            "urgency": 2
+          }
+        }
+        ```
+        
+        ### `delete` - Notification has been dismissed or expired
+        
+        ```json
+        {
+          "action": "delete",
+          "id": 1
+        }
+        ```
+        
+        ## Example usage
+        
+        Requires [jq](https://stedolan.github.io/jq/).
+        
+        ```bash
+        #!/bin/sh
+        
+        pynotifyd 2>/dev/null | while read -r line; do
+            action="$(echo "$line" | jq -r .action)"
+            case "$action" in
+                notify)
+                    app_name="$(echo "$line" | jq -r .notification.app_name)"
+                    echo "New notification from $app_name!"
+                    ;;
+            esac
+        done
+        ```
+        
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: ISC License (ISCL)
+Classifier: Operating System :: POSIX
+Classifier: Topic :: Desktop Environment
+Description-Content-Type: text/markdown
