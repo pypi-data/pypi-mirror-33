@@ -1,0 +1,78 @@
+#!python
+from __future__ import print_function
+
+# standard imports
+import sys
+import os
+from optparse import OptionParser
+
+# Aegean tools
+from AegeanTools import BANE, __citation__
+
+__author__ = 'Paul Hancock'
+
+
+
+# command line version of this program runs from here.
+if __name__=="__main__":
+    usage = "usage: %prog [options] FileName.fits"
+    parser = OptionParser(usage=usage)
+    parser.add_option("--out", dest='out_base',
+                      help="Basename for output images default: FileName_{bkg,rms}.fits")
+    parser.add_option('--grid', dest='step_size', type='int', nargs=2,
+                      help='The [x,y] size of the grid to use. Default = ~4* beam size square.')
+    parser.add_option('--box', dest='box_size', type='int', nargs=2,
+                      help='The [x,y] size of the box over which the rms/bkg is calculated. Default = 5*grid.')
+    parser.add_option('--cores', dest='cores', type='int',
+                      help='Number of cores to use. Default = all available.')
+    parser.add_option('--onepass', dest='twopass', action='store_false', help='the opposite of twopass. default=False')
+    parser.add_option('--twopass', dest='twopass', action='store_true',
+                      help='Calculate the bkg and rms in a two passes instead of one. (when the bkg changes rapidly)')
+    parser.add_option('--nomask', dest='mask', action='store_false', default=True,
+                      help="Don't mask the output array [default = mask]")
+    parser.add_option('--noclobber', dest='clobber', action='store_false', default=True,
+                      help="Don't run if output files already exist. Default is to run+overwrite.")
+    parser.add_option('--debug', dest='debug', action='store_true', help='debug mode, default=False')
+    parser.add_option('--compress', dest='compress', action='store_true', default=False,
+                      help='Produce a compressed output file.')
+    parser.add_option('--cite', dest='cite', action="store_true", default=False,
+                      help='Show citation information.')
+    parser.add_option('--stripes', dest='stripes', type='int', nargs=1, default=None,
+                      help='Number of slices.')
+
+    parser.set_defaults(out_base=None, step_size=None, box_size=None, twopass=True, cores=None, usescipy=False, debug=False)
+
+    (options, args) = parser.parse_args()
+
+    if options.cite:
+        print(__citation__)
+        sys.exit(0)
+
+    # Get the BANE logger.
+    logging = BANE.logging
+    logging_level = logging.DEBUG if options.debug else logging.INFO
+    logging.basicConfig(level=logging_level, format="%(process)d:%(levelname)s %(message)s")
+    logging.info("This is BANE {0}-({1})".format(BANE.__version__, BANE.__date__))
+    if len(args) < 1:
+        parser.print_help()
+        sys.exit()
+    else:
+        filename = args[0]
+    if not os.path.exists(filename):
+        logging.error("File not found: {0} ".format(filename))
+        sys.exit(1)
+
+    if options.out_base is None:
+        options.out_base = os.path.splitext(filename)[0]
+
+    if not options.clobber:
+        bkgout, rmsout = options.out_base+'_bkg.fits', options.out_base+'_rms.fits'
+        if os.path.exists(bkgout) and os.path.exists(rmsout):
+            logging.error("{0} and {1} exist and you said noclobber".format(bkgout, rmsout))
+            logging.error("Not running")
+            sys.exit(1)
+
+    BANE.filter_image(im_name=filename, out_base=options.out_base, step_size=options.step_size,
+                      box_size=options.box_size, twopass=options.twopass, cores=options.cores,
+                      mask=options.mask, compressed=options.compress, nslice=options.stripes)
+
