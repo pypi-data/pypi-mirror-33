@@ -1,0 +1,161 @@
+py-xsb
+======
+
+A Python - XSB bridge enabling querying XSB in your Python programs. It
+features a ctypes mapping of XSB’s C-Interface as well as some higher
+level convenience wrappers.
+
+Constructive comments, patches and pull-requests are very welcome.
+
+Examples
+--------
+
+### High Level Wrappers (demo\_highlevel.py)
+
+Setup XSB engine:
+
+    from pyxsb import start_xsb_session, end_xsb_session, xsb_hl_command, xsb_hl_query, XSBFunctor, XSBVariable, xsb_to_json, json_to_xsb
+
+    XSB_ARCH_DIR = '/opt/xsb-3.8.0/config/x86_64-redhat-linux-gnu'
+
+    start_xsb_session(XSB_ARCH_DIR)
+
+run a string XSB command:
+
+    xsb_hl_command('consult(ft).')
+
+run a string query:
+
+    for row in xsb_hl_query('label(X, L).'):
+        print u"label of %s is %s" % (row[0], row[1])
+
+queries and commands can also be constructed structurally:
+
+    for row in xsb_hl_query(XSBFunctor('descend', [XSBVariable('X'), XSBVariable('Y')])):
+        print u"decendant of %s is %s" % (row[0], row[1])
+
+the wrappers (XSBFunctor, XSBVariable, XSBString, XSBAtom) are the same
+ones used to represent the query results. For integers, floats and lists
+primitive python types are used:
+
+    for row in xsb_hl_query(u'A = 1, B = 0.5, C = "hello", D = yes, E = foo(bar), F = [1.1,2.2], G = \'günter\'.'):
+        for i, r in enumerate(row):
+            print u"#%d: %-10s (type: %-20s, class: %-20s)" % (i, r, type(r), r.__class__)
+
+the wrappers can also converted to and from JSON:
+
+        js = xsb_to_json(row)
+        print "json: %s" % js
+
+        row2 = json_to_xsb(js)
+        print "restored: %s" % str(row2)
+
+close the session:
+
+    end_xsb_session()
+
+### XSB Low Level API (demo\_lowlevel.py)
+
+First, import xsb and init the library:
+
+    from pyxsb import start_xsb_session
+
+    XSB_ARCH_DIR = '/opt/xsb-3.8.0/config/x86_64-redhat-linux-gnu'
+
+    start_xsb_session(XSB_ARCH_DIR)
+
+    from pyxsb import *
+
+execute an XSB command:
+
+    c2p_functor("consult", 1, reg_term(1))
+    c2p_string("ctest",p2p_arg(reg_term(1),1))
+    if xsb_command():
+        raise Exception ("Error consulting ctest")
+
+same thing using the string interface:
+
+    if xsb_command_string("consult(basics)."):
+        raise Exception ("Error (string) consulting basics.")
+
+run a query:
+
+    # Create the query p(300,X,Y) and send it.
+    c2p_functor("p",3,reg_term(1))
+    c2p_int(300,p2p_arg(reg_term(1),1))
+
+    rcode = xsb_query()
+
+    # Print out answer and retrieve next one.
+    while not rcode:
+
+        if not is_string(p2p_arg(reg_term(2),1)) and is_string(p2p_arg(reg_term(2),2)):
+            print "2nd and 3rd subfields must be atoms"
+        else:
+            print "Answer: %d, %s(%s), %s(%s)" % ( p2c_int(p2p_arg(reg_term(1),1)),
+                                                   p2c_string(p2p_arg(reg_term(1),2)),
+                                                   xsb_var_string(1),
+                                                   p2c_string(p2p_arg(reg_term(1),3)),
+                                                   xsb_var_string(2))
+        rcode = xsb_next()
+
+run a string query:
+
+    xsb_make_vars(3)
+    xsb_set_var_int(300,1)
+    rcode = xsb_query_string("p(X,Y,Z).")
+
+    # Print out answer and retrieve next one.
+    while not rcode:
+        if not is_string(p2p_arg(reg_term(2),2)) and is_string(p2p_arg(reg_term(2),3)):
+            print "2nd and 3rd subfields must be atoms"
+        else:
+            print "Answer: %d, %s, %s" % (xsb_var_int(1),
+                                          xsb_var_string(2),
+                                          xsb_var_string(3))
+        rcode = xsb_next()
+
+close the connection:
+
+    end_xsb_session()
+
+Installation Notes
+------------------
+
+`py-xsb` needs the XSB dynamic library to work: First, follow the
+standard XSB build instructions:
+
+    tar xfvz XSB.tar.gz
+    cd XSB/build
+    ./configure
+    ./makexsb
+
+now, in order to build `libxsb.so`, execute this command:
+
+    [guenter@dagobert build]$ ./makexsb dynmodule
+
+Links
+-----
+
+-   <http://xsb.sourceforge.net/> [XSB]
+
+Requirements
+------------
+
+-   Python 2.7 or Python 3.6
+
+-   libxsb.so shared library installed and in ld’s path
+
+License
+-------
+
+My own code is Apache-2.0 licensed unless otherwise noted in the
+script’s copyright headers.
+
+Author
+------
+
+Guenter Bartsch \<<guenter@zamia.org>\> Many improvements and bugfixes
+by the XSB team at Stony Brook University of New York
+
+
