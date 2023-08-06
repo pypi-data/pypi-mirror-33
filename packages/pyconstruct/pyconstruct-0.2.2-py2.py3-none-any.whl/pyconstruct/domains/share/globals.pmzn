@@ -1,0 +1,83 @@
+{# globals.pmzn
+
+Collection of template macros to be used to define domains for structured
+classification. Implements standard procedures for handling different inference
+problems.
+
+PROBLEMS
+--------
+phi
+    Gets x and y as data, returns a feature vector phi(x, y).
+n_features
+    Returns the number of features defined in the domain.
+map
+    Gets x as data, computes the argmax of the score w.r.t. the given model.
+loss_augmented_map
+    Gets x as data, computes the argmax of the score + loss.
+
+#}
+
+{% set BOOL_SET = '{0, 1}' %}
+{% set INT_SET = '-461168601 .. 461168601' %}
+{% set FLOAT_SET = '-461168601.0 .. 461168601.0' %}
+
+
+{% macro domain(
+    problem, allowed=('phi', 'map', 'loss_augmented_map')
+) %}
+    {# Boilerplate for domain definition.
+
+    PARAMETERS
+    ----------
+    problem : str in ['phi', 'n_features', 'map', 'loss_augmented_map']
+        The problem to solve. This parameter is usually passed by the Python
+        domain class.
+    allowed : tuple
+        Allowed problems for this domain.
+
+    USAGE
+    -----
+        {% call domain(problem) %}
+            % Your domain definition, e.g.
+            % int: x;
+            % var 0 .. 10: y;
+            % constraint x + y <= 10;
+        {% endcall %}
+    #}
+
+    {% if problem in allowed and caller is defined %}
+        {{ caller() }}
+    {% endif %}
+
+{% endmacro %}
+
+
+{% macro solve(problem, score='score', loss='loss') %}
+    {# Boilerplate for problem dependent solve statement.
+
+    PARAMETERS
+    ----------
+    problem : str in ['phi', 'n_features', 'map', 'loss_augmented_map']
+        The problem to solve. This parameter is usually passed by the Python
+        domain class.
+    score : str
+        The score function. Default to variable name 'score'.
+    loss : str
+        Formula for the loss. Used in loss_augmented_map problems.
+
+    USAGE
+    -----
+        {% set loss = 'some loss' %}
+        {{ solve(problem, loss=loss) }}
+    #}
+
+    {% if problem in ('phi', 'n_features') %}
+        solve satisfy;
+    {% elif problem == 'map' %}
+        solve maximize {{ score }};
+    {% elif problem == 'loss_augmented_map' %}
+        solve maximize {{ loss }} + {{ score }};
+    {% endif %}
+
+{% endmacro %}
+
