@@ -1,0 +1,58 @@
+- name: Install
+  hosts: '*'
+  become: yes
+  become_user: root
+  vars:
+    virtualenvwrapper_python: "{{ lookup('env', 'VIRTUALENVWRAPPER_PYTHON') | default('/usr/bin/python', true) }}"
+    packy_agent_package_name: "{{ lookup('env', 'PACKY_AGENT_PACKAGE_NAME') | default('packy-agent', true) }}"
+    packy_agent_version: "{{ lookup('env', 'PACKY_AGENT_VERSION') }}"
+    pip_extra_args: "{{ lookup('env', 'PIP_EXTRA_ARGS') }}"
+    packy_server_base_url: "{{ lookup('env', 'PACKY_SERVER_BASE_URL') | default('https://p05.packy.io', true) }}"
+    packy_control_server_port: "{{ lookup('env', 'PACKY_CONTROL_SERVER_PORT') | default(None, true) }}"
+    packy_control_server_config: "{{ lookup('env', 'PACKY_CONTROL_SERVER_CONFIG') | default('/etc/packy-control-server.yaml', true) }}"
+    is_development: False
+    is_inside_docker_container: False
+    remove_nginx_default_landing: "{{ (lookup('env', 'PACKY_REMOVE_NGINX_DEFAULT_LANDING') | default('False', true)) == 'True' }}" # used for Orange Pi installation
+    restart: "{{ (lookup('env', 'PACKY_RESTART') | default('True', true)) == 'True' }}" # used for Docker build
+    root_home: '{{ ansible_env.HOME }}'  # because lookup('env', 'HOME') gets envvar before sudo
+    venvs_dir: "{{ lookup('env', 'WORKON_HOME') | default('{{ root_home }}/.virtualenvs', true) }}"
+    venv: "{{ lookup('env', 'PACKY_VENV') | default('packy-agent', true) }}"
+    venv_dir: '{{ venvs_dir }}/{{ venv }}'
+    venv_bin_dir: '{{ venv_dir }}/bin'
+    temp_venv: "{{ lookup('env', 'PACKY_TEMP_VENV') | default('packy-agent-temp', true) }}"
+    temp_venv_dir: "{{ lookup('env', 'PACKY_TEMP_VENV_DIR') | default('{{ venvs_dir }}/{{ temp_venv }}', true) }}"
+    bak_venv: '{{ venv }}-bak'
+    bak_venv_dir: '{{ venvs_dir }}/{{ bak_venv }}'
+    recover_script_path: '{{ root_home }}/packy-recover.sh'
+    expected_version_file_path: /etc/packy-expected-version
+  environment:
+    PYCURL_SSL_LIBRARY: openssl
+  tasks:
+    - name: Asserting running as root...
+      assert:
+        that: "ansible_user_id == 'root'"
+    - name: Gathering custom facts...
+      include_tasks: misc/gather-facts.yaml
+    - name: Installing/upgrading/configuring common dependencies...
+      include_tasks: components/common/base.yaml
+    - name: Installing/upgrading/configuring Agent...
+      include_tasks: components/agent/base.yaml
+    - name: Installing/upgrading/configuring Control Server...
+      include_tasks: components/control-server/base.yaml
+    - name: Installing/upgrading/configuring Wathchdog...
+      include_tasks: components/watchdog/base.yaml
+    - name: Installing/upgrading/configuring common dependencies (post)...
+      include_tasks: components/common-post.yaml
+    - name: Preparing installation recovery...
+      include_tasks: misc/recovery.yaml
+    - name: Replacing virtualenv...
+      vars:
+# Rename of virtualenv directory will keep running services operating. Then try to copy temp
+# virtualenv to the original. If it succeeds then remove old virtualenv else rename it back.
+        command: '(mv {{ venv_dir }} {{ bak_venv_dir }};
+                  (cpvirtualenv {{ temp_venv }} {{ venv }} &&
+                   (rmvirtualenv {{ bak_venv }}; rm -rf {{ bak_venv_dir }} || true)) ||
+                   (mv {{ bak_venv_dir }} {{ venv_dir }} && false))'
+      include_tasks: misc/virtualenvwrapper.yaml
+    - name: Restarting...
+      include_tasks: misc/restart.yaml

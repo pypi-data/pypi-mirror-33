@@ -1,0 +1,23 @@
+- name: Installing Agent system dependencies (Ubuntu)...
+  apt:
+    name:
+      - libssl-dev
+      - libffi-dev
+      - libsasl2-dev
+      - liblz4-dev
+      - libcurl4-openssl-dev
+    update_cache: yes
+  when: ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian'
+- name: Installing Agent system dependencies (Alpine)...
+  apk:
+    name: curl-dev
+    update_cache: yes
+  when: ansible_distribution == 'Alpine'
+- name: Installing Agent extra dependencies...
+  pip:
+    name: '{{ packy_agent_package_name }}[post]'
+# TODO(dmu) MEDIUM: Should we be explict about version here?
+# --no-cache-dir --ignore-installed to fix libcurl compile-time ssl backend issue
+    extra_args: '--no-cache-dir --ignore-installed {{ pip_extra_args }}'
+    virtualenv: '{{ temp_venv_dir }}'
+- include_tasks: directories.yaml
