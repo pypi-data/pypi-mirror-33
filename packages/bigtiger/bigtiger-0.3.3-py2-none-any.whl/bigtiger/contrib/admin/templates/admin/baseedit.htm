@@ -1,0 +1,215 @@
+{% extends "admin/base.htm" %}
+
+{% block head %}
+{{ block.super }}
+<style type="text/css">
+	body{
+		background-color: #ffffff;
+	}
+	.wrapper {
+		border-bottom: 2px solid #eee;
+	}
+	.box_content {
+	  margin-top: 1px;
+	}
+	.module {
+		background: none repeat scroll 0 0 #FFFFFF; 
+		margin-bottom: 10px;
+	}
+	.module h2, .module caption {
+		color: #46505c; 
+		font-size: 13px;
+		font-weight: bold;
+		margin: 0; 
+		padding: 5px 5px 5px; 
+		text-align: left;
+		border-left: 3px solid #34a853;
+	}
+	.module label {color: #666; font-size: 12px; font-weight: normal;text-align: right;}
+	.required span { color: red; }
+	.field-Id, .hidefield {display: none;}
+
+	.form-horizontal .field-label {
+		text-align: right;
+	}
+
+	ul.errorlist {margin: 0 !important; padding: 0 !important;}
+	.errorlist li {color: red}
+</style>
+{{ adminform.form.media }}
+{% block head_ext %}
+{% endblock %}
+{% endblock %}
+
+{% block body %}
+<div class="wrapper">
+	<div class="box">
+		<div class="box_content container-fluid">
+			<form action="" method="post" {% block enctype %}enctype="multipart/form-data"{% endblock%}>{% csrf_token %}
+				<div class="row">
+				{% block adminform %}
+				{% for fieldset in adminform %}
+				<fieldset class="module {{ fieldset.classes }}">
+					{% if fieldset.name %}
+					<div class="row">
+						<h2 class="col-sm-12">{{ fieldset.name }}</h2>
+					</div>
+					{% endif %}
+
+				    {% if 'form-inline' in fieldset.classes %}
+				    	{% for fieldline in fieldset %}
+				            {% for field in fieldline %}
+				            <div class="form-group field-{{ field.field.name }}">
+				            	{% if field.is_checkbox %}
+							      <div class="checkbox">
+							        <label>
+							          {{ field.field }}{{ field.field.label }}
+							        </label>
+							        {% if field.field.help_text %}<span class="help-block">{{ field.field.help_text|safe }}</span>{% endif %}
+							      </div>
+							    {% else %}
+								    {{ field.label_tag }}
+				                	{% if field.is_readonly %}
+				                        <p class="form-control-static">{{ field.contents }}</p>
+			                        {% else %}
+			                			{{ field.field }}
+			                		{% endif %}
+							    {% endif %}
+		                    </div>
+				            {% endfor %}
+					    {% endfor %}
+					    {% for fieldline in fieldset %}
+					    	{% for field in fieldline %}
+				            	{% if field.errors %}
+				            	<div class="form-error error-{{ field.field.name }}">{{ field.errors }}</div>
+				            	{% endif %}
+				            {% endfor %}
+				        {% endfor %}
+					{% elif 'form-vertical' in fieldset.classes  %}
+						{% for fieldline in fieldset %}
+				            {% for field in fieldline %}
+				            <div class="form-group field-{{ field.field.name }}">
+				            	{% if field.is_checkbox %}
+							    <div class="field-input">
+							      <div class="checkbox">
+							        <label>
+							          {{ field.field }}{{ field.field.label }}
+							        </label>
+							        {% if field.field.help_text %}<span class="help-block">{{ field.field.help_text|safe }}</span>{% endif %}
+							      </div>
+							    </div>
+							    {% else %}
+			                	<div class="field-label">
+			                		{{ field.label_tag }}
+			                	</div>
+			                	<div class="field-input">
+			                		{% if field.is_readonly %}
+			                            <p class="form-control-static">{{ field.contents }}</p>
+			                        {% else %}
+			                			{{ field.field }}
+			                		{% endif %}
+			                		{% if field.field.help_text %}<span class="help-block">{{ field.field.help_text|safe }}</span>{% endif %}
+		                    		{% if field.errors %}{{ field.errors }}{% endif %}
+			                	</div>
+			                	{% endif %}
+			                </div>
+				            {% endfor %}
+					    {% endfor %}
+				    {% else %}
+					    {% for fieldline in fieldset %}
+				            {% for field in fieldline %}
+				            <div class="form-group field-{{ field.field.name }}">
+				            	{% if field.is_checkbox %}
+							    <div class="col-sm-offset-3 col-sm-9 field-offset">
+							      <div class="checkbox">
+							        <label>
+							          {{ field.field }}{{ field.field.label }}
+							        </label>
+							        {% if field.field.help_text %}<span class="help-block">{{ field.field.help_text|safe }}</span>{% endif %}
+							      </div>
+							    </div>
+							    {% else %}
+			                	<div class="col-sm-3 field-label">
+			                		{{ field.label_tag }}
+			                	</div>
+			                	<div class="col-sm-9 field-input">
+			                		{% if field.is_readonly %}
+			                            <p class="form-control-static">{{ field.contents }}</p>
+			                        {% else %}
+			                		{{ field.field }}
+			                		{% endif %}
+			                		{% if field.field.help_text %}<span class="help-block">{{ field.field.help_text|safe }}</span>{% endif %}
+		                    		{% if field.errors %}{{ field.errors }}{% endif %}
+			                	</div>
+			                	{% endif %}
+			                </div>
+				            {% endfor %}
+					    {% endfor %}
+				    {% endif %}
+				</fieldset>
+				{% endfor %}
+				{% endblock %}
+
+				{% block fieldset %}
+				{% endblock %}
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+{% block bottom_script %}
+<script type="text/javascript">
+	function receiveMessage(event) {
+		var origin = event.origin || event.originalEvent.origin; 
+		if (window.location.hash == '') {
+			window.location.href =  window.location.href + '#' + origin;
+		}
+		
+		// 根据传入的值，判断执行页面的操作。
+		var event_data = event.data || {};
+		if (event_data._method !== undefined) {
+			exec_fn(event_data._method, event_data._parame || [])
+		} else {
+			submit_form();
+		}
+	}
+	window.addEventListener("message", receiveMessage, false);
+	
+	function exec_fn (fn_name, fn_params) {
+		var fn = window[fn_name];
+		if (typeof fn === 'function') {
+			fn.apply(this, fn_params);
+		}
+	}
+
+	function submit_form() {
+		if (typeof validate ==='function') {
+			var is_valida = validate();
+			if (is_valida) {
+				$("form").submit();
+			}
+		} else {
+			$("form").submit();
+		}
+	}
+	
+	function errorwin (msg) {
+		messager.alert(msg);	
+	}
+	
+	function successwin (msg) {
+		var origin = window.location.hash.replace('#', '');
+		parent.postMessage(msg, origin);
+	}
+
+	{% if errorinfo %}
+		errorwin('{{errorinfo}}');
+	{% endif %}
+
+	{% if successinfo %}
+		successwin('{{successinfo}}');
+	{% endif %}
+</script>
+{% endblock %}

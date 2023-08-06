@@ -1,0 +1,339 @@
+{% extends "admin/base.htm" %}
+{% load static %}
+
+{% block head %}
+{{ block.super }}
+<style type="text/css">
+	body{background-color: #ffffff; } 
+	.box {margin-bottom: 0px; } 
+	.box_title {background: #e6e9eb; color: #46505c; font-family: gotham,Hiragino Sans GB,STHeiti,Microsoft Yahei,helvetica,arial,sans-serif; font-size: 14px; font-weight: bold; height: 38px; line-height: 38px; text-indent: 10px; border-left: 3px solid #4285f4; } 
+	.box_content {margin-top: 1px; } 
+	.box_title {position: relative;} 
+	.box_title .btns {position: absolute;right: 10px;top: 0px;} 
+	.box_title .btn {margin-right: 10px;} 
+	.searchWrapper {position: relative; border-left: 3px solid #34a853; } 
+	.search {padding: 8px 10px; margin-bottom: 1px; } 
+	.gridWrapper {overflow: hidden;overflow-x: auto;} 
+	a.detail {color: #4D90FE;} 
+	a.detail:hover{text-decoration: underline;} 
+	.container-fluid {
+	}
+	.gridWrapper {
+	}
+
+	.btns .btn {
+		display: none;
+	}
+	.red {color:red;}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="wrapper">
+	<div class="viewFramework-head">
+		<div class="header">
+			<div class="header_logo clearfix">
+				{% block sys_logo %}
+				<img class="logo" src="{% static 'iconstore/logo.png' %}" alt="系统logo">
+				{% endblock %}
+				
+				{% block sys_name %}
+				<h1 class="sys_name">{{ sysconf.SYS_NAME }}</h1>
+				{% endblock %}
+			</div>
+
+			{% block toolbar_nav %}
+			<div class="toolbar_nav dropdown clearfix">
+				<a class="dropdown-toggle topbar-btn topbar-nav-btn" data-toggle="dropdown" href="#">
+					<span class="nav_text">菜单清单</span><span class="icon-arrow-down nav_text W_ficon">g</span>
+				</a>
+				<div class="dropdown-menu topbar-nav-list topbar-clearfix">
+					{% for col in cols %}
+					<div class="topbar-nav-col">
+						{% for line in col %}
+						<div class="topbar-nav-item">
+							<p class="topbar-nav-item-title">{{ line.menu_name }}</p>
+							{% if line.children %}
+							<ul>
+								{% for line1 in line.children %}
+									<li data-menu="{{ line1.id }}" data-depth="{{ line1.depth }}"  data-main="{{ line1.mainId }}">
+										<a href="{{ line1.menu_url }}">
+											{% ifequal line1.is_important 1 %}<span class="red">*</span>{% endifequal %}
+											<span>{{ line1.menu_name }}</span>
+										</a>
+									</li>
+								{% endfor %}
+							</ul>
+							{% endif %}
+							{% if not forloop.last %}<div class="topbar-nav-gap"></div>{%endif%}
+						</div>
+						{% endfor %}
+					</div>
+					{% endfor %}
+				</div>
+			</div>
+			{% endblock %}
+			
+			{% block header_nav %}
+			<div class="header_nav clearfix">
+				<ul style="padding-left: 0px; margin:0px;" class="clearfix">
+					{% for item in root_menu.childs %}
+					<li {% if forloop.first %}class="first selected"{%endif%} data-menu='{{ item.id }}' data-depth="{{ item.depth }}">
+						<a href="{% if item.menu_url %}{{ item.menu_url }}{% else %}/navigate/?id={{ item.id }}{% endif %}" target="frameCon">
+							<img class="nav_icon" src="{% static '/static/iconstore/32x32/' %}{%if item.big_icon %}{{ item.big_icon }}{% else %}default.png{% endif %}" alt="{{ item.menu_name }}" />
+							<span class="nav_text">{{ item.menu_name }}</span>
+							<i id="app-notice-num" class="notice-num">{{ item.badge }}</i>
+						</a>
+					</li>
+					{% endfor %}
+				</ul>
+			</div>
+			{% endblock %}
+			
+			{% block header_user %}
+			<div class="header_user clearfix">
+				<ul class="clearfix">
+					<li><span>您好：</span><span style="color:#64ff50; font-size:14px; font-weight: bold;">{{user.user_name}}</span></li>
+					<li class="dropdown">
+						<a class="dropdown-toggle" data-toggle="dropdown" href="#">
+							<img src="{% static '/static/admin/images/icon/16x16/icon_more.png' %}" />
+						</a>
+						<ul class="header_user_menu dropdown-menu">
+							<li id="modify_pwd" class="icon_change"><a href="javascript:modifyPwd()">修改密码</a></li>
+							<li id="change_user" class="icon_reset"><a href="/">切换用户</a></li>
+							<li id="exit_sys" class="icon_exit"><a href="/logout/">退出</a></li>
+						</ul>
+					</li>
+				</ul>
+			</div>
+			{% endblock %}
+			
+			{% block weather %}
+			<div id="weather" class="clearfix">
+			</div>
+			{% endblock %}
+		</div>
+	</div>
+	<div class="viewFramework-head-offset"></div>
+
+	<div class="viewFramework-body viewFramework-sidebar-none main clearfix">
+		<!-- viewFramework-sidebar -->
+		<div class="viewFramework-sidebar sidebar">
+			<div class="sidebar-content">
+				<div class="sidebar-inner">
+				</div>
+			</div>
+		</div>
+
+		<!-- viewFramework-product -->
+		<div class="viewFramework-product" id="main_content">
+			<!-- product navbar -->
+			<div class="viewFramework-product-navbar">
+				<div class="product-nav-stage product-nav-stage-main">
+					<div class="product-nav-scene product-nav-main-scene">
+					</div>
+					<div class="product-nav-scene product-nav-sub-scene">
+						<div class="product-nav-title"></div>
+						<div class="product-nav-list">
+							<ul></ul>
+						</div>
+					</div>
+				</div>
+			</div>
+			<!-- /product navbar -->
+
+			<!-- produck nav collapse -->
+			<!--
+			<div class="viewFramework-product-navbar-collapse">
+				<div class="product-navbar-collapse-inner">
+					<div class="product-navbar-collapse-bg"></div>
+					<div class="product-navbar-collapse">
+						<span class="icon-collapse-left"></span> 
+						<span class="icon-collapse-right"></span>
+					</div>
+				</div>
+			</div>
+			-->
+			<!-- /produck nav collapse -->
+			<div class="viewFramework-product-body">
+				<div class="product">
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+{% block bottom_script %}
+{{ block.super }}
+<script type="text/javascript">
+var app = app || {};
+app.ui = {
+	header_height: 70,
+	box_title : 38,
+	main_content_padding: [5, 8, 5, 8]
+};
+</script>
+
+<script src="/static/admin/scripts/app.js"></script>
+
+<script type="text/template" id="sidebar-template">
+	<!--<div class="sidebar-fold W_ficon">S</div>-->
+	<% _.each(e, function(item, index){ %>
+	<div class="sidebar-nav">
+		<% if (item.childs) { %>
+		<div class="sidebar-title">
+			<div class="sidebar-title-inner">
+				<span class="sidebar-title-icon W_ficon">g</span><span class="sidebar-title-text"><%= item.menu_name %></span>
+			</div>
+		</div>
+		<% } else { %>
+		<ul class="sidebar-trans">
+			<li class="nav-item" data-menu="<%= item.id %>" data-depth="<%= item.depth %>">
+				<a class="sidebar-trans clearfix" href="<% if (item.menu_url_alias) { %><%= item.menu_url_alias %><% } else { %><%= item.menu_url %><% } %>" target="frameCon" style="text-indent:2px;padding:10px 0px;">
+					<span class="nav-title"><i class="glyphicon glyphicon-triangle-right" style="color:#46505c; font-size:11px;"></i>
+					<span style="font-size: 13px;font-weight: 600;color: #46505c;"><%= item.menu_name %></span>
+					</span>
+				</a>
+			</li>
+		</ul>
+		<% } %>
+
+		<ul class="sidebar-trans">
+			<% _.each(item.childs, function(item1, index1){ %>
+			<li class="nav-item" data-menu="<%= item1.id %>" data-depth="<%= item1.depth %>">
+				<a class="sidebar-trans clearfix" href="<% if (item1.menu_url_alias) { %><%= item1.menu_url_alias %><% } else { %><%= item1.menu_url %><% } %>" target="frameCon">
+					<% if (item1.small_icon) { %>
+					<div class="nav-icon sidebar-trans">
+						<img src="/static/baseframe/img/nav/<%= item1.small_icon %>" alt="" />
+					</div>
+					<% } %>
+					<span class="nav-title"><%= item1.menu_name %></span>
+				</a>
+			</li>
+			<% }); %>
+		</ul>
+	</div>
+	<% }); %>
+</script>
+
+<script type="text/template" id="product-template">
+	<div class="product-content">
+		<div class="container-fluid">
+			<div class="row">
+				<div class="col-md-6 product-feature">
+					<h3 class="font-primary-bold product-title"><%= feature.title %></h3>
+					<div class="feature-items">
+						<ul class="clearfix">
+							<% _.each(feature.items, function(item1, index) { %>
+								<li><%= item1 %></li>
+							<% }); %>
+						</ul>
+					</div>
+				</div>
+				<div class="col-md-6 product-list">
+					<ul class="clearfix">
+						<% _.each(lst, function(item1, index){ %>
+							<li class="product-item" data-depth="<%= item1.depth %>" data-menu="<%= item1.id %>">
+								<a href="<%= item1.menu_url %>">
+									<img class="product-item-iocn" alt="<%= item1.menu_name %>" src="/static/iconstore/60x60/<%= item1.big_icon %>">
+									<span class="product-item-name"><%= item1.menu_name %></span>
+								</a>
+							</li>
+						<% }); %>
+					</ul>
+				</div>
+			</div>
+		</div>
+	</div>
+</script>
+
+<script type="text/template" id="product-nav-template">
+	<div class="product-nav-title"><%= menuItem.menu_name %></div>
+	<div class="ng-isolate-scope"></div>
+	<div class="product-nav-list">
+	    <ul>
+	    	<% _.each(menuItem.childs, function(item, index) { %>
+	    		<li class="product-nav-item<% if (menuItem.menu_url == item.menu_url) { %> active<% } %>" data-depth="<%= item.depth %>" data-menu="<%= item.id %>">
+	                <a href="<%= item.menu_url %>" class="ng-scope">
+	                    <div class="nav-icon"></div>
+	                    <div class="nav-title"><%= item.menu_name %></div>
+	                </a>
+	        	</li>
+			<% }); %>
+	    </ul>
+	</div>
+</script>
+
+<script type="text/template" id="product-full-template">
+	<div class="product-content">
+		<div class="product-title">
+			<h3 class="font-primary-bold"><%= feature.title %></h3>
+		</div>
+		<div class="clearfix">
+			<div class="product-summary">
+				<p><%= feature.items %>.</p>
+			</div>
+			<div class="product-list">
+				<ul class="clearfix">
+					<% _.each(lst, function(item1, index1){ %>
+						<% if (index1 < 4) { %>
+							<li class="product-item" data-menu="<%= item1.id %>" data-depth="<%= item1.depth %>">
+								<a href="<%= item1.menu_url %>">
+									<img class="product-item-iocn" alt="<%= item1.menu_name %>" src="/static/iconstore/60x60/<%= item1.big_icon %>">
+									<span class="product-item-name"><%= item1.menu_name %></span>
+								</a>
+							</li>
+						<% } %>
+					<% }); %>
+				</ul>
+			</div>
+		</div>
+		<div class="product-links clearfix">
+			<% _.each(childs1, function(item, index){ %>
+				<div class="linkItem">
+					<div class="product-subtitle">
+						<h6 class="font-primary-bold"><%= item.menu_name %></h6>
+					</div>
+					<ul class="clearfix">
+						<% _.each(item.childs, function(item1, index1){ %>
+							<li class="product-item" data-menu="<%= item1.id %>" data-depth="<%= item1.depth %>">
+								<a href="<%= item1.menu_url %>">
+									<span class="product-item-name"><%= item1.menu_name %></span>
+								</a>
+							</li>
+						<% }); %>
+					</ul>
+				</div>
+			<% }); %>
+		</div>
+	</div>
+</script>
+
+<script type="text/template" id="weather-template">
+	<div class="weather-content">
+		<img src="<%= day.dayPictureUrl %>" alt="天气" title="明天：<%= day1.weather %>&nbsp;<%= day1.temperature %>&#10;后天：<%= day1.weather %>&nbsp;<%= day2.temperature %>">&nbsp;<span><%= day.weather %></span>&nbsp;<span><%= day.temperature %></span>
+	</div>
+</script>
+
+<script type="text/javascript">
+	$(function() {
+		app.menuData = {{ menusJson }};
+		app.rootMenu = {{ menusJson }};
+		
+		try {
+			app.views = app.views || {};
+			app.views.appView = app.views.appView || new AppView();
+			app.views.topbarView = app.views.topbarView || new TopbarView();
+			app.views.sidebarView = app.views.sidebarView || new SidebarView();
+			app.views.productView = app.views.productView || new ProductView();
+			app.views.menuView = app.views.menuView || new MenuView();
+			app.weather = app.weather || new app.weatherData();
+			setTimeout(app.weather.refresh, 1000 * 2);
+		}
+		catch (e) {
+			console.log(e);
+		}
+	});
+</script>
+{% endblock %}
