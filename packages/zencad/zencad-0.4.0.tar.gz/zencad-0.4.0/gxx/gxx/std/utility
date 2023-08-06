@@ -1,0 +1,80 @@
+
+#ifndef GENOS_GSTL_UTILITY
+#define GENOS_GSTL_UTILITY
+
+//Реализации разбиты по нескольким файлам, дабы не было лапши из кода.
+//Некоторые шаблоны могут врать... Извините.
+//UNDER_CONSTRUCTED
+
+//#include <genos/gstl/algorithm.h>
+
+//#include "defines/nullptr_t.h"
+//#include "defines/size_t.h"
+
+#include <stdlib.h>
+//#include "std/util/placed_new.h"
+//#include <utilxx/type_analize.h>
+
+namespace std{
+
+	using nullptr_t = decltype(nullptr);
+	using size_t = ::size_t;
+	
+	#include "bits/utility/prototype.hpp"
+	
+	#include "bits/utility/pair.hpp"
+	#include "bits/utility/utility.hpp"
+	#include "bits/utility/function_parse.hpp"
+	#include "bits/utility/type_traits.hpp"
+	#include "bits/utility/type_transform.hpp"
+	#include "bits/utility/type_relation.hpp"
+	#include "bits/utility/move.hpp"
+	#include "bits/utility/reference_wraper.hpp"
+	
+	template<typename T>
+	void destructor(T* ptr) {
+		ptr->~T();
+	}
+	
+	template<class InputIterator>  
+	void
+	array_destructor(InputIterator first, InputIterator last)
+	{
+		while(first != last){
+			std::destructor(&*first);
+			++first;
+		}
+	}
+	
+	template<typename T, typename ... Args>
+	void constructor(T* ptr, Args&& ... args) {
+		new(ptr) T(std::forward<Args>(args)...);
+	}
+	
+	template<typename T>
+	void copyConstructor(T* ptr, const T& other) {
+		new(ptr) T(other);
+	}
+	
+	template<typename T>
+	void moveConstructor(T* ptr, T&& other) {
+		new(ptr) T(std::forward<T>(other));
+	}
+	
+	template<class InputIterator, typename ... Args>  
+	void
+	array_constructor(InputIterator first, InputIterator last, Args ... args) {
+		while(first != last){
+			std::constructor(&*first, args ...);
+			++first;
+		}
+	}
+	
+	template<typename T>
+	void delete_expression(T* ptr) {
+		delete ptr;
+	}
+	
+}
+
+#endif
