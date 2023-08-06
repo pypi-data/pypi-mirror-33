@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>map</title>
+    <link href="/static/bootstrap/dist/css/bootstrap.css" rel="stylesheet"></link>
+    {% block head_css %}
+         <link href="/static/css/map.css" rel="stylesheet"></link>
+    {% end %}
+
+    {% block extends_css %}
+         <link href="/static/css/sao.css" rel="stylesheet"></link>
+    {% end %}
+</head>
+<body>
+    <div class="main" class='main'>
+        <div class="body">
+            {% block left_d %}
+            <div class="left col-md-3 col-sm-6 col-xs-12" style="position: fixed; z-index: 10000">
+
+            <div id="map-id-head">
+            </div>
+            {% end %}
+
+            <button class="btn btn-defaut" id="add-info" style="background:white" data-target="#register-server" data-toggle="modal">+</button>
+            <button class="btn btn-defaut" id="search-info" style="background:white">S</button>
+
+            </div>
+
+            {% block content_d %}
+            <div class="content " style="width: 100%">
+            {% block content %}
+
+            <div id="map-id-leaf"></div>
+            {% module LMap("map-id-leaf", "", 1000) %}
+            {% end %}
+            </div>
+            {% end %}
+        </div>
+
+        <div class="tail">
+        {% block tail %}
+        {% end %}
+            <div class="dropdown" style="position: fixed;z-index: 10000;top: 77%;left: 10%;">
+              <div class="input-group">
+                <div class="input-group-addon">Search</div>
+                <input type="text" onkeydown=''  value="" class="form-control" id="cmd_mode" style="max-width:170px;" placeholder="ip/time">
+              <!-- <div class="input-group-addon">.json</div> -->
+              </div>
+              
+              
+              <ul class="dropdown-menu" id='dropdowns' aria-labelledby="dLabel">
+                
+              </ul>
+            </div>
+        </div>
+        {% module TModal("Hello world!!",Id="register-server") %}
+        {% module SaoMenuList(
+            {
+                "name":"Get Status", "id":"get-status"
+            }, 
+            {
+                "name":"Check System", "id":"get-check"
+            }, 
+            {
+                "name":"link","id":"link-setting"
+            },
+            {
+                "name":"base install","id":"base-setting"
+            },
+            {
+                "name":"Qrcode", "id": "gen-qr"
+            },
+            {
+                "name":"Destroy","id":"destroy-server"
+            }, Id="handle-menu") %}
+
+        {% module SaoPanel('hello world' ,Class="fade", Id="panel-input") %}
+        {% module SaoPanel('scan from ss' ,Class="fade", Id="qr-panel") %}
+        
+    </div>
+
+    <script src="/static/jquery/dist/jquery.min.js"></script>
+    
+    <script src="/static/js/qrcode.min.js"></script>
+    <script src="/static/bootstrap/dist/js/bootstrap.js"></script>
+    {% block body_js %}
+        <script src="/static/js/map.js">
+        </script>
+        <script src="/static/js/sao.js" > </script>
+        <script type="text/javascript">
+            // $("input.form-control").focus()
+            // console.log(val);
+            load_sao();
+            
+            // setInterval('update_ip()', 10000)
+            update_ip();
+
+            $("#panel-input>.panel-body").html('<form class="form-inline"><div class="form-group"><label for="fromport" class="sr-only">from port (13001-13010)</label><input type="text" class="form-control" id="toport" placeholder="from port (13001-13010)"></div><div class="form-group"><label for="toport" class="sr-only">to port</label><input type="text" class="form-control" id="fromport" placeholder="to port"></div><button onclick="return false" id="link-start" class="btn btn-default" >Confirm identity</button></form>')
+            $("#panel-input").find("input").css("margin","3px")
+
+            // $("form").attr("onsubmit","do_form(); return false;");
+            $("form").removeAttr("method");
+
+            var qrcode = new QRCode("qr-panel-body")
+            // $("form").removeAttr("method");
+            $("#panel-input").css("display", "none")
+            $("#qr-panel").css("display", "none")
+            // var TOKEN = null
+            // function settoken(){
+            //     TOKEN = $("#token").val();
+                
+            //     if (TOKEN != null){
+                    
+                    JsonPost("/asyncremoteapi", {
+                        'req':{
+                            'op':'update',
+                            // 'token': TOKEN
+                        }
+                    },function(data){
+                        wait_ok()
+                        // $(".token-dialog").modal("hide")
+                    })
+                    wait()
+                    // setInterval(function(){
+                    //     JsonPost("/asyncremoteapi", {
+                    //         'req':{
+                    //             'op':'update',
+                    //             'token': TOKEN
+                    //         }
+                    //     },function(data){
+                            
+                    //     })
+                    // },10000)    
+                // }else{
+                    // wait()
+                // }
+                
+            // }
+
+            function destroy_server(){
+                
+                JsonPost("/asyncremoteapi", {
+                  'req':{
+                    'op':'destroy',
+                    'ip':cursor_fearture.properties.name,
+                    // 'token':TOKEN,
+                  }
+                }, function(data){
+                  window.location.reload()
+                })
+                wait()
+                
+            }
+
+
+            
+
+            
+        </script>
+        <!--
+        <script type="text/javascript">
+            websocket = new web_client("ws://localhost:8080/[url]")
+            websocket.on_msg(function(json){
+                console.log(json);
+            }
+        </script>
+        -->
+            <!-- <div class="modal fade token-dialog" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel">
+                <div class="modal-dialog modal-sm" role="document">
+                    <div class="modal-content">
+                        <div class="input-group">
+                            <span class="input-group-btn">
+                                <button class="btn btn-default" onclick="settoken();" type="button">Go!</button>
+                            </span>
+                            <input type="text" id='token' class="form-control" placeholder="token" value="">
+                        </div>
+                    </div>
+                </div>
+            </div> -->
+
+    {% end %}
+
+    {% block extends_js %}
+
+    {% end %}
+</body>
+</html>
