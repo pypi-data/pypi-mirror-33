@@ -1,0 +1,40 @@
+#!/bin/bash
+
+PROG=$(basename $0)
+
+SHOW_CNAME=
+
+if [ "$1" == "--cname" ]; then
+    SHOW_CNAME=1
+elif [ ! -z $1 ]; then
+    echo "USAGE: $PROG"
+    echo "Tell which elasticbean environment is currently live"
+    exit 0
+fi
+
+# The technique used here is really crappy: basically, we list the CNAME
+# of every elasticbean environment in the current application, and assume
+# that the live one has a cname of the form <prettyname>.<awsregion>.elasticbeanstalk.com
+# while all others are named <app-id>.<randomstring>.<awsregion>.elasticbeanstalk.com,
+# so we count the dots!! The winner has only 3 dots...
+
+for NAME in $(eb list | sed -e 's/*//');
+do
+    CNAME=$(eb status $NAME | grep CNAME | awk '{ print $2 }')
+    if [ -z "$CNAME" ]; then
+        echo "ERROR: 'eb status' seems broken!!"
+        exit 1
+    fi
+    COUNT_DOTS=$(echo $CNAME | tr -dc '\.' | awk '{ print length; }')
+    if [ $COUNT_DOTS -eq 3 ]; then
+        if [ -z "$SHOW_CNAME" ]; then
+            echo $NAME
+        else
+            echo $CNAME
+        fi
+        exit 0
+    fi
+done
+
+echo "ERROR: Failed to find current live environment"
+exit 1
