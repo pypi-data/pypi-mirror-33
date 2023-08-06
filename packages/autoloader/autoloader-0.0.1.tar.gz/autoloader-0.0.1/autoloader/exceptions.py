@@ -1,0 +1,1 @@
+class InvalidAutoloadPath(Exception): pass
