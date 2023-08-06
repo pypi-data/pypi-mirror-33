@@ -1,0 +1,232 @@
+from enum import Enum
+
+
+class DeviceID(Enum):
+
+    Drone_4_P2_Drone        = 0x00041002    # Drone_4_P2_Drone
+    Drone_4_P0_Controller   = 0x00042000    # Drone_4_P0_Controller
+    Drone_4_P0_Link         = 0x00043000    # Drone_4_P0_Link
+
+
+
+class DeviceType(Enum):
+
+    None_       = 0x00
+
+    Drone       = 0x10      # 드론(Server)
+
+    Controller  = 0x20      # 조종기(Client)
+
+    Link        = 0x30      # 링크 모듈(Client)
+    LinkServer  = 0x31      # 링크 모듈(Server, 링크 모듈이 서버로 동작하는 경우에만 통신 타입을 잠시 바꿈)
+
+    ByScratch   = 0x80      # 바이스크래치
+    Scratch     = 0x81      # 스크래치
+    Entry       = 0x82      # 네이버 엔트리
+
+    Tester      = 0xA0      # 테스터
+    Monitor     = 0xA1      # 모니터
+    Updater     = 0xA2      # 펌웨어 업데이트 도구
+    Encrypter   = 0xA3      # 암호화 도구
+
+    Broadcasting = 0xFF
+
+
+
+class ModeSystem(Enum):
+    
+    None_               = 0x00
+
+    Boot                = 0x01
+    Start               = 0x02
+    Running             = 0x03
+    ReadyToReset        = 0x04
+    Error               = 0x05
+
+    EndOfType           = 0x07
+
+
+
+class ModeVehicle(Enum):
+    
+    None_               = 0x00
+
+    FlightGuard         = 0x10
+    FlightNoGuard       = 0x11
+    FlightFPV           = 0x12
+
+    FlightAttitude      = 0x13
+    FlightPosition      = 0x14
+    FlightFunction      = 0x15
+
+    Test                = 0xF0
+
+    EndOfType           = 0xF1
+
+
+
+class ModeFlight(Enum):
+    
+    None_               = 0x00
+
+    Ready               = 0x10
+
+    Start               = 0x11
+    TakeOff             = 0x12
+    Flight              = 0x13
+    Landing             = 0x14
+    Flip                = 0x15
+    Reverse             = 0x16
+
+    Stop                = 0x20
+
+    Accident            = 0x30
+    Error               = 0x31
+
+    Test                = 0x40
+
+    EndOfType           = 0x41
+
+
+
+class ModeUpdate(Enum):
+    
+    None_               = 0x00
+
+    Ready               = 0x01      # 업데이트 가능 상태
+    Update              = 0x02      # 업데이트 중
+    Complete            = 0x03      # 업데이트 완료
+
+    Faild               = 0x04      # 업데이트 실패(업데이트 완료까지 갔으나 body의 CRC16이 일치하지 않는 경우 등)
+
+    NotAvailable        = 0x05      # 업데이트 불가능 상태(Debug 모드 등)
+    RunApplication      = 0x06      # 어플리케이션 동작 중
+
+    EndOfType           = 0x07
+
+
+
+class ErrorFlagsForSensor(Enum):
+
+    None_                       = 0x00000000
+
+    Imu_NoAnswer                = 0x00000001    # IMU 응답 없음
+    Imu_WrongValue              = 0x00000002
+    Imu_NotCalibrated           = 0x00000004    # Gyro Bias 보정이 완료되지 않음
+    Imu_Calibrating             = 0x00000008    # Gyro Bias 보정 중
+
+    Pressure_NoAnswer           = 0x00000010    # 압력센서 응답 없음
+    Pressure_WrongValue         = 0x00000020
+
+    RangeGround_NoAnswer        = 0x00000100    # 바닥 거리센서 응답 없음
+    RangeGround_WrongValue      = 0x00000200
+
+    Flow_NoAnswer               = 0x00001000    # 카메라 응답 없음
+    Flow_WrongValue             = 0x00002000
+
+    Battery_NoAnswer            = 0x00010000    # 배터리 응답 없음
+    Battery_WrongValue          = 0x00020000
+    Battery_NotCalibrated       = 0x00040000    # 배터리 입력값 보정이 완료되지 않음
+
+
+
+class ErrorFlagsForState(Enum):
+
+    None_                       = 0x00000000
+
+    NotTested                   = 0x00000001    # 테스트하지 않음
+
+
+
+class FlightEvent(Enum):
+    
+    None_               = 0x00
+
+    Stop                = 0x10
+    TakeOff             = 0x11
+    Landing             = 0x12
+
+    Reverse             = 0x13
+
+    FlipFront           = 0x14
+    FlipRear            = 0x15
+    FlipLeft            = 0x16
+    FlipRight           = 0x17
+
+    Shot                = 0x18
+    UnderAttack         = 0x19
+
+    ResetHeading        = 0x1A
+
+    EndOfType           = 0x1B
+
+
+
+class Direction(Enum):
+    
+    None_               = 0x00
+
+    Left                = 0x01
+    Front               = 0x02
+    Right               = 0x03
+    Rear                = 0x04
+
+    Top                 = 0x05
+    Bottom              = 0x06
+
+    EndOfType           = 0x07
+
+
+
+class Rotation(Enum):
+    
+    None_               = 0x00
+
+    Clockwise           = 0x01
+    Counterclockwise    = 0x02
+
+    EndOfType           = 0x03
+
+
+
+class SensorOrientation(Enum):
+    
+    None_               = 0x00
+
+    Normal              = 0x01
+    ReverseStart        = 0x02
+    Reversed            = 0x03
+
+    EndOfType           = 0x04
+
+
+
+class Headless(Enum):
+    
+    None_               = 0x00
+
+    Headless            = 0x01      # Headless
+    Normal              = 0x02      # Normal
+
+    EndOfType           = 0x04
+
+
+
+class Trim(Enum):
+    
+    None_               = 0x00  # 없음
+
+    RollIncrease        = 0x01  # Roll 증가
+    RollDecrease        = 0x02  # Roll 감소
+    PitchIncrease       = 0x03  # Pitch 증가
+    PitchDecrease       = 0x04  # Pitch 감소
+    YawIncrease         = 0x05  # Yaw 증가
+    YawDecrease         = 0x06  # Yaw 감소
+    ThrottleIncrease    = 0x07  # Throttle 증가
+    ThrottleDecrease    = 0x08  # Throttle 감소
+
+    Reset               = 0x09  # 전체 트림 리셋
+
+    EndOfType           = 0x0A
+
+
