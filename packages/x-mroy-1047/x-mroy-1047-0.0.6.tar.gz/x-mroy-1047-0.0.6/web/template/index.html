@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>index</title>
+    <link href="/static/bootstrap/dist/css/bootstrap.css" rel="stylesheet"></link>
+    {% block head_css %}
+    <link href="/static/css/index.css" rel="stylesheet"></link>
+    <link href="/static/css/sao.css" rel="stylesheet"></link>
+    {% end %}
+
+    {% block extends_css %}
+    {% end %}
+</head>
+<body>
+    <div class="main" class='main'>
+        <svg ></svg>
+        <div class="background"></div>
+        <div class="body">
+            {% block left_d %}
+            <div class="left col-md-3 col-sm-4 col-xs-12">
+
+            </div>
+            {% end %}
+            {% block content_d %}
+            <div class="content col-md-9 col-sm-8 col-xs-9">
+                <div class="head">
+                {% block head %}
+                    {% module Files() %}
+                {% end %}
+                </div>
+            {% block content %}
+
+
+                {% module SaoMenuList({"name":"Register All", "id":"reg-all"},{"name":"To Map", "id":"to-map"}, {"name":"Create Map", "id":"create-map"}, Id="index-menu") %}
+                <ul class="sao-btns" >
+                  <button class="sao-btn" icon="tasks" data-target="#index-menu" data-toggle="collapse"  style="position:fixed; left:16% ; bottom:43%"></button>
+                  <button class="sao-btn" icon="plus" data-target=".token-dialog"data-toggle="modal"  style="position:fixed; left:16% ; bottom:49%"></button>
+                </ul>
+            {% end %}
+            </div>
+            {% end %}
+        </div>
+        
+        <div class="tail">
+
+
+        {% block tail %}
+        {% module TModal("Hello world!!",Id="register-panel") %}
+        {% module TModal("Hello world!!",Id="add-host") %}
+        {% end %}
+        </div>
+    </div>
+
+
+    <script src="/static/jquery/dist/jquery.min.js"></script>
+    <script src="/static/bootstrap/dist/js/bootstrap.js"></script>
+    <script src="/static/js/d3.v3.min.js"></script>
+    <script src="/static/js/d3-path.v1.min.js"></script>
+    <script src="/static/js/d3-shape.v1.min.js"></script>
+    <script src="/static/js/queue.v1.min.js"></script>
+
+    {% block body_js %}
+        <script src="/static/js/index.js"></script>
+        <script src="/static/js/sao.js"></script>
+        <script type="text/javascript">
+            function JsonPost(url, data, callback){
+                $.ajax({
+                    type: "POST",
+                    url: url,
+                    data: JSON.stringify(data),
+                    success: function( data ) {
+                        console.log(data);
+                        if (callback != null){
+                            callback(data);
+                        }
+                    },
+                    dataType: 'json'
+                });
+            }
+
+            function JsonGet(url, callback){
+                $.getJSON(url, callback);
+            }
+
+          load_sao();
+          $("#index-menu").css({
+          "left": "17%",
+          "bottom": "20%",
+          "position":"fixed"
+          })
+        $("#reg-all").click(function(){
+            JsonPost("/remoteapi", {"req": {
+                "op":'status',
+            }}, function(data){
+                console.log(data)
+
+                $("#index-menu").collapse("hide");
+                patch_html = "<ul class=\"list-group\">"
+                for (i=0; i< data.data.length ; i ++){
+                    if ( data.data[i].reg == true){
+                        item = "<li class=\"list-group-item\">" + data.data[i].host +   "<span class=\"badge badge-success\"> Ok </span></li>"
+                    }else{
+                        item = "<li class=\"list-group-item\">" + data.data[i].host +   "<span class=\"badge\"> No </span></li>"
+                    }
+                    patch_html += item
+                }
+                patch_html  += "</ul><button class='btn btn-danger' id='clear-pub' >Clear all Pub key</button>"
+                $("#register-panel-content").html(patch_html);
+                $("#register-panel-btn")
+                    .text("Initialization")
+                    .attr("href", 'javascript:void(0)')
+                $("#register-panel").modal("show")
+                $("#clear-pub").click(function(){
+                    JsonPost("/remoteapi", {
+                        'req': {
+                            'op':'clear'
+                        }
+                    }, function(data){
+                        $("#register-panel").modal('hide')
+                    })
+                });
+
+                $("#register-panel-btn").click(function(){
+                    JsonPost("/remoteapi", {
+                        "req" : {
+                            "op":"reg"
+                        }
+                    }, function(data){
+                        $("#register-panel").modal('hide')
+                    })
+                })
+
+            })
+        })
+
+        $("#to-map").attr("href", "/map")
+        $("#create-map").attr("href", "/create")
+        function settoken(){
+            v = $("#token").val()
+            JsonPost("/asyncremoteapi", {
+                'req':{
+                    'op':'settoken',
+                    'token':v
+                }
+            },function(d){
+                $(".token-dialog").modal("hide")
+            })
+        }
+
+        </script>
+                    <div class="modal fade token-dialog" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel">
+                <div class="modal-dialog modal-sm" role="document">
+                    <div class="modal-content">
+                        <div class="input-group">
+                            
+                            <input type="text" id='token' class="form-control" placeholder="token" value="">
+                            <span class="input-group-btn">
+                                <button class="btn btn-default" onclick="settoken();" type="button">Set Token</button>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        <!--
+        <script type="text/javascript">
+            websocket = new web_client("ws://localhost:8080/[url]")
+            websocket.on_msg(function(json){
+                console.log(json);
+            }
+        </script>
+        -->
+    {% end %}
+
+    {% block extends_js %}
+
+    {% end %}
+</body>
+</html>
