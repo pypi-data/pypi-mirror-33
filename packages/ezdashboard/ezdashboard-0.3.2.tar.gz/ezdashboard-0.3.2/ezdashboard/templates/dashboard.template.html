@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Dashboard</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Libs -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro" rel="stylesheet">
+
+    <!-- Libs -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.0/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+    {% if data.markdown is defined %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/2.8.0/github-markdown.min.css">
+    {% endif %}
+
+    {% if data.widgets is defined %}
+    <!-- Load RequireJS, used by the IPywidgets for dependency management -->
+    <script 
+        src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js" 
+        integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" 
+        crossorigin="anonymous">
+    </script>
+
+    <!-- Load IPywidgets bundle for embedding. -->
+    <script 
+        src="https://unpkg.com/@jupyter-widgets/html-manager@*/dist/embed-amd.js" 
+        crossorigin="anonymous">
+    </script>
+    {% endif %}
+
+    {% if data.widgets_state is defined %}
+    <!-- The state of all the widget models on the page -->
+    <script type="application/vnd.jupyter.widget-state+json">
+        __$data.widgets_state$__
+    </script>
+    {% endif %}
+
+
+    {% for js_lib in data.js %}
+    <script src="__$js_lib$__"></script>
+    {% endfor %}
+
+    <style>
+
+        {% include "main.css" %}
+
+        {% include "custom.css" %}
+        
+        {% if data.css is defined %}
+        __$data.css$__
+        {% endif %}
+
+        {% if data.markdown is defined %}
+        .markdown-body {
+            box-sizing: border-box;
+            /* min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 45px; */
+        }
+
+        @media (max-width: 767px) {
+            .markdown-body {
+                padding: 15px;
+            }
+        }
+        {% endif %}
+
+
+    </style>
+</head>
+
+<body>
+
+    <!-- Opaque layer for loading -->
+    <div id="cover">
+            <!-- Loader icon -->
+            <span class="fa fa-spin fa-spinner"></span>
+        </div>
+    
+    {% if data.header is defined %}
+    {% set header = data.header %}
+
+    <!-- Header -->
+    <div class="flexrow">
+        {% if header.toggle %}
+        <div class="theme-toggle sg-btn">Toggle theme - Demo - Remove in production</div>
+        {% endif %}
+    </div>
+
+    <!-- Surround with conditional display mechanics -->
+    <div class="header flexrow flexwrap flexbetween">
+
+        {% if header.left_logo is defined %}
+        <div class="header-left flexrow">
+            <img class="left-logo" src="__$header.left_logo_img_src$__" alt="" />
+            <h4 class="custom-title">__$header.left_title$__</h4>
+        </div>
+        {% endif %}
+
+        {% if data.title is defined %}
+        {% set title = data.title %}
+        <h__$title.size$__ {% if title.class_name is defined %} class="__$title.class_name$__" {% endif %} {% if title.id_name is defined %} id="__$title.id_name$__" {% endif %}>__$title.text$__</h__$title.size$__>
+        {% endif %}
+
+        {% if header.right_logo is defined %}
+        <div class="header-right">
+            <img class="right-logo" src="__$header.right_logo_img_src$__" alt="" />
+        </div>
+        {% endif %}
+    </div>
+
+    {% endif %}
+
+
+    <div class="main __$data.misc.container_type$__ __$data.misc.main_class_name$__ {% if data.misc.no_margins %} no-margins {% endif %}">
+
+        {% if data.header is not defined and data.title is defined %}
+        {% set title = data.title %}
+        <h__$title.size$__ {% if title.class_name is defined %} class="__$title.class_name$__" {% endif %} {% if title.id_name is defined %} id="__$title.id_name$__" {% endif %}>__$title.text$__</h__$title.size$__>
+        {% endif %}
+
+        {% set tabs = data.tabs %}
+        <div class="nav">
+            {% for tab in tabs %}
+            <div class="sg-btn nav-tab" id="tab__$loop.index0$__Link" onclick="showTab(event, 'Tab__$loop.index0$__')">__$tab.name$__<span class="fa fa-caret-right"></span></div>
+            {% endfor %}
+        </div><!--
+            Trick to kill white spaces and enable perfect horizontal stacking
+        --><div class="content">
+
+            {% for tab in tabs %}
+            <div id="Tab__$loop.index0$__" class="tab-content {% if tab.class_name is defined %} __$tab.class_name$__ {% endif %}">
+                {% set outer_loop = loop %}
+                {% if tab.elmts[0].type=='Tab' %}
+                {% set tabs2 = tab.elmts %}
+
+                <div class="subnav tab__$loop.index0$__">
+                    {% for tab2 in tabs2 %}
+                    <div class="subnav-tab sg-btn tab__$outer_loop.index0$__Links" id="tab__$outer_loop.index0$__-__$loop.index0$__Link" onclick="showTab2(event, 'tab__$outer_loop.index0$__-__$loop.index0$__')">__$tab2.name$__</div>
+                    {% endfor %}
+                </div>
+
+                {% for tab2 in tabs2 %}
+                <div id="tab__$outer_loop.index0$__-__$loop.index0$__" class="subnav-content">
+                    {% for elmt in tab2.elmts %}
+                    {% if elmt.type=='Title' %}
+                    <h__$elmt.size$__ {% if elmt.class_name is defined %} class="__$elmt.class_name$__" {% endif %} {% if elmt.id_name is defined %} id="__$elmt.id_name$__" {% endif %}>__$elmt.text$__</h__$elmt.size$__>
+                    {% else %}
+                    {% set row = elmt %}
+                    <div class="row __$row.class_name$__" {% if row.id_name is defined %} id="__$row.id_name$__" {% endif %}>
+                        {% set li_div = row.elmts %}
+                        {% set elmts2 = li_div.elmts %}
+                        {% for elmt2 in elmts2 %}
+                        {% if elmt2.type=='ListDiv' %}
+                        <div {% if li_div.class_name is defined %} class="__$li_div.class_name$__" {% endif %} {% if li_div.id_name is defined %} id="__$li_div.id_name$__" {% endif %}>
+                            <div class="col-md-__$elmt2.width$__ __$elmt2.class_name$__" {% if elmt2.id_name is defined %} id="__$elmt2.id_name$__" {% endif %}>
+                            {% set elmts3 = elmt2.elmts %}
+                            {% for elmt3 in elmts3 %}
+                                <div class="col-md-__$elmt3.width$__" {% if elmt3.id_name is defined %} id="__$elmt3.id_name$__" {% endif %}>
+                                    <div class="tile {% if elmt3.is_markdown %} markdown-body my-markdown {% endif %} {% if elmt3.with_borders %} with-borders {% endif %} __$elmt3.class_name$__">
+                                        __$elmt3.content$__
+                                    </div>
+                                </div>
+                            {% endfor %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="col-md-__$elmt2.width$__" {% if elmt2.id_name is defined %} id="__$elmt2.id_name$__" {% endif %}>
+                            <div class="tile {% if elmt2.is_markdown %} markdown-body my-markdown {% endif %} {% if elmt2.with_borders %} with-borders {% endif %} __$elmt2.class_name$__">
+                                __$elmt2.content$__
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+        
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endfor %}
+
+                {% else %}
+
+                {% for elmt in tab.elmts %}
+                {% if elmt.type=='Title' %}
+                <h__$elmt.size$__ {% if elmt.class_name is defined %} class="__$elmt.class_name$__" {% endif %} {% if elmt.id_name is defined %} id="__$elmt.id_name$__" {% endif %}>__$elmt.text$__</h__$elmt.size$__>
+                {% else %}
+                {% set row = elmt %}
+                <div class="row __$row.class_name$__" {% if row.id_name is defined %} id="__$row.id_name$__" {% endif %}>
+                    {% set li_div = row.elmts %}
+                    {% set elmts2 = li_div.elmts %}
+                    {% for elmt2 in elmts2 %}
+                    {% if elmt2.type=='ListDiv' %}
+                    <div {% if li_div.class_name is defined %} class="__$li_div.class_name$__" {% endif %} {% if li_div.id_name is defined %} id="__$li_div.id_name$__" {% endif %}>
+                        <div class="col-md-__$elmt2.width$__ __$elmt2.class_name$__" {% if elmt2.id_name is defined %} id="__$elmt2.id_name$__" {% endif %}>
+                        {% set elmts3 = elmt2.elmts %}
+                        {% for elmt3 in elmts3 %}
+                            <div class="col-md-__$elmt3.width$__" {% if elmt3.id_name is defined %} id="__$elmt3.id_name$__" {% endif %}>
+                                <div class="tile {% if elmt3.is_markdown %} markdown-body my-markdown {% endif %} {% if elmt3.with_borders %} with-borders {% endif %} __$elmt3.class_name$__">
+                                    __$elmt3.content$__
+                                </div>
+                            </div>
+                        {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col-md-__$elmt2.width$__" {% if elmt2.id_name is defined %} id="__$elmt2.id_name$__" {% endif %}>
+                        <div class="tile {% if elmt2.is_markdown %} markdown-body my-markdown {% endif %} {% if elmt2.with_borders %} with-borders {% endif %} __$elmt2.class_name$__">
+                            __$elmt2.content$__
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+                {% endif %}
+                {% endfor %}
+
+                {% endif %}
+            </div> 
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Custom script -->
+    <script type="text/javascript">
+        // Hide cover once content is loaded
+        $(window).on('load', function() {
+            $("#cover").hide();
+        });
+
+        {% set tabs = data.tabs %}
+        var activeTab = null;
+        var nbTab = __$tabs | length$__;
+
+        var activeTabL2 = {};
+        var nbTabL2 = {};
+
+        {% for tab in tabs %}
+        {% if tab.elmts[0].type=='Tab' %}
+        activeTabL2[__$loop.index0$__] = null;
+        nbTabL2[__$loop.index0$__] = __$tab.elmts | length$__;
+        {% endif %}
+        {% endfor %}
+
+
+        function showTabState(tag) {
+            console.log('************* tag ' + tag);
+            console.log('nbTab=' + nbTab);
+            console.log('nbTabL2');
+            console.log(nbTabL2);
+            console.log('activeTab');
+            console.log(activeTab);
+            console.log('activeTabL2'); 
+            console.log(activeTabL2); 
+        }
+
+
+        showTabState(0);
+
+        /* Nav selection function */
+        function showTab(evt, tabName) {
+            // Deactivate/hide all nav tabs and their contents
+            $('.nav-tab, .tab-content').each(function() {
+                $(this).removeClass('active');
+            });
+
+            // Activate clicked tab
+            $(evt.target).addClass('active');
+
+            // Show only new tab content
+            $('#' + tabName).addClass('active');
+
+            // Update activeTab
+            activeTab = parseInt(tabName.slice(3)); // discard prefix='Tab'
+        }
+
+
+        /* Subnav selection function */
+        function showTab2(evt, tabName) {
+            // Myself and dad
+            var $me = $(evt.target),
+                $dad = $me.parent();
+
+            // Deactivate all tabs
+            $me.siblings('.subnav-tab').removeClass('active');
+
+            // But me
+            $me.addClass('active');
+
+            // Hide all subnav contents
+            $dad.siblings('.subnav-content').removeClass('active');
+
+            // Show my allotted subnav content
+            $dad.siblings('.subnav-content#' + tabName).addClass('active');
+
+            // Update activeTab
+            console.log('debug');
+            console.log(tabName);
+            activeTabL2[activeTab] = parseInt(tabName.split('-')[1]); // keep characters after separator '-'
+        }
+
+        showTabState(1);
+
+        {% for tab in tabs %}
+        {% if tab.elmts[0].type=='Tab' %}
+        {% set tabs2 = tab.elmts %}
+
+        {% set outer_loop = loop %}
+        
+        {% for tab2 in tabs2 %}
+        {% if tab2.active==True %}
+        activeTab = __$outer_loop.index0$__;
+        document.getElementById("tab__$outer_loop.index0$__-__$loop.index0$__Link").click();
+        {% endif %}
+        {% endfor %}
+
+        {% endif %}
+        {% endfor %}
+
+        showTabState(2);
+
+        {% for tab in tabs %}
+        {% if tab.active==True %}
+
+        document.getElementById("tab__$loop.index0$__Link").click();
+        {% endif %}
+        {% endfor %}
+
+        showTabState(3);
+        
+        function modulo(i, m) {
+            return ((i % m) + m) % m;
+        }
+
+
+        // Handle keyboard actions
+        document.onkeydown = function myFunction(event) {
+            var tabName = null;
+            switch (event.keyCode) {
+                case 38:
+                    console.log('Up key is pressed');
+                    activeTab = modulo(activeTab - 1, nbTab);
+                    var tabName = 'tab' + activeTab + 'Link';
+                    break;
+                case 40:
+                    console.log('Down key is pressed');
+                    activeTab = modulo(activeTab + 1, nbTab);
+                    var tabName = 'tab' + activeTab + 'Link';
+                    break;
+                case 37:
+                    console.log('Left key is pressed');
+                    if (activeTab in activeTabL2) {
+                        activeTabL2[activeTab] = modulo(activeTabL2[activeTab] - 1, nbTabL2[activeTab]);
+                        var tabName = 'tab' + activeTab + '-' + activeTabL2[activeTab] + 'Link';
+                    }
+                    break;
+                case 39:
+                    console.log('Right key is pressed');
+                    if (activeTab in activeTabL2) {
+                        activeTabL2[activeTab] = modulo(activeTabL2[activeTab] + 1, nbTabL2[activeTab]);
+                        var tabName = 'tab' + activeTab + '-' + activeTabL2[activeTab] + 'Link';
+                    }
+                    break;
+            }
+            if (tabName) {
+                console.log('tabName clicked = '+tabName);
+                document.getElementById(tabName).click();
+            }
+        };
+
+
+        {% if data.header %}
+        // Theme toggle button
+        $('.theme-toggle').on('click', function() {
+            $('body').toggleClass('dark-theme');
+        });
+        {% endif %}
+
+    </script>
+
+    {% if data.latex %}
+    <script type="text/x-mathjax-config">
+        
+        MathJax.Hub.Config(
+            {TeX: {
+                Macros: {
+                    sp: "^",
+                    sb: "_"
+                }
+            },
+            tex2jax: {
+                inlineMath: [
+                    ['$','$'],
+                    ['\\(','\\)']
+                ], 
+                displayMath: [
+                    ["$$","$$"],
+                    ["\\[","\\]"]
+                ]
+            }
+        });
+
+    </script>
+
+    <script type='text/javascript'>
+        setTimeout(function () {
+            var headID = document.getElementsByTagName('head')[0];
+            var newScript = document.createElement('script');
+            newScript.type = 'text/javascript';
+            newScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML';
+            headID.appendChild(newScript);
+        }, 1000);
+    
+    </script>
+    {% endif %}
+
+
+
+
+</body>
+
+</html>
