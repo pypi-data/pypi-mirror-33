@@ -1,0 +1,109 @@
+sudo: false
+dist: precise
+
+env:
+  global:
+    - REAHLWORKSPACE=$HOME
+    - EMAIL=noone@example.org
+    - DEBFULLNAME="Travis Tester"
+    - DEBEMAIL=$EMAIL
+    - DISPLAY=:99.0
+    - PATH=$HOME/bin:$PATH
+
+  matrix:
+    - TOX_ENV=py27 
+    - TOX_ENV=py34
+#    - TOX_ENV=py35
+#    - TOX_ENV=py36
+
+addons:
+  postgresql: "9.2"
+  apt:
+    packages:
+       # Basic apt dependencies
+        - equivs 
+        - openssh-client 
+        - dpkg-dev
+        - bzr
+        - git
+#        - chromium-browser       # See travis/installChromium.sh
+#        - chromium-chromedriver  # Ditto
+
+       # For compiling pip installed extensions we use
+        - python-virtualenv
+        - python-dev
+        - gcc
+        - cython
+        - libxml2-dev
+        - libsqlite3-0
+        - sqlite3
+        - postgresql-9.2
+        - postgresql-client-9.2
+        - postgresql-server-dev-9.2
+        - zlib1g-dev
+        - libjpeg62-dev
+        - libfreetype6-dev
+        - liblcms1-dev
+        # - phantomjs  # for reference... not allowed in apt addon
+
+services:
+  - postgresql
+  #- mysql
+
+language: python
+python:
+  - 3.5
+
+cache: 
+  pip: true
+  directories:
+    - $HOME/testinstalls
+    - $HOME/.cache/pip
+
+before_install: 
+  # Install stuff we can't install with apt addon
+  - "travis/installChromium.sh"
+
+  # Make git happy
+  - "travis/setupTestGit.sh"
+
+  # Version checks of these things are useful for debugging
+  - git --version
+  - firefox --version
+  #- wires --version # Not installed on travis
+  - chromium-browser --version
+  - chromedriver --version
+  - gpg --version
+  
+install:
+  - "python scripts/bootstrap.py --script-dependencies"
+  - CFLAGS="-O0" python scripts/bootstrap.py --pip-installs
+  - "reahl createdb -U postgres reahl-web/etc"
+  - "reahl setup -sX -- develop -N"
+
+before_script:
+  # Set up headless display for browsers
+  # DISPLAY is already set up
+  - "sh -e /etc/init.d/xvfb start"
+  # No need to give xvfb time to start, because the build hereafter will take lots of time
+
+  # Setup pip.conf to use local egg-dist also where we build stuff (for tox to get them)
+  - "travis/configurePip.sh"
+
+  # Setup ssh for password-less access to localhost
+  - "travis/createTestSshKey.sh"
+  - "travis/createTestGpgKey.sh"
+  - "(reahl build -sdX || (EXITCODE=$?; shred -f $HOME/.gnupg/*; exit $EXITCODE))"
+
+script:
+  - "(reahl shell -sdXg tox -e $TOX_ENV && (EXITCODE=$?; shred -f $HOME/.gnupg/*; exit $EXITCODE))"
+
+before_deploy:
+  - travis/configurePypi.sh
+
+deploy:
+  provider: script
+  script: reahl upload -rusdX
+  on:
+    tags: true
+    condition: "$TOX_ENV = py34"
