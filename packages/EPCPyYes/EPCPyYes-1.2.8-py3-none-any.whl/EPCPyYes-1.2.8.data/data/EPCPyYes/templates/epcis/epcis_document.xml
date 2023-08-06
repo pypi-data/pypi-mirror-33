@@ -1,0 +1,52 @@
+{% if render_xml_declaration %}
+    <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+{% endif %}
+<epcis:EPCISDocument
+        xmlns:epcis="urn:epcglobal:epcis:xsd:1"
+        xmlns:cbvmd="urn:epcglobal:cbv:mda"
+        {% if header %}
+        xmlns:{{ header.namespace }}="{{ header.schema_location }}"
+        {% endif %}
+        schemaVersion="1.2" creationDate="{{ created_date }}">
+    {% block header %}
+    {% if header %}
+    <EPCISHeader>
+    {% include "epcis/sbdh.xml" %}
+    </EPCISHeader>
+    {% endif %}
+    {% endblock %}
+    <EPCISBody>
+        <EventList>
+            {% block object_events %}
+                {% if object_events|length > 0 %}
+                    {% for event in object_events %}
+                        {% include "epcis/object_event.xml" %}
+                    {% endfor %}
+                {% endif %}
+            {% endblock %}
+            {% block aggregation_events %}
+                {% if aggregation_events|length > 0 %}
+                    {% for event in aggregation_events %}
+                        {% include "epcis/aggregation_event.xml" %}
+                    {% endfor %}
+                {% endif %}
+            {% endblock %}
+            {% block transaction_events %}
+                {% if transaction_events|length > 0 %}
+                    {% for event in transaction_events %}
+                        {% include "epcis/transaction_event.xml" %}
+                    {% endfor %}
+                {% endif %}
+            {% endblock %}
+            {% block transformation_events %}
+                {% if transformation_events|length > 0 %}
+                    <extension>
+                    {% for event in transformation_events %}
+                        {% include "epcis/transformation_event.xml" %}
+                    {% endfor %}
+                    </extension>
+                {% endif %}
+            {% endblock %}
+        </EventList>
+    </EPCISBody>
+</epcis:EPCISDocument>
