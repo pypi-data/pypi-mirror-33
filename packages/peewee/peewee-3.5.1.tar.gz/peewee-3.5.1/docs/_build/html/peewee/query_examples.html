@@ -1,0 +1,1355 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Query Examples &#8212; peewee 3.5.0 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Query Builder" href="query_builder.html" />
+    <link rel="prev" title="Playhouse, extensions to Peewee" href="playhouse.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="query_builder.html" title="Query Builder"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="playhouse.html" title="Playhouse, extensions to Peewee"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">peewee 3.5.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="query-examples">
+<span id="id1"></span><h1>Query Examples<a class="headerlink" href="#query-examples" title="Permalink to this headline">¶</a></h1>
+<p>These query examples are taken from the site <a class="reference external" href="https://pgexercises.com/">PostgreSQL Exercises</a>. A sample data-set can be found on the <a class="reference external" href="https://pgexercises.com/gettingstarted.html">getting
+started page</a>.</p>
+<p>Here is a visual representation of the schema used in these examples:</p>
+<img alt="../_images/schema-horizontal.png" src="../_images/schema-horizontal.png" />
+<div class="section" id="model-definitions">
+<h2>Model Definitions<a class="headerlink" href="#model-definitions" title="Permalink to this headline">¶</a></h2>
+<p>To begin working with the data, we’ll define the model classes that correspond
+to the tables in the diagram.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">In some cases we explicitly specify column names for a particular field.
+This is so our models are compatible with the database schema used for the
+postgres exercises.</p>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">peewee</span> <span class="kn">import</span> <span class="o">*</span>
+
+
+<span class="n">db</span> <span class="o">=</span> <span class="n">PostgresqlDatabase</span><span class="p">(</span><span class="s1">&#39;peewee_test&#39;</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">BaseModel</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">database</span> <span class="o">=</span> <span class="n">db</span>
+
+<span class="k">class</span> <span class="nc">Member</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="n">memid</span> <span class="o">=</span> <span class="n">AutoField</span><span class="p">()</span>  <span class="c1"># Auto-incrementing primary key.</span>
+    <span class="n">surname</span> <span class="o">=</span> <span class="n">CharField</span><span class="p">()</span>
+    <span class="n">firstname</span> <span class="o">=</span> <span class="n">CharField</span><span class="p">()</span>
+    <span class="n">address</span> <span class="o">=</span> <span class="n">CharField</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+    <span class="n">zipcode</span> <span class="o">=</span> <span class="n">IntegerField</span><span class="p">()</span>
+    <span class="n">telephone</span> <span class="o">=</span> <span class="n">CharField</span><span class="p">()</span>
+    <span class="n">recommendedby</span> <span class="o">=</span> <span class="n">ForeignKeyField</span><span class="p">(</span><span class="s1">&#39;self&#39;</span><span class="p">,</span> <span class="n">backref</span><span class="o">=</span><span class="s1">&#39;recommended&#39;</span><span class="p">,</span>
+                                    <span class="n">column_name</span><span class="o">=</span><span class="s1">&#39;recommendedby&#39;</span><span class="p">,</span> <span class="n">null</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">joindate</span> <span class="o">=</span> <span class="n">DateTimeField</span><span class="p">()</span>
+
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">table_name</span> <span class="o">=</span> <span class="s1">&#39;members&#39;</span>
+
+
+<span class="c1"># Conveniently declare decimal fields suitable for storing currency.</span>
+<span class="n">MoneyField</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DecimalField</span><span class="p">,</span> <span class="n">decimal_places</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Facility</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="n">facid</span> <span class="o">=</span> <span class="n">AutoField</span><span class="p">()</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">CharField</span><span class="p">()</span>
+    <span class="n">membercost</span> <span class="o">=</span> <span class="n">MoneyField</span><span class="p">()</span>
+    <span class="n">guestcost</span> <span class="o">=</span> <span class="n">MoneyField</span><span class="p">()</span>
+    <span class="n">initialoutlay</span> <span class="o">=</span> <span class="n">MoneyField</span><span class="p">()</span>
+    <span class="n">monthlymaintenance</span> <span class="o">=</span> <span class="n">MoneyField</span><span class="p">()</span>
+
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">table_name</span> <span class="o">=</span> <span class="s1">&#39;facilities&#39;</span>
+
+
+<span class="k">class</span> <span class="nc">Booking</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="n">bookid</span> <span class="o">=</span> <span class="n">AutoField</span><span class="p">()</span>
+    <span class="n">facility</span> <span class="o">=</span> <span class="n">ForeignKeyField</span><span class="p">(</span><span class="n">Facility</span><span class="p">,</span> <span class="n">column_name</span><span class="o">=</span><span class="s1">&#39;facid&#39;</span><span class="p">)</span>
+    <span class="n">member</span> <span class="o">=</span> <span class="n">ForeignKeyField</span><span class="p">(</span><span class="n">Member</span><span class="p">,</span> <span class="n">column_name</span><span class="o">=</span><span class="s1">&#39;memid&#39;</span><span class="p">)</span>
+    <span class="n">starttime</span> <span class="o">=</span> <span class="n">DateTimeField</span><span class="p">()</span>
+    <span class="n">slots</span> <span class="o">=</span> <span class="n">IntegerField</span><span class="p">()</span>
+
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">table_name</span> <span class="o">=</span> <span class="s1">&#39;bookings&#39;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="schema-creation">
+<h2>Schema Creation<a class="headerlink" href="#schema-creation" title="Permalink to this headline">¶</a></h2>
+<p>If you downloaded the SQL file from the PostgreSQL Exercises site, then you can
+load the data into a PostgreSQL database using the following commands:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">createdb</span> <span class="n">peewee_test</span>
+<span class="n">psql</span> <span class="o">-</span><span class="n">U</span> <span class="n">postgres</span> <span class="o">-</span><span class="n">f</span> <span class="n">clubdata</span><span class="o">.</span><span class="n">sql</span> <span class="o">-</span><span class="n">d</span> <span class="n">peewee_test</span> <span class="o">-</span><span class="n">x</span> <span class="o">-</span><span class="n">q</span>
+</pre></div>
+</div>
+<p>To create the schema using Peewee, without loading the sample data, you can run
+the following:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Assumes you have created the database &quot;peewee_test&quot; already.</span>
+<span class="n">db</span><span class="o">.</span><span class="n">create_tables</span><span class="p">([</span><span class="n">Member</span><span class="p">,</span> <span class="n">Facility</span><span class="p">,</span> <span class="n">Booking</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="basic-exercises">
+<h2>Basic Exercises<a class="headerlink" href="#basic-exercises" title="Permalink to this headline">¶</a></h2>
+<p>This category deals with the basics of SQL. It covers select and where clauses,
+case expressions, unions, and a few other odds and ends.</p>
+<div class="section" id="retrieve-everything">
+<h3>Retrieve everything<a class="headerlink" href="#retrieve-everything" title="Permalink to this headline">¶</a></h3>
+<p>Retrieve all information from facilities table.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">facilities</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># By default, when no fields are explicitly passed to select(), all fields</span>
+<span class="c1"># will be selected.</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="retrieve-specific-columns-from-a-table">
+<h3>Retrieve specific columns from a table<a class="headerlink" href="#retrieve-specific-columns-from-a-table" title="Permalink to this headline">¶</a></h3>
+<p>Retrieve names of facilities and cost to members.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">name</span><span class="p">,</span> <span class="n">membercost</span> <span class="k">FROM</span> <span class="n">facilities</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span><span class="p">)</span>
+
+<span class="c1"># To iterate:</span>
+<span class="k">for</span> <span class="n">facility</span> <span class="ow">in</span> <span class="n">query</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">facility</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="control-which-rows-are-retrieved">
+<h3>Control which rows are retrieved<a class="headerlink" href="#control-which-rows-are-retrieved" title="Permalink to this headline">¶</a></h3>
+<p>Retrieve list of facilities that have a cost to members.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">facilities</span> <span class="k">WHERE</span> <span class="n">membercost</span> <span class="o">&gt;</span> <span class="mi">0</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">()</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="control-which-rows-are-retrieved-part-2">
+<h3>Control which rows are retrieved - part 2<a class="headerlink" href="#control-which-rows-are-retrieved-part-2" title="Permalink to this headline">¶</a></h3>
+<p>Retrieve list of facilities that have a cost to members, and that fee is less
+than 1/50th of the monthly maintenance cost. Return id, name, cost and
+monthly-maintenance.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">facid</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">membercost</span><span class="p">,</span> <span class="n">monthlymaintenance</span>
+<span class="k">FROM</span> <span class="n">facilities</span>
+<span class="k">WHERE</span> <span class="n">membercost</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">AND</span> <span class="n">membercost</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">monthlymaintenance</span> <span class="o">/</span> <span class="mi">50</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Facility</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">facid</span><span class="p">,</span> <span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span><span class="p">,</span>
+                 <span class="n">Facility</span><span class="o">.</span><span class="n">monthlymaintenance</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span>
+             <span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span>
+             <span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">monthlymaintenance</span> <span class="o">/</span> <span class="mi">50</span><span class="p">))))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="basic-string-searches">
+<h3>Basic string searches<a class="headerlink" href="#basic-string-searches" title="Permalink to this headline">¶</a></h3>
+<p>How can you produce a list of all facilities with the word ‘Tennis’ in their
+name?</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">facilities</span> <span class="k">WHERE</span> <span class="n">name</span> <span class="k">ILIKE</span> <span class="s1">&#39;%tennis%&#39;</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">()</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s1">&#39;tennis&#39;</span><span class="p">))</span>
+
+<span class="c1"># OR use the exponent operator. Note: you must include wildcards here:</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">()</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span> <span class="o">**</span> <span class="s1">&#39;%tennis%&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="matching-against-multiple-possible-values">
+<h3>Matching against multiple possible values<a class="headerlink" href="#matching-against-multiple-possible-values" title="Permalink to this headline">¶</a></h3>
+<p>How can you retrieve the details of facilities with ID 1 and 5? Try to do it
+without using the OR operator.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">facilities</span> <span class="k">WHERE</span> <span class="n">facid</span> <span class="k">IN</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">);</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">()</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">facid</span><span class="o">.</span><span class="n">in_</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">]))</span>
+
+<span class="c1"># OR:</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">()</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">Facility</span><span class="o">.</span><span class="n">facid</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="o">|</span>
+                                <span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">facid</span> <span class="o">==</span> <span class="mi">5</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="classify-results-into-buckets">
+<h3>Classify results into buckets<a class="headerlink" href="#classify-results-into-buckets" title="Permalink to this headline">¶</a></h3>
+<p>How can you produce a list of facilities, with each labelled as ‘cheap’ or
+‘expensive’ depending on if their monthly maintenance cost is more than $100?
+Return the name and monthly maintenance of the facilities in question.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">name</span><span class="p">,</span>
+<span class="k">CASE</span> <span class="k">WHEN</span> <span class="n">monthlymaintenance</span> <span class="o">&gt;</span> <span class="mi">100</span> <span class="k">THEN</span> <span class="s1">&#39;expensive&#39;</span> <span class="k">ELSE</span> <span class="s1">&#39;cheap&#39;</span> <span class="k">END</span>
+<span class="k">FROM</span> <span class="n">facilities</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cost</span> <span class="o">=</span> <span class="n">Case</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="p">[(</span><span class="n">Facility</span><span class="o">.</span><span class="n">monthlymaintenance</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">,</span> <span class="s1">&#39;expensive&#39;</span><span class="p">)],</span> <span class="s1">&#39;cheap&#39;</span><span class="p">)</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">cost</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;cost&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">See documentation <a class="reference internal" href="api.html#Case" title="Case"><code class="xref py py-class docutils literal notranslate"><span class="pre">Case</span></code></a> for more examples.</p>
+</div>
+</div>
+<div class="section" id="working-with-dates">
+<h3>Working with dates<a class="headerlink" href="#working-with-dates" title="Permalink to this headline">¶</a></h3>
+<p>How can you produce a list of members who joined after the start of September
+2012? Return the memid, surname, firstname, and joindate of the members in
+question.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">memid</span><span class="p">,</span> <span class="n">surname</span><span class="p">,</span> <span class="n">firstname</span><span class="p">,</span> <span class="n">joindate</span> <span class="k">FROM</span> <span class="n">members</span>
+<span class="k">WHERE</span> <span class="n">joindate</span> <span class="o">&gt;=</span> <span class="s1">&#39;2012-09-01&#39;</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">memid</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">joindate</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">joindate</span> <span class="o">&gt;=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2012</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="removing-duplicates-and-ordering-results">
+<h3>Removing duplicates, and ordering results<a class="headerlink" href="#removing-duplicates-and-ordering-results" title="Permalink to this headline">¶</a></h3>
+<p>How can you produce an ordered list of the first 10 surnames in the members
+table? The list must not contain duplicates.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="k">DISTINCT</span> <span class="n">surname</span> <span class="k">FROM</span> <span class="n">members</span> <span class="k">ORDER</span> <span class="k">BY</span> <span class="n">surname</span> <span class="k">LIMIT</span> <span class="mi">10</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">distinct</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="combining-results-from-multiple-queries">
+<h3>Combining results from multiple queries<a class="headerlink" href="#combining-results-from-multiple-queries" title="Permalink to this headline">¶</a></h3>
+<p>You, for some reason, want a combined list of all surnames and all facility
+names.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">surname</span> <span class="k">FROM</span> <span class="n">members</span> <span class="k">UNION</span> <span class="k">SELECT</span> <span class="n">name</span> <span class="k">FROM</span> <span class="n">facilities</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">lhs</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">)</span>
+<span class="n">rhs</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">lhs</span> <span class="o">|</span> <span class="n">rhs</span>
+</pre></div>
+</div>
+<p>Queries can be composed using the following operators:</p>
+<ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">|</span></code> - <code class="docutils literal notranslate"><span class="pre">UNION</span></code></li>
+<li><code class="docutils literal notranslate"><span class="pre">+</span></code> - <code class="docutils literal notranslate"><span class="pre">UNION</span> <span class="pre">ALL</span></code></li>
+<li><code class="docutils literal notranslate"><span class="pre">&amp;</span></code> - <code class="docutils literal notranslate"><span class="pre">INTERSECT</span></code></li>
+<li><code class="docutils literal notranslate"><span class="pre">-</span></code> - <code class="docutils literal notranslate"><span class="pre">EXCEPT</span></code></li>
+</ul>
+</div>
+<div class="section" id="simple-aggregation">
+<h3>Simple aggregation<a class="headerlink" href="#simple-aggregation" title="Permalink to this headline">¶</a></h3>
+<p>You’d like to get the signup date of your last member. How can you retrieve
+this information?</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="k">MAX</span><span class="p">(</span><span class="n">join_date</span><span class="p">)</span> <span class="k">FROM</span> <span class="n">members</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">MAX</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">joindate</span><span class="p">))</span>
+<span class="c1"># To conveniently obtain a single scalar value, use &quot;scalar()&quot;:</span>
+<span class="c1"># max_join_date = query.scalar()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="more-aggregation">
+<h3>More aggregation<a class="headerlink" href="#more-aggregation" title="Permalink to this headline">¶</a></h3>
+<p>You’d like to get the first and last name of the last member(s) who signed up
+- not just the date.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">firstname</span><span class="p">,</span> <span class="n">surname</span><span class="p">,</span> <span class="n">joindate</span> <span class="k">FROM</span> <span class="n">members</span>
+<span class="k">WHERE</span> <span class="n">joindate</span> <span class="o">=</span> <span class="p">(</span><span class="k">SELECT</span> <span class="k">MAX</span><span class="p">(</span><span class="n">joindate</span><span class="p">)</span> <span class="k">FROM</span> <span class="n">members</span><span class="p">);</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Use &quot;alias()&quot; to reference the same table multiple times in a query.</span>
+<span class="n">MemberAlias</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">alias</span><span class="p">()</span>
+<span class="n">subq</span> <span class="o">=</span> <span class="n">MemberAlias</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">MAX</span><span class="p">(</span><span class="n">MemberAlias</span><span class="o">.</span><span class="n">joindate</span><span class="p">))</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">joindate</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">joindate</span> <span class="o">==</span> <span class="n">subq</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="joins-and-subqueries">
+<h2>Joins and Subqueries<a class="headerlink" href="#joins-and-subqueries" title="Permalink to this headline">¶</a></h2>
+<p>This category deals primarily with a foundational concept in relational
+database systems: joining. Joining allows you to combine related information
+from multiple tables to answer a question. This isn’t just beneficial for ease
+of querying: a lack of join capability encourages denormalisation of data,
+which increases the complexity of keeping your data internally consistent.</p>
+<p>This topic covers inner, outer, and self joins, as well as spending a little
+time on subqueries (queries within queries).</p>
+<div class="section" id="retrieve-the-start-times-of-members-bookings">
+<h3>Retrieve the start times of members’ bookings<a class="headerlink" href="#retrieve-the-start-times-of-members-bookings" title="Permalink to this headline">¶</a></h3>
+<p>How can you produce a list of the start times for bookings by members named
+‘David Farrell’?</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">starttime</span> <span class="k">FROM</span> <span class="n">bookings</span>
+<span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">members</span> <span class="k">ON</span> <span class="p">(</span><span class="n">bookings</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="n">members</span><span class="p">.</span><span class="n">memid</span><span class="p">)</span>
+<span class="k">WHERE</span> <span class="n">surname</span> <span class="o">=</span> <span class="s1">&#39;Farrell&#39;</span> <span class="k">AND</span> <span class="n">firstname</span> <span class="o">=</span> <span class="s1">&#39;David&#39;</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Booking</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">starttime</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Member</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">Member</span><span class="o">.</span><span class="n">surname</span> <span class="o">==</span> <span class="s1">&#39;Farrell&#39;</span><span class="p">)</span> <span class="o">&amp;</span>
+                <span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">firstname</span> <span class="o">==</span> <span class="s1">&#39;David&#39;</span><span class="p">)))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="work-out-the-start-times-of-bookings-for-tennis-courts">
+<h3>Work out the start times of bookings for tennis courts<a class="headerlink" href="#work-out-the-start-times-of-bookings-for-tennis-courts" title="Permalink to this headline">¶</a></h3>
+<p>How can you produce a list of the start times for bookings for tennis courts,
+for the date ‘2012-09-21’? Return a list of start time and facility name
+pairings, ordered by the time.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">starttime</span><span class="p">,</span> <span class="n">name</span>
+<span class="k">FROM</span> <span class="n">bookings</span>
+<span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">facilities</span> <span class="k">ON</span> <span class="p">(</span><span class="n">bookings</span><span class="p">.</span><span class="n">facid</span> <span class="o">=</span> <span class="n">facilities</span><span class="p">.</span><span class="n">facid</span><span class="p">)</span>
+<span class="k">WHERE</span> <span class="n">date_trunc</span><span class="p">(</span><span class="s1">&#39;day&#39;</span><span class="p">,</span> <span class="n">starttime</span><span class="p">)</span> <span class="o">=</span> <span class="s1">&#39;2012-09-21&#39;</span><span class="p">::</span> <span class="nb">date</span>
+  <span class="k">AND</span> <span class="n">name</span> <span class="k">ILIKE</span> <span class="s1">&#39;tennis%&#39;</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">starttime</span><span class="p">,</span> <span class="n">name</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Booking</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">starttime</span><span class="p">,</span> <span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Facility</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span>
+             <span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">date_trunc</span><span class="p">(</span><span class="s1">&#39;day&#39;</span><span class="p">,</span> <span class="n">Booking</span><span class="o">.</span><span class="n">starttime</span><span class="p">)</span> <span class="o">==</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2012</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">21</span><span class="p">))</span> <span class="o">&amp;</span>
+             <span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;Tennis&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">starttime</span><span class="p">,</span> <span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+<span class="c1"># To retrieve the joined facility&#39;s name when iterating:</span>
+<span class="k">for</span> <span class="n">booking</span> <span class="ow">in</span> <span class="n">query</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">booking</span><span class="o">.</span><span class="n">starttime</span><span class="p">,</span> <span class="n">booking</span><span class="o">.</span><span class="n">facility</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="produce-a-list-of-all-members-who-have-recommended-another-member">
+<h3>Produce a list of all members who have recommended another member<a class="headerlink" href="#produce-a-list-of-all-members-who-have-recommended-another-member" title="Permalink to this headline">¶</a></h3>
+<p>How can you output a list of all members who have recommended another member?
+Ensure that there are no duplicates in the list, and that results are ordered
+by (surname, firstname).</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="k">DISTINCT</span> <span class="n">m</span><span class="p">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">m</span><span class="p">.</span><span class="n">surname</span>
+<span class="k">FROM</span> <span class="n">members</span> <span class="k">AS</span> <span class="n">m2</span>
+<span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">members</span> <span class="k">AS</span> <span class="n">m</span> <span class="k">ON</span> <span class="p">(</span><span class="n">m</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="n">m2</span><span class="p">.</span><span class="n">recommendedby</span><span class="p">)</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">m</span><span class="p">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">m</span><span class="p">.</span><span class="n">firstname</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">MA</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">alias</span><span class="p">()</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MA</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">(</span><span class="n">MA</span><span class="o">.</span><span class="n">recommendedby</span> <span class="o">==</span> <span class="n">Member</span><span class="o">.</span><span class="n">memid</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">firstname</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="produce-a-list-of-all-members-along-with-their-recommender">
+<h3>Produce a list of all members, along with their recommender<a class="headerlink" href="#produce-a-list-of-all-members-along-with-their-recommender" title="Permalink to this headline">¶</a></h3>
+<p>How can you output a list of all members, including the individual who
+recommended them (if any)? Ensure that results are ordered by (surname,
+firstname).</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">m</span><span class="p">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">m</span><span class="p">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">r</span><span class="p">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">r</span><span class="p">.</span><span class="n">surname</span>
+<span class="k">FROM</span> <span class="n">members</span> <span class="k">AS</span> <span class="n">m</span>
+<span class="k">LEFT</span> <span class="k">OUTER</span> <span class="k">JOIN</span> <span class="n">members</span> <span class="k">AS</span> <span class="n">r</span> <span class="k">ON</span> <span class="p">(</span><span class="n">m</span><span class="p">.</span><span class="n">recommendedby</span> <span class="o">=</span> <span class="n">r</span><span class="p">.</span><span class="n">memid</span><span class="p">)</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">m</span><span class="p">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">m</span><span class="p">.</span><span class="n">firstname</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">MA</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">alias</span><span class="p">()</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">MA</span><span class="o">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">MA</span><span class="o">.</span><span class="n">surname</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MA</span><span class="p">,</span> <span class="n">JOIN</span><span class="o">.</span><span class="n">LEFT_OUTER</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">recommendedby</span> <span class="o">==</span> <span class="n">MA</span><span class="o">.</span><span class="n">memid</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">firstname</span><span class="p">))</span>
+
+<span class="c1"># To display the recommender&#39;s name when iterating:</span>
+<span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">query</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">surname</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">recommendedby</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="s1">&#39;  &#39;</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">recommendedby</span><span class="o">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">recommendedby</span><span class="o">.</span><span class="n">surname</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="produce-a-list-of-all-members-who-have-used-a-tennis-court">
+<h3>Produce a list of all members who have used a tennis court<a class="headerlink" href="#produce-a-list-of-all-members-who-have-used-a-tennis-court" title="Permalink to this headline">¶</a></h3>
+<p>How can you produce a list of all members who have used a tennis court?
+Include in your output the name of the court, and the name of the member
+formatted as a single column. Ensure no duplicate data, and order by the
+member name.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="k">DISTINCT</span> <span class="n">m</span><span class="p">.</span><span class="n">firstname</span> <span class="o">||</span> <span class="s1">&#39; &#39;</span> <span class="o">||</span> <span class="n">m</span><span class="p">.</span><span class="n">surname</span> <span class="k">AS</span> <span class="n">member</span><span class="p">,</span> <span class="n">f</span><span class="p">.</span><span class="n">name</span> <span class="k">AS</span> <span class="n">facility</span>
+<span class="k">FROM</span> <span class="n">members</span> <span class="k">AS</span> <span class="n">m</span>
+<span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">bookings</span> <span class="k">AS</span> <span class="n">b</span> <span class="k">ON</span> <span class="p">(</span><span class="n">m</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="n">b</span><span class="p">.</span><span class="n">memid</span><span class="p">)</span>
+<span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">facilities</span> <span class="k">AS</span> <span class="n">f</span> <span class="k">ON</span> <span class="p">(</span><span class="n">b</span><span class="p">.</span><span class="n">facid</span> <span class="o">=</span> <span class="n">f</span><span class="p">.</span><span class="n">facid</span><span class="p">)</span>
+<span class="k">WHERE</span> <span class="n">f</span><span class="p">.</span><span class="n">name</span> <span class="k">LIKE</span> <span class="s1">&#39;Tennis%&#39;</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">member</span><span class="p">,</span> <span class="n">facility</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fullname</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">firstname</span> <span class="o">+</span> <span class="s1">&#39; &#39;</span> <span class="o">+</span> <span class="n">Member</span><span class="o">.</span><span class="n">surname</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fullname</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;member&#39;</span><span class="p">),</span> <span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;facility&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Booking</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Facility</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;Tennis&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">fullname</span><span class="p">,</span> <span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">distinct</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="produce-a-list-of-costly-bookings">
+<h3>Produce a list of costly bookings<a class="headerlink" href="#produce-a-list-of-costly-bookings" title="Permalink to this headline">¶</a></h3>
+<p>How can you produce a list of bookings on the day of 2012-09-14 which will
+cost the member (or guest) more than $30? Remember that guests have different
+costs to members (the listed costs are per half-hour ‘slot’), and the guest
+user is always ID 0. Include in your output the name of the facility, the
+name of the member formatted as a single column, and the cost. Order by
+descending cost, and do not use any subqueries.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">m</span><span class="p">.</span><span class="n">firstname</span> <span class="o">||</span> <span class="s1">&#39; &#39;</span> <span class="o">||</span> <span class="n">m</span><span class="p">.</span><span class="n">surname</span> <span class="k">AS</span> <span class="n">member</span><span class="p">,</span>
+       <span class="n">f</span><span class="p">.</span><span class="n">name</span> <span class="k">AS</span> <span class="n">facility</span><span class="p">,</span>
+       <span class="p">(</span><span class="k">CASE</span> <span class="k">WHEN</span> <span class="n">m</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">THEN</span> <span class="n">f</span><span class="p">.</span><span class="n">guestcost</span> <span class="o">*</span> <span class="n">b</span><span class="p">.</span><span class="n">slots</span>
+        <span class="k">ELSE</span> <span class="n">f</span><span class="p">.</span><span class="n">membercost</span> <span class="o">*</span> <span class="n">b</span><span class="p">.</span><span class="n">slots</span> <span class="k">END</span><span class="p">)</span> <span class="k">AS</span> <span class="n">cost</span>
+<span class="k">FROM</span> <span class="n">members</span> <span class="k">AS</span> <span class="n">m</span>
+<span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">bookings</span> <span class="k">AS</span> <span class="n">b</span> <span class="k">ON</span> <span class="p">(</span><span class="n">m</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="n">b</span><span class="p">.</span><span class="n">memid</span><span class="p">)</span>
+<span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">facilities</span> <span class="k">AS</span> <span class="n">f</span> <span class="k">ON</span> <span class="p">(</span><span class="n">b</span><span class="p">.</span><span class="n">facid</span> <span class="o">=</span> <span class="n">f</span><span class="p">.</span><span class="n">facid</span><span class="p">)</span>
+<span class="k">WHERE</span> <span class="p">(</span><span class="n">date_trunc</span><span class="p">(</span><span class="s1">&#39;day&#39;</span><span class="p">,</span> <span class="n">b</span><span class="p">.</span><span class="n">starttime</span><span class="p">)</span> <span class="o">=</span> <span class="s1">&#39;2012-09-14&#39;</span><span class="p">)</span> <span class="k">AND</span>
+ <span class="p">((</span><span class="n">m</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">AND</span> <span class="n">b</span><span class="p">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">f</span><span class="p">.</span><span class="n">guestcost</span> <span class="o">&gt;</span> <span class="mi">30</span><span class="p">)</span> <span class="k">OR</span>
+  <span class="p">(</span><span class="n">m</span><span class="p">.</span><span class="n">memid</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">AND</span> <span class="n">b</span><span class="p">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">f</span><span class="p">.</span><span class="n">membercost</span> <span class="o">&gt;</span> <span class="mi">30</span><span class="p">))</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">cost</span> <span class="k">DESC</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cost</span> <span class="o">=</span> <span class="n">Case</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">memid</span><span class="p">,</span> <span class="p">(</span>
+    <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Booking</span><span class="o">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">Facility</span><span class="o">.</span><span class="n">guestcost</span><span class="p">),</span>
+<span class="p">),</span> <span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span><span class="p">))</span>
+<span class="n">fullname</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">firstname</span> <span class="o">+</span> <span class="s1">&#39; &#39;</span> <span class="o">+</span> <span class="n">Member</span><span class="o">.</span><span class="n">surname</span>
+
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fullname</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;member&#39;</span><span class="p">),</span> <span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;facility&#39;</span><span class="p">),</span>
+                 <span class="n">cost</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;cost&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Booking</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Facility</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span>
+             <span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">date_trunc</span><span class="p">(</span><span class="s1">&#39;day&#39;</span><span class="p">,</span> <span class="n">Booking</span><span class="o">.</span><span class="n">starttime</span><span class="p">)</span> <span class="o">==</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2012</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">14</span><span class="p">))</span> <span class="o">&amp;</span>
+             <span class="p">(</span><span class="n">cost</span> <span class="o">&gt;</span> <span class="mi">30</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">SQL</span><span class="p">(</span><span class="s1">&#39;cost&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">desc</span><span class="p">()))</span>
+
+<span class="c1"># To iterate over the results, it might be easiest to use namedtuples:</span>
+<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">query</span><span class="o">.</span><span class="n">namedtuples</span><span class="p">():</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">member</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">facility</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">cost</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="produce-a-list-of-all-members-along-with-their-recommender-using-no-joins">
+<h3>Produce a list of all members, along with their recommender, using no joins.<a class="headerlink" href="#produce-a-list-of-all-members-along-with-their-recommender-using-no-joins" title="Permalink to this headline">¶</a></h3>
+<p>How can you output a list of all members, including the individual who
+recommended them (if any), without using any joins? Ensure that there are no
+duplicates in the list, and that each firstname + surname pairing is
+formatted as a column and ordered.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="k">DISTINCT</span> <span class="n">m</span><span class="p">.</span><span class="n">firstname</span> <span class="o">||</span> <span class="s1">&#39; &#39;</span> <span class="o">||</span> <span class="n">m</span><span class="p">.</span><span class="n">surname</span> <span class="k">AS</span> <span class="n">member</span><span class="p">,</span>
+   <span class="p">(</span><span class="k">SELECT</span> <span class="n">r</span><span class="p">.</span><span class="n">firstname</span> <span class="o">||</span> <span class="s1">&#39; &#39;</span> <span class="o">||</span> <span class="n">r</span><span class="p">.</span><span class="n">surname</span>
+    <span class="k">FROM</span> <span class="n">cd</span><span class="p">.</span><span class="n">members</span> <span class="k">AS</span> <span class="n">r</span>
+    <span class="k">WHERE</span> <span class="n">m</span><span class="p">.</span><span class="n">recommendedby</span> <span class="o">=</span> <span class="n">r</span><span class="p">.</span><span class="n">memid</span><span class="p">)</span> <span class="k">AS</span> <span class="n">recommended</span>
+<span class="k">FROM</span> <span class="n">members</span> <span class="k">AS</span> <span class="n">m</span> <span class="k">ORDER</span> <span class="k">BY</span> <span class="n">member</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">MA</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">alias</span><span class="p">()</span>
+<span class="n">subq</span> <span class="o">=</span> <span class="p">(</span><span class="n">MA</span>
+        <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">MA</span><span class="o">.</span><span class="n">firstname</span> <span class="o">+</span> <span class="s1">&#39; &#39;</span> <span class="o">+</span> <span class="n">MA</span><span class="o">.</span><span class="n">surname</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">recommendedby</span> <span class="o">==</span> <span class="n">MA</span><span class="o">.</span><span class="n">memid</span><span class="p">))</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fullname</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;member&#39;</span><span class="p">),</span> <span class="n">subq</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;recommended&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">fullname</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="produce-a-list-of-costly-bookings-using-a-subquery">
+<h3>Produce a list of costly bookings, using a subquery<a class="headerlink" href="#produce-a-list-of-costly-bookings-using-a-subquery" title="Permalink to this headline">¶</a></h3>
+<p>The “Produce a list of costly bookings” exercise contained some messy logic: we
+had to calculate the booking cost in both the WHERE clause and the CASE
+statement. Try to simplify this calculation using subqueries.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">member</span><span class="p">,</span> <span class="n">facility</span><span class="p">,</span> <span class="n">cost</span> <span class="k">from</span> <span class="p">(</span>
+  <span class="k">SELECT</span>
+  <span class="n">m</span><span class="p">.</span><span class="n">firstname</span> <span class="o">||</span> <span class="s1">&#39; &#39;</span> <span class="o">||</span> <span class="n">m</span><span class="p">.</span><span class="n">surname</span> <span class="k">as</span> <span class="n">member</span><span class="p">,</span>
+  <span class="n">f</span><span class="p">.</span><span class="n">name</span> <span class="k">as</span> <span class="n">facility</span><span class="p">,</span>
+  <span class="k">CASE</span> <span class="k">WHEN</span> <span class="n">m</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">THEN</span> <span class="n">b</span><span class="p">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">f</span><span class="p">.</span><span class="n">guestcost</span>
+  <span class="k">ELSE</span> <span class="n">b</span><span class="p">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">f</span><span class="p">.</span><span class="n">membercost</span> <span class="k">END</span> <span class="k">AS</span> <span class="n">cost</span>
+  <span class="k">FROM</span> <span class="n">members</span> <span class="k">AS</span> <span class="n">m</span>
+  <span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">bookings</span> <span class="k">AS</span> <span class="n">b</span> <span class="k">ON</span> <span class="n">m</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="n">b</span><span class="p">.</span><span class="n">memid</span>
+  <span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">facilities</span> <span class="k">AS</span> <span class="n">f</span> <span class="k">ON</span> <span class="n">b</span><span class="p">.</span><span class="n">facid</span> <span class="o">=</span> <span class="n">f</span><span class="p">.</span><span class="n">facid</span>
+  <span class="k">WHERE</span> <span class="n">date_trunc</span><span class="p">(</span><span class="s1">&#39;day&#39;</span><span class="p">,</span> <span class="n">b</span><span class="p">.</span><span class="n">starttime</span><span class="p">)</span> <span class="o">=</span> <span class="s1">&#39;2012-09-14&#39;</span>
+<span class="p">)</span> <span class="k">as</span> <span class="n">bookings</span>
+<span class="k">WHERE</span> <span class="n">cost</span> <span class="o">&gt;</span> <span class="mi">30</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">cost</span> <span class="k">DESC</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cost</span> <span class="o">=</span> <span class="n">Case</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">memid</span><span class="p">,</span> <span class="p">(</span>
+    <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">Booking</span><span class="o">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">Facility</span><span class="o">.</span><span class="n">guestcost</span><span class="p">),</span>
+<span class="p">),</span> <span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span><span class="p">))</span>
+
+<span class="n">iq</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+      <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fullname</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;member&#39;</span><span class="p">),</span> <span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;facility&#39;</span><span class="p">),</span>
+              <span class="n">cost</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;cost&#39;</span><span class="p">))</span>
+      <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Booking</span><span class="p">)</span>
+      <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Facility</span><span class="p">)</span>
+      <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">date_trunc</span><span class="p">(</span><span class="s1">&#39;day&#39;</span><span class="p">,</span> <span class="n">Booking</span><span class="o">.</span><span class="n">starttime</span><span class="p">)</span> <span class="o">==</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2012</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">14</span><span class="p">)))</span>
+
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">iq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">member</span><span class="p">,</span> <span class="n">iq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">facility</span><span class="p">,</span> <span class="n">iq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">cost</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">from_</span><span class="p">(</span><span class="n">iq</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">iq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">cost</span> <span class="o">&gt;</span> <span class="mi">30</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">SQL</span><span class="p">(</span><span class="s1">&#39;cost&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">desc</span><span class="p">()))</span>
+
+<span class="c1"># To iterate, try using dicts:</span>
+<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">query</span><span class="o">.</span><span class="n">dicts</span><span class="p">():</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;member&#39;</span><span class="p">],</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;facility&#39;</span><span class="p">],</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;cost&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="modifying-data">
+<h2>Modifying Data<a class="headerlink" href="#modifying-data" title="Permalink to this headline">¶</a></h2>
+<p>Querying data is all well and good, but at some point you’re probably going to
+want to put data into your database! This section deals with inserting,
+updating, and deleting information. Operations that alter your data like this
+are collectively known as Data Manipulation Language, or DML.</p>
+<p>In previous sections, we returned to you the results of the query you’ve
+performed. Since modifications like the ones we’re making in this section don’t
+return any query results, we instead show you the updated content of the table
+you’re supposed to be working on.</p>
+<div class="section" id="insert-some-data-into-a-table">
+<h3>Insert some data into a table<a class="headerlink" href="#insert-some-data-into-a-table" title="Permalink to this headline">¶</a></h3>
+<p>The club is adding a new facility - a spa. We need to add it into the
+facilities table. Use the following values: facid: 9, Name: ‘Spa’,
+membercost: 20, guestcost: 30, initialoutlay: 100000, monthlymaintenance: 800</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">INSERT</span> <span class="k">INTO</span> <span class="ss">&quot;facilities&quot;</span> <span class="p">(</span><span class="ss">&quot;facid&quot;</span><span class="p">,</span> <span class="ss">&quot;name&quot;</span><span class="p">,</span> <span class="ss">&quot;membercost&quot;</span><span class="p">,</span> <span class="ss">&quot;guestcost&quot;</span><span class="p">,</span>
+<span class="ss">&quot;initialoutlay&quot;</span><span class="p">,</span> <span class="ss">&quot;monthlymaintenance&quot;</span><span class="p">)</span> <span class="k">VALUES</span> <span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="s1">&#39;Spa&#39;</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">100000</span><span class="p">,</span> <span class="mi">800</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">insert</span><span class="p">({</span>
+    <span class="n">Facility</span><span class="o">.</span><span class="n">facid</span><span class="p">:</span> <span class="mi">9</span><span class="p">,</span>
+    <span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="s1">&#39;Spa&#39;</span><span class="p">,</span>
+    <span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+    <span class="n">Facility</span><span class="o">.</span><span class="n">guestcost</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>
+    <span class="n">Facility</span><span class="o">.</span><span class="n">initialoutlay</span><span class="p">:</span> <span class="mi">100000</span><span class="p">,</span>
+    <span class="n">Facility</span><span class="o">.</span><span class="n">monthlymaintenance</span><span class="p">:</span> <span class="mi">800</span><span class="p">})</span>
+
+<span class="c1"># OR:</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">facid</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Spa&#39;</span><span class="p">,</span> <span class="n">membercost</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">guestcost</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                        <span class="n">initialoutlay</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span> <span class="n">monthlymaintenance</span><span class="o">=</span><span class="mi">800</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="insert-multiple-rows-of-data-into-a-table">
+<h3>Insert multiple rows of data into a table<a class="headerlink" href="#insert-multiple-rows-of-data-into-a-table" title="Permalink to this headline">¶</a></h3>
+<p>In the previous exercise, you learned how to add a facility. Now you’re going
+to add multiple facilities in one command. Use the following values:</p>
+<p>facid: 9, Name: ‘Spa’, membercost: 20, guestcost: 30, initialoutlay: 100000,
+monthlymaintenance: 800.</p>
+<p>facid: 10, Name: ‘Squash Court 2’, membercost: 3.5, guestcost: 17.5,
+initialoutlay: 5000, monthlymaintenance: 80.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- see above --</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s1">&#39;facid&#39;</span><span class="p">:</span> <span class="mi">9</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Spa&#39;</span><span class="p">,</span> <span class="s1">&#39;membercost&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span> <span class="s1">&#39;guestcost&#39;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>
+     <span class="s1">&#39;initialoutlay&#39;</span><span class="p">:</span> <span class="mi">100000</span><span class="p">,</span> <span class="s1">&#39;monthlymaintenance&#39;</span><span class="p">:</span> <span class="mi">800</span><span class="p">},</span>
+    <span class="p">{</span><span class="s1">&#39;facid&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Squash Court 2&#39;</span><span class="p">,</span> <span class="s1">&#39;membercost&#39;</span><span class="p">:</span> <span class="mf">3.5</span><span class="p">,</span>
+     <span class="s1">&#39;guestcost&#39;</span><span class="p">:</span> <span class="mf">17.5</span><span class="p">,</span> <span class="s1">&#39;initialoutlay&#39;</span><span class="p">:</span> <span class="mi">5000</span><span class="p">,</span> <span class="s1">&#39;monthlymaintenance&#39;</span><span class="p">:</span> <span class="mi">80</span><span class="p">}]</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">insert_many</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="insert-calculated-data-into-a-table">
+<h3>Insert calculated data into a table<a class="headerlink" href="#insert-calculated-data-into-a-table" title="Permalink to this headline">¶</a></h3>
+<p>Let’s try adding the spa to the facilities table again. This time, though, we
+want to automatically generate the value for the next facid, rather than
+specifying it as a constant. Use the following values for everything else:
+Name: ‘Spa’, membercost: 20, guestcost: 30, initialoutlay: 100000,
+monthlymaintenance: 800.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">INSERT</span> <span class="k">INTO</span> <span class="ss">&quot;facilities&quot;</span> <span class="p">(</span><span class="ss">&quot;facid&quot;</span><span class="p">,</span> <span class="ss">&quot;name&quot;</span><span class="p">,</span> <span class="ss">&quot;membercost&quot;</span><span class="p">,</span> <span class="ss">&quot;guestcost&quot;</span><span class="p">,</span>
+  <span class="ss">&quot;initialoutlay&quot;</span><span class="p">,</span> <span class="ss">&quot;monthlymaintenance&quot;</span><span class="p">)</span>
+<span class="k">SELECT</span> <span class="p">(</span><span class="k">SELECT</span> <span class="p">(</span><span class="k">MAX</span><span class="p">(</span><span class="ss">&quot;facid&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">FROM</span> <span class="ss">&quot;facilities&quot;</span><span class="p">)</span> <span class="k">AS</span> <span class="n">_</span><span class="p">,</span>
+        <span class="s1">&#39;Spa&#39;</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">100000</span><span class="p">,</span> <span class="mi">800</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">maxq</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">MAX</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">facid</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">subq</span> <span class="o">=</span> <span class="n">Select</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">(</span><span class="n">maxq</span><span class="p">,</span> <span class="s1">&#39;Spa&#39;</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">100000</span><span class="p">,</span> <span class="mi">800</span><span class="p">))</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">insert_from</span><span class="p">(</span><span class="n">subq</span><span class="p">,</span> <span class="n">Facility</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">sorted_fields</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="update-some-existing-data">
+<h3>Update some existing data<a class="headerlink" href="#update-some-existing-data" title="Permalink to this headline">¶</a></h3>
+<p>We made a mistake when entering the data for the second tennis court. The
+initial outlay was 10000 rather than 8000: you need to alter the data to fix
+the error.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">UPDATE</span> <span class="n">facilities</span> <span class="k">SET</span> <span class="n">initialoutlay</span> <span class="o">=</span> <span class="mi">10000</span> <span class="k">WHERE</span> <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;Tennis Court 2&#39;</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Facility</span>
+         <span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">Facility</span><span class="o">.</span><span class="n">initialoutlay</span><span class="p">:</span> <span class="mi">10000</span><span class="p">})</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Tennis Court 2&#39;</span><span class="p">))</span>
+
+<span class="c1"># OR:</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Facility</span>
+         <span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">initialoutlay</span><span class="o">=</span><span class="mi">10000</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Tennis Court 2&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="update-multiple-rows-and-columns-at-the-same-time">
+<h3>Update multiple rows and columns at the same time<a class="headerlink" href="#update-multiple-rows-and-columns-at-the-same-time" title="Permalink to this headline">¶</a></h3>
+<p>We want to increase the price of the tennis courts for both members and
+guests. Update the costs to be 6 for members, and 30 for guests.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">UPDATE</span> <span class="n">facilities</span> <span class="k">SET</span> <span class="n">membercost</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">guestcost</span><span class="o">=</span><span class="mi">30</span> <span class="k">WHERE</span> <span class="n">name</span> <span class="k">ILIKE</span> <span class="s1">&#39;Tennis%&#39;</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Facility</span>
+         <span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">membercost</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">guestcost</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;Tennis&#39;</span><span class="p">)))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="update-a-row-based-on-the-contents-of-another-row">
+<h3>Update a row based on the contents of another row<a class="headerlink" href="#update-a-row-based-on-the-contents-of-another-row" title="Permalink to this headline">¶</a></h3>
+<p>We want to alter the price of the second tennis court so that it costs 10%
+more than the first one. Try to do this without using constant values for the
+prices, so that we can reuse the statement if we want to.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">UPDATE</span> <span class="n">facilities</span> <span class="k">SET</span>
+<span class="n">membercost</span> <span class="o">=</span> <span class="p">(</span><span class="k">SELECT</span> <span class="n">membercost</span> <span class="o">*</span> <span class="mi">1</span><span class="p">.</span><span class="mi">1</span> <span class="k">FROM</span> <span class="n">facilities</span> <span class="k">WHERE</span> <span class="n">facid</span> <span class="o">=</span> <span class="mi">0</span><span class="p">),</span>
+<span class="n">guestcost</span> <span class="o">=</span> <span class="p">(</span><span class="k">SELECT</span> <span class="n">guestcost</span> <span class="o">*</span> <span class="mi">1</span><span class="p">.</span><span class="mi">1</span> <span class="k">FROM</span> <span class="n">facilities</span> <span class="k">WHERE</span> <span class="n">facid</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span>
+<span class="k">WHERE</span> <span class="n">facid</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+
+<span class="c1">-- OR --</span>
+<span class="k">WITH</span> <span class="n">new_prices</span> <span class="p">(</span><span class="n">nmc</span><span class="p">,</span> <span class="n">ngc</span><span class="p">)</span> <span class="k">AS</span> <span class="p">(</span>
+  <span class="k">SELECT</span> <span class="n">membercost</span> <span class="o">*</span> <span class="mi">1</span><span class="p">.</span><span class="mi">1</span><span class="p">,</span> <span class="n">guestcost</span> <span class="o">*</span> <span class="mi">1</span><span class="p">.</span><span class="mi">1</span>
+  <span class="k">FROM</span> <span class="n">facilities</span> <span class="k">WHERE</span> <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;Tennis Court 1&#39;</span><span class="p">)</span>
+<span class="k">UPDATE</span> <span class="n">facilities</span>
+<span class="k">SET</span> <span class="n">membercost</span> <span class="o">=</span> <span class="n">new_prices</span><span class="p">.</span><span class="n">nmc</span><span class="p">,</span> <span class="n">guestcost</span> <span class="o">=</span> <span class="n">new_prices</span><span class="p">.</span><span class="n">ngc</span>
+<span class="k">FROM</span> <span class="n">new_prices</span>
+<span class="k">WHERE</span> <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;Tennis Court 2&#39;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sq1</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span> <span class="o">*</span> <span class="mf">1.1</span><span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">facid</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+<span class="n">sq2</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">guestcost</span> <span class="o">*</span> <span class="mf">1.1</span><span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">facid</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Facility</span>
+         <span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">membercost</span><span class="o">=</span><span class="n">sq1</span><span class="p">,</span> <span class="n">guestcost</span><span class="o">=</span><span class="n">sq2</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">facid</span> <span class="o">==</span> <span class="mi">1</span><span class="p">))</span>
+
+<span class="c1"># OR:</span>
+<span class="n">cte</span> <span class="o">=</span> <span class="p">(</span><span class="n">Facility</span>
+       <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span> <span class="o">*</span> <span class="mf">1.1</span><span class="p">,</span> <span class="n">Facility</span><span class="o">.</span><span class="n">guestcost</span> <span class="o">*</span> <span class="mf">1.1</span><span class="p">)</span>
+       <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Tennis Court 1&#39;</span><span class="p">)</span>
+       <span class="o">.</span><span class="n">cte</span><span class="p">(</span><span class="s1">&#39;new_prices&#39;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;nmc&#39;</span><span class="p">,</span> <span class="s1">&#39;ngc&#39;</span><span class="p">)))</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Facility</span>
+         <span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">membercost</span><span class="o">=</span><span class="n">SQL</span><span class="p">(</span><span class="s1">&#39;new_prices.nmc&#39;</span><span class="p">),</span> <span class="n">guestcost</span><span class="o">=</span><span class="n">SQL</span><span class="p">(</span><span class="s1">&#39;new_prices.ngc&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">with_cte</span><span class="p">(</span><span class="n">cte</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">from_</span><span class="p">(</span><span class="n">cte</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Tennis Court 2&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="delete-all-bookings">
+<h3>Delete all bookings<a class="headerlink" href="#delete-all-bookings" title="Permalink to this headline">¶</a></h3>
+<p>As part of a clearout of our database, we want to delete all bookings from
+the bookings table.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">DELETE</span> <span class="k">FROM</span> <span class="n">bookings</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">Booking</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="delete-a-member-from-the-cd-members-table">
+<h3>Delete a member from the cd.members table<a class="headerlink" href="#delete-a-member-from-the-cd-members-table" title="Permalink to this headline">¶</a></h3>
+<p>We want to remove member 37, who has never made a booking, from our database.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">DELETE</span> <span class="k">FROM</span> <span class="n">members</span> <span class="k">WHERE</span> <span class="n">memid</span> <span class="o">=</span> <span class="mi">37</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">memid</span> <span class="o">==</span> <span class="mi">37</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="delete-based-on-a-subquery">
+<h3>Delete based on a subquery<a class="headerlink" href="#delete-based-on-a-subquery" title="Permalink to this headline">¶</a></h3>
+<p>How can we make that more general, to delete all members who have never made
+a booking?</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">DELETE</span> <span class="k">FROM</span> <span class="n">members</span> <span class="k">WHERE</span> <span class="k">NOT</span> <span class="k">EXISTS</span> <span class="p">(</span>
+  <span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">bookings</span> <span class="k">WHERE</span> <span class="n">bookings</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="n">members</span><span class="p">.</span><span class="n">memid</span><span class="p">);</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">subq</span> <span class="o">=</span> <span class="n">Booking</span><span class="o">.</span><span class="n">select</span><span class="p">()</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">member</span> <span class="o">==</span> <span class="n">Member</span><span class="o">.</span><span class="n">memid</span><span class="p">)</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="o">~</span><span class="n">fn</span><span class="o">.</span><span class="n">EXISTS</span><span class="p">(</span><span class="n">subq</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="aggregation">
+<h2>Aggregation<a class="headerlink" href="#aggregation" title="Permalink to this headline">¶</a></h2>
+<p>Aggregation is one of those capabilities that really make you appreciate the
+power of relational database systems. It allows you to move beyond merely
+persisting your data, into the realm of asking truly interesting questions that
+can be used to inform decision making. This category covers aggregation at
+length, making use of standard grouping as well as more recent window
+functions.</p>
+<div class="section" id="count-the-number-of-facilities">
+<h3>Count the number of facilities<a class="headerlink" href="#count-the-number-of-facilities" title="Permalink to this headline">¶</a></h3>
+<p>For our first foray into aggregates, we’re going to stick to something
+simple. We want to know how many facilities exist - simply produce a total
+count.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="k">COUNT</span><span class="p">(</span><span class="n">facid</span><span class="p">)</span> <span class="k">FROM</span> <span class="n">facilities</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">COUNT</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">facid</span><span class="p">))</span>
+<span class="n">count</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
+
+<span class="c1"># OR:</span>
+<span class="n">count</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">()</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="count-the-number-of-expensive-facilities">
+<h3>Count the number of expensive facilities<a class="headerlink" href="#count-the-number-of-expensive-facilities" title="Permalink to this headline">¶</a></h3>
+<p>Produce a count of the number of facilities that have a cost to guests of 10
+or more.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="k">COUNT</span><span class="p">(</span><span class="n">facid</span><span class="p">)</span> <span class="k">FROM</span> <span class="n">facilities</span> <span class="k">WHERE</span> <span class="n">guestcost</span> <span class="o">&gt;=</span> <span class="mi">10</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">Facility</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">COUNT</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">facid</span><span class="p">))</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">guestcost</span> <span class="o">&gt;=</span> <span class="mi">10</span><span class="p">)</span>
+<span class="n">count</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
+
+<span class="c1"># OR:</span>
+<span class="c1"># count = Facility.select().where(Facility.guestcost &gt;= 10).count()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="count-the-number-of-recommendations-each-member-makes">
+<h3>Count the number of recommendations each member makes.<a class="headerlink" href="#count-the-number-of-recommendations-each-member-makes" title="Permalink to this headline">¶</a></h3>
+<p>Produce a count of the number of recommendations each member has made. Order
+by member ID.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">recommendedby</span><span class="p">,</span> <span class="k">COUNT</span><span class="p">(</span><span class="n">memid</span><span class="p">)</span> <span class="k">FROM</span> <span class="n">members</span>
+<span class="k">WHERE</span> <span class="n">recommendedby</span> <span class="k">IS</span> <span class="k">NOT</span> <span class="k">NULL</span>
+<span class="k">GROUP</span> <span class="k">BY</span> <span class="n">recommendedby</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">recommendedby</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">recommendedby</span><span class="p">,</span> <span class="n">fn</span><span class="o">.</span><span class="n">COUNT</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">memid</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">recommendedby</span><span class="o">.</span><span class="n">is_null</span><span class="p">(</span><span class="bp">False</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">recommendedby</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">recommendedby</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="list-the-total-slots-booked-per-facility">
+<h3>List the total slots booked per facility<a class="headerlink" href="#list-the-total-slots-booked-per-facility" title="Permalink to this headline">¶</a></h3>
+<p>Produce a list of the total number of slots booked per facility. For now,
+just produce an output table consisting of facility id and slots, sorted by
+facility id.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">facid</span><span class="p">,</span> <span class="k">SUM</span><span class="p">(</span><span class="n">slots</span><span class="p">)</span> <span class="k">FROM</span> <span class="n">bookings</span> <span class="k">GROUP</span> <span class="k">BY</span> <span class="n">facid</span> <span class="k">ORDER</span> <span class="k">BY</span> <span class="n">facid</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Booking</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facid</span><span class="p">,</span> <span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facid</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facid</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="list-the-total-slots-booked-per-facility-in-a-given-month">
+<h3>List the total slots booked per facility in a given month<a class="headerlink" href="#list-the-total-slots-booked-per-facility-in-a-given-month" title="Permalink to this headline">¶</a></h3>
+<p>Produce a list of the total number of slots booked per facility in the month
+of September 2012. Produce an output table consisting of facility id and
+slots, sorted by the number of slots.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">facid</span><span class="p">,</span> <span class="k">SUM</span><span class="p">(</span><span class="n">slots</span><span class="p">)</span>
+<span class="k">FROM</span> <span class="n">bookings</span>
+<span class="k">WHERE</span> <span class="p">(</span><span class="n">date_trunc</span><span class="p">(</span><span class="s1">&#39;month&#39;</span><span class="p">,</span> <span class="n">starttime</span><span class="p">)</span> <span class="o">=</span> <span class="s1">&#39;2012-09-01&#39;</span><span class="p">::</span><span class="n">dates</span><span class="p">)</span>
+<span class="k">GROUP</span> <span class="k">BY</span> <span class="n">facid</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="k">SUM</span><span class="p">(</span><span class="n">slots</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Booking</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">,</span> <span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">date_trunc</span><span class="p">(</span><span class="s1">&#39;month&#39;</span><span class="p">,</span> <span class="n">Booking</span><span class="o">.</span><span class="n">starttime</span><span class="p">)</span> <span class="o">==</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2012</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span><span class="p">)))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="list-the-total-slots-booked-per-facility-per-month">
+<h3>List the total slots booked per facility per month<a class="headerlink" href="#list-the-total-slots-booked-per-facility-per-month" title="Permalink to this headline">¶</a></h3>
+<p>Produce a list of the total number of slots booked per facility per month in
+the year of 2012. Produce an output table consisting of facility id and
+slots, sorted by the id and month.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">facid</span><span class="p">,</span> <span class="n">date_part</span><span class="p">(</span><span class="s1">&#39;month&#39;</span><span class="p">,</span> <span class="n">starttime</span><span class="p">),</span> <span class="k">SUM</span><span class="p">(</span><span class="n">slots</span><span class="p">)</span>
+<span class="k">FROM</span> <span class="n">bookings</span>
+<span class="k">WHERE</span> <span class="n">date_part</span><span class="p">(</span><span class="s1">&#39;year&#39;</span><span class="p">,</span> <span class="n">starttime</span><span class="p">)</span> <span class="o">=</span> <span class="mi">2012</span>
+<span class="k">GROUP</span> <span class="k">BY</span> <span class="n">facid</span><span class="p">,</span> <span class="n">date_part</span><span class="p">(</span><span class="s1">&#39;month&#39;</span><span class="p">,</span> <span class="n">starttime</span><span class="p">)</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">facid</span><span class="p">,</span> <span class="n">date_part</span><span class="p">(</span><span class="s1">&#39;month&#39;</span><span class="p">,</span> <span class="n">starttime</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">month</span> <span class="o">=</span> <span class="n">fn</span><span class="o">.</span><span class="n">date_part</span><span class="p">(</span><span class="s1">&#39;month&#39;</span><span class="p">,</span> <span class="n">Booking</span><span class="o">.</span><span class="n">starttime</span><span class="p">)</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Booking</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">date_part</span><span class="p">(</span><span class="s1">&#39;year&#39;</span><span class="p">,</span> <span class="n">Booking</span><span class="o">.</span><span class="n">starttime</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2012</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">,</span> <span class="n">month</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">,</span> <span class="n">month</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="find-the-count-of-members-who-have-made-at-least-one-booking">
+<h3>Find the count of members who have made at least one booking<a class="headerlink" href="#find-the-count-of-members-who-have-made-at-least-one-booking" title="Permalink to this headline">¶</a></h3>
+<p>Find the total number of members who have made at least one booking.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="k">COUNT</span><span class="p">(</span><span class="k">DISTINCT</span> <span class="n">memid</span><span class="p">)</span> <span class="k">FROM</span> <span class="n">bookings</span>
+
+<span class="c1">-- OR --</span>
+<span class="k">SELECT</span> <span class="k">COUNT</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="k">FROM</span> <span class="p">(</span><span class="k">SELECT</span> <span class="k">DISTINCT</span> <span class="n">memid</span> <span class="k">FROM</span> <span class="n">bookings</span><span class="p">)</span> <span class="k">AS</span> <span class="n">_</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="n">Booking</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">COUNT</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">member</span><span class="o">.</span><span class="n">distinct</span><span class="p">()))</span>
+
+<span class="c1"># OR:</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">Booking</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">member</span><span class="p">)</span><span class="o">.</span><span class="n">distinct</span><span class="p">()</span>
+<span class="n">count</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>  <span class="c1"># count() wraps in SELECT COUNT(1) FROM (...)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="list-facilities-with-more-than-1000-slots-booked">
+<h3>List facilities with more than 1000 slots booked<a class="headerlink" href="#list-facilities-with-more-than-1000-slots-booked" title="Permalink to this headline">¶</a></h3>
+<p>Produce a list of facilities with more than 1000 slots booked. Produce an
+output table consisting of facility id and hours, sorted by facility id.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">facid</span><span class="p">,</span> <span class="k">SUM</span><span class="p">(</span><span class="n">slots</span><span class="p">)</span> <span class="k">FROM</span> <span class="n">bookings</span>
+<span class="k">GROUP</span> <span class="k">BY</span> <span class="n">facid</span>
+<span class="k">HAVING</span> <span class="k">SUM</span><span class="p">(</span><span class="n">slots</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1000</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">facid</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Booking</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">,</span> <span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">having</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1000</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="find-the-total-revenue-of-each-facility">
+<h3>Find the total revenue of each facility<a class="headerlink" href="#find-the-total-revenue-of-each-facility" title="Permalink to this headline">¶</a></h3>
+<p>Produce a list of facilities along with their total revenue. The output table
+should consist of facility name and revenue, sorted by revenue. Remember that
+there’s a different cost for guests and members!</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">f</span><span class="p">.</span><span class="n">name</span><span class="p">,</span> <span class="k">SUM</span><span class="p">(</span><span class="n">b</span><span class="p">.</span><span class="n">slots</span> <span class="o">*</span> <span class="p">(</span>
+<span class="k">CASE</span> <span class="k">WHEN</span> <span class="n">b</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">THEN</span> <span class="n">f</span><span class="p">.</span><span class="n">guestcost</span> <span class="k">ELSE</span> <span class="n">f</span><span class="p">.</span><span class="n">membercost</span> <span class="k">END</span><span class="p">))</span> <span class="k">AS</span> <span class="n">revenue</span>
+<span class="k">FROM</span> <span class="n">bookings</span> <span class="k">AS</span> <span class="n">b</span>
+<span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">facilities</span> <span class="k">AS</span> <span class="n">f</span> <span class="k">ON</span> <span class="n">b</span><span class="p">.</span><span class="n">facid</span> <span class="o">=</span> <span class="n">f</span><span class="p">.</span><span class="n">facid</span>
+<span class="k">GROUP</span> <span class="k">BY</span> <span class="n">f</span><span class="p">.</span><span class="n">name</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">revenue</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">revenue</span> <span class="o">=</span> <span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">Case</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="p">(</span>
+    <span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">member</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">Facility</span><span class="o">.</span><span class="n">guestcost</span><span class="p">),</span>
+<span class="p">),</span> <span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span><span class="p">))</span>
+
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Facility</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">revenue</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;revenue&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Booking</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">SQL</span><span class="p">(</span><span class="s1">&#39;revenue&#39;</span><span class="p">)))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="find-facilities-with-a-total-revenue-less-than-1000">
+<h3>Find facilities with a total revenue less than 1000<a class="headerlink" href="#find-facilities-with-a-total-revenue-less-than-1000" title="Permalink to this headline">¶</a></h3>
+<p>Produce a list of facilities with a total revenue less than 1000. Produce an
+output table consisting of facility name and revenue, sorted by revenue.
+Remember that there’s a different cost for guests and members!</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">f</span><span class="p">.</span><span class="n">name</span><span class="p">,</span> <span class="k">SUM</span><span class="p">(</span><span class="n">b</span><span class="p">.</span><span class="n">slots</span> <span class="o">*</span> <span class="p">(</span>
+<span class="k">CASE</span> <span class="k">WHEN</span> <span class="n">b</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">THEN</span> <span class="n">f</span><span class="p">.</span><span class="n">guestcost</span> <span class="k">ELSE</span> <span class="n">f</span><span class="p">.</span><span class="n">membercost</span> <span class="k">END</span><span class="p">))</span> <span class="k">AS</span> <span class="n">revenue</span>
+<span class="k">FROM</span> <span class="n">bookings</span> <span class="k">AS</span> <span class="n">b</span>
+<span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">facilities</span> <span class="k">AS</span> <span class="n">f</span> <span class="k">ON</span> <span class="n">b</span><span class="p">.</span><span class="n">facid</span> <span class="o">=</span> <span class="n">f</span><span class="p">.</span><span class="n">facid</span>
+<span class="k">GROUP</span> <span class="k">BY</span> <span class="n">f</span><span class="p">.</span><span class="n">name</span>
+<span class="k">HAVING</span> <span class="k">SUM</span><span class="p">(</span><span class="n">b</span><span class="p">.</span><span class="n">slots</span> <span class="o">*</span> <span class="p">...)</span> <span class="o">&lt;</span> <span class="mi">1000</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">revenue</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Same definition as previous example.</span>
+<span class="n">revenue</span> <span class="o">=</span> <span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">Case</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="p">(</span>
+    <span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">member</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">Facility</span><span class="o">.</span><span class="n">guestcost</span><span class="p">),</span>
+<span class="p">),</span> <span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span><span class="p">))</span>
+
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Facility</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">revenue</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;revenue&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Booking</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">having</span><span class="p">(</span><span class="n">revenue</span> <span class="o">&lt;</span> <span class="mi">1000</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">SQL</span><span class="p">(</span><span class="s1">&#39;revenue&#39;</span><span class="p">)))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="output-the-facility-id-that-has-the-highest-number-of-slots-booked">
+<h3>Output the facility id that has the highest number of slots booked<a class="headerlink" href="#output-the-facility-id-that-has-the-highest-number-of-slots-booked" title="Permalink to this headline">¶</a></h3>
+<p>Output the facility id that has the highest number of slots booked.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">facid</span><span class="p">,</span> <span class="k">SUM</span><span class="p">(</span><span class="n">slots</span><span class="p">)</span> <span class="k">FROM</span> <span class="n">bookings</span>
+<span class="k">GROUP</span> <span class="k">BY</span> <span class="n">facid</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="k">SUM</span><span class="p">(</span><span class="n">slots</span><span class="p">)</span> <span class="k">DESC</span>
+<span class="k">LIMIT</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Booking</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">,</span> <span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span><span class="p">)</span><span class="o">.</span><span class="n">desc</span><span class="p">())</span>
+         <span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+
+<span class="c1"># Retrieve multiple scalar values by calling scalar() with as_tuple=True.</span>
+<span class="n">facid</span><span class="p">,</span> <span class="n">nslots</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">scalar</span><span class="p">(</span><span class="n">as_tuple</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="list-the-total-slots-booked-per-facility-per-month-part-2">
+<h3>List the total slots booked per facility per month, part 2<a class="headerlink" href="#list-the-total-slots-booked-per-facility-per-month-part-2" title="Permalink to this headline">¶</a></h3>
+<p>Produce a list of the total number of slots booked per facility per month in
+the year of 2012. In this version, include output rows containing totals for
+all months per facility, and a total for all months for all facilities. The
+output table should consist of facility id, month and slots, sorted by the id
+and month. When calculating the aggregated values for all months and all
+facids, return null values in the month and facid columns.</p>
+<p>Postgres ONLY.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">facid</span><span class="p">,</span> <span class="n">date_part</span><span class="p">(</span><span class="s1">&#39;month&#39;</span><span class="p">,</span> <span class="n">starttime</span><span class="p">),</span> <span class="k">SUM</span><span class="p">(</span><span class="n">slots</span><span class="p">)</span>
+<span class="k">FROM</span> <span class="n">booking</span>
+<span class="k">WHERE</span> <span class="n">date_part</span><span class="p">(</span><span class="s1">&#39;year&#39;</span><span class="p">,</span> <span class="n">starttime</span><span class="p">)</span> <span class="o">=</span> <span class="mi">2012</span>
+<span class="k">GROUP</span> <span class="k">BY</span> <span class="k">ROLLUP</span><span class="p">(</span><span class="n">facid</span><span class="p">,</span> <span class="n">date_part</span><span class="p">(</span><span class="s1">&#39;month&#39;</span><span class="p">,</span> <span class="n">starttime</span><span class="p">))</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">facid</span><span class="p">,</span> <span class="n">date_part</span><span class="p">(</span><span class="s1">&#39;month&#39;</span><span class="p">,</span> <span class="n">starttime</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">month</span> <span class="o">=</span> <span class="n">fn</span><span class="o">.</span><span class="n">date_part</span><span class="p">(</span><span class="s1">&#39;month&#39;</span><span class="p">,</span> <span class="n">Booking</span><span class="o">.</span><span class="n">starttime</span><span class="p">)</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Booking</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">,</span>
+                 <span class="n">month</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;month&#39;</span><span class="p">),</span>
+                 <span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">date_part</span><span class="p">(</span><span class="s1">&#39;year&#39;</span><span class="p">,</span> <span class="n">Booking</span><span class="o">.</span><span class="n">starttime</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2012</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">ROLLUP</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">,</span> <span class="n">month</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">,</span> <span class="n">month</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="list-the-total-hours-booked-per-named-facility">
+<h3>List the total hours booked per named facility<a class="headerlink" href="#list-the-total-hours-booked-per-named-facility" title="Permalink to this headline">¶</a></h3>
+<p>Produce a list of the total number of hours booked per facility, remembering
+that a slot lasts half an hour. The output table should consist of the
+facility id, name, and hours booked, sorted by facility id.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">f</span><span class="p">.</span><span class="n">facid</span><span class="p">,</span> <span class="n">f</span><span class="p">.</span><span class="n">name</span><span class="p">,</span> <span class="k">SUM</span><span class="p">(</span><span class="n">b</span><span class="p">.</span><span class="n">slots</span><span class="p">)</span> <span class="o">*</span> <span class="p">.</span><span class="mi">5</span>
+<span class="k">FROM</span> <span class="n">facilities</span> <span class="k">AS</span> <span class="n">f</span>
+<span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">bookings</span> <span class="k">AS</span> <span class="n">b</span> <span class="k">ON</span> <span class="p">(</span><span class="n">f</span><span class="p">.</span><span class="n">facid</span> <span class="o">=</span> <span class="n">b</span><span class="p">.</span><span class="n">facid</span><span class="p">)</span>
+<span class="k">GROUP</span> <span class="k">BY</span> <span class="n">f</span><span class="p">.</span><span class="n">facid</span><span class="p">,</span> <span class="n">f</span><span class="p">.</span><span class="n">name</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">f</span><span class="p">.</span><span class="n">facid</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Facility</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">facid</span><span class="p">,</span> <span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span><span class="p">)</span> <span class="o">*</span> <span class="o">.</span><span class="mi">5</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Booking</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">facid</span><span class="p">,</span> <span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">facid</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="list-each-member-s-first-booking-after-september-1st-2012">
+<h3>List each member’s first booking after September 1st 2012<a class="headerlink" href="#list-each-member-s-first-booking-after-september-1st-2012" title="Permalink to this headline">¶</a></h3>
+<p>Produce a list of each member name, id, and their first booking after
+September 1st 2012. Order by member ID.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">m</span><span class="p">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">m</span><span class="p">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">m</span><span class="p">.</span><span class="n">memid</span><span class="p">,</span> <span class="k">min</span><span class="p">(</span><span class="n">b</span><span class="p">.</span><span class="n">starttime</span><span class="p">)</span> <span class="k">as</span> <span class="n">starttime</span>
+<span class="k">FROM</span> <span class="n">members</span> <span class="k">AS</span> <span class="n">m</span>
+<span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">bookings</span> <span class="k">AS</span> <span class="n">b</span> <span class="k">ON</span> <span class="n">b</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="n">m</span><span class="p">.</span><span class="n">memid</span>
+<span class="k">WHERE</span> <span class="n">starttime</span> <span class="o">&gt;=</span> <span class="s1">&#39;2012-09-01&#39;</span>
+<span class="k">GROUP</span> <span class="k">BY</span> <span class="n">m</span><span class="p">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">m</span><span class="p">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">m</span><span class="p">.</span><span class="n">memid</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">m</span><span class="p">.</span><span class="n">memid</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">memid</span><span class="p">,</span>
+                 <span class="n">fn</span><span class="o">.</span><span class="n">MIN</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">starttime</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;starttime&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Booking</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">starttime</span> <span class="o">&gt;=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2012</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">memid</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">memid</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="produce-a-list-of-member-names-with-each-row-containing-the-total-member-count">
+<h3>Produce a list of member names, with each row containing the total member count<a class="headerlink" href="#produce-a-list-of-member-names-with-each-row-containing-the-total-member-count" title="Permalink to this headline">¶</a></h3>
+<p>Produce a list of member names, with each row containing the total member
+count. Order by join date.</p>
+<p>Postgres ONLY (as written).</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="k">COUNT</span><span class="p">(</span><span class="o">*</span><span class="p">)</span> <span class="n">OVER</span><span class="p">(),</span> <span class="n">firstname</span><span class="p">,</span> <span class="n">surname</span>
+<span class="k">FROM</span> <span class="n">members</span> <span class="k">ORDER</span> <span class="k">BY</span> <span class="n">joindate</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">COUNT</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">memid</span><span class="p">)</span><span class="o">.</span><span class="n">over</span><span class="p">(),</span> <span class="n">Member</span><span class="o">.</span><span class="n">firstname</span><span class="p">,</span>
+                 <span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">joindate</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="produce-a-numbered-list-of-members">
+<h3>Produce a numbered list of members<a class="headerlink" href="#produce-a-numbered-list-of-members" title="Permalink to this headline">¶</a></h3>
+<p>Produce a monotonically increasing numbered list of members, ordered by their
+date of joining. Remember that member IDs are not guaranteed to be
+sequential.</p>
+<p>Postgres ONLY (as written).</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">row_number</span><span class="p">()</span> <span class="n">OVER</span> <span class="p">(</span><span class="k">ORDER</span> <span class="k">BY</span> <span class="n">joindate</span><span class="p">),</span> <span class="n">firstname</span><span class="p">,</span> <span class="n">surname</span>
+<span class="k">FROM</span> <span class="n">members</span> <span class="k">ORDER</span> <span class="k">BY</span> <span class="n">joindate</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">row_number</span><span class="p">()</span><span class="o">.</span><span class="n">over</span><span class="p">(</span><span class="n">order_by</span><span class="o">=</span><span class="p">[</span><span class="n">Member</span><span class="o">.</span><span class="n">joindate</span><span class="p">]),</span>
+                 <span class="n">Member</span><span class="o">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">joindate</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="output-the-facility-id-that-has-the-highest-number-of-slots-booked-again">
+<h3>Output the facility id that has the highest number of slots booked, again<a class="headerlink" href="#output-the-facility-id-that-has-the-highest-number-of-slots-booked-again" title="Permalink to this headline">¶</a></h3>
+<p>Output the facility id that has the highest number of slots booked. Ensure
+that in the event of a tie, all tieing results get output.</p>
+<p>Postgres ONLY (as written).</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">facid</span><span class="p">,</span> <span class="n">total</span> <span class="k">FROM</span> <span class="p">(</span>
+  <span class="k">SELECT</span> <span class="n">facid</span><span class="p">,</span> <span class="k">SUM</span><span class="p">(</span><span class="n">slots</span><span class="p">)</span> <span class="k">AS</span> <span class="n">total</span><span class="p">,</span>
+         <span class="n">rank</span><span class="p">()</span> <span class="n">OVER</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="k">SUM</span><span class="p">(</span><span class="n">slots</span><span class="p">)</span> <span class="k">DESC</span><span class="p">)</span> <span class="k">AS</span> <span class="n">rank</span>
+  <span class="k">FROM</span> <span class="n">bookings</span>
+  <span class="k">GROUP</span> <span class="k">BY</span> <span class="n">facid</span>
+<span class="p">)</span> <span class="k">AS</span> <span class="n">ranked</span> <span class="k">WHERE</span> <span class="n">rank</span> <span class="o">=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">rank</span> <span class="o">=</span> <span class="n">fn</span><span class="o">.</span><span class="n">rank</span><span class="p">()</span><span class="o">.</span><span class="n">over</span><span class="p">(</span><span class="n">order_by</span><span class="o">=</span><span class="p">[</span><span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span><span class="p">)</span><span class="o">.</span><span class="n">desc</span><span class="p">()])</span>
+
+<span class="n">subq</span> <span class="o">=</span> <span class="p">(</span><span class="n">Booking</span>
+        <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">,</span> <span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;total&#39;</span><span class="p">),</span>
+                <span class="n">rank</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;rank&#39;</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">facility</span><span class="p">))</span>
+
+<span class="c1"># Here we use a plain Select() to create our query.</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Select</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">subq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">facid</span><span class="p">,</span> <span class="n">subq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">total</span><span class="p">])</span>
+         <span class="o">.</span><span class="n">from_</span><span class="p">(</span><span class="n">subq</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">subq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">rank</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="n">db</span><span class="p">))</span>  <span class="c1"># We must bind() it to the database.</span>
+
+<span class="c1"># To iterate over the query results:</span>
+<span class="k">for</span> <span class="n">facid</span><span class="p">,</span> <span class="n">total</span> <span class="ow">in</span> <span class="n">query</span><span class="o">.</span><span class="n">tuples</span><span class="p">():</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">facid</span><span class="p">,</span> <span class="n">total</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="rank-members-by-rounded-hours-used">
+<h3>Rank members by (rounded) hours used<a class="headerlink" href="#rank-members-by-rounded-hours-used" title="Permalink to this headline">¶</a></h3>
+<p>Produce a list of members, along with the number of hours they’ve booked in
+facilities, rounded to the nearest ten hours. Rank them by this rounded
+figure, producing output of first name, surname, rounded hours, rank. Sort by
+rank, surname, and first name.</p>
+<p>Postgres ONLY (as written).</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">firstname</span><span class="p">,</span> <span class="n">surname</span><span class="p">,</span>
+<span class="p">((</span><span class="k">SUM</span><span class="p">(</span><span class="n">bks</span><span class="p">.</span><span class="n">slots</span><span class="p">)</span><span class="o">+</span><span class="mi">10</span><span class="p">)</span><span class="o">/</span><span class="mi">20</span><span class="p">)</span><span class="o">*</span><span class="mi">10</span> <span class="k">as</span> <span class="n">hours</span><span class="p">,</span>
+<span class="n">rank</span><span class="p">()</span> <span class="n">over</span> <span class="p">(</span><span class="k">order</span> <span class="k">by</span> <span class="p">((</span><span class="k">sum</span><span class="p">(</span><span class="n">bks</span><span class="p">.</span><span class="n">slots</span><span class="p">)</span><span class="o">+</span><span class="mi">10</span><span class="p">)</span><span class="o">/</span><span class="mi">20</span><span class="p">)</span><span class="o">*</span><span class="mi">10</span> <span class="k">desc</span><span class="p">)</span> <span class="k">as</span> <span class="n">rank</span>
+<span class="k">FROM</span> <span class="n">members</span> <span class="k">AS</span> <span class="n">mems</span>
+<span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">bookings</span> <span class="k">AS</span> <span class="n">bks</span> <span class="k">ON</span> <span class="n">mems</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="n">bks</span><span class="p">.</span><span class="n">memid</span>
+<span class="k">GROUP</span> <span class="k">BY</span> <span class="n">mems</span><span class="p">.</span><span class="n">memid</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">rank</span><span class="p">,</span> <span class="n">surname</span><span class="p">,</span> <span class="n">firstname</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">hours</span> <span class="o">=</span> <span class="p">((</span><span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span><span class="p">)</span> <span class="o">+</span> <span class="mi">10</span><span class="p">)</span> <span class="o">/</span> <span class="mi">20</span><span class="p">)</span> <span class="o">*</span> <span class="mi">10</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+         <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">hours</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;hours&#39;</span><span class="p">),</span>
+                 <span class="n">fn</span><span class="o">.</span><span class="n">rank</span><span class="p">()</span><span class="o">.</span><span class="n">over</span><span class="p">(</span><span class="n">order_by</span><span class="o">=</span><span class="p">[</span><span class="n">hours</span><span class="o">.</span><span class="n">desc</span><span class="p">()])</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;rank&#39;</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Booking</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">memid</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">SQL</span><span class="p">(</span><span class="s1">&#39;rank&#39;</span><span class="p">),</span> <span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">firstname</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="find-the-top-three-revenue-generating-facilities">
+<h3>Find the top three revenue generating facilities<a class="headerlink" href="#find-the-top-three-revenue-generating-facilities" title="Permalink to this headline">¶</a></h3>
+<p>Produce a list of the top three revenue generating facilities (including
+ties). Output facility name and rank, sorted by rank and facility name.</p>
+<p>Postgres ONLY (as written).</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">name</span><span class="p">,</span> <span class="n">rank</span> <span class="k">FROM</span> <span class="p">(</span>
+    <span class="k">SELECT</span> <span class="n">f</span><span class="p">.</span><span class="n">name</span><span class="p">,</span> <span class="n">RANK</span><span class="p">()</span> <span class="n">OVER</span> <span class="p">(</span><span class="k">ORDER</span> <span class="k">BY</span> <span class="k">SUM</span><span class="p">(</span>
+        <span class="k">CASE</span> <span class="k">WHEN</span> <span class="n">memid</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">THEN</span> <span class="n">slots</span> <span class="o">*</span> <span class="n">f</span><span class="p">.</span><span class="n">guestcost</span>
+        <span class="k">ELSE</span> <span class="n">slots</span> <span class="o">*</span> <span class="n">f</span><span class="p">.</span><span class="n">membercost</span> <span class="k">END</span><span class="p">)</span> <span class="k">DESC</span><span class="p">)</span> <span class="k">AS</span> <span class="n">rank</span>
+    <span class="k">FROM</span> <span class="n">bookings</span>
+    <span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">facilities</span> <span class="k">AS</span> <span class="n">f</span> <span class="k">ON</span> <span class="n">bookings</span><span class="p">.</span><span class="n">facid</span> <span class="o">=</span> <span class="n">f</span><span class="p">.</span><span class="n">facid</span>
+    <span class="k">GROUP</span> <span class="k">BY</span> <span class="n">f</span><span class="p">.</span><span class="n">name</span><span class="p">)</span> <span class="k">AS</span> <span class="n">subq</span>
+<span class="k">WHERE</span> <span class="n">rank</span> <span class="o">&lt;=</span> <span class="mi">3</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="n">rank</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">total_cost</span> <span class="o">=</span> <span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Case</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="p">(</span>
+    <span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">member</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">Booking</span><span class="o">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">Facility</span><span class="o">.</span><span class="n">guestcost</span><span class="p">),</span>
+<span class="p">),</span> <span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span><span class="p">)))</span>
+
+<span class="n">subq</span> <span class="o">=</span> <span class="p">(</span><span class="n">Facility</span>
+        <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">fn</span><span class="o">.</span><span class="n">RANK</span><span class="p">()</span><span class="o">.</span><span class="n">over</span><span class="p">(</span><span class="n">order_by</span><span class="o">=</span><span class="p">[</span><span class="n">total_cost</span><span class="o">.</span><span class="n">desc</span><span class="p">()])</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;rank&#39;</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Booking</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Select</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">subq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">subq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">rank</span><span class="p">])</span>
+         <span class="o">.</span><span class="n">from_</span><span class="p">(</span><span class="n">subq</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">subq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">rank</span> <span class="o">&lt;=</span> <span class="mi">3</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">subq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">rank</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="n">db</span><span class="p">))</span>  <span class="c1"># Here again we used plain Select, and call bind().</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="classify-facilities-by-value">
+<h3>Classify facilities by value<a class="headerlink" href="#classify-facilities-by-value" title="Permalink to this headline">¶</a></h3>
+<p>Classify facilities into equally sized groups of high, average, and low based
+on their revenue. Order by classification and facility name.</p>
+<p>Postgres ONLY (as written).</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="n">name</span><span class="p">,</span>
+  <span class="k">CASE</span> <span class="k">class</span> <span class="k">WHEN</span> <span class="mi">1</span> <span class="k">THEN</span> <span class="s1">&#39;high&#39;</span> <span class="k">WHEN</span> <span class="mi">2</span> <span class="k">THEN</span> <span class="s1">&#39;average&#39;</span> <span class="k">ELSE</span> <span class="s1">&#39;low&#39;</span> <span class="k">END</span>
+<span class="k">FROM</span> <span class="p">(</span>
+  <span class="k">SELECT</span> <span class="n">f</span><span class="p">.</span><span class="n">name</span><span class="p">,</span> <span class="n">ntile</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="n">OVER</span> <span class="p">(</span><span class="k">ORDER</span> <span class="k">BY</span> <span class="k">SUM</span><span class="p">(</span>
+    <span class="k">CASE</span> <span class="k">WHEN</span> <span class="n">memid</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">THEN</span> <span class="n">slots</span> <span class="o">*</span> <span class="n">f</span><span class="p">.</span><span class="n">guestcost</span> <span class="k">ELSE</span> <span class="n">slots</span> <span class="o">*</span> <span class="n">f</span><span class="p">.</span><span class="n">membercost</span>
+    <span class="k">END</span><span class="p">)</span> <span class="k">DESC</span><span class="p">)</span> <span class="k">AS</span> <span class="k">class</span>
+  <span class="k">FROM</span> <span class="n">bookings</span> <span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">facilities</span> <span class="k">AS</span> <span class="n">f</span> <span class="k">ON</span> <span class="n">bookings</span><span class="p">.</span><span class="n">facid</span> <span class="o">=</span> <span class="n">f</span><span class="p">.</span><span class="n">facid</span>
+  <span class="k">GROUP</span> <span class="k">BY</span> <span class="n">f</span><span class="p">.</span><span class="n">name</span>
+<span class="p">)</span> <span class="k">AS</span> <span class="n">subq</span>
+<span class="k">ORDER</span> <span class="k">BY</span> <span class="k">class</span><span class="p">,</span> <span class="n">name</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cost</span> <span class="o">=</span> <span class="n">fn</span><span class="o">.</span><span class="n">SUM</span><span class="p">(</span><span class="n">Case</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="p">(</span>
+    <span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">member</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">Booking</span><span class="o">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">Facility</span><span class="o">.</span><span class="n">guestcost</span><span class="p">),</span>
+<span class="p">),</span> <span class="p">(</span><span class="n">Booking</span><span class="o">.</span><span class="n">slots</span> <span class="o">*</span> <span class="n">Facility</span><span class="o">.</span><span class="n">membercost</span><span class="p">)))</span>
+<span class="n">subq</span> <span class="o">=</span> <span class="p">(</span><span class="n">Facility</span>
+        <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">fn</span><span class="o">.</span><span class="n">NTILE</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">over</span><span class="p">(</span><span class="n">order_by</span><span class="o">=</span><span class="p">[</span><span class="n">cost</span><span class="o">.</span><span class="n">desc</span><span class="p">()])</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s1">&#39;klass&#39;</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Booking</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">Facility</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+<span class="n">klass_case</span> <span class="o">=</span> <span class="n">Case</span><span class="p">(</span><span class="n">subq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">klass</span><span class="p">,</span> <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;high&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;average&#39;</span><span class="p">)],</span> <span class="s1">&#39;low&#39;</span><span class="p">)</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">Select</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">subq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">klass_case</span><span class="p">])</span>
+         <span class="o">.</span><span class="n">from_</span><span class="p">(</span><span class="n">subq</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">subq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">klass</span><span class="p">,</span> <span class="n">subq</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="n">db</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="recursion">
+<h2>Recursion<a class="headerlink" href="#recursion" title="Permalink to this headline">¶</a></h2>
+<p>Common Table Expressions allow us to, effectively, create our own temporary
+tables for the duration of a query - they’re largely a convenience to help us
+make more readable SQL. Using the WITH RECURSIVE modifier, however, it’s
+possible for us to create recursive queries. This is enormously advantageous
+for working with tree and graph-structured data - imagine retrieving all of the
+relations of a graph node to a given depth, for example.</p>
+<div class="section" id="find-the-upward-recommendation-chain-for-member-id-27">
+<h3>Find the upward recommendation chain for member ID 27<a class="headerlink" href="#find-the-upward-recommendation-chain-for-member-id-27" title="Permalink to this headline">¶</a></h3>
+<p>Find the upward recommendation chain for member ID 27: that is, the member
+who recommended them, and the member who recommended that member, and so on.
+Return member ID, first name, and surname. Order by descending member id.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">WITH</span> <span class="k">RECURSIVE</span> <span class="n">recommenders</span><span class="p">(</span><span class="n">recommender</span><span class="p">)</span> <span class="k">as</span> <span class="p">(</span>
+  <span class="k">SELECT</span> <span class="n">recommendedby</span> <span class="k">FROM</span> <span class="n">members</span> <span class="k">WHERE</span> <span class="n">memid</span> <span class="o">=</span> <span class="mi">27</span>
+  <span class="k">UNION</span> <span class="k">ALL</span>
+  <span class="k">SELECT</span> <span class="n">mems</span><span class="p">.</span><span class="n">recommendedby</span>
+  <span class="k">FROM</span> <span class="n">recommenders</span> <span class="n">recs</span>
+  <span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">members</span> <span class="k">AS</span> <span class="n">mems</span> <span class="k">ON</span> <span class="n">mems</span><span class="p">.</span><span class="n">memid</span> <span class="o">=</span> <span class="n">recs</span><span class="p">.</span><span class="n">recommender</span>
+<span class="p">)</span>
+<span class="k">SELECT</span> <span class="n">recs</span><span class="p">.</span><span class="n">recommender</span><span class="p">,</span> <span class="n">mems</span><span class="p">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">mems</span><span class="p">.</span><span class="n">surname</span>
+<span class="k">FROM</span> <span class="n">recommenders</span> <span class="k">AS</span> <span class="n">recs</span>
+<span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">members</span> <span class="k">AS</span> <span class="n">mems</span> <span class="k">ON</span> <span class="n">recs</span><span class="p">.</span><span class="n">recommender</span> <span class="o">=</span> <span class="n">mems</span><span class="p">.</span><span class="n">memid</span>
+<span class="k">ORDER</span> <span class="k">By</span> <span class="n">memid</span> <span class="k">DESC</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Base-case of recursive CTE. Get member recommender where memid=27.</span>
+<span class="n">base</span> <span class="o">=</span> <span class="p">(</span><span class="n">Member</span>
+        <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">recommendedby</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">memid</span> <span class="o">==</span> <span class="mi">27</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">cte</span><span class="p">(</span><span class="s1">&#39;recommenders&#39;</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;recommender&#39;</span><span class="p">,)))</span>
+
+<span class="c1"># Recursive term of CTE. Get recommender of previous recommender.</span>
+<span class="n">MA</span> <span class="o">=</span> <span class="n">Member</span><span class="o">.</span><span class="n">alias</span><span class="p">()</span>
+<span class="n">recursive</span> <span class="o">=</span> <span class="p">(</span><span class="n">MA</span>
+             <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">MA</span><span class="o">.</span><span class="n">recommendedby</span><span class="p">)</span>
+             <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">(</span><span class="n">MA</span><span class="o">.</span><span class="n">memid</span> <span class="o">==</span> <span class="n">base</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">recommender</span><span class="p">)))</span>
+
+<span class="c1"># Combine the base-case with the recursive term.</span>
+<span class="n">cte</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">union_all</span><span class="p">(</span><span class="n">recursive</span><span class="p">)</span>
+
+<span class="c1"># Select from the recursive CTE, joining on member to get name info.</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="n">cte</span>
+         <span class="o">.</span><span class="n">select_from</span><span class="p">(</span><span class="n">cte</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">recommender</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">firstname</span><span class="p">,</span> <span class="n">Member</span><span class="o">.</span><span class="n">surname</span><span class="p">)</span>
+         <span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">Member</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">(</span><span class="n">cte</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">recommender</span> <span class="o">==</span> <span class="n">Member</span><span class="o">.</span><span class="n">memid</span><span class="p">))</span>
+         <span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">Member</span><span class="o">.</span><span class="n">memid</span><span class="o">.</span><span class="n">desc</span><span class="p">()))</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Query Examples</a><ul>
+<li><a class="reference internal" href="#model-definitions">Model Definitions</a></li>
+<li><a class="reference internal" href="#schema-creation">Schema Creation</a></li>
+<li><a class="reference internal" href="#basic-exercises">Basic Exercises</a><ul>
+<li><a class="reference internal" href="#retrieve-everything">Retrieve everything</a></li>
+<li><a class="reference internal" href="#retrieve-specific-columns-from-a-table">Retrieve specific columns from a table</a></li>
+<li><a class="reference internal" href="#control-which-rows-are-retrieved">Control which rows are retrieved</a></li>
+<li><a class="reference internal" href="#control-which-rows-are-retrieved-part-2">Control which rows are retrieved - part 2</a></li>
+<li><a class="reference internal" href="#basic-string-searches">Basic string searches</a></li>
+<li><a class="reference internal" href="#matching-against-multiple-possible-values">Matching against multiple possible values</a></li>
+<li><a class="reference internal" href="#classify-results-into-buckets">Classify results into buckets</a></li>
+<li><a class="reference internal" href="#working-with-dates">Working with dates</a></li>
+<li><a class="reference internal" href="#removing-duplicates-and-ordering-results">Removing duplicates, and ordering results</a></li>
+<li><a class="reference internal" href="#combining-results-from-multiple-queries">Combining results from multiple queries</a></li>
+<li><a class="reference internal" href="#simple-aggregation">Simple aggregation</a></li>
+<li><a class="reference internal" href="#more-aggregation">More aggregation</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#joins-and-subqueries">Joins and Subqueries</a><ul>
+<li><a class="reference internal" href="#retrieve-the-start-times-of-members-bookings">Retrieve the start times of members’ bookings</a></li>
+<li><a class="reference internal" href="#work-out-the-start-times-of-bookings-for-tennis-courts">Work out the start times of bookings for tennis courts</a></li>
+<li><a class="reference internal" href="#produce-a-list-of-all-members-who-have-recommended-another-member">Produce a list of all members who have recommended another member</a></li>
+<li><a class="reference internal" href="#produce-a-list-of-all-members-along-with-their-recommender">Produce a list of all members, along with their recommender</a></li>
+<li><a class="reference internal" href="#produce-a-list-of-all-members-who-have-used-a-tennis-court">Produce a list of all members who have used a tennis court</a></li>
+<li><a class="reference internal" href="#produce-a-list-of-costly-bookings">Produce a list of costly bookings</a></li>
+<li><a class="reference internal" href="#produce-a-list-of-all-members-along-with-their-recommender-using-no-joins">Produce a list of all members, along with their recommender, using no joins.</a></li>
+<li><a class="reference internal" href="#produce-a-list-of-costly-bookings-using-a-subquery">Produce a list of costly bookings, using a subquery</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modifying-data">Modifying Data</a><ul>
+<li><a class="reference internal" href="#insert-some-data-into-a-table">Insert some data into a table</a></li>
+<li><a class="reference internal" href="#insert-multiple-rows-of-data-into-a-table">Insert multiple rows of data into a table</a></li>
+<li><a class="reference internal" href="#insert-calculated-data-into-a-table">Insert calculated data into a table</a></li>
+<li><a class="reference internal" href="#update-some-existing-data">Update some existing data</a></li>
+<li><a class="reference internal" href="#update-multiple-rows-and-columns-at-the-same-time">Update multiple rows and columns at the same time</a></li>
+<li><a class="reference internal" href="#update-a-row-based-on-the-contents-of-another-row">Update a row based on the contents of another row</a></li>
+<li><a class="reference internal" href="#delete-all-bookings">Delete all bookings</a></li>
+<li><a class="reference internal" href="#delete-a-member-from-the-cd-members-table">Delete a member from the cd.members table</a></li>
+<li><a class="reference internal" href="#delete-based-on-a-subquery">Delete based on a subquery</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#aggregation">Aggregation</a><ul>
+<li><a class="reference internal" href="#count-the-number-of-facilities">Count the number of facilities</a></li>
+<li><a class="reference internal" href="#count-the-number-of-expensive-facilities">Count the number of expensive facilities</a></li>
+<li><a class="reference internal" href="#count-the-number-of-recommendations-each-member-makes">Count the number of recommendations each member makes.</a></li>
+<li><a class="reference internal" href="#list-the-total-slots-booked-per-facility">List the total slots booked per facility</a></li>
+<li><a class="reference internal" href="#list-the-total-slots-booked-per-facility-in-a-given-month">List the total slots booked per facility in a given month</a></li>
+<li><a class="reference internal" href="#list-the-total-slots-booked-per-facility-per-month">List the total slots booked per facility per month</a></li>
+<li><a class="reference internal" href="#find-the-count-of-members-who-have-made-at-least-one-booking">Find the count of members who have made at least one booking</a></li>
+<li><a class="reference internal" href="#list-facilities-with-more-than-1000-slots-booked">List facilities with more than 1000 slots booked</a></li>
+<li><a class="reference internal" href="#find-the-total-revenue-of-each-facility">Find the total revenue of each facility</a></li>
+<li><a class="reference internal" href="#find-facilities-with-a-total-revenue-less-than-1000">Find facilities with a total revenue less than 1000</a></li>
+<li><a class="reference internal" href="#output-the-facility-id-that-has-the-highest-number-of-slots-booked">Output the facility id that has the highest number of slots booked</a></li>
+<li><a class="reference internal" href="#list-the-total-slots-booked-per-facility-per-month-part-2">List the total slots booked per facility per month, part 2</a></li>
+<li><a class="reference internal" href="#list-the-total-hours-booked-per-named-facility">List the total hours booked per named facility</a></li>
+<li><a class="reference internal" href="#list-each-member-s-first-booking-after-september-1st-2012">List each member’s first booking after September 1st 2012</a></li>
+<li><a class="reference internal" href="#produce-a-list-of-member-names-with-each-row-containing-the-total-member-count">Produce a list of member names, with each row containing the total member count</a></li>
+<li><a class="reference internal" href="#produce-a-numbered-list-of-members">Produce a numbered list of members</a></li>
+<li><a class="reference internal" href="#output-the-facility-id-that-has-the-highest-number-of-slots-booked-again">Output the facility id that has the highest number of slots booked, again</a></li>
+<li><a class="reference internal" href="#rank-members-by-rounded-hours-used">Rank members by (rounded) hours used</a></li>
+<li><a class="reference internal" href="#find-the-top-three-revenue-generating-facilities">Find the top three revenue generating facilities</a></li>
+<li><a class="reference internal" href="#classify-facilities-by-value">Classify facilities by value</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#recursion">Recursion</a><ul>
+<li><a class="reference internal" href="#find-the-upward-recommendation-chain-for-member-id-27">Find the upward recommendation chain for member ID 27</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="playhouse.html"
+                        title="previous chapter">Playhouse, extensions to Peewee</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="query_builder.html"
+                        title="next chapter">Query Builder</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/peewee/query_examples.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="query_builder.html" title="Query Builder"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="playhouse.html" title="Playhouse, extensions to Peewee"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">peewee 3.5.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright charles leifer.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.5.
+    </div>
+  </body>
+</html>
