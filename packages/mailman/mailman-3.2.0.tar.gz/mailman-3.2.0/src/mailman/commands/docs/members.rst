@@ -1,0 +1,269 @@
+================
+Managing members
+================
+
+The ``mailman members`` command allows a site administrator to display, add,
+and remove members from a mailing list.
+
+    >>> command = cli('mailman.commands.cli_members.members')
+
+
+Listing members
+===============
+
+You can list all the members of a mailing list by calling the command with no
+options.  To start with, there are no members of the mailing list.
+
+    >>> ant = create_list('ant@example.com')
+    >>> command('mailman members ant.example.com')
+    ant.example.com has no members
+
+Once the mailing list add some members, they will be displayed.
+::
+
+    >>> from mailman.testing.helpers import subscribe
+    >>> subscribe(ant, 'Anne', email='anne@example.com')
+    <Member: Anne Person <anne@example.com> on ant@example.com
+             as MemberRole.member>
+    >>> subscribe(ant, 'Bart', email='bart@example.com')
+    <Member: Bart Person <bart@example.com> on ant@example.com
+             as MemberRole.member>
+
+    >>> command('mailman members ant.example.com')
+    Anne Person <anne@example.com>
+    Bart Person <bart@example.com>
+
+Members are displayed in alphabetical order based on their address.
+::
+
+    >>> subscribe(ant, 'Anne', email='anne@aaaxample.com')
+    <Member: Anne Person <anne@aaaxample.com> on ant@example.com
+             as MemberRole.member>
+
+    >>> command('mailman members ant.example.com')
+    Anne Person <anne@aaaxample.com>
+    Anne Person <anne@example.com>
+    Bart Person <bart@example.com>
+
+You can also output this list to a file.
+::
+
+    >>> from tempfile import NamedTemporaryFile
+    >>> filename = cleanups.enter_context(NamedTemporaryFile()).name
+
+    >>> command('mailman members -o ' + filename + ' ant.example.com')
+    >>> with open(filename, 'r', encoding='utf-8') as fp:
+    ...     print(fp.read())
+    Anne Person <anne@aaaxample.com>
+    Anne Person <anne@example.com>
+    Bart Person <bart@example.com>
+
+The output file can also be standard out.
+
+    >>> command('mailman members -o - ant.example.com')
+    Anne Person <anne@aaaxample.com>
+    Anne Person <anne@example.com>
+    Bart Person <bart@example.com>
+
+
+Filtering on delivery mode
+--------------------------
+
+You can limit output to just the regular non-digest members...
+::
+
+    >>> member = ant.members.get_member('anne@example.com')
+    >>> from mailman.interfaces.member import DeliveryMode
+    >>> member.preferences.delivery_mode = DeliveryMode.plaintext_digests
+
+    >>> command('mailman members --regular ant.example.com')
+    Anne Person <anne@aaaxample.com>
+    Bart Person <bart@example.com>
+
+...or just the digest members.  Furthermore, you can either display all digest
+members...
+::
+
+    >>> member = ant.members.get_member('anne@aaaxample.com')
+    >>> member.preferences.delivery_mode = DeliveryMode.mime_digests
+
+    >>> command('mailman members --digest any ant.example.com')
+    Anne Person <anne@aaaxample.com>
+    Anne Person <anne@example.com>
+
+...just plain text digest members...
+
+    >>> command('mailman members --digest plaintext ant.example.com')
+    Anne Person <anne@example.com>
+
+...or just MIME digest members.
+::
+
+    >>> command('mailman members --digest mime ant.example.com')
+    Anne Person <anne@aaaxample.com>
+
+
+Filtering on delivery status
+----------------------------
+
+You can also filter the display on the member's delivery status.  By default,
+all members are displayed, but you can filter out only those whose delivery
+status is enabled...
+::
+
+    >>> from mailman.interfaces.member import DeliveryStatus
+
+    >>> member = ant.members.get_member('anne@aaaxample.com')
+    >>> member.preferences.delivery_status = DeliveryStatus.by_moderator
+    >>> member = ant.members.get_member('bart@example.com')
+    >>> member.preferences.delivery_status = DeliveryStatus.by_user
+
+    >>> member = subscribe(ant, 'Cris', email='cris@example.com')
+    >>> member.preferences.delivery_status = DeliveryStatus.unknown
+    >>> member = subscribe(ant, 'Dave', email='dave@example.com')
+    >>> member.preferences.delivery_status = DeliveryStatus.enabled
+    >>> member = subscribe(ant, 'Elle', email='elle@example.com')
+    >>> member.preferences.delivery_status = DeliveryStatus.by_bounces
+
+    >>> command('mailman members --nomail enabled ant.example.com')
+    Anne Person <anne@example.com>
+    Dave Person <dave@example.com>
+
+...or disabled by the user...
+
+    >>> command('mailman members --nomail byuser ant.example.com')
+    Bart Person <bart@example.com>
+
+...or disabled by the list administrator (or moderator)...
+
+    >>> command('mailman members --nomail byadmin ant.example.com')
+    Anne Person <anne@aaaxample.com>
+
+...or by the bounce processor...
+
+    >>> command('mailman members --nomail bybounces ant.example.com')
+    Elle Person <elle@example.com>
+
+...or for unknown (legacy) reasons.
+
+    >>> command('mailman members --nomail unknown ant.example.com')
+    Cris Person <cris@example.com>
+
+You can also display all members who have delivery disabled for any reason.
+::
+
+    >>> command('mailman members --nomail any ant.example.com')
+    Anne Person <anne@aaaxample.com>
+    Bart Person <bart@example.com>
+    Cris Person <cris@example.com>
+    Elle Person <elle@example.com>
+
+
+Adding members
+==============
+
+You can add members to a mailing list from the command line.  To do so, you
+need a file containing email addresses and full names that can be parsed by
+``email.utils.parseaddr()``.
+::
+
+    >>> bee = create_list('bee@example.com')
+    >>> with open(filename, 'w', encoding='utf-8') as fp:
+    ...     print("""\
+    ... aperson@example.com
+    ... Bart Person <bperson@example.com>
+    ... cperson@example.com (Cate Person)
+    ... """, file=fp)
+
+    >>> command('mailman members --add ' + filename + ' bee.example.com')
+
+    >>> from operator import attrgetter
+    >>> dump_list(bee.members.addresses, key=attrgetter('email'))
+    aperson@example.com
+    Bart Person <bperson@example.com>
+    Cate Person <cperson@example.com>
+
+You can also specify ``-`` as the filename, in which case the addresses are
+taken from standard input.
+::
+
+    >>> stdin = """\
+    ... dperson@example.com
+    ... Elly Person <eperson@example.com>
+    ... fperson@example.com (Fred Person)
+    ... """
+    >>> command('mailman members --add - bee.example.com', input=stdin)
+
+    >>> dump_list(bee.members.addresses, key=attrgetter('email'))
+    aperson@example.com
+    Bart Person <bperson@example.com>
+    Cate Person <cperson@example.com>
+    dperson@example.com
+    Elly Person <eperson@example.com>
+    Fred Person <fperson@example.com>
+
+Blank lines and lines that begin with '#' are ignored.
+::
+
+    >>> with open(filename, 'w', encoding='utf-8') as fp:
+    ...     print("""\
+    ... gperson@example.com
+    ... # hperson@example.com
+    ...
+    ... iperson@example.com
+    ... """, file=fp)
+
+    >>> command('mailman members --add ' + filename + ' bee.example.com')
+
+    >>> dump_list(bee.members.addresses, key=attrgetter('email'))
+    aperson@example.com
+    Bart Person <bperson@example.com>
+    Cate Person <cperson@example.com>
+    dperson@example.com
+    Elly Person <eperson@example.com>
+    Fred Person <fperson@example.com>
+    gperson@example.com
+    iperson@example.com
+
+Addresses which are already subscribed are ignored, although a warning is
+printed.
+::
+
+    >>> with open(filename, 'w', encoding='utf-8') as fp:
+    ...     print("""\
+    ... gperson@example.com
+    ... aperson@example.com
+    ... jperson@example.com
+    ... """, file=fp)
+
+    >>> command('mailman members --add ' + filename + ' bee.example.com')
+    Already subscribed (skipping): gperson@example.com
+    Already subscribed (skipping): aperson@example.com
+
+    >>> dump_list(bee.members.addresses, key=attrgetter('email'))
+    aperson@example.com
+    Bart Person <bperson@example.com>
+    Cate Person <cperson@example.com>
+    dperson@example.com
+    Elly Person <eperson@example.com>
+    Fred Person <fperson@example.com>
+    gperson@example.com
+    iperson@example.com
+    jperson@example.com
+
+
+Displaying members
+==================
+
+With no arguments, the command displays all members of the list.
+
+    >>> command('mailman members bee.example.com')
+    aperson@example.com
+    Bart Person <bperson@example.com>
+    Cate Person <cperson@example.com>
+    dperson@example.com
+    Elly Person <eperson@example.com>
+    Fred Person <fperson@example.com>
+    gperson@example.com
+    iperson@example.com
+    jperson@example.com
