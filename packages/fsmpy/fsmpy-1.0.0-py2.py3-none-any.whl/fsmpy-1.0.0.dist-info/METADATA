@@ -1,0 +1,163 @@
+Metadata-Version: 2.1
+Name: fsmpy
+Version: 1.0.0
+Summary: Minimal state machine
+Home-page: https://github.com/Woile/pyfsm
+Author: Santiago Fraire Willemoes
+Author-email: santiwilly@gmail.com
+License: BSD
+Download-URL: https://github.com/Woile/pyfsm/tree/1.0.0
+Keywords: finite state machine minimal
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Operating System :: Unix
+Classifier: Operating System :: POSIX
+Classifier: Operating System :: Microsoft :: Windows
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Classifier: Programming Language :: Python :: Implementation :: PyPy
+Classifier: Topic :: Utilities
+
+========
+Overview
+========
+
+
+
+Minimal state machine
+
+* Free software: BSD license
+
+Usage
+=====
+
+.. code-block:: python
+
+    import fsm
+
+    class MyModel(fsm.FiniteStateMachineMixin):
+        """An example to test the state machine.
+
+        Contains transitions to everywhere, nowhere and specific states.
+        """
+
+        state_machine = {
+            'created': '__all__',
+            'pending': ('running',),
+            'running': ('success', 'failed'),
+            'success': None,
+            'failed': ('retry',),
+            'retry': ('pending', 'retry'),
+        }
+
+        def __init__(self, state):
+            """Initialize setting a state."""
+            self.state = state
+
+        def current_state(self):
+            """Overriden."""
+            return self.state
+
+        def on_before_pending(self):
+            print("I'm going to a pending state")
+
+::
+
+    In [4]: m = MyModel(state='created')
+
+    In [5]: m.change_state('pending')
+    I'm going to a pending state
+    Out[5]: 'pending'
+
+    In [6]: m.change_state('failed')
+    ---------------------------------------------------------------------------
+    InvalidTransition                         Traceback (most recent call last)
+    <ipython-input-6-71d2461eee74> in <module>()
+    ----> 1 m.change_state('failed')
+
+    ~/pyfsm/src/fsm/fsm.py in change_state(self, next_state, **kwargs)
+        90             msg = "The transition from {0} to {1} is not valid".format(previous_state,
+        91                                                                        next_state)
+    ---> 92             raise InvalidTransition(msg)
+        93
+        94         name = 'pre_{0}'.format(next_state)
+
+    InvalidTransition: The transition from pending to failed is not valid
+
+
+There are hooks that can be included before a state transition happens and after.
+
+fsm will look for these functions
+
+::
+    pre_<state_name>
+    post_<state_name>
+
+And will give them any extra argument given to :code:`change_state`
+
+E.g:
+
+Running :code:`m.change_state('pending', name='john')` will trigger :code:`pre_pending(name='john')`
+
+
+Installation
+============
+
+::
+
+    pip install fsmpy
+
+Documentation
+=============
+
+https://pyfsm.readthedocs.org/
+
+Development
+===========
+
+To run the all tests run::
+
+    tox
+
+Note, to combine the coverage data from all the tox environments run:
+
+.. list-table::
+    :widths: 10 90
+    :stub-columns: 1
+
+    - - Windows
+      - ::
+
+            set PYTEST_ADDOPTS=--cov-append
+            tox
+
+    - - Other
+      - ::
+
+            PYTEST_ADDOPTS=--cov-append tox
+
+
+Changelog
+=========
+
+0.1.3 (2017-15-09)
+-----------------------------------------
+
+* Updated docs
+* Corrections to code
+* ci updated
+
+
+0.1.0 (2016-04-18)
+-----------------------------------------
+
+* First release on PyPI.
+
+
