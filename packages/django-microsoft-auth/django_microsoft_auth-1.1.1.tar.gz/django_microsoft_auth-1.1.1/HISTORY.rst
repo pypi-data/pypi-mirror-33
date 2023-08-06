@@ -1,0 +1,46 @@
+=======
+History
+=======
+
+1.1.0 (2018-7-3)
+----------------
+* Removes o365 option. New authorization URL works well enough for both
+    * Xbox Live Auth still uses old Microsoft Auth URL
+    * 'o365' will still work as a MICROSOFT_AUTH_LOGIN_TYPE value,
+      but you should change it to 'ma'
+* Adds extras:
+    * `ql`: DjangoQL package and support
+    * `test`: test dependencies (same as test_requires packages)
+    * `dev`: `ql`+`test` and extra dev only dependencies like
+      `twine` and `pip-tools`
+* Pip 10 support (thanks Shigumitsu!)
+* Fixes max length of o365 IDs (thanks Shigumitsu!)
+
+1.0.6 (2018-4-8)
+----------------
+* Added patched username validator to allow spaces for usernames for
+  Xbox Live Gamertags
+
+1.0.5 (2018-4-8)
+----------------
+* Added missing templates and static files to MANIFEST
+
+1.0.4 (2017-12-2)
+-----------------
+
+* Updated Django category to include 2.0
+
+1.0.3 (2017-12-2)
+-----------------
+
+* Updated for Django 2.0
+
+1.0.2 (2017-11-27)
+------------------
+
+* Changed Development Status category to Stable
+
+1.0.0 (2017-11-19)
+------------------
+
+* First release on PyPI.
