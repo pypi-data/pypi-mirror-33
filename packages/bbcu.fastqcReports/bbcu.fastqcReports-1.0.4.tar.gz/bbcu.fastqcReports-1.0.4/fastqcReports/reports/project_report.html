@@ -1,0 +1,110 @@
+<html>
+<head>
+<link rel="SHORTCUT ICON" href="./resources/images/logo.png"/>
+</head>
+<body>
+<link rel="stylesheet" type="text/css" href="./resources/css/style.css" />
+<div class="header">
+	<p><b>General QC for run {{ fc_name }}</b><p>
+	<p class="sep">Sequence protocol: <b><span class='protocol'>{% if paired_end %}Paired-end{% else %}Single-read{% endif %}</span></b></p>
+</div>
+<div class="sidebar">
+	<h4>Quick Navigation</h4>
+		<ul>
+			<li><a href="#qual">Sequence quality</a></li>
+			<li><a href="#pf">#PF reads</a></li>
+			<li><a href="#basic-flw">Flowcell Summary</a>
+			<li><a href="#basic-proj">Basic parameters per sample</a>
+		</ul>
+</div>
+<div class="main">
+    <p style="font-size: 40px;">See <a href="./MultiQC/multiqc_report.html" style="font-size: 50px;" target="_blank">here</a> a more comprehensive report of MultiQC software</p>
+
+	<div class="quality" id="qual">
+			<br>
+			<h3>Mean per base sequence quality</h3>
+			<h4>Read 1</h4>
+			<img src="./resources/images/R1_q_scores.png" style="width:1100px;" />
+			{% if paired_end %}<h4>Read 2</h4>
+			<img src="./resources/images/R2_q_scores.png" style="width:1100px;" />
+			<br> {% endif %}
+			<br>
+		</div>
+		<div class="pf-reads" id="pf">
+			<h3>#PF reads per sample</h3>
+			<img src="./resources/images/pf_reads.png" style="width:1000px;"/>
+		</div>
+		<p style="clear:both;"></p>
+		<br>
+		<div class="basic-params-flw" id="basic-flw">
+			<h3>Flowcell Summary</h3>
+			<table border='0'>
+				<tr valign="top">
+					<td><b>Clusters (Raw)</b></td>
+					<td><b>Clusters (PF)</b></td>
+					<td><b>Yield (MBases)</b></td>
+				</tr>
+				{% set bg0, bg1 = '#d8d8d8', '#fafafa' %}
+				<tr bgcolor=#d8d8d8>
+					{% for feature in flw_features %}<td>{{ flw_stats[feature] }}</td>{% endfor %}
+				</tr>
+				{% set bg0, bg1 = bg1, bg0 %}
+			</table>
+		</div>
+		<div class="basic-params-proj" id="basic-proj">
+		<h3>Basic parameters per sample</h3>
+		<table border='0'>
+			<tr valign='top'>
+				<td><b>Sample</b></td>
+				<td><b>Index</b></td>
+				<td>
+					<span title="The number of passed filter clusters that were assigned to each sample after demultiplexing ("Undetermined" are clusters that were not assigned to any of the samples).">
+					<b># PF Clusters</b><img class="icon" src="./resources/images/info.png" border='0'></span>
+				</td>
+				<td>
+					<span title="The percentage of passed filter clusters per sample (out of all passed filter clusters in the flowcell)">
+					<b>% Clusters<img class="icon" src="./resources/images/info.png" border='0'><br>per sample</b></span>
+				</td>
+				<td>
+					<span title="Number of bases (MBases)">
+					<b>Yield<img class="icon" src="./resources/images/info.png" border='0'><br>(MBases)</b></span>
+				</td>
+				<td>
+					<span title="The percentage of bases &#8805;Q30 is averaged across all sequences assigned to the sample (separately for read 1 and read 2 if paired-end), not on a per-sequence or per-cycle basis. This data is derived from the FastQC reports">
+					<b>%&#8805;Q30</b><img class="icon" src="./resources/images/info.png" border='0'></span>
+				</td>
+				<td><b>FastQC Analysis</b></td>
+			</tr>
+			{% set bg0, bg1 = '#d8d8d8', '#fafafa' %} {% for row in d_stat %}{% set undetermined = (row['Sample'] == 'Undetermined Indices') %}
+			{% if undetermined %}<tr bgcolor='yellow'>{% else %}<tr bgcolor={{ bg0 }}>{% endif %}
+				{% for feature in left_project_features %}<td>{{ row[feature] }}</td>{% endfor %}
+				{% for feature in right_project_features %}<td align='right'>{{ row[feature] }}</td>{% endfor %}
+				{% if undetermined %}<td/><td/><td/>{% if paired_end %}<td/>{% endif %}
+				{% else %}<td align='right'>{{ row['q30_pf_r1'] }} {% if paired_end %} (R1) {{ row['q30_pf_r2'] }} (R2){% endif %} </td>
+				{%if undetermined %}
+					<td></td>
+				{% else %}
+					<td><nobr>R1
+						<a href="./{{ row['readID'] }}.zip" target="{{ row['readID'] }}"><img title="download" class="icon" src="./resources/images/download.png" border='0'></a>
+						<a href="./{{ row['readID'] }}/fastqc_report.html" target="{{ row['readID'] }}"><img title="view report" class="icon" src="./resources/images/view.gif" border='0'></a>
+						</nobr>
+					</td>
+				{% endif %}
+				{%if undetermined %}
+					<td></td>
+				{% else %}
+					{% if paired_end %}
+						<td style="width: 126"><nobr>R2
+							<a href="./{{ row['read2ID'] }}.zip" target="{{ row['read2ID'] }}"><img title="download" class="icon" src="./resources/images/download.png" border='0'></a>
+							<a href="./{{ row['read2ID'] }}/fastqc_report.html" target="{{ row['read2ID'] }}"><img title="view report" class="icon" src="./resources/images/view.gif" border='0'></a>
+						</nobr></td>
+					{% endif %}
+				{% endif %}
+			{% endif %} {% set bg0, bg1 = bg1, bg0 %}
+			</tr>{% endfor %}
+		</table>
+		</div><!-- basic-params -->
+</div><!--main-->
+</body>
+</html>
+
