@@ -1,0 +1,71 @@
+"""
+    footballdata.utils
+    ~~~~~~~~~~~~~~~~~~
+
+    Implements various helpers.
+
+    :copyright: (c) 2018 Tony Joseph
+    :license: BSD 3-Clause
+"""
+
+import re
+import requests
+from requests.exceptions import HTTPError
+
+
+def fetch_data_from_api(endpoint, api_key='', options=None):
+    """Fetches data from the endpoint and returns it
+
+    :param endpoint: api endpoint to connect
+    :param api_key: optional api key
+    :param options: data to sent with api call
+    :return:
+    """
+
+    # Build headers
+    headers = {}
+    if api_key:
+        headers['X-Auth-Token'] = api_key
+
+    # Build data
+    params = options if options else {}
+
+    response = requests.get(endpoint, headers=headers, params=params)
+
+    # Return the json data if request is successful
+    if response.status_code == 200:
+        return response.json()
+    elif response.status_code in [403, 404]:
+        return []
+    error = "Status: {} Content: {}".format(response.status_code, response.content)
+    raise HTTPError(error)
+
+
+def camel_to_snake(name):
+    """Takes a string in camel case and converts it to snake case
+
+    :param name: String to convert to snake case
+    :return: String in snake case
+    """
+
+    underscore_name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', underscore_name).lower()
+
+
+def clean_object(data):
+    """Takes data from api and build data dictionary with proper keys
+
+    :param data: Dict data from api
+    :return: Dict with proper keys and meta data removed
+    """
+
+    data_dict = {}
+    for key in data.keys():
+        new_key = key
+        if key.startswith('_'):
+            # Remove _ to prevent misinterpretation as private date
+            new_key = key.replace('_', '', 1)
+
+        data_dict[camel_to_snake(new_key)] = data[key]
+
+    return data_dict
