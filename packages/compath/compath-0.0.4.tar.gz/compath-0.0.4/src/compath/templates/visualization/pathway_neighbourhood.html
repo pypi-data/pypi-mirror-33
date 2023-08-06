@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% import "bootstrap/wtf.html" as wtf %}
+{% import "bootstrap/fixes.html" as fixes %}
+{% import "bootstrap/utils.html" as util %}
+
+{% block title %}Pathway Network Viewer{% endblock %}
+
+
+{% block styles %}
+    {{ super() }}
+
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.13/css/all.css"
+          integrity="sha384-DNOHZ68U8hZfKXOrtjWvjxusGo9WQnrNx2sqG0tfsghAvtVlRW3tvkXWZh58N9jp" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/graph_explorer.css') }}">
+
+    <style>
+
+        .center-slider {
+            margin-bottom: 10px;
+            margin-top: 10px;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: center;
+        }
+
+        #network {
+            display: block;
+            height: 584px;
+            border: 1px solid lightgrey;
+            padding-right: 0px !important;;
+            padding-left: 0px !important;
+            border-radius: 4px !important;
+        }
+
+        .param {
+            margin-bottom: 1em;
+        }
+
+        .full-width {
+            width: 100%;
+        }
+
+        .not-rounded {
+            border-radius: 0 !important;
+        }
+
+        .not-rounded2 {
+            border-radius: 0 !important;
+        }
+
+        p {
+            margin: 0.5em 0;
+        }
+
+        .param button {
+            width: 3em;
+            margin-right: 0.25em;
+        }
+
+        .slider {
+            display: block;
+        }
+
+    </style>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    {% include "dependencies/common.html" %}
+    {% include "dependencies/cytoscape.html" %}
+    {% include "dependencies/slider.html" %}
+    <script type="text/javascript"
+            src="{{ url_for('static', filename='js/pathway_knowledge_graph_controller.js', version='20180510') }}">
+    </script>
+    <script type="text/javascript">
+
+        $(document).ready(function () {
+            var graph = {{ cytoscape_graph|safe }};
+
+            if ($.isEmptyObject(graph)) {
+                alert('There is no link between the selected pathways. Please select other pathways.')
+            }
+            else {
+                startCy(graph); // Generate the default Network
+            }
+
+            var slider = new Slider('#threshold-slider', {}); // Initialize slider
+        });
+    </script>
+
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+
+        <div class="text-center">
+            <h2>Pathway Network Viewer</h2>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8 col-md-8 col-xs-8" id="network"></div>
+            <div class="panel panel-default col-lg-4 col-md-4 col-xs-4"
+                 style="max-height: 585px;height: 585px;padding-right: 0;padding-left: 0; margin-bottom:0">
+                <ul class="nav nav-tabs">
+                    <li class="active">
+                        <a class="nav-link" data-toggle="tab" href="#network-panel"><i
+                                class="fa fa-cog" aria-hidden="true"></i> Modify Network</a>
+                    </li>
+                    <li>
+                        <a class="nav-link" data-toggle="tab" href="#nodes-panel"><i
+                                class="far fa-circle" aria-hidden="true"></i>
+                            Nodes
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link" data-toggle="tab" href="#edges-panel"><i
+                                class="fa fa-arrow-right " aria-hidden="true"></i> Edges</a>
+                    </li>
+                    <li>
+                        <a data-toggle="modal" data-target="#legend"><i
+                                class="fa fa-map" aria-hidden="true"></i></a>
+                    </li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane active" id="network-panel" role="tabpanel">
+                        <a onclick="showMappings(window.location.href)" class="btn btn-primary not-rounded full-width">
+                            Enrich Network with Mappings
+                        </a>
+                        <p class="panel-body preamble">
+                            The Pathway Network View represents pathways as nodes and weighted edges as their
+                            gene-based similarities. The "Nodes" and "Edges" tabs above enable exploration of the
+                            network. Furthemore, the curated mappings can be used to enrich the network by clicking in
+                            the button above. To modify the layout of the network use the button below. Finally, use the
+                            slider to highlight edges falling on a defined similarity range.
+                        </p>
+
+                        <div class="tab-pane not-rounded" id="highlight-threshold" role="tabpanel">
+                            <div class="panel-body">
+                                <center><input id="threshold-slider" type="text" value="" data-slider-min="0"
+                                               data-slider-max="1"
+                                               data-slider-step="0.01" data-slider-value="[0.0,1]"
+                                               class="col-lg-10"/>
+                                </center>
+                            </div>
+                            <div id="config" class="config col-lg-2">
+                                <div class="param">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="tab-pane not-rounded" id="nodes-panel" role="tabpanel">
+                        <div id="node-slider" class="center-slider"></div>
+                        <button class='btn btn-primary not-rounded full-width' id='get-checked-nodes'>Show
+                            Selected Nodes
+                        </button>
+                        <div class="input-group">
+                                <span class="input-group-addon not-rounded2" id="sizing-addon"><i
+                                        class="fa fa-connectdevelop fa-0.5x"></i></span>
+                            <input placeholder="Search nodes" id="node-search"
+                                   class="wide form-control not-rounded"
+                                   aria-describedby="sizing-addon1" type="text"/>
+                        </div>
+                        <div class="not-rounded2" id="node-list"
+                             style="max-height: 390px;height: 390px; overflow:auto;">
+                        </div>
+                    </div>
+                    <div class="tab-pane not-rounded" id="edges-panel" role="tabpanel">
+                        <div id="edge-slider" class="center-slider"></div>
+
+                        <button class='btn btn-primary not-rounded full-width' id='get-checked-edges'>Show
+                            Selected Edges
+                        </button>
+                        <div class="input-group">
+                                <span class="input-group-addon not-rounded2" id="sizing-addon"><i
+                                        class="fa fa-connectdevelop fa-0.5x"></i></span>
+                            <input placeholder="Search edges" id="edge-search"
+                                   class="wide form-control not-rounded"
+                                   aria-describedby="sizing-addon1" type="text"/>
+                        </div>
+                        <div id="edge-list" class="not-rounded2"
+                             style="max-height: 390px;height: 390px; overflow:auto;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <table id="info-table" class="table table-bordered table-hover"></table>
+        </div>
+        {% include "meta/footer.html" %}
+
+    </div>
+    {% include "visualization/dendrogram/legend.html" %}
+
+{% endblock %}

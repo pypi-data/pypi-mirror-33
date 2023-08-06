@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% import "bootstrap/wtf.html" as wtf %}
+{% import "bootstrap/fixes.html" as fixes %}
+{% import "bootstrap/utils.html" as util %}
+
+{% block title %}Pathway Enrichment{% endblock %}xz
+
+{% block scripts %}
+    {{ super() }}
+    <script type="text/javascript">
+        var maxHeight = 0;
+        $(".panel-body").find(".row").find(".col-sm-6").find(".thumbnail").each(function (idx, item) {
+            var height = $(item).height();
+            maxHeight = maxHeight > height ? maxHeight : height;
+        });
+        $(".panel-body").find(".row").find(".col-sm-6").find(".thumbnail").height(maxHeight);
+    </script>
+    <script>
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip()
+        })
+    </script>
+    <script type="text/javascript">
+        /** This JS controls the query page of ComPath
+         **
+         * @requires: jquery
+         */
+        function insertExample() {
+            $.get('static/resources/txt/geneset_example.txt', function (data) {
+                $('textarea#geneset-input').val(data);
+            });
+            return false;
+        }
+    </script>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <div class="page-header">
+            <h1>Pathway Enrichment</h1>
+        </div>
+
+        {{ util.flashed_messages(dismissible=True, container=False) }}
+
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">Submission Form</h3>
+            </div>
+            <div class="panel-body">
+                <div class="col-lg-6 col-md-6 col-sm-6">
+
+                    <form action="{{ url_for('analysis.process_gene_set') }}" method="post"
+                          enctype="multipart/form-data">
+                        <p>
+                            Choose an file to upload with the gene set in txt or gmt file format.
+                        </p>
+                        {{ file_form.hidden_tag() }}
+                        {{ file_form.file }}
+                        <div style="margin-top: 20px">
+                            {{ file_form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+
+                </div>
+
+                <div class="col-lg-6 col-md-6 col-sm-6">
+
+                    <form action="{{ url_for('analysis.process_gene_set') }}" method="post">
+                        <div class="form-group">
+
+                            {{ text_form.hidden_tag() }}
+                            <label style="font-weight: normal;" for="geneset-input">Or paste your gene set row wise or
+                                comma separated. Click <a
+                                        href="#" id="geneset-example" onclick="return insertExample();">
+                                    here</a> to use an example <i class="glyphicon glyphicon-info-sign"
+                                                                  data-toggle="modal"
+                                                                  data-target="#gene-set-info">
+                                </i>. Select to filter non-significant pathways
+                                (FDR>5%){{ text_form.filter_non_significant() }}.
+                            </label>
+
+                            {{ text_form.geneset(rows="5", class="form-control")|safe }}
+
+                            <div class="text-center" style="margin-top: 20px">
+                                {{ text_form.submit(class="btn btn-primary") }}
+                            </div>
+                        </div>
+
+                    </form>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Modal -->
+    <div id="gene-set-info" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Information about the Example Gene Set</h4>
+                </div>
+                <div class="modal-body">
+                    <p>The gene set used an example describes a panel of genes and genetic loci that have been
+                        associated with the development of Parkinson’s disease (PD)/parkinsonism by <a
+                                href="https://www.cell.com/cell/abstract/S0092-8674(15)00062-8"><i>José Brás, et al.
+                            2015</i></a>.
+
+                    </p>
+                    <p>Brás, J., Guerreiro, R., & Hardy, J. (2015). SnapShot: genetics of Parkinson’s disease. Cell,
+                        160(3), 570-570.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    {% include "meta/footer.html" %}
+{% endblock %}

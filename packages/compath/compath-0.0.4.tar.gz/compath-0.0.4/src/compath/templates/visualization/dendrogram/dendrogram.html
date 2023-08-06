@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% import "bootstrap/wtf.html" as wtf %}
+{% import "bootstrap/fixes.html" as fixes %}
+{% import "bootstrap/utils.html" as util %}
+
+{% block title %}Pathway Clustering{% endblock %}
+
+{% block styles %}
+    {{ super() }}
+
+    <style>
+
+
+        div.kegg {
+            width: 20px;
+            height: 20px;
+            background: #5cb85c;
+            -moz-border-radius: 60px;
+            -webkit-border-radius: 60px;
+            border-radius: 60px;
+        }
+
+        div.reactome {
+            width: 20px;
+            height: 20px;
+            background: #d9534f;
+            -moz-border-radius: 60px;
+            -webkit-border-radius: 60px;
+            border-radius: 60px;
+        }
+
+        div.wikipathways {
+            width: 20px;
+            height: 20px;
+            background: #5bc0de;
+            -moz-border-radius: 60px;
+            -webkit-border-radius: 60px;
+            border-radius: 60px;
+        }
+
+        div.msig {
+            width: 20px;
+            height: 20px;
+            background: #777777;
+            -moz-border-radius: 60px;
+            -webkit-border-radius: 60px;
+            border-radius: 60px;
+        }
+
+        div.neurommsig_ad {
+            width: 20px;
+            height: 20px;
+            background: #e5c339;
+            -moz-border-radius: 60px;
+            -webkit-border-radius: 60px;
+            border-radius: 60px;
+        }
+
+        div.neurommsig_pd {
+            width: 20px;
+            height: 20px;
+            background: #ff69b4;
+            -moz-border-radius: 60px;
+            -webkit-border-radius: 60px;
+            border-radius: 60px;
+        }
+
+        .node circle {
+            stroke: black;
+            stroke-width: 2.5px;
+        }
+
+        .node {
+            font: 12px sans-serif;
+        }
+
+        .link {
+            fill: none;
+            stroke-width: 2px;
+        }
+
+        line {
+            stroke: black;
+        }
+
+        .link_highlighted {
+            stroke: #4EB2D4;
+        !important;
+        }
+
+        .node_highlighted > circle {
+            stroke: #4EB2D4 !important;
+        }
+
+        .node_highlighted > text {
+            fill: #4EB2D4 !important;
+        }
+
+        hr {
+            color: #123455;
+        }
+
+        .center-slider {
+            margin-bottom: 10px;
+            margin-top: 10px;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: center;
+        }
+
+    </style>
+
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="https://d3js.org/d3.v3.min.js"></script>
+    {% include "dependencies/slider.html" %}
+    <script>
+
+        //Node Color Dictionary
+        var nodeColors = { // Object resource name -> colour
+            "reactome": "#d9534f",
+            "kegg": "#5cb85c",
+            "wikipathways": "#5bc0de",
+            "msig": "#777777",
+            "neurommsig_ad": "#e5c339",
+            "neurommsig_pd": "#ff69b4"
+
+        };
+
+        var defaultLinkColor = "#ccc";
+        var highlightLinkColor = "#4EB2D4";
+        var defaultRadius = 7;
+
+        var clusterNodeColor = "white";
+
+        var treeJson = {{ tree_json|tojson|safe }};
+        var numberNodes = {{ numberNodes|safe }};
+
+        // Select dendrogram div to define the width of the bootstrap panel
+        var dendrogramDiv = $("#dendrogram");
+
+        var height = 800 + numberNodes * 40;
+
+        // Size definitions
+        var width = dendrogramDiv.width();
+
+        var cluster = d3.layout.cluster()
+            .size([height, width - 200]);
+
+        // Define curves linking the nodes
+        var diagonal = d3.svg.diagonal()
+            .projection(function (d) {
+                return [xinv(d.y), d.x];
+            });
+
+        // Append svg element
+        var svg = d3.select("#dendrogram").append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .append("g")
+            .attr("transform", "translate(100,0)");
+
+        // Allow to locate nodes in a defined axis point
+        var ys = [];
+
+
+        /**
+         * Populates ys array with distance info
+         * @param {object} node object
+         */
+        function getXYfromJSONTree(node) {
+            ys.push(node.y);
+            // Recursive transversal in the tree to extract all values in the same order as d3.cluster()
+            if (typeof node.children != 'undefined') {
+                for (j in node.children) {
+                    getXYfromJSONTree(node.children[j]);
+                }
+            }
+        }
+
+        var ymax = Number.MIN_VALUE;
+        var ymin = Number.MAX_VALUE;
+
+        getXYfromJSONTree(treeJson);
+
+        ys[0] = ys[1]; // Merges the imaginary root with the real oneby overwriting its y value
+
+        // Parse the data structure from root
+        var nodes = cluster.nodes(treeJson);
+
+        nodes.forEach(function (d, i) {
+            if (typeof ys[i] != 'undefined') {
+                d.y = ys[i];
+            }
+        });
+
+        // Update Min and Max value in Y (distance metric)
+        nodes.forEach(function (d) {
+            if (d.y > ymax) {
+                ymax = d.y;
+            }
+            if (d.y < ymin) {
+                ymin = d.y;
+            }
+        });
+
+        // Distance scale
+        x = d3.scale.linear().domain([ymin, ymax]).range([0, width - 200]);
+        xinv = d3.scale.linear().domain([ymax, ymin]).range([0, width - 200]);
+
+        // Add links and apply the previous diagonal definition
+        var link = svg.selectAll(".link")
+            .data(cluster.links(nodes))
+            .enter().append("path")
+            .attr("stroke", defaultLinkColor)
+            .attr("class", "link")
+            .attr("d", diagonal);
+
+        // Add nodes with a 4.5 radius
+        var node = svg.selectAll(".node")
+            .data(nodes)
+            .enter().append("g")
+            .attr("class", "node")
+            .attr("transform", function (d) {
+                return "translate(" + xinv(d.y) + "," + d.x + ")"; // Important to use the xinv scale
+            });
+
+        node.append("circle")
+            .attr("r", defaultRadius)
+            .attr("fill", function (d) {
+                // Color pathway nodes, cluster nodes are not filled
+                if (d.color in nodeColors) {
+                    return nodeColors[d.color];
+                }
+                else {
+                    return clusterNodeColor;
+                }
+            });
+
+        // Add name
+        node.append("text")
+            .attr("dx", "-12")
+            .attr("dy", 3)
+            .style("text-anchor", "end") // Text align to the left of the node
+            .text(function (d) {
+                if ("name" in d) {
+                    // Avoid the Root node to be present
+                    if (d.name === "Root") {
+                        return ""
+                    }
+                    return d.name;
+                }
+            });
+
+        var g = d3.select("svg").append("g")
+            .attr("transform", "translate(100,20)"); //the X value needs to be the same than the #dendrogram div translate attribute
+        g.append("line")
+            .attr("x1", x(ymin))
+            .attr("y1", 0)
+            .attr("x2", x(ymax))
+            .attr("y2", 0);
+        g.selectAll(".ticks")
+            .data(x.ticks(15))
+            .enter().append("line")
+            .attr("class", "ticks")
+            .attr("x1", function (d) {
+                return xinv(d);
+            })
+            .attr("y1", -5)
+            .attr("x2", function (d) {
+                return xinv(d);
+            })
+            .attr("y2", 5);
+        g.selectAll(".label")
+            .data(x.ticks(15))
+            .enter().append("text")
+            .attr("class", "label")
+            .text(String)
+            .attr("x", function (d) {
+                return xinv(d);
+            })
+            .attr("y", -10)
+            .attr("text-anchor", "middle");
+
+
+        // Highlight on mouse-enter and back to normal on mouseout
+        node.on("mouseenter", function (data, index) {
+            d3.select(this).classed('node_highlighted', true);
+
+            link.classed("link_highlighted", function (o) {
+                return o.source.index === index || o.target.index === index;
+            });
+
+        }).on("mouseout", function () {
+            link.classed("link_highlighted", false);
+            node.classed("node_highlighted", false);
+        });
+
+
+        // Highlight links on mouseenter and back to normal on mouseout
+        link.on("mouseenter", function (data) {
+            d3.select(this).classed('link_highlighted', true);
+        }).on("mouseout", function () {
+            d3.select(this).classed('link_highlighted', false);
+        });
+
+
+        ////////////// Slider /////////////////
+
+        var targetDiv = $("#threshold-slider");
+
+        var input = $("<input style='width: 30%'></input>");
+
+        targetDiv.append('<span class="label label-default"></span>');
+        targetDiv.append(input);
+
+        var slider = input.slider(
+            {
+                reversed: true,
+                min: ymin,
+                max: ymax,
+                step: 0.1,
+                value: ymin,
+                formatter: function (value) {
+                    return 'Max distance to cluster: ' + value;
+                }
+            }
+        );
+
+
+        slider.bind("change", function () {
+
+            var currentValue = slider.val();
+
+            link.style("stroke", defaultLinkColor); // Reset default color
+
+            linkSelection = svg.selectAll(".link").filter(function (link) {
+                return link.source.y <= currentValue;
+            });
+
+            linkSelection.style("stroke", highlightLinkColor); // Apply highlight color to the filtered clusters
+
+        });
+
+
+    </script>
+{% endblock %}
+
+{% block content %}
+    <div class="container" style="margin-top: 50px">
+        {{ util.flashed_messages(dismissible=True, container=False) }}
+
+        <div class="panel panel-default">
+            <div class="panel-heading">Cluster Pathways Based On Gene Set Profile</div>
+            <div class="panel-body">
+                <div>
+                    <p>The dendrogram presents clusters of pathways based on the method described
+                        <a href="http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0099030">Chen <i>et
+                            al</i>., 2014.</a>. The slider below highlights clusters of pathways by distance, allowing
+                        to identify the most similar pathway modules. The legend button shows the color schema used for
+                        each database. We recommend to decrease the zoom of the page and refresh the page if the
+                        dendrogram is too compact.
+                    </p>
+                    <button type="button" class="btn btn-primary pull-right"
+                            data-toggle="modal"
+                            data-target="#legend">
+                        Legend
+                    </button>
+                    <div id="threshold-slider" class="center-slider">
+                    </div>
+                </div>
+                <hr>
+                <div id="dendrogram"></div>
+            </div>
+        </div>
+    </div>
+    {% include "visualization/dendrogram/legend.html" %}
+    {% include "meta/footer.html" %}
+{% endblock %}
