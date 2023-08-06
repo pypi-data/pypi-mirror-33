@@ -1,0 +1,81 @@
+Metadata-Version: 2.1
+Name: django-postgres-ioc
+Version: 0.0.2
+Summary: A Django model manager providing insert on conflict for PostgreSQL database tables.
+Home-page: http://github.com/luojilab/django-postgres-ioc
+Author: mrgaolei
+Author-email: gaolei@luojilab.com
+License: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Web Environment
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2.6
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.3
+Classifier: Framework :: Django
+Classifier: Topic :: Internet :: WWW/HTTP :: Dynamic Content
+Classifier: Topic :: Internet :: WWW/HTTP :: Site Management
+Requires-Dist: django (>=1.7)
+
+Introduction
+============
+
+.. image:: https://img.shields.io/pypi/v/django-postgres-ioc.svg
+    :target: https://pypi.python.org/pypi/django-postgres-ioc
+
+Django ORM manager for Postgresql
+Came from Rock@luojilab
+
+Replace ``update_or_create``
+Without transaction, when using ``update_or_create`` may raise ``IntegrityError``
+Because thread 1 execute update affect 0 row
+and at the same time, thread 2 insert it
+then thread 1 do insert will trigger UniqueKey conflict.
+
+This method will use ``INSERT ON CONFLICT`` feature to fix this.
+
+Requirements
+============
+
+  * Python >= 2.6 (tested on 2.7 and 3.6)
+  * Django >= 1.7
+  * PostgreSQL >= 9.5
+
+Installation
+============
+
+Running following command::
+
+  $ python setup.py install
+
+Or using pip::
+
+  $ pip install -U django-postgres-ioc
+
+Usage
+=====
+
+Python code::
+
+    from django.db import models
+    from ioc import IOCManager
+
+    class Test(models.Model):
+        code = models.CharField(max_length=50, unique=True))
+        name = models.CharField(max_length=100
+
+        objects = IOCManager()
+
+    Test.objects.create_or_update(
+        conflict="code",
+        code="luojilab",
+        defaults={
+            "name": "LuojiLab",
+        },
+    )
+
+
