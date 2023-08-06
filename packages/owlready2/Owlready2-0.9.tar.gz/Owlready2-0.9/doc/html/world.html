@@ -1,0 +1,195 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Worlds &#8212; Owlready2 0.9 documentation</title>
+    <link rel="stylesheet" href="_static/pyramid.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Differences between Owlready version 1 and 2" href="porting1.html" />
+    <link rel="prev" title="Namespaces" href="namespace.html" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Neuton&amp;subset=latin" type="text/css" media="screen" charset="utf-8" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Nobile:regular,italic,bold,bolditalic&amp;subset=latin" type="text/css" media="screen" charset="utf-8" />
+<!--[if lte IE 6]>
+<link rel="stylesheet" href="_static/ie6.css" type="text/css" media="screen" charset="utf-8" />
+<![endif]-->
+
+  </head><body>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="porting1.html" title="Differences between Owlready version 1 and 2"
+             accesskey="N">next</a></li>
+        <li class="right" >
+          <a href="namespace.html" title="Namespaces"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Owlready2 0.9 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="worlds">
+<h1>Worlds<a class="headerlink" href="#worlds" title="Permalink to this headline">¶</a></h1>
+<p>Owlready2 stores every triples in a ‘World’ object, and it can handles several Worlds
+in parallel. ‘default_world’ is the World used by default.</p>
+<div class="section" id="persistent-world-storing-the-quadstore-in-an-sqlite3-file-database">
+<h2>Persistent world: storing the quadstore in an SQLite3 file database<a class="headerlink" href="#persistent-world-storing-the-quadstore-in-an-sqlite3-file-database" title="Permalink to this headline">¶</a></h2>
+<p>Owlready2 uses an optimized quadstore. By default, the quadstore is stored in memory, but it can also be
+stored in an SQLite3 file. This allows persistance: all ontologies loaded and created are stored in the file,
+and can be reused later.
+This is interesting for big ontogolies: loading huge ontologies can take time, while opening the SQLite3 file
+takes only a fraction of second, even for big files.
+It also avoid to load huge ontologies in memory, if you only need to access a few
+entities from these ontologies.</p>
+<p>The .set_backend() method of World sets the SQLite3 filename associated to the quadstore,
+for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">default_world</span><span class="o">.</span><span class="n">set_backend</span><span class="p">(</span><span class="n">filename</span> <span class="o">=</span> <span class="s2">&quot;/path/to/your/file.sqlite3&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">If the quad store is not empty when calling .set_backend(), RDF triples are automatically copied.
+However, this operation can have a high performance cost (especially if there are many triples).</p>
+</div>
+<p>When using persistence, the .save() method of World must be called for saving the actual
+state of the quadstore in the SQLite3 file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">default_world</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Storing the quadstore in a file does not reduce the performance of Owlready2 (actually,
+it seems that Owlready2 performs a little <em>faster</em> when storing the quadstore on the disk).</p>
+<p>By default, Owlready2 opens the SQLite3 database in exclusive mode. This mode is faster, but it does not allow
+several programs to use the same database simultaneously. If you need to have several Python programs that
+access simultaneously the same Owlready2 quadstore, you can disable the exclusive mode as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">default_world</span><span class="o">.</span><span class="n">set_backend</span><span class="p">(</span><span class="n">filename</span> <span class="o">=</span> <span class="s2">&quot;/path/to/your/file.sqlite3&quot;</span><span class="p">,</span> <span class="n">exclusive</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="persistent-world-storing-the-quadstore-in-a-postgresql-database">
+<h2>Persistent world: storing the quadstore in a PostgresQL database<a class="headerlink" href="#persistent-world-storing-the-quadstore-in-a-postgresql-database" title="Permalink to this headline">¶</a></h2>
+<p>PostgresQL can be used as an alternative to SQLite3. However, the the interest is limited since performances are lower.</p>
+<p>To use a PostgresQL database, you first need to create the database (using the createdb command).</p>
+<p>Then, you can set the PostgresQL backend as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">default_world</span><span class="o">.</span><span class="n">set_backend</span><span class="p">(</span><span class="s2">&quot;postgresql&quot;</span><span class="p">,</span> <span class="n">user</span> <span class="o">=</span> <span class="s2">&quot;USERNAME&quot;</span><span class="p">,</span> <span class="n">password</span> <span class="o">=</span> <span class="s2">&quot;PASS&quot;</span><span class="p">,</span> <span class="n">dbname</span> <span class="o">=</span> <span class="s2">&quot;DATABASE_NAME&quot;</span><span class="p">,</span> <span class="n">host</span> <span class="o">=</span> <span class="s2">&quot;HOST&quot;</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="n">PORT</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="using-several-isolated-worlds">
+<h2>Using several isolated Worlds<a class="headerlink" href="#using-several-isolated-worlds" title="Permalink to this headline">¶</a></h2>
+<p>Owlready2 can support several, isolated, Worlds.
+This is interesting if you want to load several version
+of the same ontology, for example before and after reasoning.</p>
+<p>A new World can be created using the World class:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">my_world</span> <span class="o">=</span> <span class="n">World</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">my_second_world</span> <span class="o">=</span> <span class="n">World</span><span class="p">(</span><span class="n">filename</span> <span class="o">=</span> <span class="s2">&quot;/path/to/quadstore.sqlite3&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Ontologies are then created and loaded using the .get_ontology() methods of the World
+(when working with several Worlds, this method replaces the get_ontology() global function):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">onto</span> <span class="o">=</span> <span class="n">my_world</span><span class="o">.</span><span class="n">get_ontology</span><span class="p">(</span><span class="s2">&quot;http://test.org/onto/&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The World object can be used as a pseudo-dictionary for accessing entities using their IRI.
+(when working with several Worlds, this method replaces the IRIS global pseudo-dictionary):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">my_world</span><span class="p">[</span><span class="s2">&quot;http://test.org/onto/my_iri&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Finally, the reasoner can be executed on a specific World:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">sync_reasoner</span><span class="p">(</span><span class="n">my_world</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="working-with-rdflib-for-performing-sparql-queries">
+<h2>Working with RDFlib for performing SPARQL queries<a class="headerlink" href="#working-with-rdflib-for-performing-sparql-queries" title="Permalink to this headline">¶</a></h2>
+<p>Owlready2 uses an optimized RDF quadstore. This quadstore can also be accessed
+as an RDFlib graph as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">graph</span> <span class="o">=</span> <span class="n">default_world</span><span class="o">.</span><span class="n">as_rdflib_graph</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>In particular, the RDFlib graph can be used for performing SPARQL queries:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">r</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT ?p WHERE {</span>
+<span class="go">  &lt;http://www.semanticweb.org/jiba/ontologies/2017/0/test#ma_pizza&gt; &lt;http://www.semanticweb.org/jiba/ontologies/2017/0/test#price&gt; ?p .</span>
+<span class="go">}&quot;&quot;&quot;))</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Worlds</a><ul>
+<li><a class="reference internal" href="#persistent-world-storing-the-quadstore-in-an-sqlite3-file-database">Persistent world: storing the quadstore in an SQLite3 file database</a></li>
+<li><a class="reference internal" href="#persistent-world-storing-the-quadstore-in-a-postgresql-database">Persistent world: storing the quadstore in a PostgresQL database</a></li>
+<li><a class="reference internal" href="#using-several-isolated-worlds">Using several isolated Worlds</a></li>
+<li><a class="reference internal" href="#working-with-rdflib-for-performing-sparql-queries">Working with RDFlib for performing SPARQL queries</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="namespace.html"
+                        title="previous chapter">Namespaces</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="porting1.html"
+                        title="next chapter">Differences between Owlready version 1 and 2</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/world.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="porting1.html" title="Differences between Owlready version 1 and 2"
+             >next</a></li>
+        <li class="right" >
+          <a href="namespace.html" title="Namespaces"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Owlready2 0.9 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2014-2017, Jean-Baptiste LAMY.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.5.
+    </div>
+  </body>
+</html>
