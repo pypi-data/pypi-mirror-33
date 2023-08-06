@@ -1,0 +1,74 @@
+"""
+Create or import top-level classes/methods.
+"""
+from typing import Tuple, Union
+import warnings
+
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", message="numpy.dtype size changed")
+    warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
+    from statsmodels.regression.linear_model import (
+        RegressionResultsWrapper as StatsModel
+    )
+
+
+# Here we list any class we might use. In principle, they should be expected to have a fit() and a predict(X)
+# method.
+# However, the statsmodels library provides Model and Results classes. The former only hold X and y data, while the
+# latter represents a fitted (parameterised) Model (with a working predict method), plus the result statistics
+# (the Model object is also in there). We will for the foreseeable future model from statsmodels, but if we add
+# others there might be a small refactoring necessary.
+MODEL_CLASSES = (StatsModel,)
+MODEL_TYPES = Union[MODEL_CLASSES]
+
+
+# First public import block
+from ts_forecasting_pipeline.speccing import (
+    ModelSpecs,
+    ObjectSeriesSpecs,
+    DFFileSeriesSpecs,
+    DBSeriesSpecs,
+)
+
+
+class ModelState(object):
+    """
+    This class abstracts all information we need to describe a model and how it was made.
+    It is simply a container to hold all model-relevant state information:
+    The trained model and the ModelsSpecs it is based on."""
+
+    model: MODEL_TYPES  # a fitted model
+    specs: ModelSpecs
+
+    def __init__(self, model, specs):
+        if not isinstance(model, MODEL_CLASSES):
+            raise Exception(
+                "ModelState(): model parameter needs to be of type %s"
+                % str(MODEL_CLASSES)
+            )
+        self.model = model
+        if not isinstance(specs, ModelSpecs):
+            raise Exception(
+                "ModelState(): specs parameter needs to be of type <ModelSpecs>"
+            )
+        self.specs = specs
+
+    def split(self) -> Tuple[MODEL_TYPES, ModelSpecs]:
+        """Return model and specs separately"""
+        return self.model, self.specs
+
+    def __repr__(self):
+        return "ModelState: <%s, %s>" % (self.model, self.specs)
+
+
+# second public import block
+from ts_forecasting_pipeline.modelling import (
+    create_fitted_model,
+    evaluate_models,
+    model_param_grid_search,
+)
+from ts_forecasting_pipeline.forecasting import (
+    make_forecast_for,
+    make_rolling_forecasts,
+)
+from ts_forecasting_pipeline.serializing import save_model, load_model
