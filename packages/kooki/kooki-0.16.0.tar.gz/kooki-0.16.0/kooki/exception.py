@@ -1,0 +1,2 @@
+class KookiException(Exception):
+    pass
