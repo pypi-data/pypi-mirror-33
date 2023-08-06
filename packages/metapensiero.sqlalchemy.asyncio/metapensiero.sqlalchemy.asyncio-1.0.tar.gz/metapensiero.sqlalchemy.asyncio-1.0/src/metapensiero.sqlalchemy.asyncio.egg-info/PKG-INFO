@@ -1,0 +1,161 @@
+Metadata-Version: 2.1
+Name: metapensiero.sqlalchemy.asyncio
+Version: 1.0
+Summary: Asyncio middleware for SQLAlchemy
+Home-page: https://gitlab.com/metapensiero/metapensiero.sqlalchemy.asyncio
+Author: Alberto Berti
+Author-email: azazel@metapensiero.it
+Maintainer: Lele Gaifax
+Maintainer-email: lele@metapensiero.it
+License: GPLv3+
+Description: .. -*- coding: utf-8 -*-
+        .. :Progetto:  metapensiero.sqlalchemy.asyncio -- Asyncio middleware for SA
+        .. :Creato:    ven 10 lug 2015 10:48:44 CEST
+        .. :Autore:    Lele Gaifax <lele@metapensiero.it>
+        .. :Licenza:   GNU General Public License version 3 or later
+        ..
+        
+        =================================
+         metapensiero.sqlalchemy.asyncio
+        =================================
+        
+        A port of Alchimia_ to Python 3.4 asyncio
+        =========================================
+        
+        The aiopg_ and aiomysql_ projects allow to operate asynchronously with
+        PostgresQL_ and MySQL_, respectively, even thru SQLAlchemy_. Their
+        approach isn't ideal, though, because they reimplement a considerable
+        amount of SA low level stuff with undesirable glitches.
+        
+        The Twisted_ based Alchimia_ way is much lighter and even if maybe
+        slightly less performant it does not introduce unexpected surprises.
+        
+        Usage
+        -----
+        
+        Basically the module wraps a minimal set of SA classes (currently just
+        ``Engine``, ``Connection``, ``Transaction`` and ``ResultProxy``) into
+        asyncronous counterparts, and you work on them like the following
+        example::
+        
+          from asyncio import coroutine
+          from metapensiero.sqlalchemy.asyncio import create_engine
+        
+          @coroutine
+          def do_something(db_url):
+              engine = create_engine(db_url)
+              with (yield from engine.connect()) as conn:
+                  with (yield from conn.begin()) as trans:
+                      yield from conn.execute(users.insert()
+                                              .values(id=42, name="Async",))
+        
+                  res = yield from conn.execute(users.select()
+                                                .where(users.c.id == 42))
+                  rows = yield from res.fetchall()
+        
+                  res = yield from conn.execute(users.delete()
+                                                .where(users.c.id == 42))
+                  assert res.rowcount == 1
+        
+        If you are using Python 3.5 or better, the above should be written as::
+        
+          from metapensiero.sqlalchemy.asyncio import create_engine
+        
+          async def do_something(db_url):
+              engine = create_engine(db_url)
+              async with await engine.connect() as conn:
+                  async with await conn.begin() as trans:
+                      await conn.execute(users.insert()
+                                         .values(id=42, name="Async",))
+        
+                  res = await conn.execute(users.select()
+                                           .where(users.c.id == 42))
+                  rows = await res.fetchall()
+        
+                  res = await conn.execute(users.delete()
+                                           .where(users.c.id == 42))
+                  assert res.rowcount == 1
+        
+        Tests
+        -----
+        
+        To run the unit tests, you should:
+        
+        a) create a Python virtual environment and install this package in
+           development mode::
+        
+            python3 -m venv env
+            source env/bin/activate
+            python setup.py develop
+        
+        b) install ``pytest``, ``pytest-asyncio`` and either ``psycopg2-binary`` or ``pymysql``::
+        
+            pip install pytest pytest-asyncio psycopg2-binary pymysql
+        
+        c) create a test database, for example with ``createdb testdb``
+        
+        d) execute the ``py.test`` runner with an environment variable with
+           the SA URL of the db::
+        
+            TEST_DB_URL="postgresql://localhost/testdb" py.test tests
+            TEST_DB_URL="mysql+pymysql://localhost/testdb" py.test tests
+        
+        .. _aiomysql: https://github.com/aio-libs/aiomysql
+        .. _aiopg: https://github.com/aio-libs/aiopg
+        .. _alchimia: https://pypi.python.org/pypi/alchimia
+        .. _mysql: http://www.mysql.com
+        .. _postgresql: http://www.postgresql.org
+        .. _sqlalchemy: http://www.sqlalchemy.org
+        .. _twisted: https://twistedmatrix.com/
+        
+        
+        Changes
+        -------
+        
+        1.0 (2018-07-01)
+        ~~~~~~~~~~~~~~~~
+        
+        - Renamed to metapensiero.sqlalchemy.asyncio
+        
+        
+        0.4 (2015-09-25)
+        ~~~~~~~~~~~~~~~~
+        
+        - Packaging tweaks
+        
+        
+        0.3 (2015-09-23)
+        ~~~~~~~~~~~~~~~~
+        
+        - Support Python 3.5 asynchronous context managers
+        
+        
+        0.2 (2015-09-09)
+        ~~~~~~~~~~~~~~~~
+        
+        - First (usable) distribution on PyPI
+        
+        
+        0.1 (private)
+        ~~~~~~~~~~~~~
+        
+        Works reasonably well!
+        
+        
+        0.0 (private)
+        ~~~~~~~~~~~~~
+        
+        Initial effort.
+        
+Keywords: asyncio sqlalchemy
+Platform: UNKNOWN
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)
+Classifier: Topic :: Database
+Provides-Extra: dev
