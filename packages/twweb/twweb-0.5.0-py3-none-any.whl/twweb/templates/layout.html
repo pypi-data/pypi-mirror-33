@@ -1,0 +1,167 @@
+<!doctype html>
+
+{% set categories = {'error': 'danger',
+                     'message': 'primary',} %}
+{% macro bscat(name) %}
+{{categories[name]|default(name)}}
+{%- endmacro %}
+
+{% macro responsive_nav_link(label, url, icon_class, link_class='nav-link') %}
+<li class="nav-item d-none d-sm-block">
+    <a href="{{ url }}" role="button" class="{{ link_class }} align-middle ml-2" title="{{ label }}" aria-label="{{ label }}"><i class="{{ icon_class }}" aria-hidden="true"></i></a>
+</li>
+<li class="nav-item d-sm-none">
+    <a href="{{ url }}" role="button" class="nav-link"><i class="{{ icon_class }}" aria-hidden="true"></i> {{ label }}</a>
+</li>
+{%- endmacro %}
+
+{% macro responsive_nav_button(label, form_id, icon_class, btn_class='btn') %}
+<li class="nav-item d-none d-sm-block">
+    <button type="submit" class="{{ btn_class }}" form="{{ form_id }}" title="{{ label }}" aria-label="{{ label }}"><i class="{{ icon_class }}" aria-hidden="true"></i></button>
+</li>
+<li class="nav-item d-sm-none">
+    <button type="submit" class="btn btn-link nav-link" form="{{ form_id }}"><i class="{{ icon_class }}" aria-hidden="true"></i> {{ label }}</button>
+</li>
+{%- endmacro %}
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta name="theme-color" content="#343a40">
+
+        <script src="/sw-register.js"></script>
+
+        <link rel="manifest" href="/manifest.json">
+
+        <link rel="icon" href="/icon-512.png">
+
+
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" integrity="sha384-Zug+QiDoJOrZ5t4lssLdxGhVrurbmBWopoEl+M6BdEfwnCJZtKxi1KgxUyJq13dy" crossorigin="anonymous">
+
+        <title>{% block title %}{% if page.title %}{{ page.title }} - {% endif %}TWWeb{% endblock %}</title>
+    </head>
+    <body style="padding-top: 100px">
+        {% block navbar %}
+        <nav class="navbar navbar-expand-sm fixed-top bg-dark navbar-dark">
+            <a class="navbar-brand" href="/" title="Go home" aria-label="Go home">
+                <img src="/icon-512.png" width="30" height="30" class="d-inline-block align-top" alt="">
+                TWWeb
+            </a>
+
+            <!-- Toggler/collapsibe Button -->
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#collapsible-nav" aria-label="Show menu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            {% if current_user.is_authenticated %}
+                <div class="collapse navbar-collapse" id="collapsible-nav">
+                    <!-- Navbar links -->
+                    <ul class="navbar-nav mr-auto">
+                        <li class="nav-item {{ 'active' if page.id == 'task.tasks' and has_query(status='pending') else ''  }}">
+                            <a class="nav-link" href="{{url_for('task.tasks', status='pending')}}">Pending</a>
+                        </li>
+
+                        <li class="nav-item {{ 'active' if page.id == 'task.projects' else ''  }}">
+                            <a class="nav-link" href="{{ url_for('task.projects') }}">Projects</a>
+                        </li>
+
+                        <li class="nav-item {{ 'active' if page.id == 'task.tags' else ''  }}">
+                            <a class="nav-link" href="{{ url_for('task.tags') }}">Tags</a>
+                        </li>
+
+                        {% if user.reports %}
+                        <!-- Dropdown -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbardrop" data-toggle="dropdown" aria-label="Predefined reports and filters">Show</a>
+                            <div class="dropdown-menu">
+                                {% for rname in user.reports %}
+                                <a class="dropdown-item" href="{{ url_for('task.tasks', filter=user.reports[rname]) }}" title="{{ user.reports[rname]|capitalize }}">{{ rname|capitalize }}</a>
+                                {% endfor %}
+                                {% if user.reports %}<div class="dropdown-divider"></div>{% endif %}
+                                <a class="dropdown-item" href="{{url_for('task.tasks', status='pending', sort='urgency', ord='desc', limit='12')}}">Most important</a>
+                                <a class="dropdown-item" href="{{url_for('task.tasks')}}">All Tasks</a>
+                            </div>
+                        </li>
+                        {% endif %}
+                    </ul>
+
+
+                    <ul class="navbar-nav">
+                        {{ responsive_nav_button('Synchronize', 'synchronize-form', 'fas fa-sync-alt', 'btn btn-outline-light') }}
+                        {{ responsive_nav_link('New task', url_for('task.add'), 'fas fa-plus', 'btn btn-outline-light') }}
+
+                        {% if current_user.is_authenticated %}
+                        {{ responsive_nav_link('Logout', url_for('task.logout'), 'fas fa-power-off', 'btn btn-danger') }}
+                        {% endif %}
+                    </ul>
+
+                    <form id="synchronize-form" action="{{ url_for('task.sync') }}" method="post">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    </form>
+                </div>
+            {% endif %}
+        </nav>
+        {% endblock navbar %}
+
+        <main role="main" class="container">
+            {% block heading %}
+            {% if page.title %}
+            <div class="row"><div class="col"><h4>{{ page.title }}</h4></div></div>
+            {% endif %}
+            {% endblock heading %}
+
+
+            {% block messages %}
+                {% with flashed = get_flashed_messages(with_categories=true) %}
+                    {% if page.messages or flashed %}
+                        {% for category, message in page.messages + flashed %}
+                        <div class="row">
+                            <div class="col">
+                                <div class="alert alert-dismissible alert-{{bscat(category)}}">
+                                    <button type="button" class="close" data-dismiss="alert" aria-label="Dismiss alert">&times;</button>
+                                    {{ message }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            {% endblock messages %}
+
+            {% block content %}
+            {% endblock content %}
+
+        </main>
+
+        {% block footer %}
+        <footer class="tww-footer text-muted mt-2">
+            <div class="container-fluid d-md-flex px-5 py-3 small">
+                <div>
+                    <div>
+                        <a href="{{ site.website }}">{{ site.name }}</a> {{ site.version }}, </span>
+                    <a href="https://taskwarrior.org">Taskwarrior</a> {{ site.tw_version }}</span>
+                    </div>
+                    <div>
+                    </div>
+                    <div>
+                        Created by <strong>{{ site.author }}</strong>.
+                    </div>
+                </div>
+                <div class="ml-auto">
+                    {{ site.name }} is free software. License: <a href="https://www.gnu.org/licenses/gpl-3.0.html">GNU GPL 3</a>.
+                </div>
+            </div>
+        </footer>
+        {% endblock footer %}
+
+        <!-- Optional JavaScript -->
+        <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+        <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/js/bootstrap.min.js" integrity="sha384-a5N7Y/aK3qNeh15eJKGWxsqtnX/wWdSZSKp+81YjTmS15nvnvxKHuzaWwXHDli+4" crossorigin="anonymous"></script>
+
+        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.12/css/all.css" integrity="sha384-G0fIWCsCzJIMAVNQPfjH08cyYaUtMwjJwqiRKxxE/rx96Uroj1BtIQ6MLJuheaO9" crossorigin="anonymous">
+        <link rel="stylesheet" href="/style.css">
+    </body>
+</html>

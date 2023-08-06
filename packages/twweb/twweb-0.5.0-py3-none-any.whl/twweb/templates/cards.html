@@ -1,0 +1,150 @@
+{% extends "layout.html" %}
+
+{% import 'macros.html' as macros %}
+
+{% block content %}
+    <!-- Controls row -->
+    <div class="row">
+        <div class="col-md-2 pb-4">
+            <div class="dropdown">
+                <button class="btn btn-primary dropdown-toggle btn-block" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="sort-button">Sort by{% if request.args.sort %} {{ request.args.sort | lower }}{% endif %}</button>
+                <div class="dropdown-menu" aria-labelledby="sort-button">
+                    <a class="dropdown-item" href="{{ query(sort='urgency', ord='desc') }}">Urgency</a>
+                    <a class="dropdown-item" href="{{ query(sort='priority', ord='desc') }}">Priority</a>
+                    <a class="dropdown-item" href="{{ query(sort='project', ord='desc') }}">Project</a>
+                    <a class="dropdown-item" href="{{ query(sort='status', ord='desc') }}">Status</a>
+                    <a class="dropdown-item" href="{{ query(sort='entry', ord='desc') }}">Entry Date</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{{ query(sort=None, ord=None) }}"><i class="fas fa-eraser" aria-hidden="true"></i> Clear</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{{ query(ord='desc') }}"><i class="fas fa-sort-amount-down" aria-hidden="true"></i> Highest first</a>
+                    <a class="dropdown-item" href="{{ query(ord='asc') }}"><i class="fas fa-sort-amount-up" aria-hidden="true"></i> Lowest first</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-10 pb-4">
+            <form action="{{url_for('task.tasks')}}" method="get">
+                <div class="input-group">
+                    <input class="form-control" type="text" name="filter" placeholder="Custom filter" aria-label="Custom filter"{%with f=query_values('filter')%}{%if f%}value="{{f[0]|e}}"{%endif%}{%endwith%} />
+                    <div class="input-group-append">
+                        <button class="btn btn-success" type="submit" aria-label="Use custom filter">
+                            <i class="fas fa-filter" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{ macros.task_heading('cards', tasks) }}
+
+    <!-- Tasks -->
+    {% for task_row in tasks | batch(3) %}
+    <div class="row">
+        {% for task in task_row  %}
+        <div class="col-md-4 pb-4 task-{{task.id}}">
+            <div class="card h-100 {% if task.priority == 'H' and task.status == 'pending' %} border-danger{% endif %}">
+                <div class="card-body text-center">
+                    <p class="card-text{% if task.status != 'pending' %} text-secondary{% elif task.priority == 'H' %} text-danger{% endif %}">{{ task.description|urlize }}</p>
+                </div>
+
+                <div class="card-footer">
+                    <ul class="list-unstyled card-text small text-right">
+                        <li class="text-muted">
+                            <ul class="list-inline">
+                                {% if task.annotations %}<li class="list-inline-item"><i class="fas fa-comments" title="Annotations exist" aria-hidden="true"></i><span class="sr-only">Annotations exist</span></li>{% endif %}
+                                {% if task.project %}<li class="list-inline-item"><i class="fas fa-folder" aria-hidden="true"></i><span class="sr-only">Project</span> <a class="text-info" href="{{ query(project=task.project) }}">{{ task.project }}</a></li>{% endif %}
+                                {% if task.tags %}<li class="list-inline-item"><i class="fas fa-tags" aria-hidden="true"></i><span class="sr-only">Tags</span>{% for tag in task.tags %} <a class="text-info" href="{{query(tags=tag)}}">{{tag}}</a>{% endfor %}</li>{% endif %}
+                            </ul>
+                        </li>
+                        <li>
+                            {% if task.status not in ['deleted', 'completed'] %}
+                            <form action="{{ url_for('task.complete') }}" method="post" id="complete-{{ task.id }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" name="uuid" value="{{task.uuid}}">
+                                <input type="hidden" name="next" value="{{request.url}}">
+                            </form>
+                            {% endif %}
+
+                            <a href="#" class="btn btn-sm text-info" data-toggle="modal" data-target="#details-{{task.id}}" title="Task summary" aria-label="Task summary">
+                                <i class="fas fa-info-circle" aria-hidden="true"></i>
+                            </a>
+                            <a href="{{ url_for('task.edit', uuid=task.uuid) }}" class="btn btn-sm text-info" title="Edit task" aria-label="Edit task">
+                                <i class="fas fa-edit" aria-hidden="true"></i>
+                            </a>
+                            {% if task.status not in ['deleted', 'completed'] %}
+                            <button type="submit" class="btn btn-sm btn-link text-info" role="link" title="Complete task" aria-label="Complete task" form="complete-{{ task.id }}">
+                                <i class="fas fa-check" aria-hidden="true"></i>
+                            </button>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Modal -->
+            <div class="modal fade" id="details-{{task.id}}">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+
+                        <div class="modal-header">
+                            <h5 class="modal-title">{{task.description|urlize}}</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="close">&times;</button>
+                        </div>
+
+                        <div class="modal-body">
+                            <table class="table table-hover">
+                                <tbody>
+                                    {% if task.annotations %}
+                                    <tr>
+                                        <td>Annotations</td>
+                                        <td>
+                                            <ul class="list-unstyled">
+                                            {% for ann in task.annotations %}
+                                            <li><em class="text-muted">{{ ann.entry.strftime('%Y-%m-%d') }}:</em> {{ ann|urlize }} </li>
+                                            {% endfor %}
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+
+                                    {% if task.project %}{{ macros.trow("Project", task.project, url_for('task.tasks', project=task.project)) }}{% endif %}
+
+                                    {% if task.tags %}
+                                    <tr>
+                                        <td>Tags</td>
+                                        <td>{% for tag in task.tags %}<a href="{{query(tags=tag)}}">{{tag}}</a>{% if not loop.last %}, {% endif %}{% endfor %}</td>
+                                    </tr>
+                                    {% endif %}
+
+                                    {% if task.priority %}{{ macros.trow("Priority", task.priority, query(priority=task.priority)) }}{% endif %}
+                                    {{ macros.trow("Urgency", task.urgency|int) }}
+
+                                    {% if task.due %}{{ macros.trow("Due date", task.due.strftime('%Y-%m-%d')) }}{% endif %}
+
+
+                                    {% if task.depends %}
+                                    <tr>
+                                        <td>Depends on</td>
+                                        <td>{% for dep in task.depends %}<a href="{{ query(uuid=dep) }}" title="{{ get_task(uuid=dep).description }}">{{ dep }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</td>
+                                    </tr>
+                                    {% endif %}
+
+                                    {% if task.id %}{{ macros.trow("ID", task.id) }}{% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Modal footer -->
+                        <div class="modal-footer">
+                            <a href="{{ url_for('task.task', uuid=task.uuid) }}" class="btn btn-primary" role="button">Details</a>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+{% endblock content %}

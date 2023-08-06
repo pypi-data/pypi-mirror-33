@@ -1,0 +1,106 @@
+<!-- Annotate modal + toggle button -->
+{% macro annotate_modal(task) %}
+<div id="annotate-modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New annotation</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <form id="annotate-form" action="{{ url_for('task.annotate') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <input type="hidden" name="uuid" value="{{task.uuid}}" />
+                    <input type="hidden" name="next" value="{{request.url}}" />
+                    <input type="text" name="param" placeholder="Annotation" class="form-control">
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-success" form="annotate-form">Annotate</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro btn_annotate() %}
+<button type="button" class="btn btn-primary" data-toggle="modal" data-target="#annotate-modal">Annotate</button>
+{% endmacro %}
+
+<!-- Mark as done hidden form + a separate submit button -->
+{% macro form_done(task) %}
+{% if task.status not in ['deleted', 'completed'] %}
+<form id="mark-done" action="{{ url_for('task.complete') }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <input type="hidden" name="uuid" value="{{task.uuid}}" />
+    <input type="hidden" name="next" value="{{request.url}}" />
+</form>
+{% endif %}
+{% endmacro %}
+
+{% macro btn_done(task) %}
+<button type="submit" class="btn btn-success"{% if task.status not in ['deleted', 'completed'] %} form="mark-done"{% else %} disabled{% endif %}>Finish</button>
+{% endmacro %}
+
+<!-- Delete task hidden form + a separate submit button -->
+{% macro form_delete(task) %}
+{% if task.status in ['pending'] %}
+<form id="mark-deleted" action="{{ url_for('task.delete') }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <input type="hidden" name="uuid" value="{{task.uuid}}" />
+    <input type="hidden" name="next" value="{{request.url}}" />
+</form>
+{% endif %}
+{% endmacro %}
+
+{% macro btn_delete(task) %}
+<button type="submit" class="btn btn-warning" {% if task.status in ['pending'] %} form="mark-deleted"{% else %} disabled{% endif %}>Delete</button>
+{% endmacro %}
+
+<!-- Task display inside a table -->
+
+{% macro trow(label, field, link=False) %}
+<tr>
+    <td>{{ label }}</td>
+    {% if field or field == 0 %}
+        {% if link %}
+        <td><a href="{{ link }}">{{ field }}</a</td>
+        {% else %}
+        <td>{{ field }}</td>
+        {% endif %}
+    {% else %}
+        <td>-</td>
+    {% endif %}
+</tr>
+{% endmacro %}
+
+
+<!-- Task list heading -->
+{% macro task_heading(current, tasks) %}
+<div class="row">
+    <div class="container-fluid d-flex">
+        <div>
+            <h4>{{ tasks|length }} tasks</h4>
+        </div>
+        <div class="ml-auto">
+        <nav class="nav">
+        {% for name, href, icon in [('cards', query(view='cards'), 'fa-th'),
+                                    ('table', query(view='table'), 'fa-th-list')] %}
+                {% set label = name|capitalize + ' view' %}
+                {% set hl = current == name %}
+                {% if hl %}
+                <a href="#" class="nav-link active" title="{{ label }}" aria-label="{{ label }}" aria-pressed="true">
+                {% else %}
+                <a href="{{ href }}" class="nav-link text-secondary" title="{{ label }}" aria-label="{{ label }}">
+                {% endif %}
+                    <i class="fas {{ icon }}"></i>
+                </a>
+        {% endfor %}
+        </nav>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+

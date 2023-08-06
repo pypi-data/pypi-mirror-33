@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+
+{% import 'macros.html' as macros %}
+
+{% macro form_field(field, placeholder=None, width='auto') %}
+    {% set addon_id = "addon-" ~ field.id %}
+    {% set attribs = {
+        "class": "form-control",
+        "placeholder": placeholder if placeholder else field.description,
+        "aria-label": field.description,
+        "aria-describedby": addon_id,
+    } %}
+
+    <div class="col-md-{{ width }}">
+        <div class="input-group mb-3">
+            <span class="input-group-prepend input-group-text" id="{{ addon_id }}">{{field.name|capitalize}}</span>
+            {{ field(**attribs)|safe }}
+        </div>
+    </div>
+{% endmacro %}
+
+{% block heading %}
+    <div class="row d-flex">
+        <div class="mr-auto p-2">
+            <h4>{{ page.title }}</h4>
+        </div>
+
+        {% if task %}
+        <div class="p-2">
+            {{ macros.btn_delete(task) }}
+            {{ macros.btn_annotate() }}
+            {{ macros.btn_done(task) }}
+        </div>
+        {% endif %}
+
+        {% if task %}{{ macros.annotate_modal(task) }}{% endif %}
+        {% if task %}{{ macros.form_done(task) }}{% endif %}
+        {% if task %}{{ macros.form_delete(task) }}{% endif %}
+
+    </div>
+{% endblock heading %}
+
+{% block content %}
+    <form id="edit" action="{{request.path}}" method="post" class="pb-4">
+        {{ form.hidden_tag() }}
+
+        <div class="form-row">
+            {{ form_field(form.description, "Task description", 12) }}
+        </div>
+
+        <div class="form-row">
+            {{ form_field(form.tags, "comma, separated, tags", 4) }}
+            {{ form_field(form.project, "project name", 3) }}
+            {{ form_field(form.priority, width=2) }}
+            {{ form_field(form.depends, '1, 2, 11', 3) }}
+        </div>
+
+        <div class="form-row">
+            {{ form_field(form.due) }}
+            {{ form_field(form.wait) }}
+        </div>
+
+        <button type="submit" class="btn btn-success">Save</button>
+    </form>
+{% endblock content %}
