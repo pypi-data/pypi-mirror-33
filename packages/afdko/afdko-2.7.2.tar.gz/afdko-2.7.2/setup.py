@@ -1,0 +1,269 @@
+import io
+import os
+import platform
+import subprocess
+import sys
+from distutils.util import get_platform
+import distutils.command.build_scripts
+from distutils.dep_util import newer
+from distutils import log
+from distutils.util import convert_path
+import setuptools.command.build_py
+import setuptools.command.install
+from setuptools import setup, find_packages
+
+"""
+We need a customized version of the 'bdist_wheel' command, because otherwise
+the wheel is identified as being non-platform specific. This is because the
+afdko has no Python extensions and the command line tools are installed as
+data files.
+"""
+try:
+    from wheel.bdist_wheel import bdist_wheel
+
+    # noinspection PyClassicStyleClass,PyAttributeOutsideInit
+    class CustomBDistWheel(bdist_wheel):
+        def finalize_options(self):
+            # noinspection PyArgumentList
+            bdist_wheel.finalize_options(self)
+            self.root_is_pure = False
+except ImportError:
+    print("setup requires that the Python package 'wheel' be installed. "
+          "Try the command 'pip install wheel'.")
+    sys.exit(1)
+
+
+class InstallPlatlib(setuptools.command.install.install):
+    """This is to force installing all the modules to the non-pure, platform-
+    specific lib directory, even though we haven't defined any 'ext_modules'.
+
+    The distutils 'install' command, in 'finalize_options' method, picks
+    either 'install_platlib' or 'install_purelib' based on whether the
+    'self.distribution.ext_modules' list is not empty.
+
+    Without this hack, auditwheel would flag the afdko wheel as invalid since
+    it contains native executables inside the pure lib folder.
+
+    TODO Remove this hack if/when in the future we install extension modules.
+    """
+
+    def finalize_options(self):
+        setuptools.command.install.install.finalize_options(self)
+        self.install_lib = self.install_platlib
+
+
+def get_executable_dir():
+    """
+    Build source path on the afdko for the command-line tools.
+    """
+    platform_system = platform.system()
+    if platform_system == "Windows":
+        bin_dir = "win"
+    elif platform_system == "Linux":
+        bin_dir = "linux"
+    elif platform_system == "Darwin":
+        bin_dir = "osx"
+    else:
+        raise KeyError(
+            "Do not recognize target OS: {}".format(platform_system))
+    return bin_dir
+
+
+def compile_package(pkg_dir):
+    bin_dir = get_executable_dir()
+    programs_dir = os.path.join(pkg_dir, "Tools", "Programs")
+    cmd = None
+    if bin_dir == 'osx':
+        cmd = "sh BuildAll.sh"
+    elif bin_dir == 'win':
+        cmd = "BuildAll.cmd"
+    elif bin_dir == 'linux':
+        cmd = "sh BuildAllLinux.sh"
+    cur_dir = os.getcwd()
+    assert cmd, 'Unable to form build command for this platform.'
+    try:
+        subprocess.check_call(cmd, cwd=programs_dir, shell=True)
+    except subprocess.CalledProcessError:
+        print('Error executing build command.')
+        sys.exit(1)
+    os.chdir(cur_dir)
+
+
+# noinspection PyClassicStyleClass
+class CustomBuild(setuptools.command.build_py.build_py):
+    """Custom build command."""
+    def run(self):
+        pkg_dir = 'afdko'
+        compile_package(pkg_dir)
+        setuptools.command.build_py.build_py.run(self)
+
+
+class CustomBuildScripts(distutils.command.build_scripts.build_scripts):
+
+    def copy_scripts(self):
+        """Copy each script listed in 'self.scripts' *as is*, without
+        attempting to adjust the !# shebang. The default build_scripts command
+        in python3 calls tokenize to detect the text encoding, treating all
+        scripts as python scripts. But all our 'scripts' are native C
+        executables, thus the python3 tokenize module fails with SyntaxError
+        on them. Here we just skip the if branch where distutils attempts
+        to ajust the shebang.
+        """
+        self.mkpath(self.build_dir)
+        outfiles = []
+        updated_files = []
+        for script in self.scripts:
+            script = convert_path(script)
+            outfile = os.path.join(self.build_dir, os.path.basename(script))
+            outfiles.append(outfile)
+
+            if not self.force and not newer(script, outfile):
+                log.debug("not copying %s (up-to-date)", script)
+                continue
+
+            try:
+                f = open(script, "rb")
+            except OSError:
+                if not self.dry_run:
+                    raise
+                f = None
+            else:
+                first_line = f.readline()
+                if not first_line:
+                    f.close()
+                    self.warn("%s is an empty file (skipping)" % script)
+                    continue
+
+            if f:
+                f.close()
+            updated_files.append(outfile)
+            self.copy_file(script, outfile)
+
+        return outfiles, updated_files
+
+
+def _get_scripts():
+    bin_dir = get_executable_dir()
+    script_names = [
+        'autohintexe', 'detype1', 'makeotfexe', 'mergeFonts', 'rotateFont',
+        'sfntdiff', 'sfntedit', 'spot', 'tx', 'type1'
+    ]
+    if platform.system() == 'Windows':
+        extension = '.exe'
+    else:
+        extension = ''
+
+    scripts = ['afdko/Tools/{}/{}{}'.format(bin_dir, script_name, extension)
+               for script_name in script_names]
+    return scripts
+
+
+def _get_console_scripts():
+    script_entries = [
+        ('autohint', 'autohint:main'),
+        ('buildcff2vf', 'buildCFF2VF:run'),
+        ('buildmasterotfs', 'buildMasterOTFs:main'),
+        ('comparefamily', 'CompareFamily:main'),
+        ('checkoutlinesufo', 'CheckOutlinesUFO:main'),
+        ('copycffcharstrings', 'copyCFFCharstrings:run'),
+        ('kerncheck', 'kernCheck:run'),
+        ('makeotf', 'MakeOTF:main'),
+        ('makeinstances', 'makeInstances:main'),
+        ('makeinstancesufo', 'makeInstancesUFO:main'),
+        ('otc2otf', 'otc2otf:main'),
+        ('otf2otc', 'otf2otc:main'),
+        ('stemhist', 'StemHist:main'),
+        ('ttfcomponentizer', 'ttfcomponentizer:main'),
+        ('ttxn', 'ttxn:main'),
+        ('charplot', 'ProofPDF:charplot'),
+        ('digiplot', 'ProofPDF:digiplot'),
+        ('fontplot', 'ProofPDF:fontplot'),
+        ('fontplot2', 'ProofPDF:fontplot2'),
+        ('fontsetplot', 'ProofPDF:fontsetplot'),
+        ('hintplot', 'ProofPDF:hintplot'),
+        ('waterfallplot', 'ProofPDF:waterfallplot'),
+    ]
+    scripts_path = 'afdko.Tools.SharedData.FDKScripts'
+    scripts = ['{} = {}.{}'.format(name, scripts_path, entry)
+               for name, entry in script_entries]
+    return scripts
+
+
+def _get_requirements():
+    with io.open("requirements.txt", encoding="utf-8") as requirements:
+        return requirements.read().splitlines()
+
+
+def main():
+    pkg_list = find_packages(exclude=["Tests"])
+    classifiers = [
+        'Development Status :: 5 - Production/Stable',
+        'Intended Audience :: Developers',
+        'Topic :: Software Development :: Build Tools',
+        'License :: OSI Approved :: Apache Software License',
+        'Programming Language :: Python :: 2.7',
+    ]
+
+    platform_system = platform.system()
+    if platform_system == "Darwin":
+        more_keywords = ['Operating System :: MacOS :: MacOS X']
+    elif platform_system == "Windows":
+        more_keywords = ['Operating System :: Microsoft :: Windows']
+    elif platform_system == "Linux":
+        more_keywords = ['Operating System :: POSIX :: Linux']
+    else:
+        raise KeyError(
+            "Do not recognize target OS: {}".format(platform_system))
+    classifiers.extend(more_keywords)
+
+    # concatenate README and NEWS into long_description so they are
+    # displayed on the afdko project page on PyPI
+    # Copied from fonttools setup.py
+    with io.open("README.md", encoding="utf-8") as readme:
+        long_description = readme.read()
+    with io.open("NEWS.md", encoding="utf-8") as changelog:
+        long_description += changelog.read()
+
+    platform_name = get_platform()
+
+    setup(name="afdko",
+          use_scm_version=True,
+          description="Adobe Font Development Kit for OpenType",
+          long_description=long_description,
+          long_description_content_type='text/markdown',
+          url='https://github.com/adobe-type-tools/afdko',
+          author='Adobe Type team & friends',
+          author_email='afdko@adobe.com',
+          license='Apache License, Version 2.0',
+          classifiers=classifiers,
+          keywords='font development tools',
+          platforms=[platform_name],
+          packages=pkg_list,
+          include_package_data=True,
+          zip_safe=False,
+          python_requires='>=2.7',
+          setup_requires=[
+              'wheel',
+              'setuptools_scm',
+          ],
+          tests_require=[
+              'pytest',
+          ],
+          install_requires=_get_requirements(),
+          scripts=_get_scripts(),
+          entry_points={
+              'console_scripts': _get_console_scripts(),
+          },
+          cmdclass={
+              'build_py': CustomBuild,
+              'build_scripts': CustomBuildScripts,
+              'bdist_wheel': CustomBDistWheel,
+              'install': InstallPlatlib,
+          },
+          )
+
+
+if __name__ == '__main__':
+    main()
+
+# PyPI deployment test 2018-04-09 15:42
