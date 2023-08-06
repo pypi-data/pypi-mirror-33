@@ -1,0 +1,161 @@
+#!/usr/bin/python
+
+"""
+Manage the izaber.yaml configuration file
+
+Usage:
+  izaber-config show [options]
+  izaber-config (load|set) <filename> [options]
+  izaber-config (load|set) <key> <value> [options]
+  izaber-config -h | --help
+  izaber-config --version
+
+Options:
+  -h --help     Show this screen.
+  --version     Show version.
+  -f <config>   Target a particular configuration file
+  -y            Answer "yes" to any confirmations
+
+Description:
+
+  This module has two primary modes of changing values:
+
+  load:
+    This method only applies data to keys that do not already have data.
+    This is the safe way of doing things: if the particular configuration
+    has already been set in the local configuration, don't touch it. This
+    only sets data when no data is found for that key.
+
+  set:
+    As opposed to "load", this will overwrite any key that exists regardless
+    of whether or not the key has previously been created.
+
+  The data format that the two methods take are as follows:
+
+  filename:
+    YAML formatted much like the izaber.yaml configuration.  An example format
+    might look like this:
+
+    default:
+      myconfiguration:
+        parameter1: 'value1'
+        parameter2: 'value2'
+        parameter3: 'value3'
+
+  key/value pair:
+    This is a less effcient way of setting multiple keys but is good for a
+    single key. Any key in the structure can be identified via dot syntax:
+
+    The configuration element following...
+
+    default:
+      myconfiguration:
+        parameter4: 'value4'
+
+    Can be translated to:
+
+    default.myconfiguration.parameter4 value4
+
+
+"""
+
+import yaml
+import docopt
+import pprint
+
+from izaber import initialize,config,__version__
+from izaber.zconfig import YAMLConfig
+
+###################################################################
+# Helpers
+###################################################################
+
+def config_instantiate(args):
+    if args['-f']:
+        return YAMLConfig(args['-f'])
+    return config
+
+
+def confirm(args,message):
+    """ Shows a helpful message to the user and requests that they
+        respond 'yes' or 'no'
+
+        If the response is 'yes', the function returns True
+    """
+    if args['-y']:
+        return True
+
+    while True:
+        data = raw_input(message).lower()
+        if data in ('yes','no','n','y'):
+            return data[0] == 'y'
+        print("\nPlease respond with either 'yes' or 'no'")
+
+###################################################################
+# Actions
+###################################################################
+
+def do_show(args):
+    """ Display the current configuration
+    """
+    config = config_instantiate(args)
+    print(repr(config))
+
+def do_load(args):
+    """ Load the new configuration keys in a non-destructive
+        manner
+    """
+    config = config_instantiate(args)
+    if args['<filename>']:
+        load_fname = args['<filename>']
+        with open(load_fname) as yaml_f:
+            config.config_amend_(yaml_f)
+        if confirm(args, "{}\nDoes this look okay? 'yes' or 'no': ".format(repr(config))):
+            config.save_()
+        else:
+            print('Not saving changes by user request')
+    elif args['<key>']:
+        config.config_amend_key_(args['<key>'],args['<value>'])
+        if confirm(args, "{}\nDoes this look okay? 'yes' or 'no': ".format(repr(config))):
+            config.save_()
+        else:
+            print('Not saving changes by user request')
+    else:
+        pass
+
+def do_set(args):
+    """ Load the new configuration keys in a destructive manner
+    """
+    config = config_instantiate(args)
+    if args['<filename>']:
+        load_fname = args['<filename>']
+        with open(load_fname) as yaml_f:
+            config.config_update_(yaml_f)
+        if confirm(args, "{}\nDoes this look okay? 'yes' or 'no': ".format(repr(config))):
+            config.save_()
+        else:
+            print('Not saving changes by user request')
+    elif args['<key>']:
+        config.config_update_key_(args['<key>'],args['<value>'])
+        if confirm(args, "{}\nDoes this look okay? 'yes' or 'no': ".format(repr(config))):
+            config.save_()
+        else:
+            print('Not saving changes by user request')
+    else:
+        pass
+
+
+initialize('izaber-config')
+
+if __name__ == '__main__':
+    args = docopt.docopt(
+                __doc__,
+                version=__version__
+            )
+    if args['show']:
+        do_show(args)
+    elif args['load']:
+        do_load(args)
+    elif args['set']:
+        do_set(args)
+
