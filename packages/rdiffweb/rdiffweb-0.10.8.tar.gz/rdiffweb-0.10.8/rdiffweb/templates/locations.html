@@ -1,0 +1,57 @@
+{% extends 'layout.html' %}
+{% set active_page='repo' %}
+{% block title %}{% trans %}Repositories{% endtrans %}{% endblock %}
+{% block body %}
+<div class="container" id="locations">
+    <h2>{% trans %}Repositories{% endtrans %} ({{ repos|length }})</h2>
+    {% for t in templates_before_content %}
+    {% include t ignore missing with context %}
+    {% endfor %}
+    {% if repos|length == 0 %}
+	    {% set message = _("You don't have any repositories configured.") %}
+	    {% include 'message.html' %}
+    {% else %}
+    {# Try to organize the repositories as a hierarchy #}
+    {% set repos_hierarchy = {} %}
+    {% for repo in repos|sort(attribute='path') %}
+      {% set h = repos_hierarchy %}
+      {% for p in repo.name_split %}
+        {% set h = h.setdefault(p, repo if loop.last else {})  %}
+      {% endfor %}    
+    {% endfor %}
+    <div class="list-group" itemscope itemtype="http://schema.org/ItemList">
+    {% for name, repo in repos_hierarchy.items() recursive %}
+
+        {% if repo.get('path') is none %}
+        <div class="list-group-item">
+          <div class="list-group-item-heading">
+            {% set is_desktop = repo.keys()[0]|length == 1 %}
+            <i class="{% if is_desktop %}icon-laptop{% else %}icon-box{% endif %}"></i> {{ name }}
+          </div>
+          <div class="list-group" id="{{ outer_name }}{{ name }}">
+          {{ loop(repo.items()) }}
+          </div>
+        </div>
+        {% else %}
+        <a {{ attrib(class=['list-group-item', repo.failed and 'disabled', repo.status[0] != 'ok' and 'list-group-item-warning']) }}
+            href="{{ url_for_browse(repo.path) }}" itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+          <meta itemprop="name" content="{{ repo.path }}" />
+          <i class="icon-hdd"></i>
+          {{ name }}{% if name|length==1 %}:\{% endif %}
+          <span class="pull-right light">
+              {% if repo.status[0] != 'ok' %}
+              <span data-toggle="tooltip" data-placement="left" title="{{ repo.status[1] }}"><i class="icon-attention"></i></span>
+              {% endif %}
+              {% if repo.last_backup_date %}{% trans %}Last backup: {% endtrans %}
+              <time datetime="{{ repo.last_backup_date | datetime }}" itemprop="lastBackupDate">{{ repo.last_backup_date | datetime }}</time>
+              {% endif %}
+          </span>
+        </a>
+        {% endif %}
+        
+    {% endfor %}
+    </div>
+
+    {% endif %}
+</div>
+{% endblock %}
