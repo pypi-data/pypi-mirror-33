@@ -1,0 +1,67 @@
+---
+title: "Comparison __COMPARISON_NAME__"
+output: html_document
+---
+
+```{r setup_comparison, echo=FALSE,  include = F}
+source("report_functions.R")
+options(stringsAsFactors = FALSE)
+library(knitr)
+#knitr::opts_chunk$set(cache=TRUE) # Enable caching for faster rendering
+knitr::opts_chunk$set(echo = FALSE)
+
+load("__RDATA_FILE__")
+```
+
+```{r results_images,warning=F}
+# generate images for the Comparison pages
+
+MAX_NUM_FIGURES = 100
+
+res_images = res_df %>%
+  dplyr::filter(Comparison == "__COMPARISON_NAME__") %>%
+  dplyr::filter(pass!="no") %>%
+  dplyr::arrange(padj) %>%
+  dplyr::slice(1:MAX_NUM_FIGURES) %>%
+  dplyr::select(Gene,Comparison) %>%
+  dplyr::group_by(Gene,Comparison) %>%
+  dplyr::do(save_expression_images(.$Gene,.$Comparison,dds,comps,replace_if_exists = __REPLACE_IMAGES__))
+
+```
+
+
+```{r extract_results, echo=F}
+
+MAX_NUM_GENES = 100
+
+create_image_url = function(comp,gene){
+  image_name_full = paste0("images/","/",comp,"_",gene,"_","full.jpg")
+  image_name_thumb = paste0("images/","/",comp,"_",gene,"_","thumb.jpg")
+  img_thumb = paste0('<img src="',image_name_thumb,'" alt="thumb" height="55" width="80">')
+  url = paste0('<a href="',image_name_full,'" target="_blank">',img_thumb,'</a>')
+  return(url)
+}
+
+create_gene_url = function(gene){
+  url = paste0('<a href="$$gene_db_url', gene, '" target="_blank">', gene, '</a>')
+  return(url)
+}
+
+res_df %>%
+  dplyr::filter(Comparison == "__COMPARISON_NAME__") %>%
+  dplyr::filter(pass!="no") %>%
+  dplyr::arrange(padj) %>%
+  dplyr::slice(1:MAX_NUM_GENES) %>%
+  dplyr::mutate(Plot=create_image_url(Comparison,Gene)) %>%
+  dplyr::mutate(Gene=create_gene_url(Gene)) %>%
+  dplyr::mutate(baseMean=round(baseMean,digits = 1)) %>%
+  dplyr::mutate(log2FoldChange=signif(log2FoldChange,4)) %>%
+  dplyr::mutate(pvalue=signif(pvalue,2),padj=signif(padj,2)) %>%
+  dplyr::mutate(linearFoldChange=foldchange(log2FoldChange)) %>%
+  dplyr::select(Comparison,Gene,baseMean,log2FoldChange,linearFoldChange,pvalue,padj,pass,Direction,Plot) %>%
+  datatable(.,filter = 'top', escape = FALSE, options = list(pageLength = 20, autoWidth = TRUE))
+```
+
+Top `r MAX_NUM_GENES` are shown.
+
+Red and yellow background mark regions with few counts.

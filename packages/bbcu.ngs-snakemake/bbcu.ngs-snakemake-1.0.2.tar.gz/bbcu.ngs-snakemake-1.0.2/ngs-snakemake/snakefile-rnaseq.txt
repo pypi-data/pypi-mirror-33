@@ -1,0 +1,220 @@
+import os
+import time
+import re
+from glob import glob
+
+if not config:
+    configfile: os.path.join(os.getcwd() ,'config-rnaseq.yaml')
+
+
+#if 'TEST' in config:
+#    SCRIPTS = "/home/labs/bioservices/services/test_env/python27-ve-ngs-snakemakeTest/bin"
+#    TEMPLATES = "/home/labs/bioservices/services/test_env/python27-ve-ngs-snakemakeTest/lib/python2.7/site-packages/ngs-snakemake"
+#    PYTHON = "/home/labs/bioservices/services/test_env/python27-ve-ngs-snakemakeTest/bin/python"
+#else:
+#    SCRIPTS = "/apps/RH7U2/scripts/bbcu-python-packages/python27-ve-ngs-snakemake/bin"
+#    TEMPLATES = "/apps/RH7U2/scripts/bbcu-python-packages/python27-ve-ngs-snakemake/lib/python2.7/site-packages/ngs-snakemake"
+#    PYTHON = "/apps/RH7U2/scripts/bbcu-python-packages/python27-ve-ngs-snakemake/bin/python"
+
+
+JOB_NAME = config['job_name']
+SCRIPTS = config['scripts']
+TEMPLATES = config['templates']
+PYTHON = config['python']
+RSCRIPT = config['Rscript'].replace('/', '\/')
+R_LIB_PATHS = config['R_lib_paths'].replace('/', '\/')
+CUTADAPT_EXE = config['cutadapt_exe']
+FASTQC_EXE = config['fastqc_exe']
+STAR_EXE = config['star_exe']
+SAMTOOLS_EXE = config['samtools_exe']
+NGS_PLOT_EXE = config['ngs_plot_exe'] if config['ngs_plot_exe'] else '' # config['ngs_plot_exe'] is None if is empty in config file
+FASTQ_DIR = config['fastq_dir']
+FASTQ_DIR_SED = config['fastq_dir'].replace('/','\/')
+INDEX = config['my_star_index']
+GTF = config['gtf']
+STRANDED = config['stranded_protocol']
+ADAPTOR = config['adaptor']
+pattern = re.compile(r'\s+')
+ADAPTOR = re.sub(pattern, '', ADAPTOR)
+ROOT_OUT_DIR = config['output_dir'] + '/'
+ROOT_OUT_DIR_SED = ROOT_OUT_DIR.replace('/','\/')
+INDEX_PATH = INDEX.replace('/','\/')
+GTF_PATH = GTF.replace('/','\/')
+REPORT_STEP = '4_reports'
+PROTOCOL = 'RNA-seq'
+
+
+
+# Fill snakefile_base.py template file
+snakefile_base_temp = os.path.join(os.getcwd(), 'snakefile_base_temp.py')
+snakefile_base = os.path.join(os.getcwd(), 'snakefile_base_' + JOB_NAME + '.py')
+if not os.path.isfile(snakefile_base):
+    os.system(
+        "cp %s . ; sed \"s/CONFIG_TEMPLATE/%s/\" %s | sed 's/ROOT_OUT_DIR_TEMPLATE/\"%s\"/' | sed 's/NGS_PLOT_EXE_TEMPLATE/\"%s\"/' | sed 's/GTF_TEMPLATE/\"%s\"/' | sed 's/FASTQ_DIR_TEMPLATE/\"%s\"/' | sed 's/REPORT_STEP_TEMPLATE/\"%s\"/' | sed 's/PROTOCOL_TEMPLATE/\"%s\"/' | sed 's/ADAPTOR_TEMPLATE/\"%s\"/' > %s; touch __init__.py"
+        % (os.path.join(TEMPLATES, 'snakefile_base_temp.py'),
+           str(config).replace('/', '\/'), snakefile_base_temp,
+           ROOT_OUT_DIR.replace('/', '\/'),
+           NGS_PLOT_EXE.replace('/','\/'),
+           GTF.replace('/', '\/'),
+           FASTQ_DIR.replace('/', '\/'),
+           REPORT_STEP,
+           PROTOCOL,
+           ADAPTOR, snakefile_base))
+    time.sleep(10)
+
+#from snakefile_base import *
+exec('from snakefile_base_' + JOB_NAME + ' import *')
+
+
+
+
+
+
+"""
+Rules:
+=======
+"""
+
+rule rule_all:
+    input:
+        ROOT_OUT_DIR + 'Done.txt'
+
+
+#Use with ${{{output}##*,}} instead {output[1]}, because when there is not R2 it exceed from the array. Escape { with another { character.
+rule rule_1_cutadapt:
+    input:
+        *get_fastq() #can be single read or paired end (one or two files per sample)
+    output:
+        CUTADAPT_TEMPLATE.split(',')
+    params:
+        adap = ADAPTOR,
+        out_sum = ROOT_OUT_DIR + '1_cutadapt/{sample}.cutadapt.txt',
+    threads: 5
+    log:
+        cut = ROOT_OUT_DIR + LOG_DIR_NAME + '/1_cutadapt.{sample}.txt',
+        counts = ROOT_OUT_DIR + LOG_DIR_NAME + '/counts_log.txt'
+    shell:
+        '''
+        adaps={params.adap}
+        adap1=${{adaps%,*}}
+        adap2=${{adaps##*,}}
+        if [[ "{input}" == *" "* ]]; then
+            output=`echo {output}| tr ' ' ','`
+            output1=${{output%,*}}
+            output2=${{output##*,}}
+            {CUTADAPT_EXE} -a "$adap1" -A "$adap2" --times 2 -q 20 -m 25 -o "$output1" -p "$output2" {input} > {params.out_sum} 2> {log.cut};
+        else
+            {CUTADAPT_EXE} -a "$adap1" --times 2 -q 20 -m 25 -o {output} {input} > {params.out_sum} 2> {log.cut};
+        fi
+        '''
+
+
+rule rule_2_fastqc:
+    input:
+        CUTADAPT_TEMPLATE.split(',')
+    output:
+        ROOT_OUT_DIR + '2_fastqc/{sample}/{sample}_R1_fastqc/fastqc_data.txt'
+    params:
+        output_dir = ROOT_OUT_DIR + '2_fastqc/{sample}'
+    threads: 5
+    log:
+        ROOT_OUT_DIR + LOG_DIR_NAME + '/2_fastqc.{sample}.txt'
+    shell:'''
+        mkdir -p {params.output_dir}
+        {FASTQC_EXE} --extract -o {params.output_dir} -f fastq --threads {threads} {input} &> {log}
+    '''
+
+
+rule rule_3_mapping:
+    input:
+        CUTADAPT_TEMPLATE.split(',')
+    output:
+        ROOT_OUT_DIR + '3_mapping/{sample}Aligned.sortedByCoord.out.bam'
+    params:
+        my_prefix = ROOT_OUT_DIR + '3_mapping/{sample}',
+    threads: 20
+    log:
+        map = ROOT_OUT_DIR + LOG_DIR_NAME + '/3_mapping.{sample}.txt',
+        counts = ROOT_OUT_DIR + LOG_DIR_NAME + '/counts_log.txt'
+    shell:'''
+        {STAR_EXE} --alignEndsType EndToEnd --outFilterMismatchNoverLmax 0.05 --genomeDir {INDEX} --readFilesIn {input} --outFilterMultimapNmax 1 --outReadsUnmapped Fastx --outSAMtype BAM SortedByCoordinate --twopassMode Basic --runThreadN {threads} --sjdbGTFfile {GTF} --quantMode GeneCounts --readFilesCommand cat --outFileNamePrefix {params.my_prefix} --genomeLoad NoSharedMemory --sjdbGTFtagExonParentGene gene_name --outSAMattributes NH HI AS nM MD &> {log.map};
+        {SAMTOOLS_EXE} index {output} &>> {log.map}
+    '''
+
+rule rule_ngsplot:
+    input:
+        expand(ROOT_OUT_DIR + '3_mapping/{sample}Aligned.sortedByCoord.out.bam', sample=SAMPLES)
+    output:
+        ROOT_OUT_DIR + '4_reports/ngsplotOut.avgprof.pdf'
+    params:
+        output_dir = ROOT_OUT_DIR + '4_reports',
+    log:
+        ROOT_OUT_DIR + LOG_DIR_NAME + '/4_reports.txt'
+    threads: 20
+    run:
+        if RUN_NGSPLOT:
+            shell("mkdir -p {params.output_dir}")
+            shell("{PYTHON} {SCRIPTS}/PrepareFilesToReport.py --pipeline-dir {ROOT_OUT_DIR} --output-dir {params.output_dir} --samples {SAMPLES_LIST} --samples-deseq {SAMPLES_DESEQ_LIST} --factors {FACTORS_LIST} --batches {BATCHES_LIST} --stranded {STRANDED} --job-name {JOB_NAME} --logFile {log};")
+            shell("cd {params.output_dir}; {NGS_PLOT_EXE} -G {NGSPLOT_GENOME} -R genebody -O {params.output_dir}/ngsplotOut -C {params.output_dir}/ngsplot_config.txt")
+            shell("gs -dNOPAUSE -dBATCH -sDEVICE=pngalpha -sOutputFile={params.output_dir}/ngsplotOut.png -r144 {params.output_dir}/ngsplotOut.avgprof.pdf; cd {ROOT_OUT_DIR}")
+        else:
+            shell("touch {params.output_dir}/ngsplotOut.avgprof.pdf")
+
+
+
+rule rule_4_reports:
+    input:
+        expand(ROOT_OUT_DIR + '2_fastqc/{sample}/{sample}_R1_fastqc/fastqc_data.txt', sample=SAMPLES),
+        ROOT_OUT_DIR + '4_reports/ngsplotOut.avgprof.pdf'
+    output:
+        ROOT_OUT_DIR + 'Done.txt'
+    params:
+        output_dir = ROOT_OUT_DIR + '4_reports',
+        out_dir_report = ROOT_OUT_DIR + '4_reports/' + DIR_REPORT_NAME,
+        fastqc_dir = ROOT_OUT_DIR + '2_fastqc',
+        paired_end = '--paired-end' if PAIRED_END else '',
+        fastqc_report = ROOT_OUT_DIR + '4_reports/fastqc_Per_base_sequence_quality',
+        eval_deseq = "deseq_eval <- TRUE" if FACTOR_OBJ else "deseq_eval <- FALSE",
+        eval_ngsplot = "ngsplot_eval <- TRUE" if RUN_NGSPLOT else "ngsplot_eval <- FALSE"
+    log:
+        report = ROOT_OUT_DIR + LOG_DIR_NAME + '/4_reports.txt',
+        counts = ROOT_OUT_DIR + LOG_DIR_NAME + '/counts_log.txt'
+    threads: 10
+    shell:'''
+        mkdir -p {params.out_dir_report}
+        {PYTHON} {SCRIPTS}/PrepareFilesToReport.py --pipeline-dir {ROOT_OUT_DIR} --output-dir {params.output_dir} --samples {SAMPLES_LIST} --samples-deseq {SAMPLES_DESEQ_LIST} --factors {FACTORS_LIST} --batches {BATCHES_LIST} --stranded {STRANDED} --job-name {JOB_NAME} --logFile {log.report};
+        {PYTHON} {SCRIPTS}/run-fastqc-report-table.py --fastqc-dir {params.fastqc_dir} --output-file-base {params.fastqc_report} {params.paired_end}
+        {PYTHON} {SCRIPTS}/ReportsCounts.py --pipeline-dir {ROOT_OUT_DIR} --output {params.output_dir}/counts_all_steps.txt --samples {SAMPLES_LIST} --stranded {STRANDED} --logFile {log.counts}
+
+        cp {TEMPLATES}/report_functions.R {params.out_dir_report}
+        cp {TEMPLATES}/report.Rmd {params.out_dir_report}
+        cp {TEMPLATES}/header.html {params.out_dir_report}
+        cp {TEMPLATES}/wis_logo_heb_v1.png {params.out_dir_report}
+        cp -r {TEMPLATES}/templates {params.out_dir_report}
+        sed -i \'s/RSCRIPT/\"{RSCRIPT}\"/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/R_LIB_PATHS/\"{R_LIB_PATHS}\"/g\' {params.out_dir_report}/report_functions.R
+        sed -i \'s/PIPELINE_TYPE/RNA-seq/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/GENOME/{INDEX_PATH}/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/ANNOTATION/{GTF_PATH}/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/ANNOTAT_TYPE/{ANNOTAT_TYPE}/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/deseq_eval <- TRUE/{params.eval_deseq}/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/ngsplot_eval <- TRUE/{params.eval_ngsplot}/g\' {params.out_dir_report}/report.Rmd
+        sed -i 's/htseq-count (DOI: \[10.1093\/bioinformatics\/btu638](http:\/\/dx.doi.org\/10.1093\/bioinformatics\/btu638)) (union mode)/STAR/g' {params.out_dir_report}/report.Rmd  #escape "/ [" characters
+        sed -i \'s/INTERMINE_WEB_QUERY/{INTERMINE_WEB_QUERY}/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/INTERMINE_WEB_BASE/{INTERMINE_WEB_BASE}/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/INTERMINE_CREATURE/{MINE_CREATURE}/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/INPUT_FOLDER/{FASTQ_DIR_SED}/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/OUTPUT_FOLDER/{ROOT_OUT_DIR_SED}/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/COUNTS_MATRIX_FILE/countsMatrix.txt/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/REPORT_OUTPUT_DIR/{DIR_REPORT_NAME}/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/SUBTITLE//g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/UMI_CORRECTED_COUNTS_LINK//g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/GENE_DB_URL/\"{GENE_DB_URL}\"/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/SAMPLE_DESC_CSV/{SAMPLE_DESC_CSV}/g\' {params.out_dir_report}/report.Rmd
+        sed -i \'s/COMPARISONS_CSV/{COMPARISONS_CSV}/g\' {params.out_dir_report}/report.Rmd
+        {RSCRIPT} -e "rmarkdown::render('{params.out_dir_report}/report.Rmd')" --verbose &>> {log.report}
+        if [ -d {ROOT_OUT_DIR}/0_concatenating_fastq ]; then for i in $(ls {ROOT_OUT_DIR}/0_concatenating_fastq/*/*); do touch $i\.deleted;rm $i; done; fi
+        for i in $(ls {ROOT_OUT_DIR}/0_concatenating_fastq/*/*); do touch $i\.deleted;rm $i; done
+        rm -rf {ROOT_OUT_DIR}/snakefile_base_temp.py {ROOT_OUT_DIR}/__pycache__ {ROOT_OUT_DIR}/__init__.py {ROOT_OUT_DIR}/4_reports/*.bam.cnt {ROOT_OUT_DIR}/4_reports/ngsplotOut.zip {ROOT_OUT_DIR}/4_reports/ngsplotOut.heatmap.pdf
+        touch {ROOT_OUT_DIR}/Done.txt
+    '''

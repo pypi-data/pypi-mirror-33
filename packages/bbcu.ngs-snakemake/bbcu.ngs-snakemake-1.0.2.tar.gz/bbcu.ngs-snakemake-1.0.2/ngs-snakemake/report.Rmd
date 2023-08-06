@@ -1,0 +1,898 @@
+---
+title: "Report PIPELINE_TYPE Pipeline: `r basename(dirname(dirname(getwd())))`"
+date: "`r format(Sys.Date(), '%d-%m-%Y')`"
+SUBTITLE
+
+output:
+  html_document:
+    includes:
+      in_header: header.html
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+
+<!-- 
+Words to replace with sed:
+
+PIPELINE_TYPE
+GENOME
+ANNOTATION
+ANNOTAT_TYPE
+deseq_eval <- TRUE
+htseq-count (DOI: \[10.1093\/bioinformatics\/btu638](http:\/\/dx.doi.org\/10.1093\/bioinformatics\/btu638)) (intersection-strict mode???????)
+INTERMINE_WEB_QUERY
+INTERMINE_WEB_BASE
+INTERMINE_CREATURE
+INPUT_FOLDER
+OUTPUT_FOLDER
+COUNTS_MATRIX_FILE
+SUBTITLE
+UMI_CORRECTED_COUNTS_LINK
+GENE_DB_URL
+SAMPLE_DESC_CSV
+COMPARISONS_CSV
+RSCRIPT
+-->
+
+```{r setup, include=FALSE}
+source("report_functions.R")
+library(knitr)
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+#knitr::opts_chunk$set(fig.width=4.5)
+#knitr::opts_chunk$set(fig.height=3.5)
+knitr::opts_chunk$set(results = 'asis')
+#knitr::opts_chunk$set(cache=TRUE) # Enable caching for faster rendering
+```
+
+```{r, echo=FALSE}
+deseq_eval <- TRUE
+count_eval <- TRUE
+ngsplot_eval <- TRUE
+```
+
+```{r thresholds}
+min_coverage <- 5
+thresholds <- data_frame(threshold_set = "default", padj=0.05, log2FoldChange=1, max_count=30, baseMean=5)
+```
+
+```{r load_data, echo=F}
+
+# Load sample description
+sample_info <- read.delim("../SAMPLE_DESC_CSV")
+
+if (length(rownames(sample_info)) == 1) {# There is only one sample (including header line)
+  sample_info <- read.delim("../SAMPLE_DESC_CSV", colClasses = c("character","character"), sep = "\t",stringsAsFactors = T)
+  has_batches = FALSE
+  count_eval = FALSE
+  deseq_eval = FALSE
+}
+
+if (length(names(sample_info)) == 2) {
+  sample_info <- read.delim("../SAMPLE_DESC_CSV", colClasses = c("character","character"), sep = "\t",stringsAsFactors = T)
+  has_batches = FALSE
+} else {
+  sample_info <- read.delim("../SAMPLE_DESC_CSV", colClasses = c("character","character","character"), sep = "\t",stringsAsFactors = T)
+  has_batches = TRUE
+}
+
+# Make sure everything is factors (even numbers)
+for (column in names(sample_info)) {
+  sample_info[,column]=as.factor(as.character(sample_info[,column]))
+}
+
+# Load counts in each step
+counts_steps <- read.delim("../counts_all_steps.txt", sep = "\t", check.names=F)
+counts_steps$samples <- as.character(counts_steps$samples)
+
+
+# Load fastqc per-base quality
+bp_qual <- read.delim("../fastqc_Per_base_sequence_quality_R1.csv", sep = "\t",stringsAsFactors = T)
+# Order the "Base" column (Fastqc may output values such as 10-11 11-12 etc.):
+order_base_levels = bp_qual %>%
+  select(Base) %>%
+  distinct() %>%
+  mutate(Base=as.character(Base)) %>%
+  tidyr::separate(Base,"Base1",sep="-",extra = "drop",convert = T,remove = F) %>%
+  arrange(Base1) %>%
+  select(Base) %>%
+  unlist
+
+bp_qual = mutate(bp_qual,Base=factor(Base,levels = order_base_levels))
+
+if(file.exists("../fastqc_Per_base_sequence_quality_R2.csv")){
+    # Load fastqc per-base quality for R2
+    bp_qual_r2 <- read.delim("../fastqc_Per_base_sequence_quality_R2.csv", sep = "\t",stringsAsFactors = T)
+    # Order the "Base" column (Fastqc may output values such as 10-11 11-12 etc.):
+    order_base_levels = bp_qual_r2 %>%
+      select(Base) %>%
+      distinct() %>%
+      mutate(Base=as.character(Base)) %>%
+      tidyr::separate(Base,"Base1",sep="-",extra = "drop",convert = T,remove = F) %>%
+      arrange(Base1) %>%
+      select(Base) %>%
+      unlist
+
+    bp_qual_r2 = mutate(bp_qual_r2,Base=factor(Base,levels = order_base_levels))
+}
+
+# Load STAR mapping statistics
+map_stat <- read.delim("../mapping_stats.csv", sep="\t", check.names=F)
+names(map_stat)[1]='Sample'
+map_stat$Sample <- as.character(map_stat$Sample)
+
+#if (length(intersect(map_stat$Sample,sample_info[,1]))!=nrow(sample_info)){
+#  stop("Samples in mapping stats file are not the same as in the sample_info")
+#}
+map_stat <- map_stat %>%
+  mutate(`Uniquely mapped reads %`=as.numeric(gsub('%','',`Uniquely mapped reads %`))) %>%
+  mutate(`% of reads mapped to multiple loci`=as.numeric(gsub('%','',`% of reads mapped to multiple loci`))) %>%
+  mutate(`% of reads mapped to too many loci`=as.numeric(gsub('%','',`% of reads mapped to too many loci`)))
+
+
+
+# Load trimming statistics
+trim_stats <- read.delim("../trim_stats.csv", sep = "\t",check.names=F)
+trim_stats$Sample <- as.character(trim_stats$Sample)
+
+if ("Total read pairs processed" %in% colnames(trim_stats)) {
+    tot_name = "Total read pairs processed"
+    short_name = "Pairs that were too short"
+    perc_short_name = "Percent Pairs too short"
+    tot_name_esc = "`Total read pairs processed`" #escape with ` for aes_string below
+    short_name_esc = "`Pairs that were too short`"
+    perc_short_name_esc = "`Percent Pairs too short`"
+} else {
+    tot_name = "Total reads processed"
+    short_name = "Reads that were too short"
+    perc_short_name = "Percent too short"
+    tot_name_esc = "`Total reads processed`"
+    short_name_esc = "`Reads that were too short`"
+    perc_short_name_esc = "`Percent too short`"
+}
+median_depth = median(trim_stats[[tot_name]])
+median_discarded = median(trim_stats[[short_name]])
+mean_depth = mean(trim_stats[[tot_name]])
+mean_discarded = mean(trim_stats[[short_name]])
+std_depth = sd(trim_stats[[tot_name]])
+std_discarded = sd(trim_stats[[short_name]])
+
+
+# Load counts data
+countsTable <- read.delim("../COUNTS_MATRIX_FILE", header = TRUE, row.names=1, sep="\t", check.names=F)
+names(countsTable) <- as.character(names(countsTable))
+#if (length(intersect(colnames(countsTable),sample_info[,1])) != nrow(sample_info)) {
+#  stop("Samples (columns) in countsMatrix file are not the same as in the sample_info")
+#}
+# Throw away rows with no expression
+countsTable=countsTable[rowMaxs(as.matrix(countsTable))>min_coverage,,drop=FALSE] #Need drop when there is only one sample
+options(scipen = 999)
+```
+
+```{r load_data_comp, eval=deseq_eval}
+# Load comparisons
+comps <- read.delim("../COMPARISONS_CSV", colClasses = c("character", "character","character","character","character"), sep="\t")
+```
+
+## Sequencing and Mapping QC
+
+
+```{r plot_input_reads_qual}
+gp_input_reads <- ggplot(data=trim_stats, aes_string(x="Sample", y=tot_name_esc)) +
+  geom_bar(stat='identity',fill="#2c7fb8") +
+  theme_bw()+theme(axis.text.x = element_text(angle = 45),axis.text.y = element_text(angle = 45)) + labs(x='  ',y="Number of input reads")
+
+gp_trim_discarded <- ggplot(trim_stats, aes_string(x="Sample", y=perc_short_name_esc)) +
+  geom_bar(stat='identity',fill="#2c7fb8") +
+  theme_bw()+labs(x='  ',y="Percent discarded after trimming") +  theme(axis.text.x = element_text(angle = 45))
+
+gp_counts_steps <- counts_steps %>%
+  melt(id.vars="samples", variable.name="Steps",value.name="Counts") %>%
+  ggplot(data=., aes(x=samples, y=Counts, fill=Steps)) +#, color=samples, group=samples) +
+  geom_bar(stat="identity" ,position="dodge")+ylab('Counts') + xlab(' ') +
+  theme_bw() + theme(axis.text.x = element_text(angle = 45),axis.text.y = element_text(angle = 45))
+
+bp_qual$Mean <- round(bp_qual$Mean,digits = 2)
+gp_bp_qual = ggplot(bp_qual, aes(x=Base, y=Mean, color=Sample, group=Sample)) +
+  geom_line()+ylim(0,41)+ylab('Mean quality')+theme_bw()+ theme(legend.position="none") +
+  theme(axis.text.x = element_text(angle = 90))
+
+if(file.exists("../fastqc_Per_base_sequence_quality_R2.csv")){
+    bp_qual_r2$Mean <- round(bp_qual_r2$Mean,digits = 2)
+    gp_bp_qual_r2 = ggplot(bp_qual_r2, aes(x=Base, y=Mean, color=Sample, group=Sample)) +
+      geom_line()+ylim(0,41)+ylab('Mean quality')+theme_bw()+ theme(legend.position="none") +
+      theme(axis.text.x = element_text(angle = 90))
+}
+
+max_sample_name_size <- max(nchar(counts_steps$samples))
+samples_num <- length(counts_steps$samples)
+
+cat("**Figure 1:**
+
+Plots the average quality of each base across all reads. Quality of 30 and up is good (predicted error rate 1:1000).
+
+")
+if(file.exists("../fastqc_Per_base_sequence_quality_R2.csv")){
+    cat("Quality of read 1: <a href=\"Figure1_base_quality_r1.txt\" download>Download figure as table</a>")
+} else {
+    cat("<a href=\"Figure1_base_quality_r1.txt\" download>Download figure as table</a>")
+}
+
+
+m = list(l = 100, r = 40, b = 100, t = 50, pad = 0)
+ggplotly(gp_bp_qual, height = 400, width = 900) %>% layout(margin = m)
+write.table(bp_qual, 'Figure1_base_quality_r1.txt', row.names = F, quote = F, sep="\t")
+if(file.exists("../fastqc_Per_base_sequence_quality_R2.csv")){
+    cat("Quality of read 2: <a href=\"Figure1_base_quality_r2.txt\" download>Download figure as table</a>")
+    r2_plotly=ggplotly(gp_bp_qual_r2, height = 400, width = 900) %>% layout(margin = m)
+    write.table(bp_qual_r2, 'Figure1_base_quality_r2.txt', row.names = F, quote = F, sep="\t")
+}
+if(file.exists("../fastqc_Per_base_sequence_quality_R2.csv")){
+   r2_plotly #cannot to be within block
+}
+
+cat(paste("**Figure 2:** Histogram showing the number of reads for each sample in raw data. Median, mean and std of the sequencing depth of all samples were", round(median_depth), round(mean_depth), round(std_depth), "reads.
+
+<a href=\"Figure2_raw_reads_number.txt\" download>Download figure as table</a>"))
+
+m = list(l = 100, r = 40, b = max(100,8*max_sample_name_size),t = 50, pad = 0)
+ggplotly(gp_input_reads, height = 600, width = max(900,samples_num*30)) %>% layout(margin = m)
+write.table(trim_stats, 'Figure2_raw_reads_number.txt', row.names = F, quote = F, sep="\t")
+
+cat(paste("**Figure 3:** 
+          
+Histogram showing the percent of reads discarded after trimming the adapters (after the removing of the adapters some read and polyA/T or low quality reads may be too short and the pipeline discards them). Median, mean and std of too short discarded of all samples were", round(median_discarded), round(mean_discarded), round(std_discarded), "reads.
+
+<a href=\"Figure3_trimmed_percent.txt\" download>Download figure as table</a>"))
+
+m = list(l = 100, r = 40, b = max(100,8*max_sample_name_size),t = 50, pad = 0)
+ggplotly(gp_trim_discarded, height = 600, width = max(900,samples_num*30)) %>% layout(margin = m)
+write.table(trim_stats, 'Figure3_trimmed_percent.txt', row.names = F, quote = F, sep="\t")
+
+cat("**Figure 4:**
+    
+Histogram with the number of reads for each sample in each step of the pipeline.
+
+<a href=\"Figure4_counts_each_step.txt\" download>Download figure as table</a>")
+
+m = list(l = 100, r = 40, b = max(100,8*max_sample_name_size),t = 50, pad = 0)
+ggplotly(gp_counts_steps, height = 600, width = max(750,samples_num*70)) %>% layout(margin = m)
+write.table(counts_steps, 'Figure4_counts_each_step.txt', row.names = F, quote = F, sep="\t")
+```
+
+
+```{r ngsplot}
+cat("**Figure 5:** 
+    
+Plots Genomics regions to which the reads (raw data) are mapped."  
+
+)  
+
+
+if (ngsplot_eval) {
+	img <- readPNG("../ngsplotOut.png")
+	grid.raster(img)
+	options("scipen"=-1, "digits"=4)
+} else {
+	cat("**Not supported for this organism.**")
+}
+```
+
+
+```{r add_counted_column}
+
+map_stat <- countsTable %>%
+  colSums() %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column() %>%
+  set_colnames(c('Sample','Number of counted reads')) %>%
+  inner_join(map_stat,by = 'Sample') %>%
+  mutate('Percent counted'=100*`Number of counted reads`/`Uniquely mapped reads number`)
+```
+
+```{r plot_mapping_counting, fig.width = 10, fig.height=max(6,samples_num/6)}
+
+gp_mapping <- map_stat %>% mutate(sumMult= `% of reads mapped to multiple loci` +  `% of reads mapped to too many loci`) %>%
+  select(Sample,Unique = `Uniquely mapped reads %`,Multiple=sumMult) %>%
+  melt(id.vars="Sample",variable.name='Alignment',value.name = "Percent") %>%
+  ggplot(data=., aes(x=Sample, y=Percent, fill=Alignment)) +
+    geom_bar(stat="identity" ,position="dodge") + theme_bw() + theme(legend.position="right") +
+    scale_fill_discrete() + coord_flip() + labs(x='  ',y='Percent mapped') +
+    scale_y_continuous(limits=c(0, 100), expand = c(0, 0))
+
+gp_counting <- ggplot(data=map_stat, aes(x=Sample, y=`Percent counted`)) +
+    geom_bar(stat="identity", fill="#2c7fb8") + theme_bw()+
+    coord_flip() + labs(x='  ',y='% counted out of uniquely mapped')+
+    scale_y_continuous(limits=c(0, 100), expand = c(0, 0))
+
+cat(paste0("**Figure 6:** 
+
+a. Histogram showing the percent of reads that mapped uniquely and not uniquely per sample. 
+
+b. Histogram showing the percent of the uniquely mapped reads that mapped to genes (genes included must have at least 5 reads).  
+
+The median of the mapped reads to GENOME genome (uniquely and multiple) among all samples was ", round(median(map_stat[,'Uniquely mapped reads %']+map_stat[,'% of reads mapped to multiple loci']+map_stat[,'% of reads mapped to too many loci'])), "%. Median of ", round(median(map_stat[,'Percent counted'])), "% of the uniquely mapped reads were mapped on genes with count above 5.
+
+Multiple is sum of \"% of reads mapped to multiple loci\" and \"% of reads mapped to too many loci\" fields of STAR.
+
+<a href=\"Figure6_mapping_statistics.txt\" download>Download figure 6 as table</a>"))
+
+grid.arrange(gp_mapping, gp_counting, ncol=2)
+
+write.table(map_stat, 'Figure6_mapping_statistics.txt', row.names = F, quote = F, sep="\t")
+```
+
+
+
+```{r generate_deseq_object, eval=count_eval}
+# Generate the DESeq object from the data
+
+# EDIT: Specify the design formula in the following way:
+# design = ~ FACTOR1_NAME + FACTOR2_NAME + FACTOR1_NAME:FACTOR2_NAME
+# where FACTOR_NAME are the column names in sample_info. Separate factors by +, add colon (:) for interaction
+
+# EDIT: In the case of interactions, you need to find the name of the interaction by using View(mcols(mcols(dds),use.names = T))
+# It should be of the form: FACTOR1_NAME LEVEL0.FACTOR2_NAME LEVEL21
+# Then, plug it into the name:
+# res=results(dds, cooksCutoff=FALSE, independentFiltering=FALSE, name='INTERACTION_TERM_NAME')
+
+condition=as.factor(sample_info$condition)
+# Initialize DESeq object with no real design formula (~1). It will be provided later
+
+
+count_eval<-tryCatch({
+if (length(summary(condition))>1){
+    #run only on selected samples
+    max_sample_name_size <- max(nchar(as.character(sample_info$Sample)))
+    samples_num <- length(sample_info$Sample)
+    countsTableDeseq=countsTable[, (names(countsTable) %in% sample_info$Sample)] #get only the samples in sample_desc.csv file
+    countsTableDeseq=countsTableDeseq[rowMaxs(as.matrix(countsTableDeseq))>min_coverage,]
+    if (has_batches) {
+        batches = as.factor(sample_info$batches)
+        ddsHTSeq <- DESeq2::DESeqDataSetFromMatrix(countData=countsTableDeseq,colData=DataFrame(condition=condition, batches=batches), design = ~ batches + condition)
+    } else {
+        ddsHTSeq <- DESeq2::DESeqDataSetFromMatrix(countData=countsTableDeseq,colData=DataFrame(condition), design = ~ condition)
+    }
+    dds <- DESeq(ddsHTSeq)
+} else {
+    sf_deseq = estimateSizeFactorsForMatrix(countsTable) #run on all samples
+    dds <- DESeq2::DESeqDataSetFromMatrix(countData=countsTable,colData=DataFrame(condition), design = ~1)
+    sizeFactors(dds) = sf_deseq
+}   }, error = function(err) {
+    # error handler picks up where error was generated
+    cat(paste("###Error:\n##DeSeq no run because the error: ",err))
+    return(FALSE)
+}) # END tryCatch
+
+if(identical(count_eval, FALSE)) {
+    deseq_eval <- FALSE
+} else {
+    count_eval <- TRUE
+}
+```
+
+
+```{r save_normalized_counts, eval=count_eval}
+write.table(round(counts(dds,normalize=T),digits = 1), 'countsMatrix_normalized.txt', row.names = T, quote = F, sep="\t")
+```
+
+
+
+```{r plot_frac_top,fig.width=6, eval=count_eval}
+
+frac_top = get_frac_top_genes(counts(dds))
+
+cat(paste0("## Exploratory analysis\n\n### The top highly-expressed genes.  
+
+**Figure 7:**
+
+Heatmap plotting the highly-expressed genes (above 5% of total expression).
+
+The highest fraction of counts from a single gene is ", signif(max(frac_top)*100,2),"%. The figure below presents the fraction of reads from the genes with the most counts.
+
+<a href=\"Figure7_top_expressed.txt\" download>Download figure as table</a> "))
+
+
+m = list(l = 100, r = 40, b = max(100,8*max_sample_name_size),t = 50, pad = 0)
+plot_ly(y=rownames(frac_top), x=colnames(frac_top), z = signif(frac_top,2), colors = brewer.pal(6, "Blues"), type = "heatmap",colorbar=list(title="Fraction of reads"),  height = 600, width = 900) %>%
+  layout(xaxis=list(title="Samples", tickangle=45),yaxis=list(title="Genes"), margin = m)
+
+write.table(frac_top, 'Figure7_top_expressed.txt', row.names = T, quote = F, sep="\t", col.names=NA)
+```
+
+
+
+```{r plot_cwounts, fig.width=max(6,max(samples_num,2)/log(max(samples_num,2),4)), fig.height=max(6,max(samples_num,2)/log(max(samples_num,2),4)), eval=count_eval}
+cat("### Heatmap of Samples Correlation
+
+**Figure 8:**
+
+Heatmap of Pearson correlation between samples according to the gene expression values.
+
+<a href=\"Figure8_samples_correlation.txt\" download>Download figure as table</a>
+
+")
+
+orig_plot_counts = NULL
+combat_failed <- FALSE
+if (has_batches) {
+    combat_failed<-tryCatch({
+        edata = varianceStabilizingTransformation( dds )
+        mod = model.matrix(~1, data=colData(edata))
+        plot_counts = ComBat(dat=assay(edata), batch=batches, mod=mod, par.prior=TRUE)
+        orig_plot_counts <- as.data.frame(plot_counts)
+        plot_counts = plot_counts[(apply(plot_counts,1,var)!=0),]
+        corellation = dds_to_heatmap(plot_counts)
+        m = list(l = 10*max_sample_name_size, r = 40, b = max(100,10*max_sample_name_size),t = 40, pad = 0)
+        # Cannot output within trycatch. Run only for catch wrong output of ComBat (all counts and correlations are NA)
+        heatmaply(corellation, hclustfun = hclust, hclust_method = "ward.D", colors = brewer.pal(12, "Oranges"), grid_gap = 1, key.title = 'Correlation')  %>% layout(margin = m)
+        combat_failed<-FALSE
+      }, warnning = function(w) {
+        cat(paste("
+
+        ###Error:\n##Combat package cannot run with these batches - the bellow plots were calculated with rld values. Be sure that the batch effect is designed correctly: [DESeq2 doucumentation](https://bioconductor.org/packages/3.7/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#model-matrix-not-full-rank)", w)
+
+        )
+        return(TRUE)
+    }, error = function(err) {
+        # error handler picks up where error was generated
+        cat(paste("
+
+        ###Error:\n##Combat package cannot run with these batches - the bellow plots were calculated with rld values. Be sure that the batch effect is designed correctly: [DESeq2 doucumentation](https://bioconductor.org/packages/3.7/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#model-matrix-not-full-rank)", err)
+
+        )
+        return(TRUE)
+    }) # END tryCatch
+}
+
+# Run heatmaply again, because it is cannot output within trycatch
+if( has_batches & identical(combat_failed, FALSE)) {
+    m = list(l = 10*max_sample_name_size, r = 40, b = max(100,10*max_sample_name_size),t = 40, pad = 0)
+    heatmaply(corellation, hclustfun = hclust, hclust_method = "ward.D", colors = brewer.pal(12, "Oranges"), grid_gap = 1, key.title = 'Correlation')  %>% layout(margin = m)
+}
+
+# No batches or ComBat failed
+if( !has_batches | identical(combat_failed, TRUE)) {
+    if (length(summary(condition))>1){
+      plot_counts = rlog(dds, blind = TRUE) %>% assay(.)
+      orig_plot_counts <- as.data.frame(plot_counts)
+    } else {
+      plot_counts = counts(dds, normalized=TRUE)
+    }
+    plot_counts = plot_counts[(apply(plot_counts,1,var)!=0),]
+    corellation = dds_to_heatmap(plot_counts)
+    m = list(l = 10*max_sample_name_size, r = 40, b = max(100,10*max_sample_name_size),t = 40, pad = 0)
+    heatmaply(corellation, hclustfun = hclust, hclust_method = "ward.D", colors = brewer.pal(12, "Oranges"), grid_gap = 1, key.title = 'Correlation')  %>% layout(margin = m)
+}
+
+write.table(corellation, 'Figure8_samples_correlation.txt', row.names = T, quote = F, sep="\t", col.names = NA)
+```
+
+
+```{r dendogram,fig.width=max(6,samples_num/5), fig.height=max(6,samples_num/5), eval=count_eval}
+
+
+cat("### Samples Dendrogram
+
+**Figure 9:** 
+
+Clustering dendrogram of the samples according to the gene expression using Ward's minimum variance method.
+
+<a href=\"Figure9_samples_dendogram.txt\" download>Download figure as table</a>
+
+")
+
+distances = dds_to_distances(plot_counts)
+dend <- distances_to_dendogram(distances, dds)
+
+# EDIT - Try different factors in the dendogram
+ggplot_dendogram(dend,'condition') + theme(plot.margin = unit(c(0.5,1.4,0.5,0.5), "cm"))
+
+distances <- as.data.frame(as.matrix((distances)))
+write.table(distances, 'Figure9_samples_dendogram.txt', row.names = T, quote = F, sep="\t", col.names = NA)
+```
+
+
+
+```{r calc_pca, eval=count_eval}
+
+
+# Calculate the PCA from the data
+# scale true is correlation if false it is covariance
+
+pca <- prcomp(t(plot_counts), scale=TRUE)
+
+# Generate a data-frame based on the pca data.
+pca_df = colData(dds) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column(var = 'sample') %>%
+  cbind(.,as.data.frame(pca$x))
+```
+
+
+```{r plot_var_explained_pca, fig.width=3, fig.height=3, eval=count_eval}
+# Plot the explained variant
+num_to_show = min(5,length(pca$sdev))
+
+var_explained <- data.frame(PC = 1:num_to_show,
+                            percent_var = (pca$sdev^2)[1:num_to_show]/sum(pca$sdev^2)*100
+)
+gp_var_exp = ggplot(var_explained,aes(x=PC,y=percent_var), xlim=0.5:min(5,nrow(var_explained)))+
+  geom_bar(stat="identity",fill="#2c7fb8")+
+  theme_bw()+
+  labs(x = "PC number", y = "% explained variability")
+
+xlab <- paste("PC1 ", "(", round(var_explained$percent_var[1],digits = 3), "%)",sep="")
+ylab <- paste("PC2 ", "(", round(var_explained$percent_var[2],digits = 3), "%)",sep="")
+
+gp_pc12 = ggplot(pca_df) + xlab(xlab) + ylab(ylab) + ggtitle("Sample PCA") +
+  geom_point(aes(x=PC1,y=PC2,fill=condition,shape=condition, label=sample),shape = 21,color="antiquewhite4",size=3.5)+
+  theme_bw()+ theme(legend.position = 'none')
+
+
+cat("### PCA analysis
+
+**Figure 10:**
+
+PCA analysis:  **a.** Histogram of % explained variability for each PC component
+
+<a href=\"Figure10a_explained_variability.txt\" download>Download figure 10a as table</a> ")
+
+ggplotly(gp_var_exp)
+
+write.table(var_explained, 'Figure10a_explained_variability.txt', row.names = F, quote = F, sep="\t")
+```
+
+
+```{r plot_pca, fig.width = 10, fig.height=6, eval=count_eval}
+
+if (length(var_explained$percent_var)>2){
+
+  cat("
+
+  **b.** PCA plot of PC1 vs PC2  **c.** PCA plot of PC1 vs PC3
+
+  <a href=\"Figure10b_pca.txt\" download>Download figure 10b_pca as table</a>
+
+  ")
+
+  xlab <- paste("PC1 ", "(", round(var_explained$percent_var[1],digits = 3), "%)",sep="")
+  ylab <- paste("PC3 ", "(", round(var_explained$percent_var[3],digits = 3), "%)",sep="")
+
+  gp_pc13 = ggplot(pca_df) + xlab(xlab) + ylab(ylab) + ggtitle("Sample PCA") + 
+    geom_point(aes(x=PC1,y=PC3,fill=condition,shape=condition, label=sample),shape = 21,color="antiquewhite4",size=3.5)+
+    theme_bw()
+  subplot(ggplotly(gp_pc12),ggplotly(gp_pc13),margin = 0.06,titleX = T, titleY = T)
+} else {
+  subplot(ggplotly(gp_pc12),margin = 0.06,titleX = T, titleY = T)
+}
+write.table(pca_df, 'Figure10b_pca.txt', row.names = T, quote = F, sep="\t")
+
+```
+
+
+
+
+
+```{r DESeq_statistics,eval=deseq_eval, echo=FALSE}
+
+cat(paste("##Differential Expression Analysis
+
+**Table 1: Differential expressed genes for each comparison**
+
+Differential expression analysis was performed using DESeq2.
+
+Below, we set the threshold for **significant differential expression (DE)** at:
+
+- padj <=", thresholds$padj,
+"\n- |log2FoldChange| >=", thresholds$log2FoldChange,
+"\n- baseMean >=", thresholds$baseMean))
+
+
+register(MulticoreParam(4))
+#register(SnowParam(4)) #For windows
+
+# Extract results for all comparisons
+dat = cbind(counts(dds),counts(dds, normalized=TRUE))
+len = length(colnames(dat))
+half = length(colnames(dat))/2+1
+for (i in 1:half-1) {
+    colnames(dat)[i] <- paste0(colnames(dat)[i],".raw")
+}
+for (i in half:len) {
+    colnames(dat)[i] <- paste0(colnames(dat)[i],".normalized")
+}
+
+
+len_plot_counts <- length(colnames(orig_plot_counts))
+if(!is.null(orig_plot_counts)) {
+  for (i in 1:len_plot_counts) {
+    if (has_batches & identical(combat_failed, FALSE)) {
+        colnames(orig_plot_counts)[i] <- paste0(colnames(orig_plot_counts)[i],".combat")
+    } else {
+        colnames(orig_plot_counts)[i] <- paste0(colnames(orig_plot_counts)[i],".rld")
+    }
+  }
+  dat=cbind(dat, orig_plot_counts)
+}
+
+res_list = list()
+res_list_corrected = list()
+for (i in 1:nrow(comps)){
+
+  comp = comps$Comparison[i]
+  #comp_formula = as.formula(paste("~",comps$Formula[i]))
+
+  # if (design(dds)!=comp_formula){
+  #   design(dds) = comp_formula
+  #   dds <- DESeq(dds,betaPrior = F,parallel=TRUE,quiet = T)
+  # }
+  
+  output <- extract_results_for_one_comp(dds,"condition",
+                                                   comps$A[i], comps$B[i],
+                                                   thresholds)
+  res_list[[comp]] <- output$res
+  res_list_corrected[[comp]] <- output$padj_corrected
+  
+  #For csv file
+  label = paste(comps$A[i], "_", comps$B[i], sep="")
+  res.m=as.data.frame(res_list[[comp]])
+  colnames(res.m) = paste (label,colnames(res.m),sep=".")
+  dat<-cbind(dat,(res.m[-1]))
+}
+
+res_df = bind_rows(res_list,.id = "Comparison") %>%
+  mutate(Comparison=as.factor(Comparison)) %>%
+  as_data_frame()
+
+
+# Note: res_df is used in downstream applications. Make sure it maintains a format with columns: Comparison, Gene, baseMean, log2FoldChange, pvalue, padj, pass, Direction
+
+save(comps,dds,res_df,file='output.RData')
+
+res=cbind(as.data.frame(dat) )
+
+
+sorted_res <- list()
+cols <- colnames(res)
+cols_type <- character(0)
+if (has_batches & identical(combat_failed, FALSE)) {
+    cols_type <- c(FALSE, "raw", "normalized", "rld")
+} else {
+    cols_type <- c(FALSE, "raw", "normalized", "combat")
+}
+categories <- unique(colData(dds)$condition)
+
+for (col_type in cols_type){
+  for (catg in categories) {
+    for (col in cols) {
+      pre_col <- strsplit(col, "[.]")[[1]][1]
+      suf_col <- if (is.na(strsplit(col, "[.]")[[1]][2])) FALSE else strsplit(col, "[.]")[[1]][2]
+
+      if (suf_col == col_type && colData(dds)[pre_col,]$condition == catg) {
+          sorted_res[[col]] <- res[,col]
+      }
+    }
+  }
+}
+for (col in cols) {
+  suf_col <- if (is.na(strsplit(col, "[.]")[[1]][2])) FALSE else strsplit(col, "[.]")[[1]][2]
+  if (!(suf_col %in% categories)) {
+      sorted_res[[col]] <- res[,col]
+  }
+}
+
+sorted_res <- as.data.frame(sorted_res)
+row.names(sorted_res) <- rownames(res)
+write.table(sorted_res, file="Deseq_all_results.txt", sep="\t", col.names=NA)
+
+```
+
+```{r write_de_stats, eval=deseq_eval, echo=FALSE}
+
+# Save file with the results dataframe - vertical format
+res_df %>%
+  mutate(baseMean=round(baseMean,digits = 1)) %>%
+  mutate(FoldChange=foldchange(log2FoldChange)) %>%
+  mutate(log2FoldChange=signif(log2FoldChange,4)) %>%
+  mutate(pvalue=signif(pvalue,3),padj=signif(padj,3)) %>%
+  select(Comparison,Gene,baseMean,log2FoldChange,FoldChange,pvalue,padj,pass,Direction) %>%
+  write.table('de_stats.txt', row.names = F, quote = F, sep="\t")
+
+# Save a file in horizontal format, easier for intersections using Excel
+res_df %>%
+  mutate(Direction = replace(as.character(Direction),pass!='yes','no')) %>%
+  select(Comparison,Gene,Direction) %>%
+  dcast(.,Gene ~ Comparison,value.var = 'Direction') %>%
+  write.table('intersection_friendly.txt', row.names = F, quote = F, sep="\t")
+```
+
+```{r plot_results_summary, fig.width=6,eval=deseq_eval, echo=FALSE}
+# res_summary = res_df %>%
+#   filter(!is.na(log2FoldChange)) %>%
+#   group_by(Comparison, Direction) %>%
+#   summarise(DE = sum(pass=='yes',na.rm = T))
+
+# plot
+# ggplot(res_summary, aes(x=Comparison, y=DE, fill=Direction)) +
+#   geom_bar(stat="identity") +
+#   theme_bw() +
+#   coord_flip() + labs(y='Number of DE genes')+
+#   scale_fill_manual(values=c("indianred", "#2b8cbe"))
+```
+
+```{r create_comparison_htmls,eval=deseq_eval, echo=FALSE}
+#, cache=T, cache.extra=list(comps,dds,res_df)}
+
+comparison_plots_template = "templates/comparison_plots.Rmd"
+comparison_gtab_template = "templates/comparison_gene_table.Rmd"
+gene_db_url = GENE_DB_URL # "http://www.genecards.org/cgi-bin/carddisp.pl?gene="
+
+
+# Create gene table htmls - parallel cores
+para = bplapply(comps$Comparison,
+         function(comp) create_comparison_gene_table_html(comparison_gtab_template,
+                                                          "output.RData",comp,
+                                                          gene_db_url,
+                                                          replace_images=F, RSCRIPT) )
+
+# Create comparison plots html - parallel cores
+para = bplapply(comps$Comparison,
+         function(comp) create_comparison_plots_html(comparison_plots_template,
+                                                     "output.RData", comp, RSCRIPT) )
+
+comps_passed <- comps$Comparison[as.vector(sapply(comps$Comparison, function(comp) res_df %>% filter(pass=='yes', Comparison == comp) %>% .$Gene %>% length>0))]
+
+# Adding if the padj is corrected by fdrtool
+comps2 <- comps %>% mutate(`Padj corrected by fdrtool`=res_list_corrected)
+
+# Print comparison table
+passed <- comps2 %>%
+  filter(Comparison %in% comps_passed) %>%
+  mutate(Plots = paste0('<a href="comparison_plots_',Comparison,'.html" target="_blank">link</a>')) %>%
+  mutate(`DE Genes` = paste0('<a href="comparison_gtab_',Comparison,'.html" target="_blank">link</a>'))
+
+
+no_passed <- comps2 %>%
+  filter(!(Comparison %in% comps_passed)) %>%
+  mutate(Plots = paste0('<a href="comparison_plots_',Comparison,'.html" target="_blank">link</a>')) %>%
+  mutate(`DE Genes` = "No passed filter")
+
+rbind(passed, no_passed) %>% kable()
+```
+
+
+
+```{r enrichments, eval=deseq_eval, echo=FALSE}
+cat("
+
+**Table 2: Links to functional enrichments analysis**
+
+To perform functional enrichments, you can try one or more of the following websites: [Intermine](INTERMINE_WEB_BASE), [Reactome](http://www.reactome.org/PathwayBrowser/#/SPECIES=48887&TOOL=AT), [GeneAnalytics  from GeneCards^(R)^](https://ga.genecards.org/) or [STRING](http://string-db.org).
+You can also use the links below to send the differentially expressed genes directly to Intermine (<b>In the first time click on the button twice to get the correct page.</b>:")
+
+passed <- res_df %>%
+  filter(pass=='yes') %>%
+  select(Comparison, pass, Direction, Gene) %>%
+  group_by(Comparison, pass, Direction) %>%
+  summarise(`Number of genes` = n(), gene_list = paste(Gene,collapse=",")) %>%
+  mutate(InterMine=intermine_api("INTERMINE_WEB_QUERY", "INTERMINE_CREATURE", gene_list)) %>%
+  select(Comparison, pass, Direction, `Number of genes`, InterMine) %>%
+  arrange(Comparison, Direction, pass)
+
+no_passed <- res_df %>%
+  filter(!(Comparison %in% comps_passed)) %>%
+  select(Comparison, pass, Direction, Gene) %>%
+  group_by(Comparison, pass, Direction) %>%
+  summarise(`Number of genes` = n(), gene_list = paste(Gene,collapse=",")) %>%
+  mutate(`Number of genes`=as.integer(0)) %>%
+  mutate(InterMine="") %>%
+  select(Comparison, pass, Direction, `Number of genes`, InterMine) %>%
+  arrange(Comparison, Direction, pass)
+
+if (nrow(passed)> 0) {
+  rbind(passed, no_passed) %>%  datatable(., escape = FALSE, options = list(autoWidth = TRUE))
+} else {
+  rbind(no_passed) %>%  datatable(., escape = FALSE, options = list(autoWidth = TRUE))
+}
+
+
+```
+
+## Bioinformatics pipeline methods
+
+Reads were trimmed using cutadapt (DOI: [10.14806/ej.17.1.200](http://dx.doi.org/10.14806/ej.17.1.200)) and mapped to genome GENOME using STAR (DOI: [10.1093/bioinformatics/bts635](http://dx.doi.org/10.1093/bioinformatics/bts635)) v2.4.2a (default parameters).
+
+
+```{r methods}
+pipeline = "PIPELINE_TYPE"
+if (pipeline == "MARS-seq"){
+    cat("
+
+The pipeline quantifies the genes annotated in ANNOTAT_TYPE (that have expanded with 1000 bases toward 5\' edge and 100 bases toward 3\' bases): ANNOTATION.
+
+Counting was done using htseq-count (DOI: [10.1093/bioinformatics/btu638](http://dx.doi.org/10.1093/bioinformatics/btu638)) (union mode).
+    ")
+}
+if (pipeline == "RNA-seq"){
+    cat("
+
+The pipeline quantifies the genes annotated in ANNOTAT_TYPE: ANNOTATION.
+
+Counting was done using STAR.
+    ")
+}
+
+cat("
+
+Further analysis is done for genes having minimum 5 read in at least one sample.
+")
+if (exists("condition") && length(summary(condition))>1){ #there is no "condition" if counts_eval == F
+    cat("
+
+Normalization of the counts and differential expression analysis was performed using DESeq2 (DOI: [10.1186/s13059-014-0550-8](http://dx.doi.org/10.1186/s13059-014-0550-8)) with the parameters: betaPrior=True, cooksCutoff=FALSE, independentFiltering=FALSE. Raw P values were adjusted for multiple testing using the procedure of Benjamini and Hochberg.
+    ")
+} else if(count_eval) {
+    cat("
+
+Normalization of the counts was done using DESeq2 (DOI: [10.1186/s13059-014-0550-8](http://dx.doi.org/10.1186/s13059-014-0550-8)) with the betaPrior set to True. Raw P values were adjusted for multiple testing using the procedure of Benjamini and Hochberg.
+    ")
+}
+
+if(deseq_eval) {
+cat("
+
+The p-adjusted values will be corrected by fdrtool (R package, DOI: [10.1186/1471-2105-9-303](https://doi.org/10.1186/1471-2105-9-303)) if one of the following applies:
+
+- The pipeline compute the fractions of the p-values in range between [0.25,1) for the following bins: (0.25,0.5], (0.5,0.75], (0.75,1), and the fractions of the p-values in one of the bins is not between 0.28 to 0.38.
+
+- the fraction of the p-values in the range [0,0.25] is lower from the fraction of the p-values of the range (0.25,1) by 0.05.
+
+")
+}
+```
+
+Pipeline was constructed using Snakemake (DOI: [10.1093/bioinformatics/bts480](http://dx.doi.org/10.1093/bioinformatics/bts480)).
+
+## Links to Results
+
+Sequences from folder: INPUT_FOLDER
+
+Output folder: OUTPUT_FOLDER
+
+Statistics regarding the number of reads for each sample for various steps of the pipeline can be downloaded from <a href=../counts_all_steps.txt download>here</a>.
+
+Raw counts can be downloaded from <a href=../countsMatrix.txt download>here</a>.
+
+UMI_CORRECTED_COUNTS_LINK
+
+```{r summary,eval=deseq_eval}
+cat("
+
+Normalized counts can be downloaded from <a href=\"countsMatrix_normalized.txt\" download>here</a>.
+
+")
+
+if(has_batches & identical(combat_failed, FALSE)) {
+    cat("Quantification data including: raw counts, normalized counts and ComBat (log normalized counts after batch correction; combat values were calculated using \"sva\" package of R and are batch corrected normalized log2 count values), and pairwise deseq2 statistics can be downloaded <a href=\"Deseq_all_results.txt\" download>here</a>.
+
+    ")
+} else {
+   cat("Quantification data including: raw counts, normalized counts and rld (log normalized counts) and pairwise deseq2 statistics can be downloaded <a href=\"Deseq_all_results.txt\" download>here</a>.
+
+   ")
+}
+```
+Commands log can be downloaded from <a href=../commands_log.txt download>here</a>.
+
+
+
+```{r sessionInfo}
+writeLines(capture.output(sessionInfo()), "sessionInfo.txt")
+```

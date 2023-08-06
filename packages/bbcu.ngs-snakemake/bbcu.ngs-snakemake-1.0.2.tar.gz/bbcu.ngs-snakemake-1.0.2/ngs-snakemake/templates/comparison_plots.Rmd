@@ -1,0 +1,75 @@
+---
+title: "Comparison __COMPARISON_NAME__"
+output: html_document
+---
+
+```{r setup_comparison, echo=FALSE,  include = F}
+source("report_functions.R")
+options(stringsAsFactors = FALSE)
+library(knitr)
+#knitr::opts_chunk$set(cache=TRUE) # Enable caching for faster rendering
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+
+load("__RDATA_FILE__")
+```
+
+##
+```{r pvalue_distribution}
+bins = 51
+
+pvals = res_df %>%
+  filter(Comparison=="__COMPARISON_NAME__") %>%
+  filter(!is.na(pvalue)) %>%
+  select(pvalue)
+
+# intercept of horizontal line with expected number of hits per bin
+intercept <- nrow(pvals) / bins
+# Plot
+ggplot(data = pvals, aes(x = pvalue)) + 
+  geom_histogram(bins = bins, fill = "steelblue", color='black') +
+  geom_abline(slope= 0, intercept = intercept, colour = "red") +
+  theme_bw() +
+  ggtitle("P-value distribution")
+
+```
+
+
+## Volcano plot
+
+Scatter plot of significance (y axis) versus fold-change (x axis).
+
+```{r volcano}
+res_df_comp = filter(res_df,Comparison=="__COMPARISON_NAME__")
+
+gp = ggplot(data=res_df_comp)+
+    geom_hex(data=filter(res_df_comp,pass=='no'), aes(x=log2FoldChange,y=-log10(padj)),bins=70)+
+    scale_fill_gradient(low="grey",high="black",guide = guide_legend(title = ""))+
+    geom_point(data=filter(res_df_comp,pass!='no'),aes(x=log2FoldChange,y=-log10(padj),color=pass,label=Gene,baseMean = baseMean))+
+  scale_color_manual(values=c("#00BC00","#2c7fb8"))+
+  theme_bw()
+
+ggplotly(gp)
+
+```
+
+## Heatmap
+
+Hierarchical clustering heat map of **differentially expressed genes** using the genes expression values rld (log2 normalized).
+
+```{r heatmap}
+gene.names = res_df %>%
+  filter(Comparison=="__COMPARISON_NAME__",pass!='no') %>%
+  select(Gene) %>%
+  unlist
+
+if (length(gene.names)>1) {
+    expression_heatmap(counts(dds,normalize=T),gene.names,interactive = F)
+} else if (length(gene.names)==1) {
+    cat("No heatmap because there is only one differentially expressed gene.")
+} else if (length(gene.names)==0) {
+    cat("No heatmap because there is no differentially expressed gene.")
+}
+
+```
