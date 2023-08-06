@@ -1,0 +1,53 @@
+- name: Installing Control Server system dependencies (Ubuntu)...
+  apt:
+    name: nginx
+    update_cache: yes
+  when: ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian'
+- name: Installing Agent system dependencies (Alpine)...
+  apk:
+    name: nginx
+    update_cache: yes
+  when: ansible_distribution == 'Alpine'
+- include_tasks: directories.yaml
+- name: Setting nginx log directory access mode...
+  file:
+    path: /var/log/nginx
+    mode: a+rwx
+- name: Creating Control Server configuration file...
+  copy:
+    content: "{{ control_server_configuration_custom | to_nice_yaml }}"
+    dest: '{{ packy_control_server_config }}'
+- include_tasks: configuration-uwsgi.yaml
+- name: Creating nginx configuration file directories...
+  file:
+    path: '{{ item }}'
+    state: directory
+    recurse: yes
+  with_items:
+    - /etc/nginx/sites-available
+    - /etc/nginx/sites-enabled
+- name: Creating nginx main configuration file...
+  template:
+    src: ../../../configuration/templates/nginx_alpine.conf.j2
+    dest: /etc/nginx/nginx.conf
+  when: ansible_distribution == 'Alpine'
+- name: Creating nginx configuration file...
+  template:
+    src: ../../../configuration/templates/nginx.conf.j2
+    dest: /etc/nginx/sites-available/packy-agent.conf
+- name: Creating nginx configuration file link...
+  file:
+    state: link
+    force: yes
+    src: /etc/nginx/sites-available/packy-agent.conf
+    dest: '{{ control_server_configuration.nginx_configuration_file }}'
+- name: Removing default nginx config...
+  file:
+    state: absent
+    path: /etc/nginx/sites-enabled/default
+  when: remove_nginx_default_landing
+- name: Restarting nginx...
+  service:
+    name: nginx
+    state: restarted
+  when: not is_inside_docker_container

@@ -1,0 +1,28 @@
+- name: Removing previously successful installation markers..
+  file:
+    path: '{{ item }}'
+    state: absent
+  with_items:
+    - /etc/packy-agent-version
+    - /etc/packy-control-server-version
+    - /etc/packy-watchdog-version
+- name: Creating installation recovery marker creation script...
+  template:
+    src: dump_version.py.j2
+    dest: /tmp/dump_version.py
+- name: Creating installation recovery marker...
+  vars:
+    command: 'workon {{ temp_venv }} && python /tmp/dump_version.py; deactivate'
+  include_tasks: virtualenvwrapper.yaml
+- name: Creating recover script...
+  template:
+    src: packy-recover.sh.j2
+    dest: '{{ recover_script_path }}'
+    mode: u+x
+- name: Installing recover script for cron reboot (Ubuntu)...
+  cron:
+    name: Packy recover script
+    job: 'SHELL=/bin/bash {{ recover_script_path }} >> /var/log/packy-recover.log 2>&1'
+    special_time: reboot
+    backup: yes
+  when: not is_inside_docker_container
