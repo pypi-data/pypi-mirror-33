@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head><title>Demonstration</title></head>
+<body>
+<h1>Log Watching</h1>
+<pre class="updates"></pre>
+<p>Web-tail of log example.log</p>
+<pre>fussy-sse-server -r <path to directory to watch></pre>
+<ul>
+    <li>This demo uses the <a href="https://github.com/amvtek/EventSource">amvtek polyfill</a></li>
+</ul>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+<script src="./eventsource.min.js"></script>
+<script>
+    $(document).ready( function() {
+        var interests = ['-example.log'];
+        var event_url = "http://localhost:12000/"+interests.join('+');
+        var eventSource = new EventSource(event_url);
+        var show_incoming = function(event) {
+            var parent = $(".updates");
+            parent.text( parent.text() +'\n'+ event.data );
+        };
+        var trim_left = function( string, to_trim ) {
+            while (string.length && string[0] === to_trim) {
+                string = string.slice(1,string.length);
+            }
+            return string;
+        };
+        $.map( interests, function( interest ){ 
+            eventSource.addEventListener(trim_left(interest,'-'),show_incoming);
+        });
+    });
+</script>
+</body>
+</html>
