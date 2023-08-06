@@ -1,0 +1,88 @@
+#!/usr/bin/env python
+
+"""
+awsamigo - Quickly find the right AWS AMI ID for your instances.
+
+Usage:
+    awsamigo (-h | --help)
+    awsamigo --version
+    awsamigo search <distro> [--region=<region>]
+                             [--image-name=<name>]
+                             [--arch=<arch>]
+                             [--image-type=<image_type>]
+                             [--hypervisor=<hypervisor>]
+                             [--virt-type=<virt_type>]
+                             [--device-type=<device_type>]
+                             [--state=<state>]
+                             [--description=<description>]
+    awsamigo latest <distro> [--region=<region>]
+                             [--only-id | --only=<only_attr>]
+                             [--image-name=<name>]
+                             [--arch=<arch>]
+                             [--image-type=<image_type>]
+                             [--hypervisor=<hypervisor>]
+                             [--virt-type=<virt_type>]
+                             [--device-type=<device_type>]
+                             [--state=<state>]
+                             [--description=<description>]
+
+Options:
+    -h --help                   Show this help and exit
+    --version                   Print version and exit
+    --region=<region>           AWS region to connect to [default: eu-west-1]
+    --image-name=<name>         Only lookup image-names matchin this pattern
+    --arch=<arch>               Display only images of this architecture [default: x86_64]
+    --hypervisor=<hypervisor>   Display only images of this hypervisor [default: xen]
+    --virt-type=<virt_type>     Display only images of this virtualization-type [default: hvm]
+    --device-type=<device_type> Display only images with this root-device type [default: ebs]
+    --image-type=<image_type>   Display only images of this machine-type [default: machine]
+    --state=<state>             Display only images in this state [default: available]
+    --description=<description> Display only images with this description
+    --only-id                   Display only the image-id
+    --only=<only>               Display only the given attribute of the found image(s)
+"""
+
+from docopt import docopt
+
+import json
+import awsamigo
+
+
+arguments = docopt(__doc__, version=awsamigo.__version__)
+
+filters = {}
+if arguments['--image-name']:
+    filters['name'] = [arguments['--image-name'] + '*']
+else:
+    filters['name'] = ['*']
+if arguments['--description']:
+    filters['description'] = arguments['--description']
+if arguments['--arch']:
+    filters['architecture'] = arguments['--arch'].split(',')
+if arguments['--image-type']:
+    filters['image_type'] = arguments['--image-type'].split(',')
+if arguments['--hypervisor']:
+    filters['hypervisor'] = arguments['--hypervisor'].split(',')
+if arguments['--virt-type']:
+    filters['virtualization-type'] = arguments['--virt-type'].split(',')
+if arguments['--device-type']:
+    filters['root-device-type'] = arguments['--device-type'].split(',')
+if arguments['--state']:
+    filters['state'] = arguments['--state'].split(',')
+
+filters = awsamigo.new_filter(filters)
+finder = awsamigo.new_finder(arguments['--region'])
+
+if arguments['search']:
+    results = finder.search(arguments['<distro>'], filters)
+
+elif arguments['latest']:
+    only_attr = None
+    if arguments['--only-id']:
+        only_attr = 'ImageId'
+    elif arguments['--only']:
+        only_attr = arguments['--only']
+
+    results = finder.latest(arguments['<distro>'], filters, only_attr)
+
+print(json.dumps(results, indent=4, sort_keys=True))
