@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  {% set facet='validate' %}
+  <head>
+    <title>
+      {% if recipe.name %}
+      Validate {{ recipe.name }} @ HXL Proxy
+      {% else %}
+      Validate dataset @ HXL Proxy
+      {% endif %}
+    </title>
+    {% include "includes/headers.html" %}
+  </head>
+  <body class="container-fluid">
+    {% set page_help='Validation-page' %}
+    {% include "includes/navbar.html" %}
+    <header class="row">
+      <h1 class="col-md-10">
+        {% if recipe.name %}
+        Validate {{ recipe.name }}
+        {% else %}
+        Validate dataset
+        {% endif %}
+      </h1>
+      {% if error_report %}
+      <p class="col-md-2 small">
+        <b>Download as:</b>
+        <a href="{{ data_url_for('data_validate', recipe, format='json') }}">JSON</a>
+      </p>
+      {% endif %}
+    </header>
+    <main>
+      {% if severity=='error' %}
+      {% set count = error_report.stats.error %}
+      {% elif severity=='warning' %}
+      {% set count = error_report.stats.error + error_report.stats.warning %}
+      {% else %}
+      {% set count = error_report.stats.total %}
+      {% endif %}
+      <p class="alert alert-info alert-dismissable" role="alert">
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">&times;</button>
+        {% if schema_url %}
+        Using a <a href="{{ url_for('data_view', url=schema_url) }}">custom schema</a>.
+        {% else %}
+        Using the default schema.
+        {% endif %}
+        <a class="btn btn-default" data-toggle="modal" data-target="#customise">Change schema</a>
+      </p>
+      {% if error_report.stats.total == 0 %}
+      <p class="alert alert-success">Validation succeeded with no issues.</p>
+      {% else %}
+      <form id="severity-form" class="form" action="" method="GET">
+        <div class="form-group">
+          <label for="severity">Minimum error level to show</label>
+          <select name="severity" class="form-control" onchange="$('#severity-form').submit();">
+            <option value="info"{% if severity == 'info' %} selected="selected"{% endif %}>Info (most verbose)</option>
+            <option value="warning"{% if severity == 'warning' %} selected="selected"{% endif %}>Warnings</option>
+            <option value="error"{% if severity == 'error' %} selected="selected"{% endif %}>Errors (least verbose)</option>
+          </select>
+          <button class="hidden btn btn-default" type="submit">Change</button>
+        </div>
+        {% include "includes/params.html" %}
+      </form>
+      <p class="alert alert-info">
+        Showing {{ count }} of {{ error_report.stats.total }} issue location(s)
+      </p>
+      {% if count == 0 %}
+      <p class="alert alert-warning">
+        No issues to show at this level. Try a different error level to
+        see more.
+      </p>
+      {% else %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Severity</th>
+            <th>Locations</th>
+            <th>Explanation</th>
+            <th>Scope</th>
+            <th>HXL tag pattern</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for issue in error_report.issues %}
+          {% if severity=='info' or issue.severity=='error' or severity==issue.severity %}
+          <tr>
+            <td><span class="badge {{ severity_class(issue.severity) }}">{{ issue.severity }}</span></td>
+            <td><a href="{{ add_args({'details': issue.rule_id}) }}">See {{ issue.location_count }} location(s)</a></td>
+            <td class="validation-message">{{ issue.description }}</td>
+            <td>{{ issue.scope }}</td>
+            <td>{{ issue.tag_pattern }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+      {% endif %}
+
+      <div class="modal fade" id="customise" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2 class="modal-title">Customise validation</h2>
+
+              <form class="form" action="">
+
+                {% if recipe.recipe_id %}
+                <p>Temporarily override the default schema for this recipe. To change the default schema, go to the
+                <a href="{{ data_url_for('data_edit', recipe) }}">edit page</a>.</p>
+                {% endif %}
+                
+                <div class="form-group">
+                  <label for="schema_url">Custom HXL schema URL</label>
+                  <input name="schema_url" id="schema_url" type="url" value="{{ recipe.args.schema_url or '' }}" class="form-control"
+                         placeholder="http://example.org/my-hxl-schema.csv" />
+                  <p class="help-block">You can choose a custom schema with special rules for your dataset.</p>
+                  {% with id='#schema_url' %}
+                  {% include "includes/selectors.html" %}
+                  {% endwith %}
+                </div>
+
+                {% with excludes=['schema_url'] %}
+                {% include "includes/params.html" %}
+                {% endwith %}
+
+                <button class="btn btn-success" type="submit">Update</button>
+
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    {% include "includes/scripts.html" %}
+    {% include "includes/chooser-scripts.html" %}
+  </body>
+</html>
