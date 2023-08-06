@@ -1,0 +1,1 @@
+from scrappyserver.flaskapp import ScrappyServer
