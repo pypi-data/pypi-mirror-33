@@ -1,0 +1,83 @@
+# Python CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-python/ for more details
+#
+
+version: 2
+
+references:
+  tests_steps: &tests_steps
+    steps:
+      - checkout
+      - run:
+          name: Install pip dependencies
+          command: sudo pip install coverage codacy-coverage
+      - run:
+          name: Run unittests
+          command: coverage run setup.py test
+      - store_test_results:
+          path: test-reports
+      - run:
+          name: Upload coverage xml file to codacy
+          command: |
+            coverage xml --include=src/*.py
+            python-codacy-coverage -r coverage.xml
+
+  deploy_steps: &deploy_steps
+    steps:
+      - checkout
+      - run:
+          name: Install pip dependencies
+          command: sudo pip install wheel twine
+      - run:
+          name: Build and upload distributive packages
+          command: |
+            python setup.py sdist bdist_wheel
+            twine upload -u ${PYPI_USER} -p ${PYPI_PASSWORD} dist/*
+
+jobs:
+
+  test-cpy27:
+    docker:
+      - image: circleci/python:2.7
+    <<: *tests_steps
+
+  test-cpy34:
+    docker:
+      - image: circleci/python:3.4
+    <<: *tests_steps
+
+  test-cpy35:
+    docker:
+      - image: circleci/python:3.5
+    <<: *tests_steps
+
+  test-cpy36:
+    docker:
+      - image: circleci/python:3.6
+    <<: *tests_steps
+
+  deploy:
+    docker:
+      - image: circleci/python:3
+    <<: *deploy_steps
+
+workflows:
+  version: 2
+  test-and-deploy: # name of your workflow
+    jobs:
+      - test-cpy27
+      - test-cpy34
+      - test-cpy35
+      - test-cpy36
+      - deploy:
+          requires:
+            - test-cpy27
+            - test-cpy34
+            - test-cpy35
+            - test-cpy36
+          filters:
+            tags:
+              only: /^(\d+(\.\d+)*)+(\.?(a|b|c|dev|alpha|beta|rc|preview)(\d+(\.\d+)*)+)?$/
+            branches:
+              ignore: /.*/
