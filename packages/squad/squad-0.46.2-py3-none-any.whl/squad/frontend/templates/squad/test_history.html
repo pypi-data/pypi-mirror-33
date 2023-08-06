@@ -1,0 +1,76 @@
+{% extends "squad/base.html" %}
+{% load squad %}
+
+{% block content %}
+
+  <h2 class="page-header well">
+    {{history.test}}
+    {% if request.GET.top %}
+    up to {{history.top.version}}
+    {% else %}
+      {% if history.top %}
+      <small>(<a href="?top={{history.top.version}}">permalink</a>)</small>
+      {% endif %}
+    {% endif %}
+  </h2>
+
+  {% include "squad/_pagination.html" with items=history %}
+
+<h2> Test results history </h2>
+
+  <table class='test-results'>
+
+    <thead>
+      <th>Build</th>
+      <th>Date</th>
+      {% for environment in history.environments %}
+      <th>{{environment}}</th>
+      {% endfor %}
+    </thead>
+
+    {% if history.known_issues %}
+    <tr>
+      <th colspan="2">Known Issues</th>
+      {% for environment in history.environments %}
+        <td>
+          {% for issue in history.known_issues|get_value:environment %}
+            {% if issue.url %}
+              <a href="{{issue.url}}">{{issue.title}}</a>
+            {% else %}
+              {{issue.title}}
+            {% endif %}
+            {% if issue.intermittent %}
+            (intermittent)
+            {% endif %}
+            <br/>
+          {% endfor %}
+        </td>
+      {% endfor %}
+    </tr>
+    {% endif %}
+
+    {% for build, results in history.results.items %}
+    <tr>
+      <td><a href="{% project_url build %}">{{build.version}}</a></td>
+      <td>{{build.datetime}}</td>
+      {% for environment in history.environments %}
+      {% with result=results|get_value:environment%}
+      {% with known_issue=history.known_issues|get_value:environment %}
+      <td class='{{result.status|slugify}}{% if result.status == "fail" and known_issue %} known-issue{% endif %}'>
+        {% if result %}
+        <a href="{% project_url result.test_run %}">{{result.status}}</a>
+        {% else %}
+        <i>n/a</i>
+        {% endif %}
+      </td>
+      {% endwith %}
+      {% endwith %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+
+  </table>
+
+  {% include "squad/_pagination.html" with items=history %}
+
+{% endblock %}
