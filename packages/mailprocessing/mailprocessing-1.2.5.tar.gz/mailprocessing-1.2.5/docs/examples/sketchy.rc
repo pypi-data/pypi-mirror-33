@@ -1,0 +1,71 @@
+# -*- python -*-
+#
+# This is a sketchy example of what can be done in a maildirproc rc
+# file. Thus, it's not an example of a real configuration, but rather
+# a demonstration of what's available.
+
+# Set maildir base directory. Alternative: pass the -b/--maildir-base
+# command-line option. If not set, the current working directory (".") 
+# is used.
+processor.maildir_base = "~/Maildir"
+
+# Set maildirs to process. Alternative: pass one or several
+# -m/--maildir command-line options.
+processor.maildirs = [".", "SubFolder1", "SubFolder2"]
+
+# Set location of the log file. Alternative: pass the -l/--logfile
+# command-line option. Default value: ~/.maildirproc/log
+processor.logfile = "~/.maildirproc.log"
+
+# Turn on automatic reloading of this file when it has been modified.
+# Alternative: pass the --auto-reload-rcfile command-line option.
+# Default value: False.
+processor.auto_reload_rcfile = True
+
+# Iterate over all mails found in the maildirs. The loop never
+# terminates, except if the --once command-line option is passed (or a
+# fatal error occurs).
+for mail in processor:
+    # Some read-only attributes.
+    print mail.maildir
+    print mail.path
+    print mail["header"]
+
+    # Check against named headers.
+    if mail["header"].matches("case insensitive regexp"):
+        # ...
+    if mail["header"].contains("case insensitive string"):
+        # ...
+
+    # Match against headers known to be set by mailing lists
+    # (currently "Delivered-To", "Mailing-List", "X-BeenThere" and
+    # "X-Mailing-List").
+    if mail.from_mailing_list("mailing-list@example.com"):
+        # ...
+
+    # mail.target refers to both the To and Cc headers.
+    if mail.target.matches("case insensitive regexp"):
+        # ...
+    if mail.target.contains("case insensitive string"):
+        # ...
+
+    # Copy the mail to another maildir.
+    mail.copy("some-maildir")
+
+    # Move the mail to another maildir.
+    mail.move("some-maildir")
+
+    # Delete the mail.
+    mail.delete()
+
+    # Forward a copy of the mail to external recipients.
+    mail.forward_copy("address@example.com")
+    mail.forward_copy(["address1@example.com", "address2@example.com"])
+
+    # Forward the mail to external recipients AND DELETE THE MAIL.
+    mail.forward("address@example.com")
+    mail.forward(["address1@example.com", "address2@example.com"])
+
+    # Forward a copy of the mail and explicitly set the envelope sender
+    # address.
+    mail.forward_copy("address@example.com", "envelope@example.com")
