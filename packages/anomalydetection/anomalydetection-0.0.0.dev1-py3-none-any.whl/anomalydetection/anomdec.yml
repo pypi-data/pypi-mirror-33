@@ -1,0 +1,134 @@
+#
+# Anomaly Detection Framework
+# Copyright (C) 2018 Bluekiri BigData Team <bigdata@bluekiri.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
+version: 1
+
+streams:
+
+  - name: kafka
+    source:
+      type: kafka
+      params:
+        broker_servers: localhost:9092
+        input_topic: test1
+#    aggregation:
+#      agg_function: avg
+#      agg_window_millis: 30000
+    handler: json
+    engine:
+      type: cad
+      params:
+        min_value: 0
+        max_value: 15
+        threshold: 0.75
+        rest_period: 30
+        max_left_semi_contexts_length: 8
+        max_active_neurons_num: 16
+        num_norm_value_bits: 3
+    sink:
+      - name: sqlite
+        type: repository
+        repository:
+          type: sqlite
+          params:
+            database: /tmp/anomdec0.sqlite
+      - name: kafka
+        type: stream
+        stream:
+          type: kafka
+          params:
+            broker_servers: localhost:9092
+            output_topic: test2
+    warmup:
+      - name: sqlite
+        repository:
+          type: sqlite
+          params:
+            database: /tmp/anomdec0.sqlite
+
+  - name: pubsub
+    source:
+      type: pubsub
+      params:
+        project_id: testing
+        auth_file: /dev/null
+        subscription: test10
+    handler: json
+    engine:
+      type: robust
+      params:
+        window: 30
+        threshold: 0.99999
+    sink:
+      - name: sqlite
+        type: repository
+        repository:
+          type: sqlite
+          params:
+            database: /tmp/anomdec1.sqlite
+      - name: pubsub
+        type: stream
+        stream:
+          type: pubsub
+          params:
+            project_id: testing
+            output_topic: test20
+    warmup:
+      - name: sqlite
+        repository:
+          type: sqlite
+          params:
+            database: /tmp/anomdec1.sqlite
+
+  - name: kafka_ema
+    source:
+      type: kafka
+      params:
+        broker_servers: localhost:9092
+        input_topic: test3
+    handler: json
+    engine:
+      type: ema
+      params:
+        window: 30
+        threshold: 2
+    sink:
+      - name: sqlite
+        type: repository
+        repository:
+          type: sqlite
+          params:
+            database: /tmp/anomdec2.sqlite
+      - name: kafka
+        type: stream
+        stream:
+          type: kafka
+          params:
+            broker_servers: localhost:9092
+            output_topic: test4
+    warmup:
+      - name: sqlite
+        repository:
+          type: sqlite
+          params:
+            database: /tmp/anomdec2.sqlite
+
+websocket: ws://localhost:5000/ws/
+
+auth:
+  enabled: false

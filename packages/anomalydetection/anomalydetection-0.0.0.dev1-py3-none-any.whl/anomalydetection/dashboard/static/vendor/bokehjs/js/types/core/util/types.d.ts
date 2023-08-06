@@ -1,0 +1,12 @@
+import { Arrayable, TypedArray } from "../types";
+export declare function isBoolean(obj: any): obj is boolean;
+export declare function isNumber(obj: any): obj is number;
+export declare function isInteger(obj: any): obj is number;
+export declare function isString(obj: any): obj is string;
+export declare function isStrictNaN(obj: any): obj is number;
+export declare function isFunction(obj: any): obj is Function;
+export declare function isArray<T>(obj: any): obj is T[];
+export declare function isArrayOf<T>(arr: any[], predicate: (item: any) => item is T): arr is T[];
+export declare function isArrayableOf<T>(arr: Arrayable, predicate: (item: any) => item is T): arr is Arrayable<T>;
+export declare function isTypedArray(obj: any): obj is TypedArray;
+export declare function isObject(obj: any): obj is Object;
