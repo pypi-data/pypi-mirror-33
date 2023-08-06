@@ -1,0 +1,1 @@
+- `xoutil.context.NullContext`:class: is now a Mapping.
