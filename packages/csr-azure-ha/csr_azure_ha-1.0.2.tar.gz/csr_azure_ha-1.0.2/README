@@ -1,0 +1,133 @@
+High Availability Routing Service for Cloud Environments
+
+Summary
+This package is installed on a pair of Cisco Cloud Services Routers (aka CSR 1000v, CSR) to allow them to operate in a redundant configuration to achieve a highly available routing service.
+
+Background
+In cloud environments it is not uncommon for virtual networks to implement a 
+simplistic mechanism for routing based on a centralized route table.  The cloud provider usually supports the creation of multiple tables.  A subnet is then assigned to a particular route table as its source of route information.
+The route table is usually populated automatically by the cloud provider with one or more individual routes depending upon the network topology.  The user is also able to configure routes in the table.  
+The cloud provider likely supports multiple mechanisms to add, modify, and delete entries in the route table.  This usually includes use of the cloud portal web site, cloud CLI program, and programmatic APIs (e.g. RESTAPI).
+
+Redundancy
+The use of a centralized route table for a subnet allows a pair of CSR 1000v routers to operate in a redundant fashion.  Two CSR1000v can be deployed in the same virtual network and have interfaces directly connected to subnets within the virtual network.  User defined routes are added into the route table to point to one of the two redundant CSRs.  So at any given time, one of the two CSRs is serving as the next hop router for a subnet.
+We can call this router as the active router for the subnet.  The peer router is referred to as the passive router.
+
+Package Overview
+The cloud high availability software is responsible for 
+ - maintaining a database of redundancy nodes
+ - making requests to the event process to update routes when a trigger is received for the corresponding redundancy node
+
+The high availability software has 2 components; an API which is exported to clients, and a  server process.  The client code communicates to the server using inter-process communication based on Linux pipes.
+
+The server process contains two main subsystems:
+a) Redundancy node manager - responsible for maintaining the database of all redundancy nodes
+b) Event manager - responsible for receiving events on redundancy nodes, evaluating how to respond to the event, and requesting the Event handler to read and/or write the route table represented by the redundancy node if need be.
+
+Redundancy Nodes
+A redundancy node is the object that identifies a route in a route table in the cloud virtual network.  This is the route that may be changed by the CSR based on an event.
+The redundancy node also contains information to determine whether a particular event will trigger a change to the route table entry.
+A redundancy node consists of the following parameters:
+
+Name	      Required 	   Description
+Index	      Yes	   Each node is identified by a unique index in the range 1 .. 1023
+			   This index is assigned by the user.
+
+Subscription  Yes      	   Identifies the cloud subscription in which the route table was created.
+Id									     	      		     	   		
+
+Route Table   Yes  	   The name or identifier for the route table.  
+      			   This name must match the name of the route table used in the cloud
+
+Group	      Yes  	   Cloud providers usually have a mechanism for grouping resources together.
+	      		   This is the group in which the route table is a member.
+			   Note that this may not be the same group in which the CSR was created. 
+
+Route	      No   	   Identifies an individual route within the route table.
+		           Format of the route is a CIDR block address (e.g. 15.2.0.0/16)
+
+Next Hop      Yes	   This is the IP address for the next hop router.
+Address			   This should be set to the IP address assigned by the cloud provider on the 
+			   interface connected to the subnet using this route table.
+
+Role	      No  	   Indicates whether this router is the primary or secondary router for this route.  
+
+The route parameter is optional.  If an individual route  is not specified, it is assumed the redundancy node applies to all of the routes in the route table.
+The mode parameter is also optional.  If not specified this router will be considered the secondary owner of this route.
+
+The subscriptionId and group parameters are both required.  But if they are not specified by the user with the configuration of the redundancy node, then the server will try to derive their values from the Azure Metadata Service.
+
+In the Azure cloud, there are 3 additional parameters which must be specified if the user wishes to authenticate the CSR by a proxy application defined in Azure Active Directory.
+
+Name   	      Required	  Description
+Application   Yes	  Name of the application created in the Azure Active Directory
+ID			  that represents the CSR high availability feature
+
+Tenant        Yes 	  The tenant identifier in the Active Directory that contains the defined application.
+
+Application   Yes  	  Security key associated with the application.
+Key
+
+These parameters are only required when using authentication by an application defined in Azure Active Directory. If unspecified, it is assumed the user wants to obtain authentication using the Managed Service Identity extension.
+
+
+Client API
+The HA service exposes a programming interface to clients.  The primary client is the high availability code running in IOS.  But the client can also be user written programs running in the guestshell container.
+The API is exported as a set of Python scripts. 
+All of the following scripts support a -h flag that will display help and usage information.
+
+Create Node
+This script will create a redundancy node and add it to the database.
+create_node -i <node_index> -g <groupName> -r <routeTableName> -r <route> -n <nextHopAddr> -m <mode>
+
+Add Parameter
+This script will change the value of each parameter specified for an existing redundancy node.
+add_params -i <node_index> -r <resourceGroupName> -t <routeTableName> -c <cidrBlock> -n <nextHopAddr>
+
+Only the index parameter is required.  The value of any addition parameter will be modified.
+
+Clear Parameter
+This script will delete the parameter specified for an existing redundancy node.
+clear_params -i <node_index> -r <resourceGroupName> -t <routeTableName> -c <cidrBlock> -n <nextHopAddr>
+
+Only the index parameter is required.  The value of any addition parameter will be modified.
+
+Delete Node
+This script will remove the specified node from the redundancy node database.
+delete_node -i <node_index>
+	    -i specifies the index of the redundancy node (1 .. 1023)
+The node index is a required parameter.  The node is expected to already exist in the database.  No error is generated if the client tries to delete a node that is not in the database.
+
+Node Event
+This script is called to notify the HA server that an event has occurred on a specified redundancy node.
+node_event -i <node_index> -e <event_type>
+	   -i specifies the index of the redundancy node (1 .. 1023)
+	   -e indicates the event type {peerFail | revert | verify}
+Three event types are defined
+ a) Peer failure - a failure of the peer router has been detected
+ b) Revert route - a router has recovered after a failure and wants to be restored as the active router for a redundancy node
+ c) Verify route - test whether the route specified by a redundancy node can be successfully update.  This is a debug/test/diagnostic tool.
+
+Server Control
+This script is used to initialize, start, and stop the HA server.
+ha_api -c <command>
+       -c command to send to the server {start | stop | ping}
+Stopping the server will delete all of the state information it has established.
+The only reason for stopping the server should be because the high availability feature
+is no longer used on this CSR.
+
+
+Redundancy Node Manager
+The redundancy node manager is responsible for maintaining the list of all redundancy nodes.  The node manager supports the operations to add, modify, and delete nodes in the database in support of the API functions.  It also supports the ability to find a node in the database based on the node index.  It can also find the next node in the database given a previous node index.  This is useful in walking all the nodes in the database.
+
+The node manager writes the current database to a file. This can be useful in debugging and may also be used as a recovery mechanism to re-establish the in-memory database in the case of a process crash.
+
+
+Event Manager
+The event manager is responsible for evaluating how to respond to an event that has occurred for a given redundancy node.  Responses may include:
+ a) Update a route entry specified by the redundancy node with a new next hop address
+ b) Read a route entry, but only update it if the read next hop address does not match the next hop address specified in the redundancy node
+ c) Read a route entry and write it back to the route table unchanged
+ d) Do nothing
+
+If the event manager determines that a route table needs to be read and/or written, it will spawn a separate process to perform the actual work.  This is an instance of the Event Handler process.
