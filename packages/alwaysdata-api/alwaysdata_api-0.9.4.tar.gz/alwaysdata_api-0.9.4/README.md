@@ -1,0 +1,84 @@
+alwaysdata_api
+==============
+
+A dead simple Python interface to the [Alwaysdata][AD] [API][API]
+
+[![PyPI version](https://badge.fury.io/py/alwaysdata-api.svg)](https://badge.fury.io/py/alwaysdata-api)
+
+
+Installation
+------------
+
+```sh
+pip install alwaysdata_api
+```
+
+(Use flag `--user` if you can't install globally.)
+
+
+Usage
+-----
+
+If you store your API key and account name in the `ALWAYSDATA_API_KEY`
+and `ALWAYSDATA_ACCOUNT` environment variables, the following example
+works out of the box:
+
+```python
+from alwaysdata_api import Domain
+Domain.list(name='paul')[0].name
+# 'paulkoppen.com'
+```
+
+Alternatively, you can provide the authentication via code. The above
+example then needs to be expanded to include the extra configuration:
+
+```python
+from alwaysdata_api import Auth, Domain
+auth = Auth('account_name', 'api_key')
+Domain.list(name='paul', auth=auth)[0].name
+# 'paulkoppen.com'
+```
+
+See [demo.py][DEMO] for more examples.
+
+Every resources in the [API docs][API] has a class in this package (such
+as `Domain`, `Record`, `Mailbox`, etc) and all resources share the same
+set of methods. To give you a quick idea:
+
+* `Resource.get(id)` retrieves the instance.
+* `Resource.list(**query_kwargs)` finds and returns the list of resources.
+* `res.post()` submits the resource instance to the server to be created.
+* `res.put()` updates the instance on the server.
+* `Resource.delta(res1, res2).patch()` sends the changes from `res1` to
+  `res2` to the server.
+* `res.delete()` deletes it.
+
+
+Development
+-----------
+
+Although it is a simple bit of code, surely it can be improved.
+Contributions are very welcome. Just send a PR (please include tests). It
+would be equally great to have some instructions in this repo Wiki (I
+would have to find out how that works though :-))
+
+Code style follows PEP accurately and uses Google style docstrings.
+
+For testing:
+
+```sh
+python -m unittest
+```
+
+
+Licence
+-------
+
+[MIT][LIC]
+
+
+
+[AD]: https://alwaysdata.com/
+[API]: https://api.alwaysdata.com/doc/
+[DEMO]: https://gitlab.com/wpk-/alwaysdata-api/blob/master/demo.py
+[LIC]: https://gitlab.com/wpk-/alwaysdata-api/blob/master/LICENCE
