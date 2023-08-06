@@ -1,0 +1,169 @@
+import pandas as pd
+import numpy as np
+
+from pyrle import Rle
+from pyrle.rledict import PyRles
+from pyrle.src.coverage import _coverage
+
+from natsort import natsorted
+
+from sys import stderr
+
+from collections import defaultdict
+
+
+try:
+    dummy = profile
+except:
+    profile = lambda x: x
+
+
+def _merge_rles(rle):
+
+    new_dict = {}
+    dd = defaultdict(list)
+    for chromosome, strand in rle.rles.keys():
+        dd[chromosome].append(strand)
+
+    for c, s in dd.items():
+        if len(s) == 1:
+            new_dict[c] = rle.rles[c, s[0]]
+        else:
+            new_dict[c] = rle.rles[c, "+"] + rle.rles[c, "-"]
+
+    return new_dict
+
+
+def ensure_both_or_none_stranded(self, other):
+
+    # means other not stranded
+    if self.stranded:
+        self.rles = _merge_rles(self)
+    else:
+        other.rles = _merge_rles(other)
+
+    return self, other
+
+
+def chromosomes_in_both_self_other(self, other):
+
+    chromosomes_in_both = set(self.rles.keys()).intersection(other.rles.keys())
+    chromosomes_in_self_not_other = set(self.rles.keys()) - set(other.rles.keys())
+    chromosomes_in_other_not_self = set(other.rles.keys()) - set(self.rles.keys())
+
+    return chromosomes_in_both, chromosomes_in_self_not_other, chromosomes_in_other_not_self
+
+
+def binary_operation(operation, self, other, nb_cpu=1):
+
+    func = {"div": __div, "mul": __mul, "add": __add, "sub": __sub}[operation]
+
+    if self.stranded != other.stranded:
+        self, other = ensure_both_or_none_stranded(self, other)
+
+    chromosomes_in_both, chromosomes_in_self_not_other, chromosomes_in_other_not_self = chromosomes_in_both_self_other(self, other)
+
+    cs = natsorted(chromosomes_in_both)
+
+    rles = {}
+    for c in cs:
+        rles[c] = func(self.rles[c], other.rles[c])
+
+    # rles = {c: r for c, r in zip(cs, _rles)}
+
+    for c in chromosomes_in_self_not_other:
+        _other = Rle([np.sum(self.rles[c].runs)], [0])
+        rles[c] = func(self.rles[c], _other)
+
+    for c in chromosomes_in_other_not_self:
+        _self = Rle([np.sum(other.rles[c].runs)], [0])
+        rles[c] = func(_self, other.rles[c])
+
+    return PyRles(rles)
+
+
+def __add(self, other):
+
+    return self + other
+
+def __sub(self, other):
+
+    return self - other
+
+def __div(self, other):
+
+    return self / other
+
+def __mul(self, other):
+
+    return self * other
+
+
+
+def coverage(ranges, value_col=None):
+
+    try:
+        df = ranges.df
+    except:
+        df = ranges
+
+    if value_col:
+        values = df[value_col].astype(np.float64).values
+    else:
+        values = np.ones(len(df))
+
+    starts_df = pd.DataFrame({"Position": df.Start, "Value": values})["Position Value".split()]
+    ends_df = pd.DataFrame({"Position": df.End, "Value": -1 * values})["Position Value".split()]
+    _df = pd.concat([starts_df, ends_df], ignore_index=True)
+    _df = _df.sort_values("Position", kind="mergesort")
+
+    runs, values = _coverage(_df.Position.values, _df.Value.values)
+
+    return Rle(runs, values)
+
+
+
+
+def to_ranges(grles):
+
+    from pyranges import PyRanges
+
+    dfs = []
+    if grles.stranded:
+
+        for (chromosome, strand), rle in grles.items():
+            starts, ends, values = _to_ranges(rle)
+            df = pd.concat([pd.Series(r) for r in [starts, ends, values]], axis=1)
+            df.columns = "Start End Score".split()
+            df.insert(0, "Chromosome", chromosome)
+            df.insert(df.shape[1], "Strand", strand)
+            dfs.append(df)
+    else:
+
+        for chromosome, rle in grles.items():
+            starts, ends, values = _to_ranges(rle)
+            df = pd.concat([pd.Series(r) for r in [starts, ends, values]], axis=1)
+            df.columns = "Start End Score".split()
+            df.insert(0, "Chromosome", chromosome)
+            dfs.append(df)
+
+    return PyRanges(pd.concat(dfs))
+
+
+def _to_ranges(rle):
+
+    runs = pd.Series(rle.runs)
+    starts = pd.Series([0] + list(runs)).cumsum()
+
+    ends = starts + runs
+
+    values = pd.Series(rle.values)
+
+    start_idx = values[values.shift(-1) != values].index
+    end_idx = values[values.shift(1) != values].index
+
+    starts = starts.loc[start_idx]
+    ends = ends.loc[end_idx]
+    values = values[start_idx].reset_index(drop=True)
+
+    return starts.astype(int).reset_index(drop=True), ends.astype(int).reset_index(drop=True), values
