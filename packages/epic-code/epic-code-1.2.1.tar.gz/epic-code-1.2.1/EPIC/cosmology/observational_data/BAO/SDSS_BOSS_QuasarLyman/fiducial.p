@@ -1,0 +1,17 @@
+(dp0
+Vn_s
+p1
+F0.97
+sVOm0
+p2
+F0.27
+sVsigma8
+p3
+F0.8
+sVh
+p4
+F0.7
+sVObh2
+p5
+F0.0227
+s.

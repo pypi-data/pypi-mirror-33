@@ -1,0 +1,17 @@
+(dp0
+Vrs_zd
+p1
+F147.5
+sVDV
+p2
+L519L
+sVOm0
+p3
+F0.31
+sVH0
+p4
+L67L
+sVOl0
+p5
+F0.69
+s.
