@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""LICENSE
+Copyright 2017 Hermann Krumrey <hermann@krumreyh.com>
+
+This file is part of ci-scripts.
+
+ci-scripts is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+ci-scripts is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with ci-scripts.  If not, see <http://www.gnu.org/licenses/>.
+LICENSE"""
+
+
+import os
+import shutil
+import argparse
+from ci_scripts.common import process_call, decode_base64_string_to_file
+
+
+def main():
+    """
+    Builds a signed android APK from a gradle project
+    :return: None
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("submodule_name", default="app",
+                        help="The name of the android gradle submodule")
+    args = parser.parse_args()
+    submodule_name = args.submodule_name
+    project_name = os.environ["CI_PROJECT_NAME"]
+
+    version = process_call(["./gradlew", "version", "-q"])
+
+    key = "androidkey"
+    decode_base64_string_to_file(os.environ["ANDROIDKEY"], key)
+    shutil.copyfile(key, os.path.join(submodule_name, key))
+
+    key_pass = os.environ["ANDROIDKEY_PASS"]
+    key_alias = os.environ["ANDROIDKEY_ALIAS"]
+
+    process_call(["./gradlew", "assembleRelease",
+                  "-Pandroid.injected.signing.store.file=" + key,
+                  "-Pandroid.injected.signing.store.password=" + key_pass,
+                  "-Pandroid.injected.signing.key.alias=" + key_alias,
+                  "-Pandroid.injected.signing.key.password=" + key_pass])
+
+    generated = os.path.join(
+        submodule_name,
+        "build/outputs/apk/release/" + submodule_name + "-release.apk"
+    )
+
+    if not os.path.isdir("artifacts"):
+        os.makedirs("artifacts")
+
+    if submodule_name == "app":
+        destname = \
+            os.path.join("artifacts", project_name + "-" + version + ".apk")
+    else:
+        destname = os.path.join(
+            "artifacts",
+            project_name + "-" + submodule_name + "-" + version + ".apk"
+        )
+
+    os.rename(generated, destname)
+
+
+if __name__ == "__main__":
+
+    try:
+        main()
+    finally:
+        if os.path.isfile("androidkey"):
+            os.remove("androidkey")
