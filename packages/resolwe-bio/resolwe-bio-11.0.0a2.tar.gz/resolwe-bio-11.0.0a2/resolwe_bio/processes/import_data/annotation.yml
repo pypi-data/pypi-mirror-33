@@ -1,0 +1,225 @@
+# ===================
+# Import - Annotation
+# ===================
+---
+
+- slug: upload-gff3
+  name: Annotation (GFF3)
+  requirements:
+    expression-engine: jinja
+    executor:
+      docker:
+        image: resolwebio/rnaseq:3.2.0
+    resources:
+      network: true
+  data_name: '{{ src.file }}'
+  version: 3.1.0
+  type: data:annotation:gff3
+  category: upload
+  persistence: RAW
+  description: >
+    Upload annotation in GFF3 format.
+  input:
+    - name: src
+      label: Annotation (GFF3)
+      type: basic:file
+      description: >
+        Annotation in GFF3 format. Supported extensions are: .gff, .gff3 and .gtf
+      validate_regex: '\.(gff|gff3|gtf)(|\.gz|\.bz2|\.tgz|\.tar\.gz|\.tar\.bz2|\.zip|\.rar|\.7z)$'
+    - name: source
+      label: Gene ID database
+      type: basic:string
+      allow_custom_choice: true
+      choices:
+        - label: AFFY
+          value: AFFY
+        - label: DICTYBASE
+          value: DICTYBASE
+        - label: ENSEMBL
+          value: ENSEMBL
+        - label: NCBI
+          value: NCBI
+        - label: UCSC
+          value: UCSC
+    - name: species
+      label: Species
+      type: basic:string
+      description: >
+        Species latin name.
+      allow_custom_choice: true
+      choices:
+        - label: Homo sapiens
+          value: Homo sapiens
+        - label: Mus musculus
+          value: Mus musculus
+        - label: Rattus norvegicus
+          value: Rattus norvegicus
+        - label: Dictyostelium discoideum
+          value: Dictyostelium discoideum
+        - label: Odocoileus virginianus texanus
+          value: Odocoileus virginianus texanus
+        - label: Solanum tuberosum
+          value: Solanum tuberosum
+    - name: build
+      label: Build
+      type: basic:string
+  output:
+    - name: annot
+      label: Uploaded GFF3 file
+      type: basic:file
+    - name: annot_sorted
+      label: Sorted GFF3 file
+      type: basic:file
+    - name: annot_sorted_idx_igv
+      label: IGV index for sorted GFF3
+      type: basic:file
+    - name: annot_sorted_track_jbrowse
+      label: Jbrowse track for sorted GFF3
+      type: basic:file
+    - name: source
+      label: Gene ID database
+      type: basic:string
+    - name: species
+      label: Species
+      type: basic:string
+    - name: build
+      label: Build
+      type: basic:string
+  run:
+    runtime: polyglot
+    language: bash
+    program: |
+      re-import {{ src.file_temp }} {{ src.file }} "gff|gff3|gtf" "gff3" 0.1
+
+      gt gff3validator "${NAME}.gff3"
+      re-checkrc
+      re-progress 0.2
+
+      igvtools sort "${NAME}".gff3 "${NAME}"_sorted.gff3
+      re-checkrc "Sorting of GFF3 file failed."
+
+      igvtools index "${NAME}"_sorted.gff3
+      re-checkrc "Indexing of GFF3 file failed."
+
+      flatfile-to-json.pl --gff "${NAME}"_sorted.gff3 --out . --trackLabel "annotation"
+      re-checkrc "Annotation track processing for JBrowse failed."
+
+      re-progress 0.5
+      re-save-file annot "${NAME}.gff3"
+      re-save-file annot_sorted "${NAME}"_sorted.gff3
+      re-save-file annot_sorted_idx_igv "${NAME}"_sorted.gff3.idx
+      re-save-file annot_sorted_track_jbrowse trackList.json tracks/annotation
+      re-save source {{ source }}
+      re-save species {{ species }}
+      re-save build {{ build }}
+
+- slug: upload-gtf
+  name: Annotation (GTF2.2)
+  requirements:
+    expression-engine: jinja
+    executor:
+      docker:
+        image: resolwebio/rnaseq:3.2.0
+    resources:
+      network: true
+  data_name: '{{ src.file }}'
+  version: 3.1.0
+  type: data:annotation:gtf
+  category: upload
+  persistence: RAW
+  description: >
+    Upload annotation in GTF format. The GTF format is identical to GFF
+    version 2 so this process accepts both. However, the .gff exstension
+    will be renamed to .gtf.
+  input:
+    - name: src
+      label: Annotation (GTF)
+      type: basic:file
+      description: >
+        Annotation in GTF format.
+      validate_regex: '\.(gtf|gff)(|\.gz|\.bz2|\.tgz|\.tar\.gz|\.tar\.bz2|\.zip|\.rar|\.7z)$'
+    - name: source
+      label: Gene ID database
+      type: basic:string
+      allow_custom_choice: true
+      choices:
+        - label: AFFY
+          value: AFFY
+        - label: DICTYBASE
+          value: DICTYBASE
+        - label: ENSEMBL
+          value: ENSEMBL
+        - label: NCBI
+          value: NCBI
+        - label: UCSC
+          value: UCSC
+    - name: species
+      label: Species
+      type: basic:string
+      description: >
+        Species latin name.
+      allow_custom_choice: true
+      choices:
+        - label: Homo sapiens
+          value: Homo sapiens
+        - label: Mus musculus
+          value: Mus musculus
+        - label: Rattus norvegicus
+          value: Rattus norvegicus
+        - label: Dictyostelium discoideum
+          value: Dictyostelium discoideum
+        - label: Odocoileus virginianus texanus
+          value: Odocoileus virginianus texanus
+        - label: Solanum tuberosum
+          value: Solanum tuberosum
+    - name: build
+      label: Build
+      type: basic:string
+  output:
+    - name: annot
+      label: Uploaded GTF file
+      type: basic:file
+    - name: annot_sorted
+      label: Sorted GTF file
+      type: basic:file
+    - name: annot_sorted_idx_igv
+      label: IGV index for sorted GTF file
+      type: basic:file
+      required: false
+    - name: annot_sorted_track_jbrowse
+      label: Jbrowse track for sorted GTF
+      type: basic:file
+    - name: source
+      label: Gene ID database
+      type: basic:string
+    - name: species
+      label: Species
+      type: basic:string
+    - name: build
+      label: Build
+      type: basic:string
+  run:
+    runtime: polyglot
+    language: bash
+    program: |
+      re-import {{ src.file_temp }} {{ src.file }} "gtf|gff" "gtf" 0.3
+
+      igvtools sort "${NAME}".gtf "${NAME}"_sorted.gtf
+      re-checkrc "Sorting of GTF file failed."
+      # add warning when GTF file is not acceptable by IGV, but can be used by other tool on platform
+      igvtools index "${NAME}"_sorted.gtf || re-warning "Indexing of GTF file failed."
+
+      flatfile-to-json.pl --gff "${NAME}"_sorted.gtf --out . --trackLabel "annotation"
+      re-checkrc "Annotation track processing for JBrowse failed."
+
+      re-save-file annot "${NAME}.gtf"
+      re-save-file annot_sorted "${NAME}"_sorted.gtf
+      re-save-file annot_sorted_track_jbrowse trackList.json tracks/annotation
+
+      if [ -f "${NAME}"_sorted.gtf.idx ]; then
+         re-save-file annot_sorted_idx_igv "${NAME}"_sorted.gtf.idx
+      fi
+
+      re-save source {{ source }}
+      re-save species {{ species }}
+      re-save build {{ build }}
