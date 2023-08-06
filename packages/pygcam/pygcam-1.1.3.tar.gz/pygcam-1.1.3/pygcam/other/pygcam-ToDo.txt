@@ -1,0 +1,271 @@
+================================
+Features for pygcam 1.0 release
+================================
+
+Installation
+------------
+Install using environment spec https://conda.io/docs/user-guide/tasks/manage-environments.html
+
+Extract Anaconda environment info and document commands required to
+  build out a new "pygcam" environment with known-working versions of files.
+  - To export it:
+        conda env export > environment.yml
+	conda env export -n my-environment -f my-environment.yml
+
+  - To use it on MacOS:
+        conda env create -f pygcam_macos.yml
+	source activate pygcam
+    and on Windows:
+        conda env create -f pygcam_windows.yml
+	activate pygcam
+
+
+  - For explicit list, do:
+        conda list --explicit > spec-file.txt
+    and use it with:
+        conda create --name pygcam --file spec-file.txt
+    Note that there may be a unique file for each OS.
+
+Clone an env:
+	conda create --name myclone --clone myenv
+
+Remove an env:
+	conda remove --name myenv --all
+
+TRY THIS!
+Install from anaconda cloud:
+	conda env create plevin/pygcam
+or
+    conda env create plevin/pygcam/pygcam_macos.yml?
+
+	source activate pygcam
+
+Make mcs optional install
+
+- Create subcommand "gt config --setup" or maybe this is what happens if
+  no configuration file is found? Rather than just copying defaults.
+  - Maybe copy defaults into a separate file instead of creating so much
+    junk in the main config?
+. save prior .pygcam.cfg as .pygcam.cfg~
+. Ask user:
+  - where GCAM lives
+    - try to run gcam exe --version or whatever to check it's 4.3
+    - offer to download/install it on request
+  - where to store project setup files (default to ~/gcam/projects, expanded)
+  - where to store run-time sandboxes (default to ~/gcam/sandboxes, expanded)
+  - offer to run 'gt new -c ctax' and set the DefaultProject to ctax initially.
+
+Features
+--------
+- Write code to read config file, maintaining blank lines and comments
+  - Update variables and rewrite the file keeping all else intact
+
+- New @query flag: "-rewrite regions8,crops" # replaces what's in project.xml
+
+- If scen name is unique, determine the group automatically
+  - requires reading / generating all groups & scenarios upon reading scenarios.xml
+
+- Allow <comment>s to nest. Not the case in scenarios.xml currently. Not clear why.
+
+- Also modify scenarios.xml syntax to allow <else></else>
+
+- Test on pygcam 3.0? [optional for 1.0 release]
+
+Testing
+-------
+- Test run -D still works
+
+- Debug analysis.analysisNew()
+
+- Create test cases for all XmlEditor / SectorEditor functions (combine those modules?)
+  - Run function on a file and compare result to expected result
+  - Requires eyeballing result carefully for each case to validate saved result.
+  - Create a structure for testing these that uses saved copies of input files?
+  - Or test only for GCAM 4.3?
+  - Use pygcam.cfg to get location of reference GCAM for testing?
+
+- Refactor the API in a new branch (below)
+  - Create unittests for lower-level API
+  - Release to Robert for testing / initial use
+
+- Test rest of app using modified API
+
+Document
+--------
+- Assumptions behind setup code
+  - scenarios.xml
+  - custom editor sub-class
+    - methods to implement and when they are called
+
+* Verify whether this is still required. Might not be because XCode is updated:
+- If matplotlib problem on mac os x owing to not installed in a framework, create
+  (or modify) a file ~/.matplotlib/matplotlibrc to add the following:
+
+        backend: TkAgg
+
+
+Refactoring
+-----------
+- Split off lower level pygcam package from higher level gcamtool package
+  - Consider splitting config sources into pygcam.cfg and gcamtool.cfg,
+    (as well as mcs.cfg) with a single .pygcam.cfg user file with values
+    for any or all of these. Or just use different prefixes on variables?
+    - For pygcam package, user might set only GCAM.Log* vars and few others.
+
+- Split utils.py into logical parts and merge where possible with pygcammcs.util
+
+- pygcam should have programmer-oriented stuff:
+  - log, query, diff: uses configuration. Make two levels??
+  - chart: no use of config
+  - matplotlibFix
+  - some of: utils, error, constants [split these into higher/lower level parts]
+  - maybe: gcam
+- gcamtool should have code oriented to "gt":
+  - carbonTax, constraints, landProtection, map*, project, scenarioSetup,
+    sectorEditors, subcommand, tool, units, version, xmlEditor, xmlSetup
+  - some of: utils, error, constants
+
+- unsure where to put:
+  - config, windows, matplotlibFix, queryFile, signals, Xvfb (drop?)
+
+- Eliminate pre-4.3 code since 4.4 is coming out in a few months...
+
+- Deprecated: single-query code in query.py, and GCAM.BatchMultipleQueries parameter
+
+
+For OTAQ project:
+
+- Add to query.py the ability to run a pre-formed batch script, as one would by
+  running it interactively in MI. Specify input name, output name, whether to
+  split into separate output files, and so on. Use this to run the OTAQ batch
+  query file. Make it cmd-line accessible in query sub-command.
+
+- Problem is integrating existing queries, which are specified individually
+  and are output to individual CSV files, with the pre-formed batch file
+  that presumes all output is written to a single file.
+  - Maybe run queries individually and then just combine the results to
+    produce the file that's input to the R script process?
+
+
+Cleanup
+-------
+
+- Consolidate generic code from sectorEditors and xmlEditor
+
+From GCAM git pages on calling MI in batch mode:
+ - Note if a batch file named - is specified then the “batch commands” are read from the STDIN.
+   Users can also instruct the ModelInterface to save log output to a file by using the flags
+   -l path/to/log/output.txt. [TBD: use this flag rather than redirecting to my own log file.]
+
+- landProtection.py has become redundant in places and should be refactored.
+
+Future Features
+---------------
+
+- Add iteration construct as per discussion with Chris
+  - iterate a fixed number of times, or over a list
+    - Run gcam until a given end date, extract results, run to next
+      time-step, iterate over given list of end dates, e.g., to 2100.
+  - iterate until some plugin or script returns a 'stop' sentinel value
+  <iterate name="gcam" var="end-date" values="2050-2100:5">
+     <sub-step>@gcam ... --endDate={end-date}</sub-step>
+     <sub-step>@postProcessor ... --endDate={end-date}</sub-step>
+  </iterate>
+
+  <iterate name="gcam" until="/path/to/script args..." eq="whatever">
+  <iterate name="gcam" until="@plugin args..." neq="whatever">
+  ...
+  Support operators eq, neq, gt, lt, gte, lte
+
+- Allow plotting a marker at the total for a bar
+
+- Allow overlay of, say, line chart using right Y axis on barchart
+  using left Y axis, as in "US Land Cover and LUC Emissions"
+
+- Generate multi-plot figures, or at least generate data in a useful format.
+
+Testing
+-------
+- Re-test all subcommands
+  - config
+  - diff
+  - gcam
+    Modes to test
+    - run using ref workspace, from anywhere
+    - standard project.xml mode
+    - standalone, but with new sandbox
+    - MCS mode
+  - new
+  - run (retest batch command and args)
+  - protect
+  - query
+  - setup
+  - sandbox (mostly ok, but setup.createSandbox might be broken for groupDir case)
+
+- setup.py installer: test with full install
+- On Windows: test that CopyAllFiles is set to True automatically if linking fails.
+- Test bioconstraint command -- maybe move out?
+
+- Generalize the idea of reading baseline result and setting constraints to that
+  level or some delta from that level.
+
+- Eliminate generators from scenarios.py and use project.xml @setup instead.
+
+Bugs
+====
+- There's a subtle problem with repeated use of GcamTool as top-level call.
+  First symptom is query list is repeated. Seems to be stale state from
+  prior invocation, suggesting a need to re-initialize (class vars?) when
+  called from top-level.
+  - in any case, all the start-up stuff is rerun needlessly, currently
+
+
+Future Cleanup
+==============
+- the term "batch" is confusing since used for SLURM batch and XML query batch
+
+- Rationalize batchQuery.log and GCAM.MI.LogFile in query.py
+
+- Handling of subdir and groupDir is confusing and needs to be rationalized
+  - constraint generation
+  - queries
+  - setup
+
+Test
+====
+- Finish implementing/testing the queryFile and rewriteSets features
+- write more unit tests
+- Test constraint cmds
+- Should constraint commands be converted back to plugins?
+    - They're for use by biofuel studies only (maybe a sep plugin dir?)
+    - Perhaps split out generic function from domain-specific
+
+
+GUI implementation
+==================
+- Later: Create and edit project.xml?
+- Run a project
+    - select groups, scenarios, and steps to run (checkboxes)
+    - select direct or batch mode
+        - if direct, show output in window
+    - have a 'kill' command for local or batch (scancel)
+- View & update config file?
+  - Parse config file to maintain comments (allow editing these)
+  - Show raw settings in edit mode, but also show actual value
+    below or next to raw value
+
+    Variable Name   Definition                  Expanded value
+    GCAM.FooBar =   %(Whatever).Raw.Value       whatever.it.expands.to
+    + optional comment to be saved immediately above the value
+
+  - Below the user's settings, show all system settings (not editable
+    by user). User can click "add to user config" to copy it in with
+    default value.
+
+  - Reset to default button for each system-defined variable
+  - Undo/Redo buttons to revert to previous value
+
+  - Section for user-defined (non-system) variables
+
+  - Save on each change to avoid "Save" button
+

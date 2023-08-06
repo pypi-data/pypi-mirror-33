@@ -1,0 +1,315 @@
+MCS To Do
+=========
+
+Consider adding to scenarios.xml the ability to reference a parameter and
+perform a specific change on the nodes found, as in MCS, but without the
+random draw. That is, manually (e.g., using an iterator) select a value,
+but then process is the way random draws are processed. But do this at
+setup rather than at run time.
+
+If two sims share the run Workspace, does one pollute the space for the other?
+- Also, split the database so each holds only one simulation (move it from
+  paper1/db to paper1/sims/s001/db and ../s002/db? Or to paper1/db/s001/*sqlite?
+  - Alternatively, need to have potentially distinct inputs and outputs for each sim.
+
+- Bug in explorer if ctax is default project, input chooser gets stuck on the one
+  defined input and doesn't reset when paper1 is chosen.
+
+IPP BUGS
+=========
+
+* Seems to consistently fail when too many trials are queued at once. Unclear why.
+
+* Modify CI plugin(s) to raise specific error if required files are not found (avoid traceback)
+
+* Although adding engines works great, adding runs to an existing cluster does not.
+
+* Test new handling of "insufficient time left"
+
+* clear start/end time info in run table when task set to queued or running
+
+* interaction of # engines and task duration is not producing desired walltime
+
+* Completed runs and some transitions from queued -> running not processed
+
+* Killing engine resulted in gcam continuing to run as a zombie that was
+  finally cleared when cluster was killed.
+
+* Still unclear where key error is raised in checkRunning.
+  * do more debugging on Mac
+  * maybe add a flag to WorkerResult that indicates insufficient time left?
+    * problem is that hub assigns a new task immediately, emptying the queue
+  * if master can detect which engine provided a result with a flag, it can
+    shutdown the engine, which should waste minimal time (one job might be
+    started and aborted, but much more quickly than otherwise. Less wasteful.)
+
+Handle this, which gets repeated once it occurs:
+
+  WARNING checkRunning: KeyError(u'6c87e47f-0777-4f66-8071-80093f4b0cf2')
+
+
+*** Under unidentified condition, it's not saving results to DB, even though all ran to completion.
+  * Tasks are shown as "completed" without results being processed by master...
+
+* runsim's -i should probably be the default, with --noShutdown as an option
+  * no -- it's too aggressive. Need to wait a few cycles before shutting down. Add a counter.
+
+* Also wrap the top-level of master.py with try/except to shutdown properly
+  if a runtime error occurs.
+
+Improvements
+* Consider orienting non-MCS pygcam toward using Context instances as well.
+* Also, a BaseWorkspace class and an McsWorkspace subclass to handling
+  the differences in one place.
+* Context could have bool isMcs, which is passed to a factory method
+  which allocates the corresponding Workspace class.
+
+  def workspaceFactory(context, **kwargs):
+    cls = McsWorkspace if context.isMcs else BaseWorkspace
+    return cls(context, **kwargs)
+* -n flag should be unnecessary
+  * use -t or other indications of how many trials to run
+  * reinstate -C flag to start engines?
+  * Or just assume engines are needed unless -L or -a are used
+* Wait to exit if there are pending engines waiting to run.
+* If a given % of runs have failed, stop the MCS
+* Have a mode to find missing runs based defined number of trials.
+  * Run any baselines that are not in the run table
+  * Run any non-baseline scenarios that haven't run, for which there is
+    a successful baseline scenario.
+  * Add a run.status to indicate a scenario with a failed baseline? (not a perm. condition)
+    * write a file into baseline dir to indicate success, so scenarios
+      can check for this before running (without engines hitting the DB.)
+      * remove the "success" file at the start of a run, write it at end
+  * Loop over all untested trials until no more can be run
+    * this allows for baselines completing, allowing other runs to begin
+
+*** When Worker.runTrial starts, if (time_left < some config var), just exit. This
+    should trigger a retry.
+    * First time Worker is called, remember start time for engine. We also need the
+      walltime being passed to each task.
+  * Can pass flag to sbatch to send sig (HUP? USR1?) XXX min before job ends
+    * Set a global InsufficientTime = True in the signal handler
+    * Whenever runTrial starts, if InsufficientTime: exit()
+    * Create config param which defaults to default wall time. User can set differently.
+    * sbatch --signal=USR1@secondsBeforeTimeout
+
+*** When more jobs are left than engines running or PENDING, launch more engines.
+
+Abort a non-baseline if the baseline hasn't succeeded.
+- could determine this in master and not even queue the job
+
+JobNum is now of little to no value. Excise it from the code and database.
+
+* See why XMLDBDriver.properties is getting written with empty values
+
+* See if updating sqlalchemy solves thread issue
+
+* Running queries in GCAM should be implied if a filter file is defined.
+
+* Figure out why there's sometimes a pool error at start with SqlAlchemy
+
+* Running gensim > once doesn't create new sims, it overwrites simId 1.
+
+* Deprecated newsim
+  * remove from docs, __init__ and so on
+
+* If status == 'killed', resubmit the task?
+
+* Trials are not setting running status if either added via -a or via newly added engines.
+  - Revisit "owner" of a task. Might try opposite mode...
+
+* Need a simple test suite to try out a few things and understand error modes
+  * Start cluster with N engines
+  * Add engines to running cluster
+  * Add tasks to running cluster (some tasks are added, others go "missing". Why?)
+  * Recover from engine being killed
+  * Recover from failures getting results (unclear when/why)
+
+* Simplify database handling of duration
+  * Have worker track start / end time, store these in result structure
+  * Master can compute duration and write this to run table
+
+* Might be an issue with one client calling get_result() on task queued by other client.
+  * Try using db_query to get this instead?
+
+* When adding engines and tasks, the new tasks' run.status isn't updated from new
+  as it is with jobs created by master itself. (Probably result of attempt to avoid
+  constantly rewriting status 'running'.)
+
+Command clean-up
+-----------------
+
+The following are probably obsolete or can be merged into other commands:
+- addexp : this is now automatic. Is there ever a need to add one manually?
+
+API
+---
+Create function to read inputs and results from db and
+create joined or separate DataFrames from these.
+
+Redesign analytic and plotting functions to expect use these.
+
+Should be compatible with SALib (or layer built on that).
+
+Build MonteCarlo class in sensitivity.py to conform with other versions.
+
+CorrelationDef.py appears unused. Is this all now handled in
+XMLParameterFile?
+
+Merge pygcamSupport.py into appropriate modules.
+
+tsplot
+------
+The monkey patch at
+http://stackoverflow.com/questions/34293687/standard-deviation-and-errors-bars-in-seaborn-tsplot-function-in-python
+might be preferable to current approach.
+
+MCS / SALib
+-----------
+- Test both adding engines dynamically and adding runs.
+  - Test runsim --addTrials
+
+- shutdownWhenIdle happens in all cases
+
+- It would be useful to have conditional evaluation in project.xml and scenarios.xml
+  e.g., to have different behavior in MCS mode.
+
+- Need to be able to
+  - Add engines to existing cluster, but with more options (e.g., total time)
+    - gt engine does this but might want to specify a different queue
+    - currently it reuses the batch file created by startCluster. No need to do this.
+
+- Seem to have solved the sqlite thread problem, but the start/end times are not
+  being updated. Is this because the call-back is registered in one thread only?
+  - TBD: review this again after changes to pool in Database.py for GUI work
+
+- Modify legacy approach to sampling and SA to look like SALib versions, i.e.,
+  subclass sensitivity.SensitivityAnalysis and write _sample / _analyze methods.
+
+- Document: If SALib methods are used, must define as triangle or uniform
+  i.e., requires fixed max and min.
+
+- Create Workspace and Sandbox classes that encapsulate the diffs
+  between stochastic and non-stochastic runs, simplifying the creation
+  of these directories and their various symlinks (and avoiding the
+  currently redundant links), and access to various logical paths.
+
+- Generate tornado plot from Sobol analysis.
+  - Should "just work" once values are in the database
+  - See how Platypus presents Sobol results.
+
+Once paper1 analysis is done:
+- Create new branch
+- Drop InValue row and col columns from schema, Database, uses
+- Add variable number?
+  - Useful only for independent (non-shared) RVs, which currently don't work.
+
+- Create an "export" subcommand that can output inputs/outputs in various
+  formats, e.g., for SALib, for EMAWorkbench? and so on.
+
+- Also, "plotsim" to provide various types of plots
+- Also, "sa" to run the global sensitivity analysis associated with
+  the sampling method used in "gensim".
+
+- Might be able to eliminate distinction between static and dynamic
+
+- Merge mcs-cluster.py into analysis.py
+
+- Test each new sub-command
+  - Step through all code
+  - Fix config vars one at a time.
+
+- Have "newsim" command append to .pygcam.cfg as "new" does (optional)
+
+- Make MCS.Years obsolete
+  - need single point of modification, either project.xml or config file, not both!
+  - in the meantime, might check that the designated years are correct in the database
+
+- Modify XMLConfigFile to use xmlEditor since same features exist there?
+  - different calling assumptions might make this difficult
+
+Master/worker architecture
+---------------------------
+- Seems workers are added for 30min only.
+  - Check logic on that. Might be adding workers up to 300 before adding time?
+  - Added engines, but didn't seem to be picked up by master, not sure though. CHECK LOGS.
+
+- Rather than calling ipcluster -n 0 and ipengine --daemonize, just call
+  ipcontroller and sbatch the generated engine batch file.
+  - Generate these into profile dir, but set the working dir for log output
+    to {simdir}/logs
+
+- Runsim prints both console and "file" log messages
+  - need to be able to assign log level and log file per module.
+
+- Consolidate logging / console msgs
+  - GCAM output going to exe/logs/main_log.txt
+  - Engine output going to trialDir/log/{scenario}.log
+  - Non-GCAM (logger) output going to ~/tmp/slurm-*.log files
+  - unclear where controller is logging to with --log-to-file=True
+
+- Setup stuff
+  - Automate configuration of ipyparallel files (ipcluster and ipcontroller files)
+
+  - conda update conda
+  - conda install packaging appdirs
+  - python setup.py develop in pygcam and pygcam-mcs
+
+  - Create new profile:
+    ipython profile create --parallel --profile=pygcam
+
+  - on PIC set these in ~/.ipython/profile_pygcam/ipcontroler_config.py:
+    # seems to be a name changed... in 5.2.0 there are only
+    # c.HubFactory.client_ip and c.HubFactory.engine_ip
+    c.HubFactory.ip = '*'
+
+    # Set engines to use Slurm, but leave controller on login node to avoid
+    # hogging an additional node for this mostly-idle task
+    c.IPClusterEngines.engine_launcher_class = 'Slurm'
+
+    # It’s also useful on systems with shared filesystems to run the engines
+    # in some scratch directory. This can be set with:
+    c.IPEngineApp.work_dir = u'/path/to/scratch/'
+
+- Revise file layout to minimize need for copying (see notes in pygcam files)
+
+
+===========
+=== MCS ===
+===========
+- To try:
+  - Move run dir back to /pic/scratch/plev920
+
+- Good time to update the database as well.
+  - Denormalize to make it easier to work with (put runId in some other tables?)
+
+- Rethink the "template" directory. This is probably deprecated.
+
+- Integrate XML parsing code with pygcam's
+
+MCS Integration
+---------------
+- Test pyfunc capability and use it to generate protected areas based on distro.
+- Failure to run diffs is being reported by Runner.py as success
+- Consolidate mcs/scenarios.xml with etc/scenarios.xml
+
+MCS Bugs
+---------
+- Creating the new database on PIC doesn't properly drop old tables first.
+- This means changes to GCAM.Years aren't handled correctly.
+  - Perhaps just have static cols for all years from 2005-2100? (Or have this in some config var?)
+    Specify it like this: MCS.YearColumns = 2005-2050:5 [use parsing already in xmlEditor for this format]
+
+MCS Cleanup
+-----------
+- Test "constant" distro
+- Test (or deprecate) FileChooser
+- Test xml db exists before running queries and raise a more targeted error
+- If stacked jobs are not yet running, but aborted, set status in db accordingly
+  - not needed in using master/worker architecture
+  - might also be possible to use sqlite in this approach; only master writes
+
+- When creating the run workspace, make all regular files read-only:
+
+    find . -type f -print0 | xargs -0 chmod -w
