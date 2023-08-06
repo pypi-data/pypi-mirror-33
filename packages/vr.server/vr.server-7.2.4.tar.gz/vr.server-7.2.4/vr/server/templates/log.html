@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load static from staticfiles %}
+{% block title %} | Deployment Log{% endblock title %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/jquery-ui.min.css' %}">
+<div class="row-fluid">
+
+  <div class="col-md-8">
+    <h1>Deployment Log</h1>
+
+    <table class="deployment-log">
+    {% for entry in object_list %}
+      <tr>
+        <td class="label label-{{entry.type}}">{{ entry.time|date:"D M j, H:i T"}}</td>
+        <td class="label label-user">{{ entry.user.username }}</td>
+        <td>{{ entry.message }}</td>
+      </tr>
+    {% endfor %}
+    </table>
+
+    {% if is_paginated %}
+    <ul class="pager">
+      {% if page_obj.has_previous %}
+      <li><a href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+      {% endif %}
+      <li> {{ page_obj }} </li>
+      {% if page_obj.has_next %}
+      <li><a href="?page={{ page_obj.next_page_number }}">Next</a></li>
+      {% endif %}
+    </ul>
+    {% endif %}
+  </div>
+  
+  <div class="col-md-4">
+    <div class="filters-container panel-group">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h4 class="panel-title">
+            <a data-toggle="collapse" href="#formCollapse">
+              Filter log
+            </a>
+          </h4>
+        </div>
+        <div id="formCollapse" class="panel-collapse collapse in">
+          <div class="panel-body">
+            <form name="filterForm" id="filterForm">
+              <div class="row-fluid">
+                <h4>By type:</h4>
+              </div>
+              <div class="row-fluid">
+                {% with 'swarm build release deploy destroy start stop restart' as types %}
+                {% for value in types.split %}
+                <label class="label label-{{ value }}">
+                  <input type="radio" name="type__icontains" value="{{ value }}" {% if q.type__icontains == value %} checked {% endif %}"/> {{ value }}
+                </label>
+                {% endfor %}
+                {% endwith %}
+              </div>
+              <div class="row-fluid">
+                <h4>By user:</h4>
+              </div>
+              <div class="row-fluid">
+                <select name="user__username__icontains" id="user__username__icontains" class="form-control">
+                  <option value="" {% if q.user__username__icontains == '' %} selected {% endif %}>-------</option>
+                  {% for user in users_list %}
+                  <option value="{{ user.username }}" {% if q.user__username__icontains == user.username %} selected {% endif %}>{{ user.username }}</option>
+                  {% endfor %} 
+                </select>
+              </div>
+              <div class="row-fluid">
+                <h4>By app:</h4>
+              </div>
+              <div class="row-fluid">
+                <select name="message__icontains" id="app-list" class="form-control">
+                  <option value="" {% if q.message__icontains == '' %} selected {% endif %}>-------</option>
+                  {% for app in apps_list %}
+                  <option value="{{ app.name }}" {% if q.message__icontains == app.name %} selected {% endif %}>{{ app.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="row-fluid">
+                <h4>Date range:</h4>
+              </div>
+              <div class="row-fluid">
+                <label>
+                  Start:
+                  <input class="form-control" type="text" name="time__gt" placeholder="yyyy-mm-dd hh:mm:ss" value="{{ q.time__gt }}">
+                </label>
+                <label>
+                  End:
+                  <input class="form-control" type="text" name="time__lt" placeholder="yyyy-mm-dd hh:mm:ss" value="{{ q.time__lt }}">
+                </label>
+              </div>
+              <div class="row">
+                <div class="col-sm-12">
+                  <button class="btn btn-success btn-small" type="submit">Apply</button>
+                  <a class="btn btn-link" href="/log">Clear all</a>
+                </div>
+              </div>
+            </form>
+          </div>          
+        </div>
+      </div>      
+    </div>
+  </div>
+
+</div>
+{% endblock content %}
