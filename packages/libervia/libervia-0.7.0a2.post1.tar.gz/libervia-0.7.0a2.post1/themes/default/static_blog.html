@@ -1,0 +1,137 @@
+{#
+Libervia: a Salut à Toi frontend
+Copyright (C) 2011 - 2016 Jérôme Poisson <goffi@goffi.org>
+Copyright (C) 2013 - 2016 Adrien Cossa <souliane@mailoo.org>
+
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#}
+
+{% macro message(entry) -%}
+    
+    <div class="mblog_entry {{ entry.style }}">
+        {% if entry.type == "comment" %}
+            <div class="mblog_header">
+                <div class="mblog_metadata">
+                    <div class="mblog_author">{{entry.author}}</div>
+                    <div class="mblog_timestamp">{{entry.date}}</div>
+                </div>
+            </div>
+        {% else %}
+            <a href="{{entry.url}}" class="item_link">
+                <div class="mblog_header mblog_header_main">
+                    <div class="mblog_metadata">
+                        <div class="mblog_author">{{entry.author}}</div>
+                        <div class="mblog_timestamp">{{entry.date}}</div>
+                    </div>
+                </div>
+            </a>
+        {% endif %}
+        <span class="mblog_content">
+            {% if entry.title %}
+                <h2><a href="{{entry.url}}" class="item_link">{{entry.title}}</a></h2>
+            {% endif %}
+            {% if entry.tags %}
+                <ul class="mblog_tags">
+                {% for tag in entry.tags %}
+                    <li><a href="{{url_base}}?tag={{tag}}">{{tag}}</a></li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+            {{entry.content}}
+        </span>
+        {% if entry.type == "main_item" %}
+            <a href="{{entry.url}}" class="item_link">
+	            <div class="mblog_footer mblog_footer_main">
+	                <div class="mblog_metadata">
+	                    <div class="mblog_comments">{{ entry.comments_text }}</div>
+	                </div>
+	            </div>
+            </a>
+        {% endif %}
+    </div>
+    {% if entry.all_comments_link %}
+        {{ link(entry.all_comments_link) }}
+    {% endif %}
+    
+    {% for comment in entry.comments %}
+        {{ message(comment) }}       
+    {% endfor %}
+
+{%- endmacro %}
+
+{% macro link(entry) -%}
+    <a href="{{entry.url}}" class="{{entry.style}}">{{entry.text}}</a>
+{%- endmacro %}
+
+{% macro image(entry) -%}
+    <img src="{{entry.url}}" alt="{{entry.alt}}" />
+{%- endmacro %}
+
+<!DOCTYPE html>
+
+<html>
+    <head profile="http://www.w3.org/2005/10/profile">
+        <meta charset="UTF-8" />
+        <meta name="keywords" content="{{keywords}}" />
+        <meta name="description" content="{{description}}" />
+        <link rel="alternate" type="application/atom+xml" href="{{url_base}}/atom.xml{{url_query}}" />
+        <link rel="alternate" type="application/atom+xml" href="{{xmpp_uri}}" />
+        <link rel='stylesheet' type="text/css" href='{{styles}}/blog.css' />
+        <link rel="icon" type="image/png" href="{{favicon}}" />
+
+        <title>{{title}}</title>
+    </head>
+
+    <body>
+        <div class="mblog_title">
+            <a href="{{url_base}}">
+                {{ image(banner_img) }}
+                {{ title }}
+            </a>
+        </div>
+
+        <div class="header">
+            <div class="header_content">
+                {{ link(navlinks.later_message) }}
+                {{ link(navlinks.later_messages) }}
+                {{ link(navlinks.older_message) }}
+            </div>
+        </div>
+
+        {% for entry in messages %}
+            {{ message(entry) }}        
+        {% endfor %}
+
+        <div class="footer">
+            <div class="footer_content">
+                {{ link(navlinks.later_message) }}
+                {{ link(navlinks.older_messages) }}
+                {{ link(navlinks.older_message) }}
+            </div>
+        </div>
+
+        <div class="powered">
+            Powered by <a href="http://salut-a-toi.org" target="#"><img src="/media/icons/apps/16/sat.png" /> Salut à Toi</a>
+        </div>
+
+        <div class="feed">
+            Subscribe to this news feed
+            <a href="{{url_base}}/atom.xml{{url_query}}" target="#">
+                <img src="{{images}}/atom/Feed-icon.svg" alt="Atom feed" />
+            </a>
+        </div>
+
+    </body>
+</html>

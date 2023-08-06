@@ -1,0 +1,98 @@
+Libervia's installation is currently a bit tricky. Please note that this file instructs
+a minimal configuration of Libervia. For a complete procedure including the installation
+and configuration of your XMPP server and enabling the blog and directory features,
+please consult this page on the Salut à Toi wiki:
+
+http://wiki.goffi.org/w/index.php?title=Libervia/en
+
+== Prerequesites ==
+
+These steps are detailed on the Salut à Toi wiki:
+
+* install and configure Salut à Toi
+* install and configure a local XMPP server (we recommend using Prosody)
+* install sat_pubsub
+
+== Dependencies ==
+
+* you need to install the txJSON-RPC and Jinja2 dependencies (as root):
+  pip install txJSON-RPC jinja2
+* install python2-gobject2 from your distribution repositories. For example:
+  apt-get install python-gobject2
+* install pyjamas. We use the version which used to be on http://pyj.be, not the fork
+  from http://pyjs.org. Since http://pyj.be has been down for a while, you can retrieve
+  the package from our FTP.
+
+  wget ftp://ftp.goffi.org/pyjamas/pyjamas.tar.bz2
+  tar xvjf pyjamas.tar.bz2
+  cd pyjamas
+  python2.7 bootstrap.py
+  
+Note that we force the python version to 2.7. Salut à Toi and Libervia will be ported
+to Python 3 after the Twisted framework which is our main dependency.
+You can check that it works by compiling the helloworld example:
+
+  cd examples/helloworld
+  ./build.sh
+
+If you have no error message, it should be allright.
+
+== Install Libervia ==
+
+* to install Libervia using setuptools, the pyjsbuild executable should be accessible
+from your environment variable "PATH". The easiest would be:
+
+  cd pyjamas
+  sudo ln -sf `pwd`/bin/pyjsbuild /usr/bin/pyjsbuild 
+
+* clone libervia repository:
+
+  hg clone http://repos.goffi.org/libervia
+
+* install Libervia:
+
+  cd libervia
+  python setup.py install
+
+* create an account "libervia@example.net" (replace "example.net" with your
+domain or virtual host) on your XMPP server, create a profile on SàT named
+"libervia", and plug the SàT profile to this account with jp or primitivus.
+  jp profile create libervia -j libervia@yourserver.tld -p <libervia_password>
+
+== Configuration ==
+
+You can configure the Libervia service from the SàT configuration file, for example:
+
+  [libervia]
+  port = 8080
+  port_https = 8443
+  port_https_ext = 8443
+  connection_type = both
+  ssl_certificate = libervia.pem
+  redirect_to_https = 0
+  security_warning = 1
+  passphrase = <libervia_password>
+  data_dir = ~/workspace/libervia
+
+Check the wiki for more information: http://wiki.goffi.org/wiki/Configuration/en
+
+== Usage ==
+
+The four components must be launched in the following order:
+
+* prosody
+* sat_pubsub (with the xmpp domain and password as declared in prosodi.cfg.lua)
+* sat
+* libervia's web server
+
+Your command input would look like that:
+
+  cd prosody && prosodyctl start
+  twistd sat_pubsub --jid=sat-pubsub.<xmpp_domain> --secret=<password>
+  sat
+  libervia
+
+You can now drop your web browser on http://localhost:8080/libervia.html
+
+If you encounter any issue, you can ask for help on MUC room sat@chat.jabberfr.org
+or use the dev mailing list: http://lists.goffi.org
