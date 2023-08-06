@@ -1,0 +1,212 @@
+.. Copyright 2013-2016 Reahl Software Services (Pty) Ltd. All rights reserved.
+
+.. |Nav| replace:: :class:`~reahl.web.bootstrap.navs.Nav`
+.. |NavBar| replace:: :class:`~reahl.web.bootstrap.navbar.Navbar`
+.. |Catalogue| replace:: :class:`~reahl.component.i18n.Catalogue`
+
+
+Multilingual and multi-regional applications
+============================================
+
+.. sidebar:: Examples in this section
+
+   - tutorial.i18nexamplebootstrap
+
+   Get a copy of an example by running:
+
+   .. code-block:: bash
+
+      reahl example <examplename>
+
+
+The `tutorial.i18nexamplebootstrap` example changes :doc:`the simple
+address book example <inputwidgets>` so that the user can select the
+language displayed on the user interface. The chosen locale also
+formats the display of dates.
+
+
+Make your component translatable
+--------------------------------
+
+
+Add a |Nav| to choose a different locale
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. sidebar:: Behind the scenes
+
+   Reahl uses the `Babel <http://babel.pocoo.org//>`_
+   internationalisation library to deal with translations and all other
+   locale related customisations.
+
+   Babel itself uses data regarding different locales that is derived
+   from the `CLDR locale database <http://cldr.unicode.org/>`_.
+
+Add a |Nav| containing all locales supported by your application to
+the main |Navbar|. Call
+:meth:`~reahl.web.bootstrap.navs.Nav.with_languages` to populate your
+|Nav| with the available locales.
+
+.. literalinclude:: ../../reahl/doc/examples/tutorial/i18nexamplebootstrap/i18nexamplebootstrap.py
+   :pyobject: AddressBookPage
+
+
+Mark the messages that need to be translated
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Create a global |Catalogue| in your module and assign it to the
+variable name ``_`` (underscore):
+
+
+.. literalinclude:: ../../reahl/doc/examples/tutorial/i18nexamplebootstrap/i18nexamplebootstrap.py
+   :start-after: Declare a Catalogue for your component
+   :end-before: class AddressBookPage
+
+Wrap all strings destined for the user interface in a call to the
+|Catalogue| similar to the brand text in AddressBookPage above.
+
+Each ``_()`` call marks the relevant string so it can be found by
+tools that search your source. These tools compile a catalogue of
+strings that need translation. You will later add translated versions
+for these messages in the same catalogue.
+
+When creating the |Catalogue|, pass it the name of the catalogue
+where it should search for translations to strings wrapped in ``_()``.
+By convention the catalogue is named the same as your component.
+
+The Address class contains more examples:
+
+.. literalinclude:: ../../reahl/doc/examples/tutorial/i18nexamplebootstrap/i18nexamplebootstrap.py
+   :pyobject: Address
+
+
+Dealing with plural messages
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In some languages there are many distinct plural forms that differ
+depending on the number of items you are talking about.
+
+Use :meth:`~reahl.component.i18n.Catalogue.ngettext` for messages
+that need plural translations. It takes the English singular and
+plural form and returns the correct plural form for the target
+language, given the number of items:
+
+.. literalinclude:: ../../reahl/doc/examples/tutorial/i18nexamplebootstrap/i18nexamplebootstrap.py
+   :pyobject: AddressBookPanel
+
+
+Other customisations
+~~~~~~~~~~~~~~~~~~~~
+
+Many other things can be customised depending on the chosen locale by
+using the `Babel <http://babel.pocoo.org//>`_ library directly. Obtain
+the current locale string from ``_.current_locale``.
+
+Format the date inside an AddressBox for the current locale:
+
+.. literalinclude:: ../../reahl/doc/examples/tutorial/i18nexamplebootstrap/i18nexamplebootstrap.py
+   :pyobject: AddressBox
+
+
+Making it possible for others to translate your component
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Create the `i18nexamplebootstrapmessages` package in the top level directory of
+the example (don't forget the __init__.py). It will house your message
+catalogue. List it in your `.reahlproject`:
+
+.. literalinclude:: ../../reahl/doc/examples/tutorial/i18nexamplebootstrap/.reahlproject
+   :start-after: <project type="egg">
+   :end-before: <deps purpose="run">
+
+Once your "translations" package is ready, extract the catalogue from
+your source code by running:
+
+.. code-block:: bash
+
+   reahl extractmessages
+
+This stores your original messages inside
+i18nexamplebootstrapmessages/i18nexamplebootstrap.
+
+
+.. note::
+
+   Remember to run ``reahl setup -- develop -N`` after changing
+   the `.reahlproject` file.
+
+
+
+Add translated messages
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Before you can start translating messages to another language, add a
+locale for it to the package housing all your translations.
+
+Here we add the `af` locale (for the Afrikaans language) to
+i18nexamplebootstrap by running (from the i18nexamplebootstrap
+directory):
+
+.. code-block:: bash
+
+   reahl addlocale af i18nexamplebootstrap
+
+This creates the file
+`i18nexamplebootstrap/af/LC_MESSAGES/i18nexamplebootstrap.po` which
+you must edit to supply the translated versions for the `af` locale.
+
+Once done, compile the catalogue so that it can be used by a running
+application:
+
+.. code-block:: bash
+
+   reahl compiletranslations
+
+
+Supplying translations to another component
+-------------------------------------------
+
+A component can supply translations for use by another
+component. First, make your component dependent on the one to which it
+supplies translations.
+
+Then, the process is exactly the same as before:
+ - add a `<translations>` package in your component to hold the translated messages;
+ - add the new locale to your new component, stating the catalogue name for which the locale is intended:
+
+ .. code-block:: bash
+
+    reahl addlocale fr theothercomponentcataloguename
+
+ - translate the messages in the text file created; and
+ - compile the messages as usual.
+
+.. warning::
+
+   If you add a locale that is not included by Reahl itself, you need
+   to supply translations for all the Reahl components you use.
+
+
+
+
+Updating translations
+---------------------
+
+When your software changes, the messages used in it also
+change. Extract the new set of original messages as usual:
+
+.. code-block:: bash
+
+   reahl extractmessages
+
+Then update your already-translated list of messages using the new list:
+
+.. code-block:: bash
+
+   reahl mergetranslations
+
+Finally, edit the merged messages to supply translated versions of new
+messages before compiling them as before.
+
+
+
+
