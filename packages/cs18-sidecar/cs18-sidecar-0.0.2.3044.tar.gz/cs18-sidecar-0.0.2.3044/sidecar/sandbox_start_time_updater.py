@@ -1,0 +1,34 @@
+from abc import ABCMeta, abstractmethod
+from logging import Logger
+
+from sidecar.apps_configuration_end_tracker import AppsConfigurationEndTracker, AppConfigurationEndStatus
+from sidecar.const import DateTimeProvider
+
+
+class ISandboxStartTimeUpdater:
+    __metaclass__ = ABCMeta
+
+    def __init__(self, date_time_provider: DateTimeProvider, logger: Logger,
+                 apps_configuration_end_tracker: AppsConfigurationEndTracker):
+        self._date_time_provider = date_time_provider
+        self._logger = logger
+        self._apps_configuration_end_tracker = apps_configuration_end_tracker
+        self._was_start_time_updated=False
+
+    def on_app_instance_configuration_status_updated(self):
+        # need this protection in order to set the start time only once
+        # because this method can be called even after the sandbox already finished deployment
+        # due to app instances being restarted and reconfigured
+        if self._was_start_time_updated:
+            return
+
+        if self._apps_configuration_end_tracker \
+                .all_apps_configuration_ended_with_status(required_app_status=AppConfigurationEndStatus.COMPLETED):
+            curr_time = self._date_time_provider.get_current_time_utc()
+            self._logger.info('health check done time: {}'.format(curr_time))
+            self.on_health_check_done()
+            self._was_start_time_updated = True
+
+    @abstractmethod
+    def on_health_check_done(self):
+        raise NotImplementedError
