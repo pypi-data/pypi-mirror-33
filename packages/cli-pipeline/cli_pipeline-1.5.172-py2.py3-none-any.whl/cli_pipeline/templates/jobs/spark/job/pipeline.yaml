@@ -1,0 +1,40 @@
+- package: {{ PIPELINE_MODEL_NAME }}
+  tags: [{{ PIPELINE_MODEL_NAME }}, {{ PIPELINE_MODEL_TAG }}, job]
+
+# -------------------------------------------------------------------
+# mnist-base (shared config)
+# -------------------------------------------------------------------
+
+- config: base
+  operations:
+    train:
+      cmd: '{{train_cmd}} --data-dir . --run-dir .'
+      flags:
+        batch-size:
+          description: Number of images to include in a training batch
+          default: 100
+        epochs:
+          description: Number of epochs to train
+          default: 5
+    evaluate:
+      cmd: '{{train_cmd}} --test --data-dir . --run-dir .'
+      requires:
+        - trained-model
+  resources:
+    trained-model:
+      private: yes
+      sources:
+        - operation: train 
+          select:
+            - model.ckpt.*
+            - checkpoint
+
+- model: {{ PIPELINE_MODEL_NAME }}-{{ PIPELINE_MODEL_TAG }} 
+  extends: base
+  params:
+    train_cmd: pipeline_train 
+    model_name: {{ PIPELINE_MODEL_NAME }} 
+    model_tag: {{ PIPELINE_MODEL_TAG }}
+    model_type: {{ PIPELINE_MODEL_TYPE }}
+    model_runtime: {{ PIPELINE_MODEL_RUNTIME }}
+    model_chip: {{ PIPELINE_MODEL_CHIP }}

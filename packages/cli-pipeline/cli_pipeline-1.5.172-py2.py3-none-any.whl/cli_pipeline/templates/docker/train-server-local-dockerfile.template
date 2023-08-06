@@ -1,0 +1,107 @@
+FROM {{ PIPELINE_IMAGE_REGISTRY_URL }}/{{ PIPELINE_IMAGE_REGISTRY_REPO }}/{{ PIPELINE_IMAGE_REGISTRY_NAMESPACE }}-{{ PIPELINE_MODEL_CHIP }}:{{ PIPELINE_IMAGE_REGISTRY_BASE_TAG }}
+
+LABEL PIPELINE_IMAGE_REGISTRY_URL={{ PIPELINE_IMAGE_REGISTRY_URL }}
+LABEL PIPELINE_IMAGE_REGISTRY_REPO={{ PIPELINE_IMAGE_REGISTRY_REPO }}
+LABEL PIPELINE_IMAGE_REGISTRY_NAMESPACE={{ PIPELINE_IMAGE_REGISTRY_NAMESPACE }}
+LABEL PIPELINE_IMAGE_REGISTRY_BASE_TAG={{ PIPELINE_IMAGE_REGISTRY_BASE_TAG }}
+LABEL PIPELINE_MODEL_NAME={{ PIPELINE_MODEL_NAME }}
+LABEL PIPELINE_MODEL_TYPE={{ PIPELINE_MODEL_TYPE }}
+LABEL PIPELINE_MODEL_RUNTIME={{ PIPELINE_MODEL_RUNTIME }}
+LABEL PIPELINE_MODEL_CHIP={{ PIPELINE_MODEL_CHIP }}
+# Note:  PIPELINE_MODEL_TAG has been moved to the bottom of the Dockerfile
+
+ENV \
+  PIPELINE_MODEL_NAME={{ PIPELINE_MODEL_NAME }}
+
+ENV \
+  PIPELINE_MODEL_TYPE={{ PIPELINE_MODEL_TYPE }}
+
+ENV \
+  PIPELINE_MODEL_RUNTIME={{ PIPELINE_MODEL_RUNTIME }}
+
+ENV \
+  PIPELINE_MODEL_CHIP={{ PIPELINE_MODEL_CHIP }}
+# Note:  PIPELINE_MODEL_TAG has been moved to the bottom of the Dockerfile
+
+
+# Note:  This are defined here (versus Kubernetes yaml) since these can be used outside of Kubernetes
+#        We default to `/opt/ml` for out-of-box SageMaker compatibility but can be overridden by Kubernetes yaml
+#        Changes to these paths must be sync'd to templates/yaml/train-cluster.yaml, train-cluster-gpu.yaml, and cli_pipeline.py
+ENV \
+  PIPELINE_MODEL_PATH=/opt/ml/model
+ENV \
+  PIPELINE_INPUT_PATH=/opt/ml/input
+ENV \
+  PIPELINE_OUTPUT_PATH=/opt/ml/output
+#ENV \
+#  PIPELINE_TRAINING_RUNS_HOME=/root/pipelineai/training_runs
+
+# We have tensorboard here because this Dockerfile can be used outside of a cluster
+# TODO: Sync this with guild PIPELINE_TRAINING_RUNS_HOME
+ENV \
+  TENSORBOARD_LOGDIR_PATH=$PIPELINE_OUTPUT_PATH
+
+RUN \
+  mkdir -p $TENSORBOARD_LOGDIR_PATH
+
+RUN \
+  echo "PIPELINE_MODEL_PATH=$PIPELINE_MODEL_PATH"
+
+ENV \
+  PIPELINE_MODEL_TRAIN_CONDA_ENV_NAME=pipeline-{{ PIPELINE_IMAGE_REGISTRY_NAMESPACE }}
+
+RUN \
+  echo $PIPELINE_MODEL_TRAIN_CONDA_ENV_NAME \
+  && echo ""
+
+RUN \
+  conda create --name $PIPELINE_MODEL_TRAIN_CONDA_ENV_NAME \
+  && echo "source activate $PIPELINE_MODEL_TRAIN_CONDA_ENV_NAME" >> ~/.bashrc 
+
+COPY {{ PIPELINE_MODEL_PATH }}/pipeline_setup.sh $PIPELINE_MODEL_PATH/pipeline_setup.sh
+
+RUN \
+  chmod a+x $PIPELINE_MODEL_PATH/pipeline_setup.sh \
+  && mkdir -p /opt/conda/envs/$PIPELINE_MODEL_TRAIN_CONDA_ENV_NAME/etc/conda/activate.d/ \
+  && cd /opt/conda/envs/$PIPELINE_MODEL_TRAIN_CONDA_ENV_NAME/etc/conda/activate.d/ \
+  && ln -s $PIPELINE_MODEL_PATH/pipeline_setup.sh \
+  && echo "" \
+  && ls /opt/conda/envs/$PIPELINE_MODEL_TRAIN_CONDA_ENV_NAME/etc/conda/activate.d/ \
+  && echo "" \
+  && cat /opt/conda/envs/$PIPELINE_MODEL_TRAIN_CONDA_ENV_NAME/etc/conda/activate.d/pipeline_setup.sh \
+  && echo "" \
+  && echo "Installing 'pipeline_setup.sh' into conda environment '$PIPELINE_MODEL_TRAIN_CONDA_ENV_NAME'..." \
+  && echo "" \
+  && echo "...Conda Environment Updated!" \
+  && echo "";
+
+{% if PIPELINE_MODEL_RUNTIME not in ['jvm'] %}
+# This is intentionally split out to prevent dependencies from being re-initialized on every build
+#  (Even if the dependencies haven't changed.)
+COPY {{ PIPELINE_MODEL_PATH }}/pipeline_conda_environment.yaml $PIPELINE_MODEL_PATH/pipeline_conda_environment.yaml
+COPY {{ PIPELINE_MODEL_PATH }}/pipeline_condarc .condarc
+
+RUN \
+  if [ -f "$PIPELINE_MODEL_PATH/pipeline_conda_environment.yaml" ]; then \
+    ls $PIPELINE_MODEL_PATH/pipeline_conda_environment.yaml \
+    && echo "" \
+    && echo "Updating Conda Environment '$PIPELINE_MODEL_TRAIN_CONDA_ENV_NAME' with '$PIPELINE_MODEL_PATH/pipeline_conda_environment.yaml'..." \
+    && echo "" \
+    && conda env update --name $PIPELINE_MODEL_TRAIN_CONDA_ENV_NAME --file $PIPELINE_MODEL_PATH/pipeline_conda_environment.yaml \
+    && echo "" \
+    && echo "...Conda Environment Updated!" \
+    && echo ""; \
+  fi
+{% endif %}
+
+COPY {{ PIPELINE_MODEL_PATH }} $PIPELINE_MODEL_PATH
+
+# Moved these to the bottom to avoid re-doing everything above when PIPELINE_MODEL_TAG changes
+LABEL PIPELINE_MODEL_TAG={{ PIPELINE_MODEL_TAG }}
+ENV \
+  PIPELINE_MODEL_TAG={{ PIPELINE_MODEL_TAG }}
+
+RUN \
+  source activate $PIPELINE_MODEL_TRAIN_CONDA_ENV_NAME \
+  && conda list \
+  && export
