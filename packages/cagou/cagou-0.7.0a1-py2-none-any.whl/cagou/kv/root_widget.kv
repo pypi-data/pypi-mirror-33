@@ -1,0 +1,105 @@
+# Cagou: desktop/mobile frontend for Salut à Toi XMPP client
+# Copyright (C) 2016-2018 Jérôme Poisson (goffi@goffi.org)
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+#:import IconButton cagou.core.common.IconButton
+
+# <NotifIcon>:
+#     source: app.expand("{media}/icons/muchoslava/png/cagou_profil_bleu_32.png")
+#     size_hint: None, None
+#     size: self.texture_size
+
+<Note>:
+    text: self.message
+    text_size: self.parent.size if self.parent else (100, 100)
+    halign: 'center'
+    padding_x: dp(5)
+    shorten: True
+    shorten_from: 'right'
+
+<NoteDrop>:
+    canvas.before:
+        BorderImage:
+            pos: self.pos
+            size: self.size
+            source: 'atlas://data/images/defaulttheme/button'
+    size_hint: 1, None
+    color: 1, 1, 1, 1
+    text: self.message
+    text_size: self.width, None
+    halign: 'center'
+    size: self.texture_size
+    padding: dp(2), dp(10)
+
+<NotesDrop>:
+    clear_btn: clear_btn.__self__
+    auto_width: False
+    size_hint: 0.8, None
+    canvas.before:
+        Color:
+            rgba: 0.8, 0.8, 0.8, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    Button:
+        id: clear_btn
+        text: "clear"
+        bold: True
+        size_hint: 1, None
+        height: dp(50)
+        on_release: del root.notes[:]; root.dismiss()
+
+<RootHeadWidget>:
+    manager: manager
+    notifs_icon: notifs_icon
+    size_hint: 1, None
+    height: self.HEIGHT
+    IconButton:
+        source: app.expand("{media}/icons/muchoslava/png/cagou_profil_bleu_48.png") if root.notes else ''
+        allow_stretch: True
+        size_hint: None, None
+        pos_hint: {'center_y': .5}
+        height: dp(25)
+        width: self.norm_image_size[0]
+        on_release: root.notes_drop.open(self) if root.notes else None
+    ScreenManager:
+        id: manager
+    NotifsIcon:
+        id: notifs_icon
+        allow_stretch: True
+        source: app.expand("{media}/icons/muchoslava/png/cagou_profil_bleu_miroir_48.png") if self.notifs else ''
+        size_hint: None, None
+        pos_hint: {'center_y': .5}
+        height: dp(25)
+        width: self.norm_image_size[0]
+
+<RootMenus>:
+    size_hint: 1, None
+    pos_hint: {'top': 1}
+
+<CagouRootWidget>:
+    root_body: root_body
+    root_menus: root_menus
+    # main body
+    RootBody:
+        id: root_body
+        orientation: "vertical"
+        size_hint: 1, None
+        height: root.height - root_menus.height
+    # general menus
+    # need to be added at the end so it's drawed above other widgets
+    RootMenus:
+        id: root_menus
+        height: self.HEIGHT

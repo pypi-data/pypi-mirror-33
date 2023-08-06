@@ -1,0 +1,164 @@
+# Cagou: desktop/mobile frontend for Salut à Toi XMPP client
+# Copyright (C) 2016-2018 Jérôme Poisson (goffi@goffi.org)
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+#:import TransferMenu cagou.core.menu.TransferMenu
+#:import SimpleXHTMLWidget cagou.core.simple_xhtml.SimpleXHTMLWidget
+#:import _ sat.core.i18n._
+#:import C cagou.core.constants.Const
+#:import escape kivy.utils.escape_markup
+
+
+<MessAvatar>:
+    size_hint: None, None
+    size: dp(30), dp(30)
+    canvas.before:
+        Color:
+            rgba: (0.87,0.87,0.87,1)
+        RoundedRectangle:
+            radius: [dp(5)]
+            pos: self.pos
+            size: self.size
+
+<MessagesWidget>:
+    cols: 1
+    padding: dp(10)
+    spacing: dp(5)
+    size_hint: 1, None
+    height: self.minimum_height
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+<MessageWidget>:
+    size_hint: 1, None
+    height: right_part.minimum_height
+    on_width: self.widthAdjust()
+    avatar: avatar
+    delivery: delivery
+    mess_xhtml: mess_xhtml
+    BoxLayout:
+        orientation: 'vertical'
+        width: avatar.width
+        size_hint: None, 1
+        MessAvatar:
+            id: avatar
+        Widget:
+            # use to push the avatar on the top
+            size_hint: 1, 1
+    BoxLayout:
+        orientation: 'vertical'
+        id: right_part
+        BoxLayout:
+            id: header_box
+            size_hint: 1, None
+            height: time_label.height if root.mess_data.type != C.MESS_TYPE_INFO else 0
+            opacity: 1 if root.mess_data.type != C.MESS_TYPE_INFO else 0
+            Label:
+                id: time_label
+                color: (0, 0, 0, 1) if root.mess_data.own_mess else (0.55,0.55,0.55,1)
+                font_size: root.font_size
+                text_size: None, None
+                size_hint: None, None
+                size: self.texture_size
+                padding: dp(5), 0
+                markup: True
+                valign: 'middle'
+                text: u"[b]{}[/b], {}".format(escape(root.mess_data.nick), root.mess_data.time_text)
+            Label:
+                id: delivery
+                color: 0.4, 0.4, 0.4, 1
+                font_size: root.font_size
+                text_size: None, None
+                size_hint: None, None
+                size: self.texture_size
+                padding: dp(5), 0
+                # XXX: DejaVuSans font is needed as check mark is not in Roboto
+                # this can be removed when Kivy will be able to handle fallback mechanism
+                # which will allow us to use fonts with more unicode characters
+                font_name: "DejaVuSans"
+                text: u''
+        SimpleXHTMLWidget:
+            id: mess_xhtml
+            size_hint: 1, None
+            height: self.minimum_height
+            xhtml: root.message_xhtml or self.escape(root.message or u' ')
+            color: (0.74,0.74,0.24,1) if root.mess_data.type == "info" else (0, 0, 0, 1)
+            padding: root.mess_padding
+            bold: True if root.mess_data.type == "info" else False
+
+<Chat>:
+    messages_widget: messages_widget
+    ScrollView:
+        size_hint: 1, 0.8
+        scroll_y: 0
+        do_scroll_x: False
+        scroll_type: ['bars', 'content']
+        bar_width: dp(6)
+        MessagesWidget:
+            id: messages_widget
+    MessageInputBox:
+        size_hint: 1, None
+        height: dp(40)
+        message_input: message_input
+        MessageInputWidget:
+            id: message_input
+            size_hint: 1, 1
+            hint_text: _(u"Enter your message here")
+            on_text_validate: root.onSend(args[0])
+        SymbolButton
+            # transfer button
+            symbol: "plus-circled"
+            size_hint: None, 1
+            width: dp(30)
+            on_release: TransferMenu(callback=root.onTransferOK).show(self)
+
+<EncryptionButton>:
+    size_hint: None, 1
+    width: dp(30)
+    color: self.getColor()
+    symbol: self.getSymbol()
+
+<OtrButton@Button>:
+    size_hint: None, None
+    size: self.texture_size
+    padding: dp(5), dp(10)
+
+<OtrMenu>:
+    size_hint_x: None
+    width: start_btn.width
+    auto_width: False
+    canvas.before:
+        Color:
+            rgba: 0, 0, 0, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    OtrButton:
+        size_hint: 1, None
+        id: start_btn
+        text: _(u"Start/Refresh encrypted session")
+        on_release: root.otr_start()
+    OtrButton:
+        size_hint: 1, None
+        text: _(u"Finish encrypted session")
+        on_release: root.otr_end()
+    OtrButton:
+        size_hint: 1, None
+        text: _(u"Authenticate destinee")
+        on_release: root.otr_authenticate()
