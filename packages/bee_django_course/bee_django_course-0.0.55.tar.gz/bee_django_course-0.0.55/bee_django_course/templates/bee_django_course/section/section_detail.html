@@ -1,0 +1,92 @@
+{% extends "bee_django_course/base.html" %}
+{% load bootstrap3 %}
+{% load bee_django_course_filter %}
+{% block content %}
+    <h4>课程详情</h4>
+
+    <a href="{% url 'bee_django_course:section_update'  section.id %}">修改课件</a>
+    <table class="table">
+        <tr>
+            <td class="col-xs-3">名称</td>
+            <td>{{ section.name }}</td>
+        </tr>
+        <tr>
+            <td class="col-xs-3">类型</td>
+            <td>{{ section.type | section_type }}</td>
+        </tr>
+        <tr>
+            <td class="col-xs-3">是否自动通过</td>
+            <td>{{ section.get_auto_pass_text }}</td>
+        </tr>
+        <tr>
+            <td>说明</td>
+            <td>{{ section.info | safe }}</td>
+        </tr>
+        <tr>
+            <td>要求录制时长(分钟)</td>
+            <td>{{ section.video_length_req }}</td>
+        </tr>
+        <tr>
+            <td>是否需要上传图片</td>
+            <td>{% if section.has_imagework %} 是 {% else %} 否 {% endif %}</td>
+        </tr>
+        <tr>
+            <td>要求提交图片数量</td>
+            <td>{{ section.image_count_req }}</td>
+        </tr>
+        <tr>
+            <td>已添加的附件</td>
+            <td>
+                {% for e in attachs %}
+                    <a href="{{ e.file.url }}">
+                        {{ e.file_name }}
+                    </a>
+                {% endfor %}
+            </td>
+        </tr>
+        <tr>
+            <td>已关联的视频</td>
+            <td>
+                {% for e in section.sectionvideo_set.all %}
+                    <div id="{{ e.id }}">
+                        {{ e.order }} -
+                        <a href="{% url 'bee_django_course:video_detail' pk=e.video.id %}">{{ e.video.title }}</a>
+                        <a href="{% url 'bee_django_course:update_section_video_order' section_video_id=e.id %}">修改排序</a>
+                        <a href="#" class="remove_video_button"
+                           data-confirm="{% url 'bee_django_course:remove_section_video' e.id %}">解除关联</a>
+                    </div>
+                {% endfor %}
+            </td>
+        </tr>
+    </table>
+
+    <h4>添加关联的视频</h4>
+
+    <div class="well">
+        <form method="post" action="{% url 'bee_django_course:create_section_video' section_id=section.id %}">
+            {% csrf_token %}
+            {% bootstrap_form section_video_form %}
+            {% bootstrap_button '提交' %}
+        </form>
+    </div>
+
+{% endblock %}
+
+{% block scripts %}
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $('.remove_video_button').click(function (e) {
+                e.preventDefault();
+
+                if (confirm('确定移除此视频吗?')) {
+                    var url = $(this).attr('data-confirm');
+                    $.post(url).done(function (data) {
+                        alert(data['message']);
+                        var id = data['section_video_id'];
+                        $('#'+id).remove();
+                    });
+                }
+            });
+        })
+    </script>
+{% endblock %}
