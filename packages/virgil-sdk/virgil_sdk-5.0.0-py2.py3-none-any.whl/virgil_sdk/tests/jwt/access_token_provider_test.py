@@ -1,0 +1,54 @@
+# Copyright (C) 2016-2018 Virgil Security Inc.
+#
+# Lead Maintainer: Virgil Security Inc. <support@virgilsecurity.com>
+#
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     (1) Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#
+#     (2) Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in
+#     the documentation and/or other materials provided with the
+#     distribution.
+#
+#     (3) Neither the name of the copyright holder nor the names of its
+#     contributors may be used to endorse or promote products derived from
+#     this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ''AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+import time
+
+from virgil_sdk.tests.base_test import BaseTest
+from virgil_sdk.jwt import TokenContext
+from virgil_sdk.jwt.providers import CachingCallbackProvider
+
+
+class CachingJwtProviderTest(BaseTest):
+
+    def test_return_valid_token(self):
+        provider = CachingCallbackProvider(self._get_token_from_server, 10)
+        jwt = provider.get_token(TokenContext("some_identity", "some_operation"))
+        jwt2 = provider.get_token(TokenContext("some_identity", "some_operation"))
+        self.assertEqual(jwt, jwt2)
+
+    def test_return_new_token_when_expired(self):
+        provider = CachingCallbackProvider(self._get_token_from_server, 1)
+        jwt = provider.get_token(TokenContext("some_identity", "some_operation"))
+        time.sleep(2)
+        jwt2 = provider.get_token(TokenContext("some_identity", "some_operation"))
+        self.assertNotEqual(jwt, jwt2)
