@@ -1,0 +1,44 @@
+Metadata-Version: 1.1
+Name: fanstore
+Version: 0.0.1
+Summary: Fanstore gathers local storage space in computer clusters to enable distirbuted neural networks training with larger datasets
+Home-page: https://github.com/zhaozhang/fanstore
+Author: Zhao Zhang, Lei Huang, Niall Gaffney
+Author-email: zzhang@tacc.utexas.edu
+License: UNKNOWN
+Description: # Overview 
+        Fanstore is a shared object store to support parallel neural network training. Fanstore provides a POSIX-compatible file system interface through fusepy, and low latency communication through mpi4py. Fanstore can use main memory, RAM disk, and local storage for transient parallel I/O at run time.
+        
+        # To start
+        ```
+        sbatch bin/fanstore.slurm
+        ```
+        
+        # To manually start fanstore
+        ## The complete ImageNet dataset
+        ```
+        module load python3
+        mpiexec.hydra -f ../test/hostfile -ppn 1 python3 fanstore.py /tmp/amfora /tmp/data --loadscatter /work/00946/zzhang/imagenet/16-parts --loadbcast /work/00946/zzhang/imagenet/16-parts-validation &
+        ```
+        
+        ## A quarter of the ImageNet dataset
+        ```
+        mpiexec.hydra -f ../test/hostfile -ppn 1 python3 fanstore.py /tmp/amfora /tmp/data --loadscatter /work/00946/zzhang/imagen
+        et/16-parts-test --loadbcast /work/00946/zzhang/imagenet/16-parts-validation &
+        ```
+        
+        
+        # To run a horovod application
+        ```
+        module load cuda/9.0 cudnn/7.0
+        mpiexec.hydra -f /work/00946/zzhang/maverick2/fanstore/test/hostfile -ppn 4  python3 keras_imagenet_resnet50_fanstore.py
+        ```
+        
+        # Before terminating the job
+        ```
+        for h in `cat ../test/hostfile`; do   ssh $h "rm -rf /tmp/data; mkdir /tmp/data; mkdir -p /tmp/amfora; rm /tmp/fuse-fanstore.log; fusermount -u /tmp/amfora"; done
+        ```
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
